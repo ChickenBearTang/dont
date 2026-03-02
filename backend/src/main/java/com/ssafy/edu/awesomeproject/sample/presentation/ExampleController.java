@@ -19,7 +19,7 @@ import java.util.Map;
 
 @Validated
 @RestController
-@RequestMapping("/api/v1/examples")
+@RequestMapping("/examples")
 public class ExampleController {
 
     private final Clock clock;
