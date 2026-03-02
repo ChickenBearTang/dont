@@ -33,6 +33,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${PROD_POSTGRES_DB}
       DB_USERNAME: ${PROD_POSTGRES_USER}
       DB_PASSWORD: ${PROD_POSTGRES_PASSWORD}
+      API_PATH: ${PROD_API_PATH}
       TZ: ${PROD_TZ}
       LANG: ${PROD_LANG}
       LC_ALL: ${PROD_LC_ALL}
