@@ -303,3 +303,14 @@ tags
 
 # Gradle Wrapper
 !backend/gradle/wrapper/gradle-wrapper.jar
+
+# Sisyphus workspace artifacts
+.sisyphus/
+
+# OpenCode / Oh My OpenCode artifacts
+.opencode/
+.omo/
+opencode.json
+opencode.jsonc
+.opencode/oh-my-opencode.json
+.opencode/oh-my-opencode.jsonc
