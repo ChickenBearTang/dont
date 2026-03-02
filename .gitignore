@@ -304,6 +304,9 @@ tags
 # Gradle Wrapper
 !backend/gradle/wrapper/gradle-wrapper.jar
 
+# Local Gradle JVM override (developer-specific)
+backend/gradle.properties
+
 # Sisyphus workspace artifacts
 .sisyphus/
 
