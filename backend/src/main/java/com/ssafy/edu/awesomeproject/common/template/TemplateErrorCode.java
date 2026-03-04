@@ -5,9 +5,13 @@ import org.springframework.http.HttpStatus;
 
 public enum TemplateErrorCode implements ErrorCode {
     TEMPLATE_BAD_REQUEST(HttpStatus.BAD_REQUEST, "TEMPLATE_400_1", "Template bad request example."),
-    TEMPLATE_NOT_FOUND(HttpStatus.NOT_FOUND, "TEMPLATE_404_1", "Template resource not found example."),
+    TEMPLATE_NOT_FOUND(
+            HttpStatus.NOT_FOUND, "TEMPLATE_404_1", "Template resource not found example."),
     TEMPLATE_CONFLICT(HttpStatus.CONFLICT, "TEMPLATE_409_1", "Template conflict example."),
-    TEMPLATE_INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "TEMPLATE_500_1", "Template internal server error example.");
+    TEMPLATE_INTERNAL_SERVER_ERROR(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "TEMPLATE_500_1",
+            "Template internal server error example.");
 
     private final HttpStatus status;
     private final String code;

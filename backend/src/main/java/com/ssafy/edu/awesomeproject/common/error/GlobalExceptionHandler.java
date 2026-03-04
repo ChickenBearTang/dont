@@ -2,13 +2,12 @@ package com.ssafy.edu.awesomeproject.common.error;
 
 import com.ssafy.edu.awesomeproject.common.response.ApiResponse;
 import jakarta.validation.ConstraintViolationException;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -21,23 +20,26 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<List<ValidationError>>> handleValidationException(MethodArgumentNotValidException ex) {
-        List<ValidationError> errors = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .map(this::toValidationError)
-                .toList();
+    public ResponseEntity<ApiResponse<List<ValidationError>>> handleValidationException(
+            MethodArgumentNotValidException ex) {
+        List<ValidationError> errors =
+                ex.getBindingResult().getFieldErrors().stream()
+                        .map(this::toValidationError)
+                        .toList();
 
         return ResponseEntity.status(CommonErrorCode.VALIDATION_FAILED.status())
                 .body(ApiResponse.fail(CommonErrorCode.VALIDATION_FAILED, errors));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiResponse<List<String>>> handleConstraintViolation(ConstraintViolationException ex) {
-        List<String> errors = ex.getConstraintViolations()
-                .stream()
-                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
-                .toList();
+    public ResponseEntity<ApiResponse<List<String>>> handleConstraintViolation(
+            ConstraintViolationException ex) {
+        List<String> errors =
+                ex.getConstraintViolations().stream()
+                        .map(
+                                violation ->
+                                        violation.getPropertyPath() + ": " + violation.getMessage())
+                        .toList();
 
         return ResponseEntity.status(CommonErrorCode.VALIDATION_FAILED.status())
                 .body(ApiResponse.fail(CommonErrorCode.VALIDATION_FAILED, errors));
