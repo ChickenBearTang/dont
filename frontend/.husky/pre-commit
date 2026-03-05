@@ -1,31 +1,31 @@
-echo "Running code convention checks (pre-commit)"
+echo "코드 컨벤션 검사 실행 중 (pre-commit)"
 set +e
 
-# 1. Frontend - lint-staged (Prettier & ESLint)
-echo "---------------------------------------"
-echo "1/2 Frontend (Vite/React) formatting..."
-cd frontend
-npx lint-staged
-FRONTEND_STATUS=$?
-cd ..
+cd "$(dirname "$0")/.." || exit 1
 
-# 2. Backend - Spotless (Google Java Format)
+# 1. 프론트엔드 - lint-staged (Prettier & ESLint)
 echo "---------------------------------------"
-echo "2/2 Backend (Spring Boot) formatting..."
-cd backend
+echo "1/2 프론트엔드(Vite/React) 포맷팅..."
+npm exec --no -- lint-staged
+FRONTEND_STATUS=$?
+
+# 2. 백엔드 - Spotless (Google Java Format)
+echo "---------------------------------------"
+echo "2/2 백엔드(Spring Boot) 포맷팅..."
+cd ../backend || exit 1
 if [ -f "gradle/wrapper/gradle-wrapper.jar" ] && [ -f "gradlew" ]; then
-  ./gradlew spotlessApply
+  ./gradlew --no-daemon spotlessApply
   BACKEND_STATUS=$?
 else
-  echo "Skipping backend Spotless: Gradle wrapper is missing (backend/gradle/wrapper/gradle-wrapper.jar)."
+  echo "백엔드 Spotless 건너뜀: Gradle wrapper가 없습니다 (backend/gradle/wrapper/gradle-wrapper.jar)."
   BACKEND_STATUS=0
 fi
-cd ..
+cd .. || exit 1
 
 echo "---------------------------------------"
 if [ $FRONTEND_STATUS -ne 0 ] || [ $BACKEND_STATUS -ne 0 ]; then
-  echo "Code convention check failed. Please fix the errors above."
+  echo "코드 컨벤션 검사에 실패했습니다. 위 오류를 수정해 주세요."
   exit 1
 else
-  echo "All code is formatted. Continuing commit..."
+  echo "모든 코드 포맷팅이 완료되었습니다. 커밋을 계속 진행합니다..."
 fi
