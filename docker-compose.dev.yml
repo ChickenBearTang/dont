@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16.6-bookworm
-    container_name: awesome-postgres-dev
+    container_name: postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DEV_POSTGRES_DB}
@@ -23,7 +23,7 @@ services:
 
   backend:
     image: ${BACKEND_IMAGE}
-    container_name: awesome-backend-dev
+    container_name: backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -33,6 +33,7 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${DEV_POSTGRES_DB}
       DB_USERNAME: ${DEV_POSTGRES_USER}
       DB_PASSWORD: ${DEV_POSTGRES_PASSWORD}
+      API_PATH: ${DEV_API_PATH}
       TZ: ${DEV_TZ}
       LANG: ${DEV_LANG}
       LC_ALL: ${DEV_LC_ALL}
@@ -43,7 +44,7 @@ services:
 
   frontend:
     image: ${FRONTEND_IMAGE}
-    container_name: awesome-frontend-dev
+    container_name: frontend
     restart: unless-stopped
     depends_on:
       - backend

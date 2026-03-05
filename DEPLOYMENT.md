@@ -1,13 +1,14 @@
-﻿# 배포 가이드
+# 배포 가이드
 
 ## 1. 아키텍처
 - 개발(Dev): `frontend` + `backend` + `postgres` (HTTP, 로컬 검증 중심)
 - 운영(Prod): `nginx(HTTPS)` + `frontend` + `backend` + `postgres`
 - 리버스 프록시: `nginx -> frontend/backend`
-- API 라우팅: `/api/*` -> `backend:8080`
-- 웹 라우팅: `/*` -> `frontend:80`
+- API 라우팅: `/api/` -> `backend:8080`
+- 웹 라우팅: `/` -> `frontend:80`
 
 ## 2. 관련 파일
+- `docker-compose.yml` (로컬 Postgres 단독 실행)
 - `docker-compose.dev.yml`
 - `docker-compose.prod.yml`
 - `deploy/nginx/nginx.conf`
@@ -35,47 +36,65 @@
 ## 5. SSL/TLS 정책
 - 보안 우회 설정을 사용하지 않습니다.
 - 금지 예시:
-- `strict-ssl=false`
-- `NODE_TLS_REJECT_UNAUTHORIZED=0`
+  - `strict-ssl=false`
+  - `NODE_TLS_REJECT_UNAUTHORIZED=0`
 - 백엔드 TLS 신뢰체계는 `JAVA_TOOL_OPTIONS`의 truststore 설정으로 관리합니다.
 - 프론트/npm TLS 신뢰체계는 `NODE_EXTRA_CA_CERTS` + `npm config set cafile`로 관리합니다.
 
 ## 6. Nginx 인증서 요구사항
 - 배포 서버에 아래 파일이 반드시 존재해야 합니다.
-- `${NGINX_CERTS_DIR}/fullchain.pem`
-- `${NGINX_CERTS_DIR}/privkey.pem`
-- `deploy/nginx/conf.d/app.conf`의 `server_name`은 현재 `app.example.com` 예시값입니다.
+  - `${NGINX_CERTS_DIR}/fullchain.pem`
+  - `${NGINX_CERTS_DIR}/privkey.pem`
+- `deploy/nginx/conf.d/app.conf`의 `server_name`은 기본값 `_`입니다.
 - 운영 배포 전 반드시 실제 도메인으로 변경해야 합니다.
 
-## 7. 개발 환경 수동 배포
-1. `env/dev/.env.example`를 `env/dev/.env`로 복사하고 실제 값을 입력합니다.
-2. 아래 명령으로 서비스 실행:
+## 7. 로컬 DB만 빠르게 실행
+아래 명령은 루트 `docker-compose.yml` 기준으로 Postgres만 실행합니다.
+
 ```bash
+docker compose up -d
+```
+
+## 8. 개발 환경 수동 배포
+1. `env/dev/.env.example`를 `env/dev/.env`로 복사하고 실제 값을 입력합니다.
+2. `env/dev/.env`에 `BACKEND_IMAGE`, `FRONTEND_IMAGE` 값을 설정합니다.
+   - 예시:
+     - `BACKEND_IMAGE=${DEV_BACKEND_IMAGE}`
+     - `FRONTEND_IMAGE=${DEV_FRONTEND_IMAGE}`
+3. 아래 명령으로 서비스 실행:
+
+```bash
+docker compose --env-file env/dev/.env -f docker-compose.dev.yml pull
 docker compose --env-file env/dev/.env -f docker-compose.dev.yml up -d
 ```
-3. 동작 확인:
-- 프론트: `http://<host>:${DEV_FRONTEND_PORT}`
-- 백엔드: `http://<host>:${DEV_BACKEND_PORT}`
 
-## 8. 운영 환경 수동 배포
+4. 동작 확인:
+   - 프론트: `http://<host>:${DEV_FRONTEND_PORT}`
+   - 백엔드: `http://<host>:${DEV_BACKEND_PORT}`
+
+## 9. 운영 환경 수동 배포
 1. `env/prod/.env.example`를 `env/prod/.env`로 복사하고 실제 값을 입력합니다.
 2. `deploy/nginx/conf.d/app.conf`의 `server_name`을 실제 도메인으로 변경합니다.
 3. `${NGINX_CERTS_DIR}` 경로에 인증서 파일이 존재하는지 확인합니다.
 4. 아래 명령으로 서비스 실행:
+
 ```bash
+docker compose --env-file env/prod/.env -f docker-compose.prod.yml pull
 docker compose --env-file env/prod/.env -f docker-compose.prod.yml up -d
 ```
+
 5. Nginx 설정 검증 및 반영:
+
 ```bash
 docker compose --env-file env/prod/.env -f docker-compose.prod.yml exec -T nginx nginx -t
 docker compose --env-file env/prod/.env -f docker-compose.prod.yml exec -T nginx nginx -s reload
 ```
 
-## 9. Jenkins 브랜치 정책
-- `develop` 브랜치: 빌드 + 이미지 푸시 + Dev 배포
+## 10. Jenkins 브랜치 정책
+- `dev` 브랜치: 빌드 + 이미지 푸시 + Dev 배포
 - `main` 브랜치: 빌드 + 이미지 푸시 + 수동 승인 + Prod 배포
 
-## 10. 현재 선행 이슈
+## 11. 현재 선행 이슈
 - `backend/gradle/wrapper/gradle-wrapper.jar` 파일이 현재 저장소에 없습니다.
 - 따라서 `./gradlew` 실행이 불가능합니다.
 - CI 빌드 스테이지를 활성화하기 전에 Wrapper jar 복구(또는 시스템 Gradle 사용)가 필요합니다.
