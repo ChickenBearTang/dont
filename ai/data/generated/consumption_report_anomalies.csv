@@ -1,2 +1,0 @@
-transaction_id,approved_at,merchant_name,amount,category,subcategory,anomaly_type,risk_score,reason
-C202602012,2026-02-26T01:18:00,럭셔리시계스토어,890000,shopping,luxury,high_amount_late_night,100,고액 결제와 심야 결제가 동시에 발생했습니다.

@@ -317,3 +317,7 @@ opencode.json
 opencode.jsonc
 .opencode/oh-my-opencode.json
 .opencode/oh-my-opencode.jsonc
+
+# Project specific ignores
+ai/data/
+ai/.env
