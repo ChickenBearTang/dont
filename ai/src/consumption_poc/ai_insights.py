@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from consumption_poc.config import DEFAULT_GEMINI_MODEL, get_env
+from consumption_poc.config import (
+    DEFAULT_GEMINI_MODEL,
+    DEFAULT_GEMINI_MODEL_FALLBACKS,
+    get_env,
+)
 
 
 def _extract_json(text: str) -> dict[str, Any]:
@@ -19,14 +23,47 @@ def _extract_json(text: str) -> dict[str, Any]:
 def _llm_prompt(report_payload: dict) -> str:
     compact = json.dumps(report_payload, ensure_ascii=False, indent=2)
     return f"""
-다음 소비리포트 데이터를 바탕으로 JSON만 반환하세요.
-키는 반드시 consumption_patterns, anomaly_explanations, actionable_solutions 세 개만 사용하세요.
-각 값은 한국어 문자열 배열이어야 합니다.
-추가 설명 없이 JSON만 출력하세요.
+You are a banking financial analyst. Return only JSON with:
+- consumption_patterns
+- anomaly_explanations
+- actionable_solutions
+Each field must be a list of short Korean sentences.
+Return strict JSON, no markdown.
 
-데이터:
+Data:
 {compact}
 """.strip()
+
+
+def _model_candidates(raw_model: str | None) -> list[str]:
+    configured = []
+    if raw_model:
+        configured = [m.strip() for m in raw_model.split(",") if m.strip()]
+
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    def add_model(name: str) -> None:
+        if not name or name in seen:
+            return
+        seen.add(name)
+        candidates.append(name)
+
+    for name in configured or [DEFAULT_GEMINI_MODEL]:
+        add_model(name)
+        if not name.startswith("models/"):
+            add_model(f"models/{name}")
+        else:
+            add_model(name.removeprefix("models/"))
+
+    for fallback in DEFAULT_GEMINI_MODEL_FALLBACKS:
+        add_model(fallback)
+        if not fallback.startswith("models/"):
+            add_model(f"models/{fallback}")
+        else:
+            add_model(fallback.removeprefix("models/"))
+
+    return candidates
 
 
 def generate_ai_analysis(
@@ -44,21 +81,29 @@ def generate_ai_analysis(
 
     try:
         from google import genai
-
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=model_name,
-            contents=_llm_prompt(report_payload),
-        )
-        text = getattr(response, "text", "") or ""
-        parsed = _extract_json(text)
-        ai_analysis = {
-            "consumption_patterns": parsed.get("consumption_patterns", []),
-            "anomaly_explanations": parsed.get("anomaly_explanations", []),
-            "actionable_solutions": parsed.get("actionable_solutions", []),
-        }
-        if not all(isinstance(value, list) for value in ai_analysis.values()):
-            return fallback_analysis, "degraded"
-        return ai_analysis, "ok"
     except Exception:
         return fallback_analysis, "degraded"
+
+    client = genai.Client(api_key=api_key)
+    prompt = _llm_prompt(report_payload)
+
+    for candidate in _model_candidates(model_name):
+        try:
+            response = client.models.generate_content(
+                model=candidate,
+                contents=prompt,
+            )
+            text = getattr(response, "text", "") or ""
+            parsed = _extract_json(text)
+            ai_analysis = {
+                "consumption_patterns": parsed.get("consumption_patterns", []),
+                "anomaly_explanations": parsed.get("anomaly_explanations", []),
+                "actionable_solutions": parsed.get("actionable_solutions", []),
+            }
+            if not all(isinstance(value, list) for value in ai_analysis.values()):
+                continue
+            return ai_analysis, "ok"
+        except Exception:
+            continue
+
+    return fallback_analysis, "degraded"

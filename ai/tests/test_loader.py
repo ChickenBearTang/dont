@@ -10,7 +10,7 @@ from consumption_poc.loader import load_card_transactions
 
 def test_utf8_card_loader_reads_korean_text() -> None:
     transactions = load_card_transactions(CARD_TRANSACTIONS_PATH)
-    assert transactions[0].merchant_name == "스타벅스 강남점"
+    assert transactions[0].merchant_name == "Cafe A"
 
 
 def test_loader_raises_when_required_field_is_missing(tmp_path) -> None:

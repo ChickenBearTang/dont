@@ -42,9 +42,28 @@ def _validate_fields(path: Path, required_fields: set[str], actual_fields: set[s
 
 
 def load_user_profile(path: Path) -> UserProfile:
+    return load_user_profiles(path)[0]
+
+
+def load_user_profiles(path: Path) -> list[UserProfile]:
     with path.open("r", encoding="utf-8") as fp:
         payload = json.load(fp)
-    return UserProfile(**payload)
+
+    profiles: list[UserProfile] = []
+    if isinstance(payload, dict):
+        payload_items = [payload]
+    elif isinstance(payload, list):
+        payload_items = payload
+    else:
+        raise ValueError(f"Invalid user profile format in {path.name}")
+
+    for item in payload_items:
+        profiles.append(UserProfile(**item))
+
+    if not profiles:
+        raise ValueError(f"User profile file is empty: {path.name}")
+
+    return profiles
 
 
 def load_card_transactions(path: Path) -> list[CardTransaction]:

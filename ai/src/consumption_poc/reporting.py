@@ -278,3 +278,162 @@ def build_rule_based_insights(
         "anomaly_explanations": anomaly_explanations,
         "actionable_solutions": solutions,
     }
+
+
+MOCK_CATEGORY_ORDER = [
+    "온라인쇼핑",
+    "오프라인쇼핑",
+    "교통/주유",
+    "커피",
+    "기타",
+    "문화",
+    "편의점",
+    "패스트푸드",
+    "음식점",
+    "베이커리",
+    "의료",
+]
+
+
+def previous_month(month: str) -> str:
+    year, month_num = month.split("-")
+    year_i = int(year)
+    month_i = int(month_num)
+    if month_i == 1:
+        return f"{year_i - 1}-12"
+    return f"{year_i:04d}-{month_i - 1:02d}"
+
+
+def build_daily_cumulative_comparison(cards: list[CardTransaction], month: str) -> list[dict]:
+    current_cards = [tx for tx in cards if tx.month == month]
+    previous = previous_month(month)
+    previous_cards = [tx for tx in cards if tx.month == previous]
+    max_day = max(
+        [tx.approved_at.day for tx in current_cards] + [tx.approved_at.day for tx in previous_cards] + [1]
+    )
+
+    current_by_day: dict[int, int] = defaultdict(int)
+    previous_by_day: dict[int, int] = defaultdict(int)
+    for tx in current_cards:
+        current_by_day[tx.approved_at.day] += tx.amount
+    for tx in previous_cards:
+        previous_by_day[tx.approved_at.day] += tx.amount
+
+    rows: list[dict] = []
+    current_cumulative = 0
+    previous_cumulative = 0
+    for day in range(1, max_day + 1):
+        current_cumulative += current_by_day.get(day, 0)
+        previous_cumulative += previous_by_day.get(day, 0)
+        rows.append(
+            {
+                "month": month,
+                "day": day,
+                "current_cumulative_amount": current_cumulative,
+                "previous_month": previous,
+                "previous_cumulative_amount": previous_cumulative,
+            }
+        )
+    return rows
+
+
+def build_six_month_trend(monthly: list[dict], selected_month: str) -> dict:
+    monthly_by_month = {row["month"]: row for row in monthly}
+    months = sorted(monthly_by_month)
+    if selected_month not in monthly_by_month:
+        raise ValueError(f"Selected month not found in monthly summary: {selected_month}")
+    selected_index = months.index(selected_month)
+    trend_months = months[max(0, selected_index - 5) : selected_index + 1]
+    rows = [
+        {
+            "month": month,
+            "total_card_spend": monthly_by_month[month]["total_card_spend"],
+            "is_selected_month": month == selected_month,
+        }
+        for month in trend_months
+    ]
+    average = round(sum(row["total_card_spend"] for row in rows) / len(rows)) if rows else 0
+    return {"average_amount": average, "months": rows}
+
+
+def category_display_name(tx: CardTransaction) -> str:
+    if tx.subcategory == "ecommerce":
+        return "온라인쇼핑"
+    if tx.category == "shopping":
+        return "오프라인쇼핑"
+    if tx.subcategory in {"fuel", "taxi", "public_transit"} or tx.category == "transport":
+        return "교통/주유"
+    if tx.subcategory == "cafe":
+        return "커피"
+    if tx.subcategory in {"movie", "gaming", "hobby", "book", "course"} or tx.category == "leisure":
+        return "문화"
+    if tx.subcategory == "convenience_store":
+        return "편의점"
+    if tx.subcategory == "fastfood":
+        return "패스트푸드"
+    if tx.subcategory in {"delivery", "dining", "groceries"}:
+        return "음식점"
+    if tx.subcategory == "bakery":
+        return "베이커리"
+    if tx.subcategory in {"medical", "fitness"} or tx.category == "health":
+        return "의료"
+    return "기타"
+
+
+def build_mock_category_breakdown(cards: list[CardTransaction], month: str) -> list[dict]:
+    current_cards = [tx for tx in cards if tx.month == month]
+    previous = previous_month(month)
+    previous_cards = [tx for tx in cards if tx.month == previous]
+
+    current_amounts: Counter[str] = Counter()
+    previous_amounts: Counter[str] = Counter()
+    for tx in current_cards:
+        current_amounts[category_display_name(tx)] += tx.amount
+    for tx in previous_cards:
+        previous_amounts[category_display_name(tx)] += tx.amount
+
+    total_current = sum(current_amounts.values()) or 1
+    rows: list[dict] = []
+    for category_name in MOCK_CATEGORY_ORDER:
+        amount = current_amounts.get(category_name, 0)
+        previous_amount = previous_amounts.get(category_name, 0)
+        rows.append(
+            {
+                "month": month,
+                "category_display": category_name,
+                "amount": amount,
+                "share_percent": _round_one((amount / total_current) * 100),
+                "previous_month": previous,
+                "previous_amount": previous_amount,
+                "delta_amount": amount - previous_amount,
+            }
+        )
+
+    rows.sort(key=lambda row: (-row["amount"], MOCK_CATEGORY_ORDER.index(row["category_display"])))
+    return rows
+
+
+def build_mock_period_summary(monthly: list[dict], selected_month: str) -> dict:
+    monthly_by_month = {row["month"]: row for row in monthly}
+    current = monthly_by_month[selected_month]
+    previous = monthly_by_month.get(previous_month(selected_month))
+    previous_total = previous["total_card_spend"] if previous else 0
+    diff_amount = current["total_card_spend"] - previous_total
+    return {
+        "selected_month": selected_month,
+        "current_total_spend": current["total_card_spend"],
+        "previous_month": previous_month(selected_month),
+        "previous_total_spend": previous_total,
+        "difference_amount": diff_amount,
+        "difference_direction": "increase" if diff_amount > 0 else "decrease" if diff_amount < 0 else "flat",
+        "difference_text": f"전월과 비교해 {abs(diff_amount):,}원 {'더 썼어요' if diff_amount > 0 else '덜 썼어요' if diff_amount < 0 else '같이 썼어요'}",
+    }
+
+
+def build_mock_statistics_bundle(cards: list[CardTransaction], monthly: list[dict], selected_month: str) -> dict:
+    return {
+        "period_summary": build_mock_period_summary(monthly, selected_month),
+        "daily_cumulative": build_daily_cumulative_comparison(cards, selected_month),
+        "six_month_trend": build_six_month_trend(monthly, selected_month),
+        "category_breakdown": build_mock_category_breakdown(cards, selected_month),
+    }
