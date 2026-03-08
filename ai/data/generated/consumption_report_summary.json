@@ -1,0 +1,334 @@
+{
+  "meta": {
+    "user_id": "U1001",
+    "period": {
+      "start": "2026-01",
+      "end": "2026-03"
+    },
+    "generated_at": "2026-03-08T07:31:22+00:00",
+    "llm_status": "skipped"
+  },
+  "overview": {
+    "total_card_spend": 1529100,
+    "transaction_count": 36,
+    "avg_monthly_card_spend": 509700,
+    "avg_transaction_amount": 42475,
+    "monthly_income": 3200000,
+    "card_spend_to_income_ratio_percent": 15.9,
+    "outlier_adjusted_monthly_avg": 213033,
+    "recurring_spend_total": 51000,
+    "recurring_monthly_avg": 17000
+  },
+  "monthly": [
+    {
+      "month": "2026-01",
+      "total_card_spend": 195500,
+      "transaction_count": 12,
+      "avg_transaction_amount": 16291.67,
+      "monthly_income": 3200000,
+      "card_spend_ratio_percent": 6.1,
+      "top_category": "food",
+      "top_category_amount": 94900,
+      "mom_change_percent": null
+    },
+    {
+      "month": "2026-02",
+      "total_card_spend": 1135300,
+      "transaction_count": 12,
+      "avg_transaction_amount": 94608.33,
+      "monthly_income": 3200000,
+      "card_spend_ratio_percent": 35.5,
+      "top_category": "shopping",
+      "top_category_amount": 1039000,
+      "mom_change_percent": 480.7
+    },
+    {
+      "month": "2026-03",
+      "total_card_spend": 198300,
+      "transaction_count": 12,
+      "avg_transaction_amount": 16525.0,
+      "monthly_income": 3200000,
+      "card_spend_ratio_percent": 6.2,
+      "top_category": "food",
+      "top_category_amount": 99400,
+      "mom_change_percent": -82.5
+    }
+  ],
+  "categories": {
+    "by_month": [
+      {
+        "month": "2026-01",
+        "category": "food",
+        "amount": 94900,
+        "share_percent": 48.5
+      },
+      {
+        "month": "2026-01",
+        "category": "shopping",
+        "amount": 83600,
+        "share_percent": 42.8
+      },
+      {
+        "month": "2026-01",
+        "category": "subscription",
+        "amount": 17000,
+        "share_percent": 8.7
+      },
+      {
+        "month": "2026-02",
+        "category": "shopping",
+        "amount": 1039000,
+        "share_percent": 91.5
+      },
+      {
+        "month": "2026-02",
+        "category": "food",
+        "amount": 79300,
+        "share_percent": 7.0
+      },
+      {
+        "month": "2026-02",
+        "category": "subscription",
+        "amount": 17000,
+        "share_percent": 1.5
+      },
+      {
+        "month": "2026-03",
+        "category": "food",
+        "amount": 99400,
+        "share_percent": 50.1
+      },
+      {
+        "month": "2026-03",
+        "category": "shopping",
+        "amount": 81900,
+        "share_percent": 41.3
+      },
+      {
+        "month": "2026-03",
+        "category": "subscription",
+        "amount": 17000,
+        "share_percent": 8.6
+      }
+    ],
+    "top_categories": [
+      {
+        "category": "shopping",
+        "amount": 1204500,
+        "share_percent": 78.8
+      },
+      {
+        "category": "food",
+        "amount": 273600,
+        "share_percent": 17.9
+      },
+      {
+        "category": "subscription",
+        "amount": 51000,
+        "share_percent": 3.3
+      }
+    ],
+    "top_subcategories": [
+      {
+        "subcategory": "luxury",
+        "amount": 890000,
+        "share_percent": 58.2
+      },
+      {
+        "subcategory": "delivery",
+        "amount": 162300,
+        "share_percent": 10.6
+      },
+      {
+        "subcategory": "ecommerce",
+        "amount": 81900,
+        "share_percent": 5.4
+      },
+      {
+        "subcategory": "fashion",
+        "amount": 75900,
+        "share_percent": 5.0
+      },
+      {
+        "subcategory": "home",
+        "amount": 64800,
+        "share_percent": 4.2
+      },
+      {
+        "subcategory": "convenience_store",
+        "amount": 51300,
+        "share_percent": 3.4
+      },
+      {
+        "subcategory": "ott",
+        "amount": 51000,
+        "share_percent": 3.3
+      },
+      {
+        "subcategory": "health_beauty",
+        "amount": 49500,
+        "share_percent": 3.2
+      },
+      {
+        "subcategory": "book",
+        "amount": 34100,
+        "share_percent": 2.2
+      },
+      {
+        "subcategory": "cafe",
+        "amount": 31800,
+        "share_percent": 2.1
+      },
+      {
+        "subcategory": "fastfood",
+        "amount": 28200,
+        "share_percent": 1.8
+      },
+      {
+        "subcategory": "living",
+        "amount": 8300,
+        "share_percent": 0.5
+      }
+    ]
+  },
+  "time_patterns": {
+    "time_bands": [
+      {
+        "dimension_type": "time_band",
+        "dimension_key": "morning",
+        "transaction_count": 12,
+        "total_amount": 70400,
+        "share_percent": 4.6
+      },
+      {
+        "dimension_type": "time_band",
+        "dimension_key": "lunch",
+        "transaction_count": 9,
+        "total_amount": 216400,
+        "share_percent": 14.2
+      },
+      {
+        "dimension_type": "time_band",
+        "dimension_key": "evening",
+        "transaction_count": 11,
+        "total_amount": 296400,
+        "share_percent": 19.4
+      },
+      {
+        "dimension_type": "time_band",
+        "dimension_key": "late_night",
+        "transaction_count": 4,
+        "total_amount": 945900,
+        "share_percent": 61.9
+      }
+    ],
+    "weekdays": [
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "monday",
+        "transaction_count": 5,
+        "total_amount": 32600,
+        "share_percent": 2.1
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "tuesday",
+        "transaction_count": 3,
+        "total_amount": 56500,
+        "share_percent": 3.7
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "wednesday",
+        "transaction_count": 5,
+        "total_amount": 89900,
+        "share_percent": 5.9
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "thursday",
+        "transaction_count": 6,
+        "total_amount": 988900,
+        "share_percent": 64.7
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "friday",
+        "transaction_count": 4,
+        "total_amount": 29200,
+        "share_percent": 1.9
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "saturday",
+        "transaction_count": 6,
+        "total_amount": 147400,
+        "share_percent": 9.6
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "sunday",
+        "transaction_count": 7,
+        "total_amount": 184600,
+        "share_percent": 12.1
+      }
+    ]
+  },
+  "cashflow": [
+    {
+      "month": "2026-01",
+      "income": 3200000,
+      "total_outflow": 1152500,
+      "fixed_cost": 957000,
+      "card_bill": 195500,
+      "net_cashflow": 2047500,
+      "ending_balance": 2367500
+    },
+    {
+      "month": "2026-02",
+      "income": 3200000,
+      "total_outflow": 2088300,
+      "fixed_cost": 953000,
+      "card_bill": 1135300,
+      "net_cashflow": 1111700,
+      "ending_balance": 3479200
+    },
+    {
+      "month": "2026-03",
+      "income": 3200000,
+      "total_outflow": 1154300,
+      "fixed_cost": 956000,
+      "card_bill": 198300,
+      "net_cashflow": 2045700,
+      "ending_balance": 5524900
+    }
+  ],
+  "anomalies": [
+    {
+      "transaction_id": "C202602012",
+      "approved_at": "2026-02-26T01:18:00",
+      "merchant_name": "럭셔리시계스토어",
+      "amount": 890000,
+      "category": "shopping",
+      "subcategory": "luxury",
+      "anomaly_type": "high_amount_late_night",
+      "risk_score": 100,
+      "reason": "고액 결제와 심야 결제가 동시에 발생했습니다."
+    }
+  ],
+  "ai_analysis": {
+    "consumption_patterns": [
+      "2026-02 소비가 1135300원으로 가장 높았습니다.",
+      "가장 큰 소비 카테고리는 shopping이며 비중은 78.8%입니다.",
+      "지출은 late_night 시간대에 가장 집중됐습니다."
+    ],
+    "anomaly_explanations": [
+      "2026-02-26T01:18:00 럭셔리시계스토어 890000원 거래가 high_amount_late_night로 분류됐습니다."
+    ],
+    "actionable_solutions": [
+      "럭셔리 지출은 단건 변동성이 크므로 별도 예산 한도를 두는 것이 좋습니다.",
+      "식비 비중이 높은 달은 배달과 편의점 소비를 분리해 관리하는 것이 좋습니다.",
+      "반복 결제는 고정비 목록으로 분리해 매달 자동 점검하는 것이 좋습니다."
+    ]
+  }
+}
