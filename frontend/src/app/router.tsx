@@ -4,30 +4,32 @@ import PublicLayout from '@/shared/components/PublicLayout';
 
 // TODO: 아래 주석 처리된 도메인 컴포넌트들은 아직 파일이 흩어져있거나 생성되지 않았습니다.
 // features/ 하위로 파일 이동 및 TS 변환이 끝나면 이 주석을 풀고 연결합니다!
-// import { Landing, Login, Signup } from '@/features/auth';
-// import { Onboarding, FinanceConnect, LoadingScreen, SaveboxSetup, SuccessScreen } from '@/features/user';
-// import { Dashboard } from '@/features/analytics';
+import { SignUpPage, LoginPage } from '@/features/auth';
+import { OnboardingPage } from '@/features/user';
+import { DashboardPage } from '@/pages/DashboardPage';
 
-export const createRouter = (isAuthenticated: boolean, userData: any, handleLogout: () => void) => {
+import type { UserProfile } from '@/features/auth/types';
+
+export const createRouter = (isAuthenticated: boolean, user: UserProfile | null, handleLogout: () => void) => {
   return createBrowserRouter([
     {
       element: <PublicLayout />,
       children: [
         {
           path: '/',
-          element: isAuthenticated ? <Navigate to="/dashboard" /> : <div>Landing Placeholder</div>
+          element: isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />
         },
         {
           path: '/login',
-          element: <div>Login Placeholder</div>
+          element: <LoginPage />
         },
         {
           path: '/onboarding',
-          element: <div>Onboarding Placeholder</div>
+          element: <OnboardingPage />
         },
         {
           path: '/signup',
-          element: <div>Signup Placeholder</div>
+          element: <SignUpPage />
         },
         {
           path: '/finance-connect',
@@ -48,12 +50,11 @@ export const createRouter = (isAuthenticated: boolean, userData: any, handleLogo
       ]
     },
     {
-      element: <AppLayout userData={userData} onLogout={handleLogout} isAuthenticated={isAuthenticated} />,
+      element: <AppLayout user={user} onLogout={handleLogout} isAuthenticated={isAuthenticated} />,
       children: [
         {
           path: '/dashboard',
-          // element: isAuthenticated ? <Dashboard userData={userData} onLogout={handleLogout} /> : <Navigate to="/" />
-          element: isAuthenticated ? <div>대시보드 임시 화면 (연결 필요)</div> : <Navigate to="/" />
+          element: isAuthenticated ? <DashboardPage /> : <Navigate to="/" />
         }
       ]
     }

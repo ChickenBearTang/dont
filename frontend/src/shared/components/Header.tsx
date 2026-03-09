@@ -1,8 +1,8 @@
-import React from 'react';
+import type { UserProfile } from '@/features/auth/types';
 import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
-  userData: any; // TODO: Replace 'any' with the specific UserData type when extracted
+  user: UserProfile | null;
   onLogout: () => void;
   isAuthenticated: boolean;
 }
@@ -10,12 +10,12 @@ interface HeaderProps {
 /**
  * 전역 상단 네비게이션바 컴포넌트
  */
-const Header = ({ userData, onLogout, isAuthenticated }: HeaderProps) => {
+const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const navigate = useNavigate();
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-[60px] bg-background border-b border-[#F0F4F8] z-50 flex justify-center w-full">
-      <div className="w-full max-w-[480px] h-full flex items-center justify-between px-5">
+    <header className="fixed top-0 left-0 right-0 h-[64px] bg-white/80 backdrop-blur-md border-b border-gray-100 z-50 flex justify-center w-full transition-all">
+      <div className="w-full max-w-7xl h-full flex items-center justify-between px-6 lg:px-10">
         <div
           className="flex items-center gap-2 cursor-pointer"
           onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
@@ -26,20 +26,20 @@ const Header = ({ userData, onLogout, isAuthenticated }: HeaderProps) => {
         </div>
 
         {isAuthenticated && (
-          <div className="flex ml-10 flex-1 h-full font-bold">
+          <nav className="hidden md:flex ml-12 flex-1 h-full font-bold gap-1">
             {['홈', '세이브박스', '소비리포트', '랭킹', '커뮤니티'].map((tab) => (
               <div
                 key={tab}
-                className={`flex items-center justify-center px-4 cursor-pointer text-[15px] border-b-[3px] transition-colors ${
+                className={`flex items-center justify-center px-5 cursor-pointer text-[15px] border-b-2 transition-all duration-300 hover:text-primary-blue ${
                   tab === '홈'
-                    ? 'border-eel text-eel'
-                    : 'border-transparent text-gray hover:text-eel'
+                    ? 'border-primary-blue text-primary-blue'
+                    : 'border-transparent text-gray-500 hover:border-gray-200'
                 }`}
               >
                 {tab}
               </div>
             ))}
-          </div>
+          </nav>
         )}
 
         {isAuthenticated ? (
@@ -50,7 +50,7 @@ const Header = ({ userData, onLogout, isAuthenticated }: HeaderProps) => {
             </div>
             <div
               className="cursor-pointer text-[20px] text-eel hover:text-primary-blue transition-colors"
-              title="마이페이지"
+              title={user?.nickname ? `${user.nickname}님의 마이페이지` : '마이페이지'}
             >
               👤
             </div>
