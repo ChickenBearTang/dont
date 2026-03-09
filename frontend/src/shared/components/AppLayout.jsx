@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Header from './Header';
+import Header from '@/shared/components/Header';
 
 /**
  * 앱 내부 페이지 레이아웃 (헤더 포함)
