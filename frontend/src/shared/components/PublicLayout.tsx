@@ -7,11 +7,8 @@ import { Outlet } from 'react-router-dom';
  */
 const PublicLayout = () => {
   return (
-    <div className="app">
-      <main
-        className="fade-in"
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}
-      >
+    <div className="max-w-[480px] mx-auto min-h-screen bg-background shadow-[0_0_20px_rgba(0,0,0,0.05)] flex flex-col relative w-full">
+      <main className="flex-1 flex flex-col min-h-screen animate-[fadeInEffect_0.5s_ease-out_forwards]">
         <Outlet />
       </main>
     </div>
