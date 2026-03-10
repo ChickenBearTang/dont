@@ -37,7 +37,6 @@ tmp/
 local.properties
 .settings/
 .loadpath
-.recommenders
 
 # External tool builders
 .externalToolBuilders/
@@ -296,7 +295,6 @@ tags
 
 ### VisualStudioCode Patch ###
 # Ignore all local history of files
-.history
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,intellij,eclipse,vim,emacs
@@ -317,3 +315,6 @@ opencode.json
 opencode.jsonc
 .opencode/oh-my-opencode.json
 .opencode/oh-my-opencode.jsonc
+
+.env
+.env.local

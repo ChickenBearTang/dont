@@ -1,6 +1,6 @@
 package com.ssafy.edu.awesomeproject.common.error;
 
-import com.ssafy.edu.awesomeproject.common.response.ApiResponse;
+import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -13,14 +13,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(CommonException.class)
-    public ResponseEntity<ApiResponse<Object>> handleCommonException(CommonException ex) {
+    public ResponseEntity<CommonResponse<Object>> handleCommonException(CommonException ex) {
         ErrorCode errorCode = ex.getErrorCode();
         return ResponseEntity.status(errorCode.status())
-                .body(ApiResponse.fail(errorCode, ex.getDetails()));
+                .body(CommonResponse.fail(errorCode, ex.getDetails()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<List<ValidationError>>> handleValidationException(
+    public ResponseEntity<CommonResponse<List<ValidationError>>> handleValidationException(
             MethodArgumentNotValidException ex) {
         List<ValidationError> errors =
                 ex.getBindingResult().getFieldErrors().stream()
@@ -28,11 +28,11 @@ public class GlobalExceptionHandler {
                         .toList();
 
         return ResponseEntity.status(CommonErrorCode.VALIDATION_FAILED.status())
-                .body(ApiResponse.fail(CommonErrorCode.VALIDATION_FAILED, errors));
+                .body(CommonResponse.fail(CommonErrorCode.VALIDATION_FAILED, errors));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiResponse<List<String>>> handleConstraintViolation(
+    public ResponseEntity<CommonResponse<List<String>>> handleConstraintViolation(
             ConstraintViolationException ex) {
         List<String> errors =
                 ex.getConstraintViolations().stream()
@@ -42,13 +42,13 @@ public class GlobalExceptionHandler {
                         .toList();
 
         return ResponseEntity.status(CommonErrorCode.VALIDATION_FAILED.status())
-                .body(ApiResponse.fail(CommonErrorCode.VALIDATION_FAILED, errors));
+                .body(CommonResponse.fail(CommonErrorCode.VALIDATION_FAILED, errors));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception ex) {
+    public ResponseEntity<CommonResponse<Void>> handleUnexpected(Exception ex) {
         return ResponseEntity.status(CommonErrorCode.INTERNAL_SERVER_ERROR.status())
-                .body(ApiResponse.fail(CommonErrorCode.INTERNAL_SERVER_ERROR));
+                .body(CommonResponse.fail(CommonErrorCode.INTERNAL_SERVER_ERROR));
     }
 
     private ValidationError toValidationError(FieldError fieldError) {
