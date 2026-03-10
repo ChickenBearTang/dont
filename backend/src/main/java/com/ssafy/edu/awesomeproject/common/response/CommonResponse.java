@@ -7,15 +7,15 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record ApiResponse<T>(
+public record CommonResponse<T>(
         @Schema(description = "요청 처리 성공 여부", example = "true") boolean success,
         @Schema(description = "응답 코드", example = "SUCCESS") String code,
         @Schema(description = "응답 메시지", example = "Request processed successfully.") String message,
         @Schema(description = "응답 데이터") T data,
         @Schema(description = "응답 시각 (UTC)", example = "2026-03-03T01:00:00Z")
                 OffsetDateTime timestamp) {
-    public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(
+    public static <T> CommonResponse<T> success(T data) {
+        return new CommonResponse<>(
                 true,
                 "SUCCESS",
                 "Request processed successfully.",
@@ -23,8 +23,8 @@ public record ApiResponse<T>(
                 OffsetDateTime.now(ZoneOffset.UTC));
     }
 
-    public static ApiResponse<Void> fail(ErrorCode errorCode) {
-        return new ApiResponse<>(
+    public static CommonResponse<Void> fail(ErrorCode errorCode) {
+        return new CommonResponse<>(
                 false,
                 errorCode.code(),
                 errorCode.message(),
@@ -32,8 +32,8 @@ public record ApiResponse<T>(
                 OffsetDateTime.now(ZoneOffset.UTC));
     }
 
-    public static <T> ApiResponse<T> fail(ErrorCode errorCode, T data) {
-        return new ApiResponse<>(
+    public static <T> CommonResponse<T> fail(ErrorCode errorCode, T data) {
+        return new CommonResponse<>(
                 false,
                 errorCode.code(),
                 errorCode.message(),
