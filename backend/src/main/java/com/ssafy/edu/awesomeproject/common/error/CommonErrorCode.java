@@ -7,7 +7,8 @@ public enum CommonErrorCode implements ErrorCode {
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "COMMON_400_2", "Validation failed."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON_404_1", "Resource not found."),
     BUSINESS_RULE_VIOLATION(HttpStatus.CONFLICT, "COMMON_409_1", "Business rule violation."),
-    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_500_1", "Unexpected server error.");
+    INTERNAL_SERVER_ERROR(
+            HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_500_1", "Unexpected server error.");
 
     private final HttpStatus status;
     private final String code;
