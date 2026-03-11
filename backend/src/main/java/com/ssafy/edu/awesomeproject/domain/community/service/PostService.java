@@ -4,16 +4,22 @@ import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Board;
+import com.ssafy.edu.awesomeproject.domain.community.entity.BoardCategory;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Post;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PostStatus;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.BoardRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @Transactional
@@ -29,7 +35,7 @@ public class PostService {
     }
 
     //게시글 생성
-    public CreatePostResult createPost(Long userId, String category, String title, String content) {
+    public CreatePostResult createPost(Long userId, BoardCategory category, String title, String content) {
         Board board = boardRepository.findByCategory(category)
             .orElseThrow(() -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
 
@@ -42,12 +48,13 @@ public class PostService {
 
         return new CreatePostResult(
             savedPost.getId(),
-            savedPost.getBoard().getCategory(),
+            savedPost.getBoard().getCategory().name(),
             savedPost.getCreatedAt()
         );
     }
 
-    //게시글 조회 (postId로)
+    //게시글 상세 조회
+    //postId가 PK라 카테고리 명시하지 않아도 하나씩만 조회됨
     @Transactional(readOnly = true)
     public GetPostResult getPost(Long postId) {
         Post post = postRepository.findByIdAndStatus(postId, PostStatus.ACTIVE)
@@ -58,7 +65,7 @@ public class PostService {
         //TODO: dislike, like, comment는 추후 변경할 예정
         return new GetPostResult(
             post.getId(),
-            post.getBoard().getCategory(),
+            post.getBoard().getCategory().name(),
             post.getTitle(),
             post.getContent(),
             post.getUser().getNickname(),
@@ -67,6 +74,49 @@ public class PostService {
             0,
             post.getCreatedAt(),
             post.getUpdatedAt()
+        );
+    }
+
+    //게시글 목록 조회 -> 페이지 번호 방식으로
+    //page는 현재 바라보고 있는 페이지
+    //size는 총 페이지
+    @Transactional(readOnly = true)
+    public GetPostListResult getPostsByCategory(BoardCategory category, Integer page, Integer size) {
+        int pageNumber = (page == null || page < 0) ? 0 : page;
+        int pageSize = (size == null || size <= 0) ? 5 : size;
+
+        PageRequest pageRequest = PageRequest.of(
+            pageNumber,
+            pageSize,
+            Sort.by(Sort.Direction.DESC, "id")
+        );
+
+        Page<Post> postPage;
+        if (category == null) {
+            postPage = postRepository.findByStatus(PostStatus.ACTIVE, pageRequest);
+        } else {
+            postPage = postRepository.findByBoard_CategoryAndStatus(category, PostStatus.ACTIVE, pageRequest);
+        }
+
+        List<PostSummary> content = postPage.getContent().stream()
+            .map(post -> new PostSummary(
+                post.getId(),
+                post.getBoard().getCategory().name(),
+                post.getTitle(),
+                post.getUser().getNickname(),
+                0,
+                0,
+                post.getCreatedAt()
+            ))
+            .toList();
+
+        return new GetPostListResult(
+            content,
+            postPage.getNumber(),
+            postPage.getSize(),
+            postPage.getTotalElements(),
+            postPage.getTotalPages(),
+            postPage.hasNext()
         );
     }
 
@@ -112,6 +162,25 @@ public class PostService {
         Integer commentCount,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {}
+
+    public record PostSummary(
+        Long postId,
+        String category,
+        String title,
+        String authorNickname,
+        Integer likeCount,
+        Integer commentCount,
+        LocalDateTime createdAt
+    ) {}
+
+    public record GetPostListResult(
+        List<PostSummary> content,
+        int page,
+        int size,
+        long totalElements,
+        int totalPages,
+        boolean hasNext
+    ) {}
 
     public record UpdatePostResult(Long postId, LocalDateTime updatedAt) {}
 

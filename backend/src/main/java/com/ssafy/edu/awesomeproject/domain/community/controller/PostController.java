@@ -5,16 +5,16 @@ import com.ssafy.edu.awesomeproject.common.security.jwt.ParsedToken;
 import com.ssafy.edu.awesomeproject.common.security.service.AccessTokenService;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.CreatePostRequestDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.UpdatePostRequestDto;
-import com.ssafy.edu.awesomeproject.domain.community.dto.response.CreatePostResponseDto;
-import com.ssafy.edu.awesomeproject.domain.community.dto.response.DeletePostResponseDto;
-import com.ssafy.edu.awesomeproject.domain.community.dto.response.GetPostResponseDto;
-import com.ssafy.edu.awesomeproject.domain.community.dto.response.UpdatePostResponseDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.*;
+import com.ssafy.edu.awesomeproject.domain.community.entity.BoardCategory;
 import com.ssafy.edu.awesomeproject.domain.community.service.PostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 
@@ -37,7 +37,7 @@ public class PostController {
         description = "게시판 카테고리, 제목, 본문을 받아 게시글을 생성하는 API입니다."
     )
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "201", description = "생성 완료"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "403", description = "접근 거부")
     })
@@ -63,7 +63,48 @@ public class PostController {
         );
     }
 
-    //게시글 조회
+    //게시글 목록조회
+    @GetMapping
+    @Operation(
+        summary = "게시글 목록 조회 API",
+        description = "category가 없으면 전체 목록, 있으면 카테고리별 게시글 목록을 페이지 번호 방식으로 조회합니다."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
+    public CommonResponse<GetPostListResponseDto> getPosts(
+        @RequestParam(required = false) BoardCategory category,
+        @RequestParam(defaultValue = "0") Integer page,
+        @RequestParam(defaultValue = "5") Integer size
+    ) {
+        PostService.GetPostListResult result = postService.getPostsByCategory(category, page, size);
+
+        List<GetPostListResponseDto.PostSummaryDto> content = result.content().stream()
+            .map(post -> new GetPostListResponseDto.PostSummaryDto(
+                post.postId(),
+                post.category(),
+                post.title(),
+                post.authorNickname(),
+                post.likeCount(),
+                post.commentCount(),
+                post.createdAt()
+            ))
+            .toList();
+
+        return CommonResponse.success(
+            new GetPostListResponseDto(
+                content,
+                result.page(),
+                result.size(),
+                result.totalElements(),
+                result.totalPages(),
+                result.hasNext()
+            )
+        );
+    }
+
+    //게시글 상세조회
     @GetMapping("/{postId}")
     @Operation(
         summary = "게시글 상세 조회 API",

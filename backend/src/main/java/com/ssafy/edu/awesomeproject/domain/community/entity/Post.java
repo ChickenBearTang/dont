@@ -2,7 +2,17 @@ package com.ssafy.edu.awesomeproject.domain.community.entity;
 
 import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -53,6 +63,7 @@ public class Post extends BaseEntity {
     }
 
     // title이 비어있지 않고 content도 비어있지 않으면
+    // table에 not null 설정
     // update 가능
     public void update(String title, String content) {
         if (title != null && !title.isEmpty()) {
