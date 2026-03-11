@@ -1,0 +1,36 @@
+package com.ssafy.edu.awesomeproject.domain.community.error;
+
+import com.ssafy.edu.awesomeproject.common.error.ErrorCode;
+import org.springframework.http.HttpStatus;
+
+public enum CommunityErrorCode implements ErrorCode {
+    INVALID_INPUT(HttpStatus.BAD_REQUEST, "COMM_400_1", "잘못된 입력입니다."),
+    BOARD_NOT_FOUND(HttpStatus.BAD_REQUEST, "COMM_400_2", "유효한 게시판이 아닙니다."),
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_1", "게시글을 찾을 수 없습니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_2", "사용자를 찾을 수 없습니다."),
+    POST_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_1", "해당 글에 대한 권한이 없습니다.");
+
+    private HttpStatus httpStatus;
+    private String code;
+    private String message;
+
+    CommunityErrorCode(HttpStatus httpStatus, String code, String message) {
+        this.httpStatus = httpStatus;
+        this.code = code;
+        this.message = message;
+    }
+
+    @Override
+    public HttpStatus status() {
+        return httpStatus;
+    }
+
+    @Override
+    public String code() {
+        return code;
+    }
+    @Override
+    public String message() {
+        return message;
+    }
+}

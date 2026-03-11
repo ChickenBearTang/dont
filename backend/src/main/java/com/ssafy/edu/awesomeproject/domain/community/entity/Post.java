@@ -42,7 +42,7 @@ public class Post extends BaseEntity {
     private LocalDateTime deletedAt;
 
     // 게시글(post) 기본 상태
-    public Post(String title, String content, Board board, User user) {
+    public Post(Board board, User user, String title, String content) {
         this.title = title;
         this.content = content;
         this.board = board;
@@ -72,6 +72,5 @@ public class Post extends BaseEntity {
     public boolean isAuthor(Long userId) {
         return this.user.getId().equals(userId);
     }
-
 
 }
