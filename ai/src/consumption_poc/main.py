@@ -1,16 +1,26 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from consumption_poc.config import FRONTEND_DIR
 from consumption_poc.service import ReportService
+from consumption_poc.chat_agent import ChatAgent
 
 
 app = FastAPI(title="AI Consumption Report POC")
 service = ReportService()
+chat_agent = ChatAgent()
 app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+
+class ChatRequest(BaseModel):
+    user_name: str
+    month: str
+    message: str
+    history: list[dict[str, str]] = []
 
 
 @app.get("/health")
@@ -32,6 +42,31 @@ def list_users() -> dict[str, list[dict[str, str]]]:
 def regenerate_reports() -> dict[str, object]:
     generated_files = service.regenerate()
     return {"status": "ok", "generated_files": generated_files}
+
+
+@app.post("/api/v1/chat")
+def handle_chat(req: ChatRequest) -> dict:
+    try:
+        profile = service._resolve_profile(user_name=req.user_name)
+        bundle = service.build_mock_statistics(month=req.month, user_name=req.user_name)
+        
+        context = {
+            "monthly_summary": bundle.get("period_summary", {}),
+            "categories": bundle.get("category_breakdown", []),
+        }
+
+        result = chat_agent.evaluate_justification(req.message, context, req.history)
+        
+        if result.get("is_valid"):
+            service.add_justification(profile.user_id, req.month, {
+                "message": req.message,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "response": result["response"]
+            })
+            
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/api/v1/consumption-report")

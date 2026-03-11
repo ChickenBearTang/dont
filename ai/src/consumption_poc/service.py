@@ -29,6 +29,7 @@ from consumption_poc.reporting import (
     filter_card_transactions,
 )
 from consumption_poc.writers import write_csv, write_json
+import json
 
 
 class ReportService:
@@ -40,6 +41,26 @@ class ReportService:
         }
         self.card_transactions = load_card_transactions(CARD_TRANSACTIONS_PATH)
         self.account_transactions = load_account_transactions(ACCOUNT_TRANSACTIONS_PATH)
+
+    def _get_justifications_path(self, user_id: str, month: str):
+        return GENERATED_DATA_DIR / "users" / user_id / month / "justifications.json"
+
+    def load_justifications(self, user_id: str, month: str) -> list[dict]:
+        path = self._get_justifications_path(user_id, month)
+        if not path.exists():
+            return []
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+
+    def add_justification(self, user_id: str, month: str, justification: dict) -> None:
+        path = self._get_justifications_path(user_id, month)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        items = self.load_justifications(user_id, month)
+        items.append(justification)
+        write_json(path, items)
 
     def _resolve_period(self, transactions: list | None = None) -> tuple[str, str]:
         selected = transactions or self.card_transactions
@@ -104,6 +125,9 @@ class ReportService:
 
         overview = build_overview(profile, cards, monthly)
         fallback_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
+        
+        justifications = self.load_justifications(profile.user_id, start)
+        
         llm_payload = {
             "overview": overview,
             "monthly": monthly,
@@ -113,6 +137,7 @@ class ReportService:
             "cashflow": cashflow,
             "anomalies": anomalies[:5],
             "fallback_analysis": fallback_analysis,
+            "justifications": justifications,
         }
         ai_analysis, llm_status = generate_ai_analysis(llm_payload, fallback_analysis, include_ai=include_ai)
 

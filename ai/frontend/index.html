@@ -241,6 +241,103 @@
       .delta.increase { color: var(--red); }
       .delta.decrease { color: var(--blue); }
       .delta.flat { color: var(--muted); }
+
+      /* AI Chatbot Overlay */
+      .chat-fab {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 120px;
+        height: 48px;
+        border-radius: 24px;
+        background: var(--yellow);
+        color: #111;
+        font-weight: 800;
+        box-shadow: 0 4px 12px rgba(255, 212, 0, 0.4);
+        border: none;
+        cursor: pointer;
+        z-index: 100;
+        font-size: 15px;
+      }
+
+      .chat-overlay {
+        display: none;
+        position: fixed;
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 440px;
+        height: 60vh;
+        max-height: 500px;
+        background: var(--panel);
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+        z-index: 200;
+        flex-direction: column;
+        border: 1px solid var(--line);
+        border-bottom: none;
+      }
+
+      .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255,255,255,0.02);
+      }
+
+      .chat-messages {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .msg {
+        max-width: 85%;
+        padding: 10px 14px;
+        border-radius: 14px;
+        font-size: 14px;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+
+      .msg.user {
+        align-self: flex-end;
+        background: var(--yellow);
+        color: #111;
+        border-bottom-right-radius: 4px;
+      }
+
+      .msg.ai {
+        align-self: flex-start;
+        background: var(--panel-strong);
+        border: 1px solid var(--line);
+        border-bottom-left-radius: 4px;
+      }
+
+      .chat-input-area {
+        display: flex;
+        padding: 12px;
+        gap: 8px;
+        border-top: 1px solid var(--line);
+        background: var(--panel);
+      }
+      
+      .chat-input-area input {
+        flex: 1;
+        margin: 0;
+      }
+      
+      .chat-input-area button {
+        width: 60px;
+        margin: 0;
+      }
     </style>
   </head>
   <body>
@@ -313,6 +410,23 @@
         </div>
       </section>
     </div>
+
+    <!-- AI Chatbot UI -->
+    <div id="chat-overlay" class="chat-overlay">
+      <div class="chat-header">
+        <h3 style="margin:0;font-size:16px;">💬 AI 소비 코치에게 해명하기</h3>
+        <button onclick="document.getElementById('chat-overlay').style.display='none'" style="width:auto;padding:4px 8px;background:transparent;color:#f4f6fb;font-size:16px;line-height:1;">✕</button>
+      </div>
+      <div id="chat-messages" class="chat-messages">
+        <div class="msg ai">무엇이든 변명해보세요! 억울한 지출이나 큰 돈을 쓴 이유가 타당하다면 리포트에 스티커를 붙여드릴게요. 😉</div>
+      </div>
+      <div class="chat-input-area">
+        <input id="chat-input" type="text" placeholder="예: 친구들 몫도 대신 긁은 거야!" onkeypress="handleChatKey(event)" />
+        <button id="chat-send" onclick="sendChatMessage()">전송</button>
+      </div>
+    </div>
+    
+    <button class="chat-fab" onclick="document.getElementById('chat-overlay').style.display='flex'">💬 해명하기</button>
 
     <script>
       const state = { users: [], charts: {} };
@@ -534,6 +648,85 @@
       document.getElementById("load-button").addEventListener("click", loadMockStats);
 
       loadUsers().then(loadMockStats).catch((error) => setStatus(error.message));
+
+      /* --- Chatbot Logic --- */
+      let chatHistory = [];
+
+      function appendChatMessage(text, sender) {
+        const msg = document.createElement("div");
+        msg.className = `msg ${sender}`;
+        msg.textContent = text;
+        const msgContainer = document.getElementById("chat-messages");
+        msgContainer.appendChild(msg);
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+      }
+
+      function handleChatKey(e) {
+        if (e.key === "Enter") sendChatMessage();
+      }
+
+      async function sendChatMessage() {
+        const input = document.getElementById("chat-input");
+        const text = input.value.trim();
+        if (!text) return;
+
+        input.value = "";
+        appendChatMessage(text, "user");
+        
+        chatHistory.push({ role: "user", text: text });
+
+        const userName = document.getElementById("user-select").value;
+        const month = document.getElementById("month-select").value;
+
+        try {
+          // Disable input temporarily while waiting
+          input.placeholder = "AI 코치가 생각 중입니다...";
+          input.disabled = true;
+
+          const response = await fetch("/api/v1/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_name: userName,
+              month: month,
+              message: text,
+              history: chatHistory.map(h => ({ role: h.role, text: h.text }))
+            })
+          });
+
+          if (!response.ok) throw new Error("챗봇 응답 오류");
+          
+          const result = await response.json();
+          appendChatMessage(result.response, "ai");
+          chatHistory.push({ role: "model", text: result.response });
+
+          // If valid justification, refresh the AI Analysis part!
+          if (result.is_valid) {
+            appendChatMessage("✨ 해명 접수 완료! 분석 리포트를 다시 갱신할게요.", "ai");
+            setStatus("새로운 해명을 바탕으로 리포트를 재생성합니다...");
+            
+            const aiParams = new URLSearchParams({
+              user_name: userName,
+              start: month,
+              end: month,
+              include_ai: "true"
+            });
+            const aiResponse = await fetch(`/api/v1/consumption-report?${aiParams.toString()}`);
+            if (aiResponse.ok) {
+              const aiPayload = await aiResponse.json();
+              renderAiAnalysis(aiPayload);
+              setStatus(`${userName} · ${formatMonthLabel(month)} 통계 및 해명 기반 새 분석을 불러왔습니다.`);
+            }
+          }
+
+        } catch (error) {
+          appendChatMessage("앗, 코치팀과 연결이 끊어졌어요. 다시 시도해주세요.", "ai");
+        } finally {
+          input.placeholder = "예: 친구들 몫도 대신 긁은 거야!";
+          input.disabled = false;
+          input.focus();
+        }
+      }
     </script>
   </body>
 </html>

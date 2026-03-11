@@ -24,11 +24,15 @@ def _llm_prompt(report_payload: dict) -> str:
     compact = json.dumps(report_payload, ensure_ascii=False, indent=2)
     return f"""
 You are a banking financial analyst. Return only JSON with:
-- consumption_patterns
-- anomaly_explanations
-- actionable_solutions
-Each field must be a list of short Korean sentences.
+- consumption_patterns (list of short Korean sentences)
+- anomaly_explanations (list of short Korean sentences)
+- actionable_solutions (list of short Korean sentences)
 Return strict JSON, no markdown.
+
+IMPORTANT INSTRUCTION:
+The provided data may include a 'justifications' list (reasons the user provided via chatbot for specific spending or anomalies).
+If 'justifications' are present, you MUST incorporate this context into your analysis.
+For example, if they explain a large expense is a long-term investment, or they paid for friends and will be reimbursed, do not scold them for it in 'anomaly_explanations' or 'actionable_solutions', but rather acknowledge it as a positive or expected factor. Re-evaluate their spending based on their given context!
 
 Data:
 {compact}
