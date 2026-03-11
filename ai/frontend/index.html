@@ -502,7 +502,7 @@
           const statsParams = new URLSearchParams({ user_name: userName, month });
           const aiParams = new URLSearchParams({
             user_name: userName,
-            start: monthOffset(month, -5),
+            start: month,
             end: month,
             include_ai: "true"
           });
