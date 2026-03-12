@@ -14,4 +14,12 @@ public interface PostRepository extends JpaRepository<Post,Long> {
     Optional<Post> findByIdAndStatus(Long id, PostStatus status);
     Page<Post> findByStatus(PostStatus status, Pageable pageable);
     Page<Post> findByBoard_CategoryAndStatus(BoardCategory category, PostStatus status, Pageable pageable);
+
+    //기수별 목록 조회용
+    Page<Post> findByBoard_CategoryAndBoard_CohortIdAndStatus(
+        BoardCategory category,
+        Long cohortId,
+        PostStatus status,
+        Pageable pageable
+    );
 }

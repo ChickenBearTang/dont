@@ -34,7 +34,7 @@ public class PostController {
     @PostMapping
     @Operation(
         summary = "게시글 작성 API",
-        description = "게시판 카테고리, 제목, 본문을 받아 게시글을 생성하는 API입니다."
+        description = "게시판 카테고리, 기수(cohortId), 제목, 본문을 받아 게시글을 생성하는 API입니다."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "생성 완료"),
@@ -47,9 +47,11 @@ public class PostController {
     ) {
 
         Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
+
         PostService.CreatePostResult result = postService.createPost(
             userId,
             createPostRequestDto.category(),
+            createPostRequestDto.cohortId(),
             createPostRequestDto.title(),
             createPostRequestDto.content()
         );
@@ -58,6 +60,7 @@ public class PostController {
             new CreatePostResponseDto(
                 result.postId(),
                 result.category(),
+                result.cohortId(),
                 result.createdAt()
             )
         );
@@ -67,7 +70,7 @@ public class PostController {
     @GetMapping
     @Operation(
         summary = "게시글 목록 조회 API",
-        description = "category가 없으면 전체 목록, 있으면 카테고리별 게시글 목록을 페이지 번호 방식으로 조회합니다."
+        description = "category가 없으면 전체 목록, 있으면 카테고리별 게시글 목록을 페이지 번호 방식으로 조회합니다. COHORT 카테고리 조회 시에는 cohortId를 함께 보내야 합니다."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "정상 응답"),
@@ -75,15 +78,18 @@ public class PostController {
     })
     public CommonResponse<GetPostListResponseDto> getPosts(
         @RequestParam(required = false) BoardCategory category,
+        @RequestParam(required = false) Long cohortId,
         @RequestParam(defaultValue = "0") Integer page,
         @RequestParam(defaultValue = "5") Integer size
     ) {
-        PostService.GetPostListResult result = postService.getPostsByCategory(category, page, size);
+        PostService.GetPostListResult result =
+            postService.getPostsByCategory(category, cohortId, page, size);
 
         List<GetPostListResponseDto.PostSummaryDto> content = result.content().stream()
             .map(post -> new GetPostListResponseDto.PostSummaryDto(
                 post.postId(),
                 post.category(),
+                post.cohortId(),
                 post.title(),
                 post.authorNickname(),
                 post.likeCount(),
@@ -121,6 +127,7 @@ public class PostController {
             new GetPostResponseDto(
                 result.postId(),
                 result.category(),
+                result.cohortId(),
                 result.title(),
                 result.content(),
                 result.authorNickname(),
@@ -151,12 +158,14 @@ public class PostController {
     ) {
 
         Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
+
         PostService.UpdatePostResult result = postService.updatePost(
             userId,
             postId,
             updatePostRequestDto.title(),
             updatePostRequestDto.content()
         );
+
         return CommonResponse.success(
             new UpdatePostResponseDto(
                 result.postId(),

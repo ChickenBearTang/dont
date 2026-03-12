@@ -4,7 +4,7 @@ package com.ssafy.edu.awesomeproject.domain.community.entity;
 // 자유, 기수, 핫딜, pr, 토론
 public enum BoardCategory {
     FREE,
-    COHERT,
+    COHORT,
     HOTDEAL,
     PR,
     POLL

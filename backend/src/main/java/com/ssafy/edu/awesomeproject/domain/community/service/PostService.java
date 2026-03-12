@@ -35,9 +35,15 @@ public class PostService {
     }
 
     //게시글 생성
-    public CreatePostResult createPost(Long userId, BoardCategory category, String title, String content) {
-        Board board = boardRepository.findByCategory(category)
-            .orElseThrow(() -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
+    public CreatePostResult createPost(
+        Long userId,
+        BoardCategory category,
+        Long cohortId,
+        String title,
+        String content) {
+        validateCategoryAndCohort(category, cohortId);
+
+        Board board = resolveBoard(category, cohortId);
 
         // 게시판 작성하려는 user 불러옴
         User user = userRepository.findById(userId)
@@ -49,6 +55,7 @@ public class PostService {
         return new CreatePostResult(
             savedPost.getId(),
             savedPost.getBoard().getCategory().name(),
+            savedPost.getBoard().getCohortId(),
             savedPost.getCreatedAt()
         );
     }
@@ -66,6 +73,7 @@ public class PostService {
         return new GetPostResult(
             post.getId(),
             post.getBoard().getCategory().name(),
+            post.getBoard().getCohortId(),
             post.getTitle(),
             post.getContent(),
             post.getUser().getNickname(),
@@ -81,10 +89,13 @@ public class PostService {
     //page는 현재 바라보고 있는 페이지
     //size는 총 페이지
     @Transactional(readOnly = true)
-    public GetPostListResult getPostsByCategory(BoardCategory category, Integer page, Integer size) {
+    public GetPostListResult getPostsByCategory(BoardCategory category, Long cohortId, Integer page, Integer size) {
         int pageNumber = (page == null || page < 0) ? 0 : page;
         int pageSize = (size == null || size <= 0) ? 5 : size;
 
+        if (category != null) {
+            validateCategoryAndCohortForSearch(category, cohortId);
+        }
         PageRequest pageRequest = PageRequest.of(
             pageNumber,
             pageSize,
@@ -94,14 +105,27 @@ public class PostService {
         Page<Post> postPage;
         if (category == null) {
             postPage = postRepository.findByStatus(PostStatus.ACTIVE, pageRequest);
+            //조회하려는 게시판이 기수 게시판이면
+        } else if (category == BoardCategory.COHORT){
+            postPage = postRepository.findByBoard_CategoryAndBoard_CohortIdAndStatus(
+                category,
+                cohortId,
+                PostStatus.ACTIVE,
+                pageRequest
+            );
         } else {
-            postPage = postRepository.findByBoard_CategoryAndStatus(category, PostStatus.ACTIVE, pageRequest);
+            postPage = postRepository.findByBoard_CategoryAndStatus(
+                category,
+                PostStatus.ACTIVE,
+                pageRequest
+            );
         }
 
         List<PostSummary> content = postPage.getContent().stream()
             .map(post -> new PostSummary(
                 post.getId(),
                 post.getBoard().getCategory().name(),
+                post.getBoard().getCohortId(),
                 post.getTitle(),
                 post.getUser().getNickname(),
                 0,
@@ -149,11 +173,49 @@ public class PostService {
         return new DeletePostResult(true, post.getDeletedAt());
     }
 
-    public record CreatePostResult(Long postId, String category, LocalDateTime createdAt) {}
+    private Board resolveBoard(BoardCategory category, Long cohortId) {
+        //category == cohort 일 때
+        if (category == BoardCategory.COHORT) {
+            return boardRepository.findByCategoryAndCohortId(category, cohortId)
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
+        }
+        //아닐 때
+        return boardRepository.findByCategory(category)
+            .orElseThrow(() -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
+    }
+
+    private void validateCategoryAndCohort(BoardCategory category, Long cohortId) {
+        //category == cohort 인데 cohortId 없을 때
+        if (category == BoardCategory.COHORT && cohortId == null) {
+            throw new CommunityException(CommunityErrorCode.COHORT_ID_REQUIRED);
+        }
+        //category != cohort 인데 cohortId 있을 때
+        if (category != BoardCategory.COHORT && cohortId != null) {
+            throw new  CommunityException(CommunityErrorCode.INVALID_CATEGORY_AND_COHORT);
+        }
+    }
+
+    private void validateCategoryAndCohortForSearch(BoardCategory category, Long cohortId) {
+        if (category == BoardCategory.COHORT && cohortId == null) {
+            throw  new CommunityException(CommunityErrorCode.COHORT_ID_REQUIRED);
+        }
+
+        if (category != BoardCategory.COHORT && cohortId != null) {
+            throw new  CommunityException(CommunityErrorCode.INVALID_CATEGORY_AND_COHORT);
+        }
+    }
+
+    public record CreatePostResult(
+        Long postId,
+        String category,
+        Long cohortId,
+        LocalDateTime createdAt
+    ) {}
 
     public record GetPostResult(
         Long postId,
         String category,
+        Long cohortId,
         String title,
         String content,
         String authorNickname,
@@ -166,6 +228,7 @@ public class PostService {
     public record PostSummary(
         Long postId,
         String category,
+        Long cohortId,
         String title,
         String authorNickname,
         Integer likeCount,

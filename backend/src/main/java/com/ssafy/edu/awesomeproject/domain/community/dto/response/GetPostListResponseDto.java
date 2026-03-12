@@ -15,6 +15,7 @@ public record GetPostListResponseDto (
     public record PostSummaryDto(
         Long postId,
         String category,
+        Long cohortId,
         String title,
         String authorNickname,
         Integer likeCount,

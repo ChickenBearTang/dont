@@ -22,20 +22,24 @@ public class Board extends BaseEntity {
     private Long id;
 
     //ENUM 교체
+    //cohort 여러 기수 존재할 수 있으므로 unique=true 제거
     @Enumerated(EnumType.STRING)
-    @Column(name = "category", nullable = false, unique = true, length = 50)
+    @Column(name = "category", nullable = false, length = 50)
     private BoardCategory category;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    //TODO: cohert 엔티티 만들면 FK 형식으로 교체 예정
     @Column(name = "cohort_id")
     private Long cohortId;
 
     public Board(BoardCategory boardCategory, String name, Long cohortId) {
-        this.category = category;
+        this.category = boardCategory;
         this.name = name;
         this.cohortId = cohortId;
+    }
+
+    public boolean isCohortBoard() {
+        return this.category == BoardCategory.COHORT;
     }
 }
