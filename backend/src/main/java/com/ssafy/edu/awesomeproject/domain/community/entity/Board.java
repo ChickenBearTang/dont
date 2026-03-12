@@ -1,14 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.community.entity;
 
 import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -30,13 +23,15 @@ public class Board extends BaseEntity {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "cohort_id")
-    private Long cohortId;
+    //cohort entity 추가로 FK 조건 추가
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cohort_id")
+    private Cohort cohort;
 
-    public Board(BoardCategory boardCategory, String name, Long cohortId) {
+    public Board(BoardCategory boardCategory, String name, Cohort cohort) {
         this.category = boardCategory;
         this.name = name;
-        this.cohortId = cohortId;
+        this.cohort = cohort;
     }
 
     public boolean isCohortBoard() {

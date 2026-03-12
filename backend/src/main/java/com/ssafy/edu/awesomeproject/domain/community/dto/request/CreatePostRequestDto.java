@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 //request에 cohortId 추가
 public record CreatePostRequestDto (
     @NotNull BoardCategory category,
-    Long cohortId,
+    Integer generationNo,
     @NotNull @Size(max = 200) String title,
     @NotNull String content
 ) {}

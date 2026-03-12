@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 public record GetPostResponseDto (
     Long postId,
     String category,
-    Long cohortId,
+    Integer generationNo,
     String title,
     String content,
     String authorNickname,

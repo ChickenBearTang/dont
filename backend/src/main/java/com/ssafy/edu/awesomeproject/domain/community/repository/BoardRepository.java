@@ -11,5 +11,5 @@ public interface BoardRepository extends JpaRepository<Board,Long> {
     Optional<Board> findByCategory(BoardCategory category);
 
     //category = cohort 일 때 cohort_id 별로 기수 게시판 조회
-    Optional<Board> findByCategoryAndCohortId(BoardCategory category, Long cohortId);
+    Optional<Board> findByCategoryAndCohort_GenerationNo(BoardCategory category, Integer generationNo);
 }

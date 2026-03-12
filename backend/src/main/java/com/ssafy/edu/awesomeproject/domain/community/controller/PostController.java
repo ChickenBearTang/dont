@@ -51,7 +51,7 @@ public class PostController {
         PostService.CreatePostResult result = postService.createPost(
             userId,
             createPostRequestDto.category(),
-            createPostRequestDto.cohortId(),
+            createPostRequestDto.generationNo(),
             createPostRequestDto.title(),
             createPostRequestDto.content()
         );
@@ -60,7 +60,7 @@ public class PostController {
             new CreatePostResponseDto(
                 result.postId(),
                 result.category(),
-                result.cohortId(),
+                result.generationNo(),
                 result.createdAt()
             )
         );
@@ -78,18 +78,18 @@ public class PostController {
     })
     public CommonResponse<GetPostListResponseDto> getPosts(
         @RequestParam(required = false) BoardCategory category,
-        @RequestParam(required = false) Long cohortId,
+        @RequestParam(required = false) Integer generationNo,
         @RequestParam(defaultValue = "0") Integer page,
         @RequestParam(defaultValue = "5") Integer size
     ) {
         PostService.GetPostListResult result =
-            postService.getPostsByCategory(category, cohortId, page, size);
+            postService.getPostsByCategory(category, generationNo, page, size);
 
         List<GetPostListResponseDto.PostSummaryDto> content = result.content().stream()
             .map(post -> new GetPostListResponseDto.PostSummaryDto(
                 post.postId(),
                 post.category(),
-                post.cohortId(),
+                post.generationNo(),
                 post.title(),
                 post.authorNickname(),
                 post.likeCount(),
@@ -127,7 +127,7 @@ public class PostController {
             new GetPostResponseDto(
                 result.postId(),
                 result.category(),
-                result.cohortId(),
+                result.generationNo(),
                 result.title(),
                 result.content(),
                 result.authorNickname(),

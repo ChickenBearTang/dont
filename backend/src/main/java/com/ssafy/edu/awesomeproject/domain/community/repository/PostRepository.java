@@ -16,9 +16,9 @@ public interface PostRepository extends JpaRepository<Post,Long> {
     Page<Post> findByBoard_CategoryAndStatus(BoardCategory category, PostStatus status, Pageable pageable);
 
     //기수별 목록 조회용
-    Page<Post> findByBoard_CategoryAndBoard_CohortIdAndStatus(
+    Page<Post> findByBoard_CategoryAndBoard_Cohort_GenerationNoAndStatus(
         BoardCategory category,
-        Long cohortId,
+        Integer generationNo,
         PostStatus status,
         Pageable pageable
     );
