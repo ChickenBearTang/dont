@@ -1,14 +1,8 @@
 package com.ssafy.edu.awesomeproject.domain.auth.entity;
 
 import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.ssafy.edu.awesomeproject.domain.community.entity.Cohort;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -41,6 +35,11 @@ public class User extends BaseEntity {
     @Column(name = "user_role", nullable = false, length = 32)
     private UserRole userRole;
 
+    //cohort 매핑을 위한 FK 조건 추가
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cohort_id")
+    private Cohort cohort;
+
     public String getUserRole() {
         return userRole.toString();
     }
@@ -51,12 +50,14 @@ public class User extends BaseEntity {
             String name,
             String nickname,
             String profileImageUrl,
-            UserRole userRole) {
+            UserRole userRole,
+            Cohort cohort) {
         this.email = email;
         this.password = password;
         this.name = name;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
         this.userRole = userRole;
+        this.cohort = cohort;
     }
 }

@@ -11,7 +11,8 @@ public enum CommunityErrorCode implements ErrorCode {
     COHORT_NOT_FOUND(HttpStatus.BAD_REQUEST, "COMM_400_5", "존재하지 않는 기수입니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_1", "게시글을 찾을 수 없습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_2", "사용자를 찾을 수 없습니다."),
-    POST_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_1", "해당 글에 대한 권한이 없습니다.");
+    POST_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_1", "해당 글에 대한 권한이 없습니다."),
+    COHORT_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_2", "해당 기수 게시판에 대한 권한이 없습니다.");
 
     private HttpStatus httpStatus;
     private String code;
