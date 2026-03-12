@@ -4,7 +4,7 @@ import com.ssafy.edu.awesomeproject.common.error.CommonException;
 import com.ssafy.edu.awesomeproject.common.error.ErrorCode;
 
 public class AuthException extends CommonException {
-    public AuthException(ErrorCode errorCode){
+    public AuthException(ErrorCode errorCode) {
         super(errorCode);
     }
 

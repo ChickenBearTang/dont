@@ -42,5 +42,5 @@ public class SignupService {
         return new SignupResult(savedUser.getId(), savedUser.getEmail(), savedUser.getUserRole());
     }
 
-    public record SignupResult(Long userId, String email, String userRole) { }
+    public record SignupResult(Long userId, String email, String userRole) {}
 }

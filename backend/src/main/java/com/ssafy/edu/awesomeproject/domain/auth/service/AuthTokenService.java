@@ -11,8 +11,13 @@ import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.auth.token.RefreshTokenStore;
+import com.ssafy.edu.awesomeproject.domain.auth.token.ReissueLockStore;
+import com.ssafy.edu.awesomeproject.domain.auth.token.StoredRefreshToken;
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AuthTokenService {
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final Duration REISSUE_LOCK_TTL = Duration.ofSeconds(10);
+    private static final Logger log = LoggerFactory.getLogger(AuthTokenService.class);
 
     private final AccessTokenService accessTokenService;
     private final UserRepository userRepository;
     private final RefreshTokenStore refreshTokenStore;
+    private final ReissueLockStore reissueLockStore;
     private final long accessTokenTtlSeconds;
     private final long refreshTokenTtlSeconds;
 
@@ -32,11 +40,13 @@ public class AuthTokenService {
             AccessTokenService accessTokenService,
             UserRepository userRepository,
             RefreshTokenStore refreshTokenStore,
+            ReissueLockStore reissueLockStore,
             @Value("${auth.jwt.access-token-ttl-seconds}") long accessTokenTtlSeconds,
             @Value("${auth.jwt.refresh-token-ttl-seconds}") long refreshTokenTtlSeconds) {
         this.accessTokenService = accessTokenService;
         this.userRepository = userRepository;
         this.refreshTokenStore = refreshTokenStore;
+        this.reissueLockStore = reissueLockStore;
         this.accessTokenTtlSeconds = accessTokenTtlSeconds;
         this.refreshTokenTtlSeconds = refreshTokenTtlSeconds;
     }
@@ -65,33 +75,48 @@ public class AuthTokenService {
 
     public ReissueTokenResult reissue(String refreshToken) {
         ParsedToken parsedRefreshToken = parseRefreshToken(refreshToken);
-        validateRefreshToken(parsedRefreshToken, refreshToken);
+        String sessionId = parsedRefreshToken.sessionId();
 
-        Long userId = parseUserId(parsedRefreshToken.subject());
+        if (!reissueLockStore.tryAcquireBySessionId(sessionId, REISSUE_LOCK_TTL)) {
+            log.warn("auth.reissue.lock_conflict sid={}", sessionId);
+            throw new AuthException(AuthErrorCode.AUTHENTICATION_FAILED);
+        }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID));
+        try {
+            validateRefreshToken(parsedRefreshToken, refreshToken);
 
-        IssuedToken issuedAccessToken = issueAccessToken(user);
-        IssuedToken issuedRefreshToken = issueRefreshToken(user, parsedRefreshToken.sessionId());
-        ParsedToken parsedRotatedRefreshToken = parseRefreshToken(issuedRefreshToken.accessToken());
+            Long userId = parseUserId(parsedRefreshToken.subject());
 
-        refreshTokenStore.blacklistRefreshToken(
-                parsedRefreshToken.tokenId(),
-                refreshTokenStore.resolveTimeToLive(parsedRefreshToken.expiresAt()));
-        refreshTokenStore.save(
-                parsedRefreshToken.sessionId(),
-                issuedRefreshToken.accessToken(),
-                parsedRotatedRefreshToken.tokenId(),
-                userId,
-                refreshTokenStore.resolveTimeToLive(parsedRotatedRefreshToken.expiresAt()));
+            User user =
+                    userRepository
+                            .findById(userId)
+                            .orElseThrow(
+                                    () -> new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID));
 
-        return new ReissueTokenResult(
-                issuedAccessToken.accessToken(),
-                issuedAccessToken.tokenType(),
-                issuedAccessToken.expiresInSeconds(),
-                issuedRefreshToken.accessToken(),
-                issuedRefreshToken.expiresInSeconds());
+            IssuedToken issuedAccessToken = issueAccessToken(user);
+            IssuedToken issuedRefreshToken = issueRefreshToken(user, sessionId);
+            ParsedToken parsedRotatedRefreshToken =
+                    parseRefreshToken(issuedRefreshToken.accessToken());
+
+            refreshTokenStore.blacklistRefreshToken(
+                    parsedRefreshToken.tokenId(),
+                    refreshTokenStore.resolveTimeToLive(parsedRefreshToken.expiresAt()));
+            refreshTokenStore.save(
+                    sessionId,
+                    issuedRefreshToken.accessToken(),
+                    parsedRotatedRefreshToken.tokenId(),
+                    userId,
+                    refreshTokenStore.resolveTimeToLive(parsedRotatedRefreshToken.expiresAt()));
+
+            return new ReissueTokenResult(
+                    issuedAccessToken.accessToken(),
+                    issuedAccessToken.tokenType(),
+                    issuedAccessToken.expiresInSeconds(),
+                    issuedRefreshToken.accessToken(),
+                    issuedRefreshToken.expiresInSeconds());
+        } finally {
+            reissueLockStore.releaseBySessionId(sessionId);
+        }
     }
 
     @Transactional
@@ -99,13 +124,8 @@ public class AuthTokenService {
         ParsedToken parsedRefreshToken = parseRefreshToken(refreshToken);
         validateRefreshToken(parsedRefreshToken, refreshToken);
 
-        ParsedToken parsedAccessToken = parseAccessToken(extractBearerToken(authorizationHeader));
-        validateAccessTokenOwner(parsedRefreshToken, parsedAccessToken);
-
         refreshTokenStore.deleteBySessionId(parsedRefreshToken.sessionId());
-        refreshTokenStore.blacklistAccessToken(
-                parsedAccessToken.tokenId(),
-                refreshTokenStore.resolveTimeToLive(parsedAccessToken.expiresAt()));
+        blacklistAccessTokenIfPossible(parsedRefreshToken, authorizationHeader);
     }
 
     private IssuedToken issueAccessToken(User user) {
@@ -143,15 +163,34 @@ public class AuthTokenService {
 
     private void validateRefreshToken(ParsedToken parsedRefreshToken, String refreshToken) {
         if (refreshTokenStore.isRefreshTokenBlacklisted(parsedRefreshToken.tokenId())) {
-            throw new TokenException(TokenErrorCode.TOKEN_BLACKLISTED);
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_BLACKLISTED);
         }
 
+        StoredRefreshToken storedRefreshToken =
+                refreshTokenStore
+                        .findBySessionId(parsedRefreshToken.sessionId())
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID));
+
         if (!refreshTokenStore.matches(parsedRefreshToken.sessionId(), refreshToken)) {
-            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+            refreshTokenStore.invalidateSession(parsedRefreshToken.sessionId());
+            refreshTokenStore.blacklistRefreshToken(
+                    parsedRefreshToken.tokenId(),
+                    refreshTokenStore.resolveTimeToLive(parsedRefreshToken.expiresAt()));
+            log.warn(
+                    "auth.reissue.reuse_detected sid={} userId={} presentedJti={} storedJti={}",
+                    parsedRefreshToken.sessionId(),
+                    storedRefreshToken.userId(),
+                    parsedRefreshToken.tokenId(),
+                    storedRefreshToken.tokenId());
+            throw new AuthException(AuthErrorCode.REFRESH_REUSE_DETECTED);
         }
     }
 
     private ParsedToken parseRefreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
         try {
             return accessTokenService.parseRefreshToken(refreshToken);
         } catch (TokenException exception) {
@@ -166,12 +205,34 @@ public class AuthTokenService {
     private void validateAccessTokenOwner(
             ParsedToken parsedRefreshToken, ParsedToken parsedAccessToken) {
         if (!parsedRefreshToken.subject().equals(parsedAccessToken.subject())) {
-            throw new TokenException(TokenErrorCode.TOKEN_INVALID);
+            throw new AuthException(AuthErrorCode.AUTHENTICATION_FAILED);
+        }
+    }
+
+    private void blacklistAccessTokenIfPossible(
+            ParsedToken parsedRefreshToken, String authorizationHeader) {
+        if (authorizationHeader == null || authorizationHeader.isBlank()) {
+            return;
+        }
+
+        try {
+            ParsedToken parsedAccessToken =
+                    parseAccessToken(extractBearerToken(authorizationHeader));
+            validateAccessTokenOwner(parsedRefreshToken, parsedAccessToken);
+
+            refreshTokenStore.blacklistAccessToken(
+                    parsedAccessToken.tokenId(),
+                    refreshTokenStore.resolveTimeToLive(parsedAccessToken.expiresAt()));
+        } catch (TokenException | AuthException exception) {
+            log.warn(
+                    "auth.logout.access_blacklist_skipped sid={} reason={}",
+                    parsedRefreshToken.sessionId(),
+                    exception.getErrorCode().code());
         }
     }
 
     private AuthException translateRefreshTokenException(TokenException exception) {
-        if (exception.getErrorCode() == TokenErrorCode.TOKEN_EXPIRED) {
+        if (exception.getErrorCode() == TokenErrorCode.REFRESH_TOKEN_EXPIRED) {
             return new AuthException(AuthErrorCode.REFRESH_TOKEN_EXPIRED, exception.getDetails());
         }
 

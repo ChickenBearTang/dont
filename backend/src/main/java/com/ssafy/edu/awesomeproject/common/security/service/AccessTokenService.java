@@ -60,11 +60,29 @@ public class AccessTokenService {
     }
 
     public ParsedToken parseAccessToken(String token) {
-        return parse(token, TokenType.ACCESS);
+        try {
+            return parse(token, TokenType.ACCESS);
+        } catch (TokenException exception) {
+            if (exception.getErrorCode() == TokenErrorCode.TOKEN_EXPIRED) {
+                throw new TokenException(TokenErrorCode.ACCESS_TOKEN_EXPIRED);
+            }
+
+            throw exception;
+        }
     }
 
     public ParsedToken parseRefreshToken(String token) {
-        ParsedToken parsedToken = parse(token, TokenType.REFRESH);
+        ParsedToken parsedToken;
+        try {
+            parsedToken = parse(token, TokenType.REFRESH);
+        } catch (TokenException exception) {
+            if (exception.getErrorCode() == TokenErrorCode.TOKEN_EXPIRED) {
+                throw new TokenException(TokenErrorCode.REFRESH_TOKEN_EXPIRED);
+            }
+
+            throw exception;
+        }
+
         if (parsedToken.sessionId() == null || parsedToken.sessionId().isBlank()) {
             throw new TokenException(TokenErrorCode.TOKEN_SESSION_INVALID);
         }
@@ -93,10 +111,18 @@ public class AccessTokenService {
 
     private Claims parseClaims(String token) {
         try {
-            return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
+            return Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
         } catch (ExpiredJwtException exception) {
             throw new TokenException(TokenErrorCode.TOKEN_EXPIRED);
         } catch (JwtException | IllegalArgumentException exception) {
+            if (exception.getClass().getSimpleName().contains("Signature")) {
+                throw new TokenException(TokenErrorCode.INVALID_TOKEN_SIGNATURE);
+            }
+
             throw new TokenException(TokenErrorCode.TOKEN_INVALID);
         }
     }
@@ -104,7 +130,9 @@ public class AccessTokenService {
     private TokenType parseTokenType(Claims claims) {
         try {
             return TokenType.fromValue(claims.get("typ", String.class));
-        } catch (IllegalArgumentException | NullPointerException | RequiredTypeException exception) {
+        } catch (IllegalArgumentException
+                | NullPointerException
+                | RequiredTypeException exception) {
             throw new TokenException(TokenErrorCode.TOKEN_INVALID);
         }
     }
