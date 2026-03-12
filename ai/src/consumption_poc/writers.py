@@ -7,9 +7,9 @@ from pathlib import Path
 
 def write_csv(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if not rows:
-        raise ValueError(f"No rows to write for {path.name}")
     with path.open("w", encoding="utf-8", newline="") as fp:
+        if not rows:
+            return  # Write an empty file or just nothing
         writer = csv.DictWriter(fp, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
