@@ -11,7 +11,8 @@ public class RefreshTokenHashService {
     public String hash(String refreshToken) {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-            byte[] hashedBytes = messageDigest.digest(refreshToken.getBytes(StandardCharsets.UTF_8));
+            byte[] hashedBytes =
+                    messageDigest.digest(refreshToken.getBytes(StandardCharsets.UTF_8));
 
             return HexFormat.of().formatHex(hashedBytes);
         } catch (NoSuchAlgorithmException exception) {

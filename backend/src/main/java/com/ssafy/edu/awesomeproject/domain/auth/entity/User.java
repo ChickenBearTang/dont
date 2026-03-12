@@ -12,7 +12,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// TODOD : discuss about class name User or UserEntity
 @Table(name = "users")
 @Getter
 @Entity
@@ -22,32 +21,37 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name="email", nullable=false, unique=true, length = 255)
+    @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name="password", nullable = false, length = 255)
+    @Column(name = "password", nullable = false, length = 255)
     private String password;
 
     // TODO : nullable=false로 변경해야함. 작업 속도 증진을 위해서 우선 null로 둠(회원가입 시 매번 이름을 입력하는 것이 번거로움)
-    @Column(name="name", length = 32)
+    @Column(name = "name", length = 32)
     private String name;
 
-    // TODO : discuss aboutn nickname and nickName
-    @Column(name="nickname", length = 16)
+    @Column(name = "nickname", length = 16)
     private String nickname;
 
-    @Column(name="profile_image_url")
+    @Column(name = "profile_image_url")
     private String profileImageUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(name="user_role", nullable = false, length = 32)
+    @Column(name = "user_role", nullable = false, length = 32)
     private UserRole userRole;
 
     public String getUserRole() {
         return userRole.toString();
     }
 
-    public User(String email, String password, String name, String nickname, String profileImageUrl, UserRole userRole) {
+    public User(
+            String email,
+            String password,
+            String name,
+            String nickname,
+            String profileImageUrl,
+            UserRole userRole) {
         this.email = email;
         this.password = password;
         this.name = name;
@@ -55,5 +59,4 @@ public class User extends BaseEntity {
         this.profileImageUrl = profileImageUrl;
         this.userRole = userRole;
     }
-
 }
