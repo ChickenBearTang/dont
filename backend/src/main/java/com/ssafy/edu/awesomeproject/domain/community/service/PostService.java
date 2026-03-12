@@ -52,6 +52,10 @@ public class PostService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new AuthException(CommunityErrorCode.USER_NOT_FOUND));
 
+        if(category == BoardCategory.COHORT) {
+            validateUserCohort(user, generationNo);
+        }
+
         Post post = new Post(board, user, title, content);
         Post savedPost = postRepository.save(post);
 
@@ -197,6 +201,16 @@ public class PostService {
 
         if (category != BoardCategory.COHORT && generationNo != null) {
             throw new CommunityException(CommunityErrorCode.INVALID_CATEGORY_AND_COHORT);
+        }
+    }
+
+    private void validateUserCohort(User user, Integer generationNo) {
+        if (user.getCohort() == null) {
+            throw new CommunityException(CommunityErrorCode.COHORT_FORBIDDEN);
+        }
+
+        if (!user.getCohort().getGenerationNo().equals(generationNo)) {
+            throw new CommunityException(CommunityErrorCode.COHORT_FORBIDDEN);
         }
     }
 

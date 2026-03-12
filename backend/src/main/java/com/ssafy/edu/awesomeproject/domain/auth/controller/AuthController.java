@@ -55,10 +55,17 @@ public class AuthController {
     public CommonResponse<SignupResponseDto> signup(
             @Valid @RequestBody SignupRequestDto signupRequestDto) {
         SignupService.SignupResult result =
-                signupService.signup(signupRequestDto.email(), signupRequestDto.password());
+                signupService.signup(
+                    signupRequestDto.email(),
+                    signupRequestDto.password(),
+                    signupRequestDto.generationNo());
 
         return CommonResponse.success(
-                new SignupResponseDto(result.userId(), result.email(), result.userRole()));
+                new SignupResponseDto(
+                    result.userId(),
+                    result.email(),
+                    result.userRole(),
+                    result.generationNo()));
     }
 
     @PostMapping("/login")
