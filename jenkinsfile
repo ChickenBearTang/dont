@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     options {
-        timeout(time: 40, unit: 'MINUTES')
+        timeout(time: 60, unit: 'MINUTES')
         disableConcurrentBuilds()
         timestamps()
         ansiColor('xterm')
@@ -11,265 +11,164 @@ pipeline {
     }
 
     tools {
-        // Configure these tool names in Jenkins Global Tool Configuration.
         jdk 'jdk21'
         nodejs 'node20'
     }
 
     environment {
-        // General
+        DEV_BRANCH = 'dev'
+        PROD_BRANCH = 'main'
+
         APP_NAME = 'awesome-spring-project'
         BACKEND_DIR = 'backend'
         FRONTEND_DIR = 'frontend'
-        TZ = 'Asia/Seoul'
-        LANG = 'C.UTF-8'
-        LC_ALL = 'C.UTF-8'
+        RELEASE_DIR = 'release_out'
 
-        // Build behavior (explicit settings)
-        GRADLE_ARGS = '--no-daemon --stacktrace --info --warning-mode all'
-        NPM_CI_FLAGS = '--no-audit --fund=false'
+        MAIN_SERVER_HOST = ''
+        MAIN_SERVER_USER = 'deploy'
+        AI_SERVER_HOST = ''
+        AI_SERVER_USER = 'deploy'
+        AI_PRIVATE_HEALTH_URL = 'http://127.0.0.1:8000/health/readyz'
 
-        // Branch policy
-        DEV_BRANCH = 'develop'
-        PROD_BRANCH = 'main'
+        EDGE_BASE_URL = ''
+        EDGE_FRONTEND_PATH = '/'
+        EDGE_HEALTH_PATH = '/actuator/health'
+        EDGE_AI_SAMPLE_PATH = '/api/health/ai'
 
-        // Registry / image (replace with your actual values)
-        DOCKER_REGISTRY = 'registry.example.com'
-        DOCKER_NAMESPACE = 'awesome'
-        BACKEND_IMAGE_NAME = 'awesome-backend'
-        FRONTEND_IMAGE_NAME = 'awesome-frontend'
+        MAIN_DEPLOY_ROOT = '/opt/awesome-spring-project'
+        BACKEND_SERVICE_NAME = 'spring-backend'
+        FRONTEND_SERVICE_NAME = 'frontend-node'
 
-        // Deployment hosts (replace; do not keep defaults in production)
-        DEV_DEPLOY_HOST = 'dev.example.com'
-        PROD_DEPLOY_HOST = 'prod.example.com'
-        DEPLOY_SSH_USER = 'deploy'
-
-        // Jenkins Credentials IDs (must exist in Jenkins)
-        GIT_CREDENTIALS_ID = 'git-credentials-id'
-        REGISTRY_CREDENTIALS_ID = 'registry-credentials-id'
-        DEPLOY_SSH_CREDENTIALS_ID = 'deploy-ssh-key-id'
-        JAVA_TRUSTSTORE_FILE_CRED_ID = 'java-truststore-file-id'
-        JAVA_TRUSTSTORE_PASSWORD_CRED_ID = 'java-truststore-password-id'
-        NODE_CA_CERT_FILE_CRED_ID = 'node-ca-cert-file-id'
-        DB_URL_CRED_ID = 'db-url-id'
-        DB_USERNAME_CRED_ID = 'db-username-id'
-        DB_PASSWORD_CRED_ID = 'db-password-id'
+        DEPLOY_SSH_CREDENTIALS_ID = ''
+        AUTO_ROLLBACK_ON_MAIN = 'true'
     }
 
     stages {
-        stage('Validate Explicit Configuration') {
-            steps {
-                script {
-                    def invalidDefaults = [
-                        'registry.example.com',
-                        'dev.example.com',
-                        'prod.example.com',
-                        'git-credentials-id',
-                        'registry-credentials-id',
-                        'deploy-ssh-key-id',
-                        'java-truststore-file-id',
-                        'java-truststore-password-id',
-                        'node-ca-cert-file-id',
-                        'db-url-id',
-                        'db-username-id',
-                        'db-password-id'
-                    ]
-                    def currentValues = [
-                        env.DOCKER_REGISTRY,
-                        env.DEV_DEPLOY_HOST,
-                        env.PROD_DEPLOY_HOST,
-                        env.GIT_CREDENTIALS_ID,
-                        env.REGISTRY_CREDENTIALS_ID,
-                        env.DEPLOY_SSH_CREDENTIALS_ID,
-                        env.JAVA_TRUSTSTORE_FILE_CRED_ID,
-                        env.JAVA_TRUSTSTORE_PASSWORD_CRED_ID,
-                        env.NODE_CA_CERT_FILE_CRED_ID,
-                        env.DB_URL_CRED_ID,
-                        env.DB_USERNAME_CRED_ID,
-                        env.DB_PASSWORD_CRED_ID
-                    ]
-                    if (currentValues.any { it == null || it.trim().isEmpty() || invalidDefaults.contains(it) }) {
-                        error('Jenkinsfile contains unresolved placeholder values. Replace all explicit configuration values and credentials IDs before running.')
-                    }
-                }
-            }
-        }
-
         stage('Checkout') {
             steps {
-                checkout([
-                    $class: 'GitSCM',
-                    branches: scm.branches,
-                    doGenerateSubmoduleConfigurations: false,
-                    extensions: [[$class: 'CleanCheckout']],
-                    userRemoteConfigs: [[
-                        credentialsId: "${env.GIT_CREDENTIALS_ID}",
-                        url: scm.userRemoteConfigs[0].url
-                    ]]
-                ])
+                checkout scm
             }
         }
 
-        stage('Backend Build & Test') {
-            steps {
-                withCredentials([
-                    file(credentialsId: "${env.JAVA_TRUSTSTORE_FILE_CRED_ID}", variable: 'JAVA_TRUSTSTORE_PATH'),
-                    string(credentialsId: "${env.JAVA_TRUSTSTORE_PASSWORD_CRED_ID}", variable: 'JAVA_TRUSTSTORE_PASSWORD'),
-                    string(credentialsId: "${env.DB_URL_CRED_ID}", variable: 'DB_URL'),
-                    string(credentialsId: "${env.DB_USERNAME_CRED_ID}", variable: 'DB_USERNAME'),
-                    string(credentialsId: "${env.DB_PASSWORD_CRED_ID}", variable: 'DB_PASSWORD')
-                ]) {
-                    dir("${env.BACKEND_DIR}") {
-                        script {
-                            if (isUnix()) {
-                                sh '''
-                                    set -eu
-                                    export JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -Duser.timezone=${TZ} -Djavax.net.ssl.trustStore=${JAVA_TRUSTSTORE_PATH} -Djavax.net.ssl.trustStorePassword=${JAVA_TRUSTSTORE_PASSWORD}"
-                                    chmod +x ./gradlew
-                                    ./gradlew clean test build ${GRADLE_ARGS}
-                                '''
-                            } else {
-                                bat '''
-                                    set "JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -Duser.timezone=%TZ% -Djavax.net.ssl.trustStore=%JAVA_TRUSTSTORE_PATH% -Djavax.net.ssl.trustStorePassword=%JAVA_TRUSTSTORE_PASSWORD%"
-                                    gradlew.bat clean test build %GRADLE_ARGS%
-                                '''
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Frontend Build') {
-            steps {
-                withCredentials([
-                    file(credentialsId: "${env.NODE_CA_CERT_FILE_CRED_ID}", variable: 'NODE_CA_CERT_FILE')
-                ]) {
-                    dir("${env.FRONTEND_DIR}") {
-                        script {
-                            if (isUnix()) {
-                                sh '''
-                                    set -eu
-                                    export NODE_EXTRA_CA_CERTS="${NODE_CA_CERT_FILE}"
-                                    npm config set cafile "${NODE_CA_CERT_FILE}"
-                                    npm ci ${NPM_CI_FLAGS}
-                                    npm run lint
-                                    npm run build
-                                '''
-                            } else {
-                                bat '''
-                                    set "NODE_EXTRA_CA_CERTS=%NODE_CA_CERT_FILE%"
-                                    npm config set cafile "%NODE_CA_CERT_FILE%"
-                                    npm.cmd ci %NPM_CI_FLAGS%
-                                    npm.cmd run lint
-                                    npm.cmd run build
-                                '''
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Build Docker Images') {
+        stage('Prepare Metadata') {
             steps {
                 script {
-                    env.IMAGE_TAG = "${env.BUILD_NUMBER}"
-                    env.BACKEND_IMAGE = "${env.DOCKER_REGISTRY}/${env.DOCKER_NAMESPACE}/${env.BACKEND_IMAGE_NAME}:${env.IMAGE_TAG}"
-                    env.FRONTEND_IMAGE = "${env.DOCKER_REGISTRY}/${env.DOCKER_NAMESPACE}/${env.FRONTEND_IMAGE_NAME}:${env.IMAGE_TAG}"
+                    env.GIT_SHA = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim()
+                    env.RELEASE_ID = "${env.GIT_SHA}-${env.BUILD_NUMBER}"
+                    env.RELEASE_MANIFEST = "${env.RELEASE_DIR}/manifest-${env.RELEASE_ID}.json"
                 }
-                withCredentials([
-                    usernamePassword(credentialsId: "${env.REGISTRY_CREDENTIALS_ID}", usernameVariable: 'REGISTRY_USERNAME', passwordVariable: 'REGISTRY_PASSWORD')
-                ]) {
-                    script {
-                        if (isUnix()) {
-                            sh '''
-                                set -eu
-                                echo "${REGISTRY_PASSWORD}" | docker login "${DOCKER_REGISTRY}" -u "${REGISTRY_USERNAME}" --password-stdin
-                                docker build -t "${BACKEND_IMAGE}" "${BACKEND_DIR}"
-                                docker build -t "${FRONTEND_IMAGE}" "${FRONTEND_DIR}"
-                                docker push "${BACKEND_IMAGE}"
-                                docker push "${FRONTEND_IMAGE}"
-                                docker logout "${DOCKER_REGISTRY}"
-                            '''
-                        } else {
-                            bat '''
-                                echo %REGISTRY_PASSWORD% | docker login %DOCKER_REGISTRY% -u %REGISTRY_USERNAME% --password-stdin
-                                docker build -t %BACKEND_IMAGE% %BACKEND_DIR%
-                                docker build -t %FRONTEND_IMAGE% %FRONTEND_DIR%
-                                docker push %BACKEND_IMAGE%
-                                docker push %FRONTEND_IMAGE%
-                                docker logout %DOCKER_REGISTRY%
-                            '''
-                        }
+            }
+        }
+
+        stage('Build and Test') {
+            parallel {
+                stage('Frontend') {
+                    steps {
+                        sh 'bash ci/build_frontend.sh'
+                    }
+                }
+                stage('Backend') {
+                    steps {
+                        sh 'bash ci/build_backend.sh'
                     }
                 }
             }
         }
 
-        stage('Deploy Dev') {
+        stage('Package Release') {
+            steps {
+                sh 'bash ci/package_release.sh'
+            }
+        }
+
+        stage('Non-Main Branch Stop Gate') {
             when {
-                branch "${env.DEV_BRANCH}"
+                expression { env.BRANCH_NAME != env.PROD_BRANCH }
+            }
+            steps {
+                echo 'Non-main branch: build/verify only. Deployment skipped by policy.'
+            }
+        }
+
+        stage('Validate Main Deploy Config') {
+            when {
+                expression { env.BRANCH_NAME == env.PROD_BRANCH }
+            }
+            steps {
+                script {
+                    def required = [
+                        env.MAIN_SERVER_HOST,
+                        env.MAIN_SERVER_USER,
+                        env.EDGE_BASE_URL,
+                        env.DEPLOY_SSH_CREDENTIALS_ID
+                    ]
+                    if (required.any { it == null || it.trim().isEmpty() }) {
+                        error('MAIN deploy variables are missing. Set MAIN_SERVER_HOST, MAIN_SERVER_USER, EDGE_BASE_URL, DEPLOY_SSH_CREDENTIALS_ID.')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Main - Backend') {
+            when {
+                expression { env.BRANCH_NAME == env.PROD_BRANCH }
             }
             steps {
                 sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
-                    script {
-                        if (isUnix()) {
-                            sh '''
-                                set -eu
-                                ssh -o StrictHostKeyChecking=yes ${DEPLOY_SSH_USER}@${DEV_DEPLOY_HOST} '
-                                  export BACKEND_IMAGE='"${BACKEND_IMAGE}"' FRONTEND_IMAGE='"${FRONTEND_IMAGE}"';
-                                  cd /opt/awesome-spring-project &&
-                                  docker compose -f docker-compose.dev.yml pull &&
-                                  docker compose -f docker-compose.dev.yml up -d
-                                '
-                            '''
-                        } else {
-                            bat '''
-                                ssh -o StrictHostKeyChecking=yes %DEPLOY_SSH_USER%@%DEV_DEPLOY_HOST% ^
-                                "set BACKEND_IMAGE=%BACKEND_IMAGE% && set FRONTEND_IMAGE=%FRONTEND_IMAGE% && cd /opt/awesome-spring-project && docker compose -f docker-compose.dev.yml pull && docker compose -f docker-compose.dev.yml up -d"
-                            '''
-                        }
-                    }
+                    sh '''
+                        bash ci/deploy_remote.sh \
+                          --host "${MAIN_SERVER_HOST}" \
+                          --user "${MAIN_SERVER_USER}" \
+                          --component backend \
+                          --release-id "${RELEASE_ID}" \
+                          --archive "${RELEASE_DIR}/backend-${RELEASE_ID}.tgz" \
+                          --service "${BACKEND_SERVICE_NAME}" \
+                          --deploy-root "${MAIN_DEPLOY_ROOT}" \
+                          --ready-url "http://127.0.0.1:8080/actuator/health"
+                    '''
                 }
             }
         }
 
-        stage('Approve Production Deployment') {
+        stage('Deploy Main - Frontend') {
             when {
-                branch "${env.PROD_BRANCH}"
-            }
-            steps {
-                input message: 'Deploy to production with HTTPS + Nginx reverse proxy?', ok: 'Deploy'
-            }
-        }
-
-        stage('Deploy Prod') {
-            when {
-                branch "${env.PROD_BRANCH}"
+                expression { env.BRANCH_NAME == env.PROD_BRANCH }
             }
             steps {
                 sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
-                    script {
-                        if (isUnix()) {
-                            sh '''
-                                set -eu
-                                ssh -o StrictHostKeyChecking=yes ${DEPLOY_SSH_USER}@${PROD_DEPLOY_HOST} '
-                                  export BACKEND_IMAGE='"${BACKEND_IMAGE}"' FRONTEND_IMAGE='"${FRONTEND_IMAGE}"';
-                                  cd /opt/awesome-spring-project &&
-                                  docker compose -f docker-compose.prod.yml pull &&
-                                  docker compose -f docker-compose.prod.yml up -d &&
-                                  docker compose -f docker-compose.prod.yml exec -T nginx nginx -t &&
-                                  docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
-                                '
-                            '''
-                        } else {
-                            bat '''
-                                ssh -o StrictHostKeyChecking=yes %DEPLOY_SSH_USER%@%PROD_DEPLOY_HOST% ^
-                                "set BACKEND_IMAGE=%BACKEND_IMAGE% && set FRONTEND_IMAGE=%FRONTEND_IMAGE% && cd /opt/awesome-spring-project && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d && docker compose -f docker-compose.prod.yml exec -T nginx nginx -t && docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload"
-                            '''
-                        }
-                    }
+                    sh '''
+                        bash ci/deploy_remote.sh \
+                          --host "${MAIN_SERVER_HOST}" \
+                          --user "${MAIN_SERVER_USER}" \
+                          --component frontend \
+                          --release-id "${RELEASE_ID}" \
+                          --archive "${RELEASE_DIR}/frontend-${RELEASE_ID}.tgz" \
+                          --service "${FRONTEND_SERVICE_NAME}" \
+                          --deploy-root "${MAIN_DEPLOY_ROOT}" \
+                          --ready-url "http://127.0.0.1:3000"
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Edge and AI Connectivity') {
+            when {
+                expression { env.BRANCH_NAME == env.PROD_BRANCH }
+            }
+            steps {
+                sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
+                    sh '''
+                        bash ci/verify_edge.sh \
+                          --base-url "${EDGE_BASE_URL}" \
+                          --frontend-path "${EDGE_FRONTEND_PATH}" \
+                          --health-path "${EDGE_HEALTH_PATH}" \
+                          --ai-sample-path "${EDGE_AI_SAMPLE_PATH}"
+
+                        if [ -n "${AI_SERVER_HOST}" ]; then
+                          ssh -o StrictHostKeyChecking=accept-new "${MAIN_SERVER_USER}@${MAIN_SERVER_HOST}" \
+                            "curl -fsS '${AI_PRIVATE_HEALTH_URL}' > /dev/null"
+                        fi
+                    '''
                 }
             }
         }
@@ -277,15 +176,38 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'frontend/dist/**, backend/build/libs/**', onlyIfSuccessful: false
+            archiveArtifacts artifacts: 'release_out/**, frontend/dist/**, backend/build/libs/**', onlyIfSuccessful: false
             junit allowEmptyResults: true, testResults: 'backend/build/test-results/test/*.xml'
-            cleanWs(cleanWhenNotBuilt: false, deleteDirs: true, disableDeferredWipeout: true)
-        }
-        success {
-            echo 'Pipeline completed successfully.'
         }
         failure {
-            echo 'Pipeline failed. Check TLS/truststore credentials, DB credentials, and deployment host connectivity.'
+            script {
+                if (env.BRANCH_NAME == env.PROD_BRANCH && env.AUTO_ROLLBACK_ON_MAIN == 'true' && env.MAIN_SERVER_HOST?.trim()) {
+                    echo 'Main deployment failed. Attempting rollback on backend/frontend.'
+                    sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
+                        sh '''
+                            bash ci/rollback_remote.sh \
+                              --host "${MAIN_SERVER_HOST}" \
+                              --user "${MAIN_SERVER_USER}" \
+                              --component backend \
+                              --service "${BACKEND_SERVICE_NAME}" \
+                              --deploy-root "${MAIN_DEPLOY_ROOT}" || true
+
+                            bash ci/rollback_remote.sh \
+                              --host "${MAIN_SERVER_HOST}" \
+                              --user "${MAIN_SERVER_USER}" \
+                              --component frontend \
+                              --service "${FRONTEND_SERVICE_NAME}" \
+                              --deploy-root "${MAIN_DEPLOY_ROOT}" || true
+                        '''
+                    }
+                } else {
+                    echo 'Failure detected. Auto-rollback skipped by policy (non-main or disabled).'
+                }
+                sh 'bash ci/collect_diagnostics.sh || true'
+            }
+        }
+        cleanup {
+            cleanWs(cleanWhenNotBuilt: false, deleteDirs: true, disableDeferredWipeout: true)
         }
     }
 }
