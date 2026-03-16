@@ -18,6 +18,8 @@ public enum CommunityErrorCode implements ErrorCode {
     // ================================================================================================================
 
     HOTDEAL_NOT_FOUND(HttpStatus.BAD_REQUEST,"HD_404_1", "핫딜을 찾을 수 없습니다."),
+    POLL_NOT_FOUND(HttpStatus.NOT_FOUND, "POLL_404_1", "토론 게시글을 찾을 수 없습니다."),
+    POLL_NOT_OPEN(HttpStatus.CONFLICT, "POLL_409_1", "종료된 토론은 투표할 수 없습니다."),
 
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_2", "댓글을 찾을 수 없습니다."),
 
