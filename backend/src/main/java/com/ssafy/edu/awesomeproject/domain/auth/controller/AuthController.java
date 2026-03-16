@@ -8,7 +8,6 @@ import com.ssafy.edu.awesomeproject.domain.auth.dto.request.SignupRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.TokenReissueRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LoginResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LogoutResponseDto;
-import com.ssafy.edu.awesomeproject.domain.auth.dto.response.SignupResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.TokenReissueResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.service.AuthTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.LoginService;
@@ -46,26 +45,24 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    @Operation(summary = "회원가입 API", description = "사용자 이메일과 비밀번호를 받아 계정을 생성하는 API입니다.")
+    @Operation(summary = "회원가입 API", description = "회원가입 필수 정보 입력을 받아 계정을 생성하는 API입니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "정상 응답"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "409", description = "이미 존재하는 이메일")
     })
-    public CommonResponse<SignupResponseDto> signup(
+    public CommonResponse<Void> signup(
             @Valid @RequestBody SignupRequestDto signupRequestDto) {
-        SignupService.SignupResult result =
-                signupService.signup(
-                    signupRequestDto.email(),
-                    signupRequestDto.password(),
-                    signupRequestDto.generationNo());
+        signupService.signup(
+                signupRequestDto.email(),
+                signupRequestDto.password(),
+                signupRequestDto.name(),
+                signupRequestDto.birthDate(),
+                signupRequestDto.nickname(),
+                signupRequestDto.termsAgreed(),
+                signupRequestDto.cohortId());
 
-        return CommonResponse.success(
-                new SignupResponseDto(
-                    result.userId(),
-                    result.email(),
-                    result.userRole(),
-                    result.generationNo()));
+        return CommonResponse.success(null);
     }
 
     @PostMapping("/login")
