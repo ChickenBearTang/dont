@@ -57,11 +57,11 @@ def make_price_data(n: int = 1500) -> pd.DataFrame:
         ratio = effective_price / avg_price_30d
 
         if ratio < 0.93:
-            label = "cheap"
+            label = "cheap" if rng.uniform(0, 1) > 0.1 else "normal"  # 10% noise
         elif ratio > 1.06:
-            label = "expensive"
+            label = "expensive" if rng.uniform(0, 1) > 0.1 else "normal" # 10% noise
         else:
-            label = "normal"
+            label = "normal" if rng.uniform(0, 1) > 0.05 else rng.choice(["cheap", "expensive"]) # 5% noise
 
         rows.append(
             {
@@ -364,8 +364,8 @@ def build_dice_from_finance_training(
         backend="sklearn",
         model_type="classifier",
     )
-    # multiclass에서는 genetic이 더 안정적인 편
-    return Dice(dice_data, dice_model, method="genetic")
+    # multiclass 및 속도 향상을 위해 random 사용 권장
+    return Dice(dice_data, dice_model, method="random")
 
 
 def get_desired_finance_class(current_class: str) -> int:
