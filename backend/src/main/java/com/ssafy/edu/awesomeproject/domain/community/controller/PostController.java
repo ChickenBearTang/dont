@@ -94,7 +94,19 @@ public class PostController {
                 post.authorNickname(),
                 post.likeCount(),
                 post.commentCount(),
-                post.createdAt()
+                post.createdAt(),
+                post.extraSummary() == null
+                    ? null
+                    : new GetPostListResponseDto.PostExtraSummaryDto(
+                        post.extraSummary().pr() == null
+                            ? null
+                            : new GetPostListResponseDto.PrSummaryDto(
+                                post.extraSummary().pr().status(),
+                                post.extraSummary().pr().resultStatus(),
+                                post.extraSummary().pr().totalVoteCount(),
+                                post.extraSummary().pr().deadlineAt()
+                            )
+                    )
             ))
             .toList();
 

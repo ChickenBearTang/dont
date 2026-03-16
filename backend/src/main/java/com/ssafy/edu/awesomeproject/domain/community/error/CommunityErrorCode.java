@@ -16,14 +16,20 @@ public enum CommunityErrorCode implements ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_3", "사용자를 찾을 수 없습니다."),
 
     POST_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_1", "해당 글에 대한 권한이 없습니다."),
+    ALREADY_REACTED(HttpStatus.CONFLICT, "COMM_409_1", "이미 반응한 대상입니다."),
     COHORT_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_2", "해당 기수 게시판에 대한 권한이 없습니다."),
     COMMENT_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_3", "해당 댓글에 대한 권한이 없습니다."),
 
     INVALID_PARENT_COMMENT(HttpStatus.BAD_REQUEST, "COMM_400_6", "유효하지 않은 부모 댓글입니다.");
 
-    private HttpStatus httpStatus;
-    private String code;
-    private String message;
+    PURCHASE_REQUEST_FORBIDDEN(HttpStatus.FORBIDDEN, "PR_403_1", "해당 PR에 대한 권한이 없습니다."),
+    PURCHASE_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "PR_404_1", "PR을 찾을 수 없습니다."),
+    PURCHASE_REQUEST_ALREADY_EXISTS(HttpStatus.CONFLICT, "PR_409_1", "해당 게시글에는 PR이 이미 존재합니다."),
+    PURCHASE_REQUEST_NOT_OPEN(HttpStatus.CONFLICT, "PR_409_2", "열려있는 PR에서만 투표할 수 있습니다.");
+
+    private final HttpStatus httpStatus;
+    private final String code;
+    private final String message;
 
     CommunityErrorCode(HttpStatus httpStatus, String code, String message) {
         this.httpStatus = httpStatus;
