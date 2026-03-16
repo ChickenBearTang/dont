@@ -318,3 +318,6 @@ opencode.jsonc
 
 .env
 .env.local
+
+# Deployment packaging artifacts
+release_out/
