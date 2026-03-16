@@ -1,0 +1,12 @@
+dimension_type,dimension_key,transaction_count,total_amount,share_percent
+time_band,morning,52,1194196,19.5
+time_band,lunch,72,1498233,24.4
+time_band,evening,112,2679157,43.6
+time_band,late_night,25,767213,12.5
+weekday,monday,42,1000113,16.3
+weekday,tuesday,49,918424,15.0
+weekday,wednesday,42,901270,14.7
+weekday,thursday,39,899241,14.6
+weekday,friday,36,981584,16.0
+weekday,saturday,27,751801,12.2
+weekday,sunday,26,686366,11.2

@@ -1,0 +1,112 @@
+[
+  {
+    "user_id": "U2001",
+    "name": "싸피생1",
+    "age": 25,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1000000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  },
+  {
+    "user_id": "U2002",
+    "name": "싸피생2",
+    "age": 29,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1300000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  },
+  {
+    "user_id": "U2003",
+    "name": "싸피생3",
+    "age": 28,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1300000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  },
+  {
+    "user_id": "U2004",
+    "name": "싸피생4",
+    "age": 25,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1000000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  },
+  {
+    "user_id": "U2005",
+    "name": "싸피생5",
+    "age": 29,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1300000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  },
+  {
+    "user_id": "U2006",
+    "name": "싸피생6",
+    "age": 29,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1300000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  },
+  {
+    "user_id": "U2007",
+    "name": "싸피생7",
+    "age": 26,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1300000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  },
+  {
+    "user_id": "U2008",
+    "name": "싸피생8",
+    "age": 25,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1300000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  },
+  {
+    "user_id": "U2009",
+    "name": "싸피생9",
+    "age": 26,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1000000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  },
+  {
+    "user_id": "U2010",
+    "name": "싸피생10",
+    "age": 29,
+    "job": "SSAFY 교육생",
+    "monthly_income": 1300000,
+    "pay_day": 10,
+    "residence_type": "자취",
+    "main_bank": "국민은행",
+    "main_card_type": "체크카드"
+  }
+]

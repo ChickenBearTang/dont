@@ -1,0 +1,483 @@
+{
+  "meta": {
+    "user_id": "U2001",
+    "user_name": "싸피생1",
+    "period": {
+      "start": "2025-10",
+      "end": "2026-03"
+    },
+    "generated_at": "2026-03-12T10:56:45+00:00",
+    "llm_status": "skipped"
+  },
+  "overview": {
+    "total_card_spend": 6138799,
+    "transaction_count": 261,
+    "avg_monthly_card_spend": 1023133,
+    "avg_transaction_amount": 23520,
+    "monthly_income": 1000000,
+    "card_spend_to_income_ratio_percent": 102.3,
+    "outlier_adjusted_monthly_avg": 999182,
+    "recurring_spend_total": 191400,
+    "recurring_monthly_avg": 31900
+  },
+  "monthly": [
+    {
+      "month": "2025-10",
+      "total_card_spend": 1088058,
+      "transaction_count": 47,
+      "avg_transaction_amount": 23150.17,
+      "monthly_income": 1000000,
+      "card_spend_ratio_percent": 108.8,
+      "top_category": "shopping",
+      "top_category_amount": 438129,
+      "mom_change_percent": null
+    },
+    {
+      "month": "2025-11",
+      "total_card_spend": 1060893,
+      "transaction_count": 48,
+      "avg_transaction_amount": 22101.94,
+      "monthly_income": 1000000,
+      "card_spend_ratio_percent": 106.1,
+      "top_category": "food",
+      "top_category_amount": 575436,
+      "mom_change_percent": -2.5
+    },
+    {
+      "month": "2025-12",
+      "total_card_spend": 1042237,
+      "transaction_count": 45,
+      "avg_transaction_amount": 23160.82,
+      "monthly_income": 1000000,
+      "card_spend_ratio_percent": 104.2,
+      "top_category": "shopping",
+      "top_category_amount": 527286,
+      "mom_change_percent": -1.8
+    },
+    {
+      "month": "2026-01",
+      "total_card_spend": 977362,
+      "transaction_count": 39,
+      "avg_transaction_amount": 25060.56,
+      "monthly_income": 1000000,
+      "card_spend_ratio_percent": 97.7,
+      "top_category": "shopping",
+      "top_category_amount": 469545,
+      "mom_change_percent": -6.2
+    },
+    {
+      "month": "2026-02",
+      "total_card_spend": 1113476,
+      "transaction_count": 43,
+      "avg_transaction_amount": 25894.79,
+      "monthly_income": 1000000,
+      "card_spend_ratio_percent": 111.3,
+      "top_category": "shopping",
+      "top_category_amount": 552528,
+      "mom_change_percent": 13.9
+    },
+    {
+      "month": "2026-03",
+      "total_card_spend": 856773,
+      "transaction_count": 39,
+      "avg_transaction_amount": 21968.54,
+      "monthly_income": 1000000,
+      "card_spend_ratio_percent": 85.7,
+      "top_category": "food",
+      "top_category_amount": 411898,
+      "mom_change_percent": -23.1
+    }
+  ],
+  "categories": {
+    "by_month": [
+      {
+        "month": "2025-10",
+        "category": "shopping",
+        "amount": 438129,
+        "share_percent": 40.3
+      },
+      {
+        "month": "2025-10",
+        "category": "food",
+        "amount": 437026,
+        "share_percent": 40.2
+      },
+      {
+        "month": "2025-10",
+        "category": "transport",
+        "amount": 181003,
+        "share_percent": 16.6
+      },
+      {
+        "month": "2025-10",
+        "category": "leisure",
+        "amount": 31900,
+        "share_percent": 2.9
+      },
+      {
+        "month": "2025-11",
+        "category": "food",
+        "amount": 575436,
+        "share_percent": 54.2
+      },
+      {
+        "month": "2025-11",
+        "category": "shopping",
+        "amount": 295043,
+        "share_percent": 27.8
+      },
+      {
+        "month": "2025-11",
+        "category": "transport",
+        "amount": 131411,
+        "share_percent": 12.4
+      },
+      {
+        "month": "2025-11",
+        "category": "leisure",
+        "amount": 31900,
+        "share_percent": 3.0
+      },
+      {
+        "month": "2025-11",
+        "category": "other",
+        "amount": 27103,
+        "share_percent": 2.6
+      },
+      {
+        "month": "2025-12",
+        "category": "shopping",
+        "amount": 527286,
+        "share_percent": 50.6
+      },
+      {
+        "month": "2025-12",
+        "category": "food",
+        "amount": 415903,
+        "share_percent": 39.9
+      },
+      {
+        "month": "2025-12",
+        "category": "transport",
+        "amount": 67148,
+        "share_percent": 6.4
+      },
+      {
+        "month": "2025-12",
+        "category": "leisure",
+        "amount": 31900,
+        "share_percent": 3.1
+      },
+      {
+        "month": "2026-01",
+        "category": "shopping",
+        "amount": 469545,
+        "share_percent": 48.0
+      },
+      {
+        "month": "2026-01",
+        "category": "food",
+        "amount": 298755,
+        "share_percent": 30.6
+      },
+      {
+        "month": "2026-01",
+        "category": "transport",
+        "amount": 113542,
+        "share_percent": 11.6
+      },
+      {
+        "month": "2026-01",
+        "category": "other",
+        "amount": 63620,
+        "share_percent": 6.5
+      },
+      {
+        "month": "2026-01",
+        "category": "leisure",
+        "amount": 31900,
+        "share_percent": 3.3
+      },
+      {
+        "month": "2026-02",
+        "category": "shopping",
+        "amount": 552528,
+        "share_percent": 49.6
+      },
+      {
+        "month": "2026-02",
+        "category": "food",
+        "amount": 404341,
+        "share_percent": 36.3
+      },
+      {
+        "month": "2026-02",
+        "category": "transport",
+        "amount": 124707,
+        "share_percent": 11.2
+      },
+      {
+        "month": "2026-02",
+        "category": "leisure",
+        "amount": 31900,
+        "share_percent": 2.9
+      },
+      {
+        "month": "2026-03",
+        "category": "food",
+        "amount": 411898,
+        "share_percent": 48.1
+      },
+      {
+        "month": "2026-03",
+        "category": "shopping",
+        "amount": 312257,
+        "share_percent": 36.4
+      },
+      {
+        "month": "2026-03",
+        "category": "transport",
+        "amount": 82293,
+        "share_percent": 9.6
+      },
+      {
+        "month": "2026-03",
+        "category": "leisure",
+        "amount": 31900,
+        "share_percent": 3.7
+      },
+      {
+        "month": "2026-03",
+        "category": "other",
+        "amount": 18425,
+        "share_percent": 2.2
+      }
+    ],
+    "top_categories": [
+      {
+        "category": "shopping",
+        "amount": 2594788,
+        "share_percent": 42.3
+      },
+      {
+        "category": "food",
+        "amount": 2543359,
+        "share_percent": 41.4
+      },
+      {
+        "category": "transport",
+        "amount": 700104,
+        "share_percent": 11.4
+      },
+      {
+        "category": "leisure",
+        "amount": 191400,
+        "share_percent": 3.1
+      },
+      {
+        "category": "other",
+        "amount": 109148,
+        "share_percent": 1.8
+      }
+    ],
+    "top_subcategories": [
+      {
+        "subcategory": "ecommerce",
+        "amount": 1843184,
+        "share_percent": 30.0
+      },
+      {
+        "subcategory": "dining",
+        "amount": 977299,
+        "share_percent": 15.9
+      },
+      {
+        "subcategory": "cafe",
+        "amount": 842417,
+        "share_percent": 13.7
+      },
+      {
+        "subcategory": "shopping",
+        "amount": 751604,
+        "share_percent": 12.2
+      },
+      {
+        "subcategory": "delivery",
+        "amount": 723643,
+        "share_percent": 11.8
+      },
+      {
+        "subcategory": "public_transit",
+        "amount": 553127,
+        "share_percent": 9.0
+      },
+      {
+        "subcategory": "movie",
+        "amount": 191400,
+        "share_percent": 3.1
+      },
+      {
+        "subcategory": "taxi",
+        "amount": 146977,
+        "share_percent": 2.4
+      },
+      {
+        "subcategory": "other",
+        "amount": 109148,
+        "share_percent": 1.8
+      }
+    ]
+  },
+  "time_patterns": {
+    "time_bands": [
+      {
+        "dimension_type": "time_band",
+        "dimension_key": "morning",
+        "transaction_count": 52,
+        "total_amount": 1194196,
+        "share_percent": 19.5
+      },
+      {
+        "dimension_type": "time_band",
+        "dimension_key": "lunch",
+        "transaction_count": 72,
+        "total_amount": 1498233,
+        "share_percent": 24.4
+      },
+      {
+        "dimension_type": "time_band",
+        "dimension_key": "evening",
+        "transaction_count": 112,
+        "total_amount": 2679157,
+        "share_percent": 43.6
+      },
+      {
+        "dimension_type": "time_band",
+        "dimension_key": "late_night",
+        "transaction_count": 25,
+        "total_amount": 767213,
+        "share_percent": 12.5
+      }
+    ],
+    "weekdays": [
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "monday",
+        "transaction_count": 42,
+        "total_amount": 1000113,
+        "share_percent": 16.3
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "tuesday",
+        "transaction_count": 49,
+        "total_amount": 918424,
+        "share_percent": 15.0
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "wednesday",
+        "transaction_count": 42,
+        "total_amount": 901270,
+        "share_percent": 14.7
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "thursday",
+        "transaction_count": 39,
+        "total_amount": 899241,
+        "share_percent": 14.6
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "friday",
+        "transaction_count": 36,
+        "total_amount": 981584,
+        "share_percent": 16.0
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "saturday",
+        "transaction_count": 27,
+        "total_amount": 751801,
+        "share_percent": 12.2
+      },
+      {
+        "dimension_type": "weekday",
+        "dimension_key": "sunday",
+        "transaction_count": 26,
+        "total_amount": 686366,
+        "share_percent": 11.2
+      }
+    ]
+  },
+  "cashflow": [
+    {
+      "month": "2025-10",
+      "income": 1000000,
+      "total_outflow": 1088058,
+      "fixed_cost": 0,
+      "card_bill": 1088058,
+      "net_cashflow": -88058,
+      "ending_balance": 4911942
+    },
+    {
+      "month": "2025-11",
+      "income": 1000000,
+      "total_outflow": 1060893,
+      "fixed_cost": 0,
+      "card_bill": 1060893,
+      "net_cashflow": -60893,
+      "ending_balance": 4851049
+    },
+    {
+      "month": "2025-12",
+      "income": 1000000,
+      "total_outflow": 1042237,
+      "fixed_cost": 0,
+      "card_bill": 1042237,
+      "net_cashflow": -42237,
+      "ending_balance": 4808812
+    },
+    {
+      "month": "2026-01",
+      "income": 1000000,
+      "total_outflow": 977362,
+      "fixed_cost": 0,
+      "card_bill": 977362,
+      "net_cashflow": 22638,
+      "ending_balance": 4831450
+    },
+    {
+      "month": "2026-02",
+      "income": 1000000,
+      "total_outflow": 1113476,
+      "fixed_cost": 0,
+      "card_bill": 1113476,
+      "net_cashflow": -113476,
+      "ending_balance": 4717974
+    },
+    {
+      "month": "2026-03",
+      "income": 1000000,
+      "total_outflow": 856773,
+      "fixed_cost": 0,
+      "card_bill": 856773,
+      "net_cashflow": 143227,
+      "ending_balance": 4861201
+    }
+  ],
+  "anomalies": [],
+  "ai_analysis": {
+    "consumption_patterns": [
+      "2026-02 소비가 1113476원으로 가장 높았습니다.",
+      "가장 큰 소비 카테고리는 shopping이며 비중은 42.3%입니다.",
+      "지출은 evening 시간대에 가장 집중됐습니다."
+    ],
+    "anomaly_explanations": [],
+    "actionable_solutions": [
+      "식비 비중이 높은 달은 배달과 편의점 소비를 분리해 관리하는 것이 좋습니다.",
+      "반복 결제는 고정비 목록으로 분리해 매달 자동 점검하는 것이 좋습니다."
+    ]
+  }
+}

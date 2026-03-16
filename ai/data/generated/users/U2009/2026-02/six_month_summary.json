@@ -1,0 +1,30 @@
+{
+  "average_amount": 939704,
+  "months": [
+    {
+      "month": "2025-10",
+      "total_card_spend": 894911,
+      "is_selected_month": false
+    },
+    {
+      "month": "2025-11",
+      "total_card_spend": 857519,
+      "is_selected_month": false
+    },
+    {
+      "month": "2025-12",
+      "total_card_spend": 915684,
+      "is_selected_month": false
+    },
+    {
+      "month": "2026-01",
+      "total_card_spend": 954447,
+      "is_selected_month": false
+    },
+    {
+      "month": "2026-02",
+      "total_card_spend": 1075960,
+      "is_selected_month": true
+    }
+  ]
+}
