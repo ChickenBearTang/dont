@@ -1,21 +1,24 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.dto.response;
 
-import lombok.Builder;
-import lombok.Getter;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankResponse;
 
 import java.util.List;
 
-@Getter
-@Builder
-public class AccountListResponse {
+public record AccountListResponse(List<AccountDetail> accounts) {
 
-    private List<AccountDetail> accounts;
+    public static AccountListResponse from(OpenBankResponse apiResponse) {
+        if (apiResponse.rec() == null) {
+            return new AccountListResponse(List.of()); // 불변 빈 리스트 반환
+        }
+        List<AccountDetail> details = apiResponse.rec().stream()
+                .map(AccountDetail::from)
+                .toList(); // Java 16+ toList()는 불변 리스트를 반환합니다.
+        return new AccountListResponse(details);
+    }
 
-    @Getter
-    @Builder
-    public static class AccountDetail {
-        private String bankName;      // 예: "우리은행"
-        private String accountNo;     // 예: "0204667768182760"
-        private String accountName;   // 예: "우리 드림하이 통장"
+    public record AccountDetail(String bankName, String bankCode, String accountNo, String accountName, String accountBalance, String currency) {
+        public static AccountDetail from(OpenBankResponse.Rec rec) {
+            return new AccountDetail(rec.bankName(), rec.bankCode(), rec.accountNo(), rec.accountName(), rec.accountBalance(), rec.currency());
+        }
     }
 }
