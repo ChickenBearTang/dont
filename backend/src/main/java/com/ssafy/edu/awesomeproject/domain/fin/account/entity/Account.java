@@ -1,21 +1,21 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.entity;
 
-import jakarta.persistence.Table;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "accounts") // 1. 실제 DB 테이블 이름이 'accounts'임을 명시
@@ -113,16 +113,35 @@ public class Account {
     private Long savingTargetAmount;
 
     @Builder
-    public Account(Long userId, String accountNo, String bankCode, String bankName, String accountRole,
-                   String accountTypeUniqueNo, String accountTypeCode, String accountTypeName, String accountName,
-                   LocalDate accountCreatedDate, LocalDate accountExpiryDate, BigDecimal dailyTransferLimit,
-                   BigDecimal oneTimeTransferLimit, BigDecimal balance, LocalDate lastTransactionDate, String currencyCode,
-                   String status, String accountDescription, String accountType, String currencyName, String userName) {
+    public Account(
+            Long userId,
+            String accountNo,
+            String bankCode,
+            String bankName,
+            String accountRole,
+            String accountTypeUniqueNo,
+            String accountTypeCode,
+            String accountTypeName,
+            String accountName,
+            LocalDate accountCreatedDate,
+            LocalDate accountExpiryDate,
+            boolean isPrimary,
+            BigDecimal dailyTransferLimit,
+            BigDecimal oneTimeTransferLimit,
+            BigDecimal balance,
+            LocalDate lastTransactionDate,
+            String currencyCode,
+            String status,
+            String accountDescription,
+            String accountType,
+            String currencyName,
+            String userName) {
         this.userId = userId;
         this.accountNo = accountNo;
         this.bankCode = bankCode;
         this.bankName = bankName;
         this.accountRole = accountRole;
+        this.isPrimary = isPrimary;
         this.accountTypeUniqueNo = accountTypeUniqueNo;
         this.accountTypeCode = accountTypeCode;
         this.accountTypeName = accountTypeName;
@@ -145,5 +164,17 @@ public class Account {
         this.accountName = accountName;
         this.balance = balance;
         this.status = status;
+    }
+
+    public void updateSavingTargetAmount(Long savingTargetAmount) {
+        this.savingTargetAmount = savingTargetAmount;
+    }
+
+    public void setAsPrimary() {
+        this.isPrimary = true;
+    }
+
+    public void unsetPrimary() {
+        this.isPrimary = false;
     }
 }
