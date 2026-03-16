@@ -7,11 +7,15 @@ import com.ssafy.edu.awesomeproject.domain.community.entity.Board;
 import com.ssafy.edu.awesomeproject.domain.community.entity.BoardCategory;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Post;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PostStatus;
+import com.ssafy.edu.awesomeproject.domain.community.entity.PrPost;
+import com.ssafy.edu.awesomeproject.domain.community.entity.PrStatus;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.BoardRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CohortRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
+import com.ssafy.edu.awesomeproject.domain.community.repository.PrPostRepository;
+import com.ssafy.edu.awesomeproject.domain.community.repository.PrVoteRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
@@ -21,6 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -29,12 +37,22 @@ public class PostService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final CohortRepository cohortRepository;
+    private final PrPostRepository prPostRepository;
+    private final PrVoteRepository prVoteRepository;
 
-    public PostService(PostRepository postRepository, BoardRepository boardRepository, CohortRepository cohortRepository, UserRepository userRepository) {
+    public PostService(
+            PostRepository postRepository,
+            BoardRepository boardRepository,
+            CohortRepository cohortRepository,
+            UserRepository userRepository,
+            PrPostRepository prPostRepository,
+            PrVoteRepository prVoteRepository) {
         this.postRepository = postRepository;
         this.boardRepository = boardRepository;
         this.cohortRepository = cohortRepository;
         this.userRepository = userRepository;
+        this.prPostRepository = prPostRepository;
+        this.prVoteRepository = prVoteRepository;
     }
 
     //게시글 생성
@@ -129,17 +147,26 @@ public class PostService {
             );
         }
 
+        Map<Long, PrPost> prByPostId = getPrByPostId(postPage.getContent(), category);
+        Map<Long, PrVoteSummary> voteSummaryByPostId = getPrVoteSummaryByPostId(postPage.getContent(), category);
+
         List<PostSummary> content = postPage.getContent().stream()
-            .map(post -> new PostSummary(
-                post.getId(),
-                post.getBoard().getCategory().name(),
-                extractGenerationNo(post.getBoard()),
-                post.getTitle(),
-                post.getUser().getNickname(),
-                0,
-                0,
-                post.getCreatedAt()
-            ))
+            .map(post -> {
+                PrSummary prSummary =
+                    buildPrSummary(prByPostId, voteSummaryByPostId, post.getId());
+
+                return new PostSummary(
+                    post.getId(),
+                    post.getBoard().getCategory().name(),
+                    extractGenerationNo(post.getBoard()),
+                    post.getTitle(),
+                    post.getUser().getNickname(),
+                    0,
+                    0,
+                    post.getCreatedAt(),
+                    prSummary != null ? new PostExtraSummary(prSummary) : null
+                );
+            })
             .toList();
 
         return new GetPostListResult(
@@ -218,6 +245,74 @@ public class PostService {
         return board.getCohort() != null ? board.getCohort().getGenerationNo() : null;
     }
 
+    private Map<Long, PrPost> getPrByPostId(List<Post> posts, BoardCategory category) {
+        if (posts.isEmpty() || category != BoardCategory.PR) {
+            return Map.of();
+        }
+
+        Set<Long> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
+        return prPostRepository.findByPostIdIn(postIds).stream()
+            .collect(Collectors.toMap(PrPost::getPostId, Function.identity()));
+    }
+
+    private Map<Long, PrVoteSummary> getPrVoteSummaryByPostId(List<Post> posts, BoardCategory category) {
+        if (posts.isEmpty() || category != BoardCategory.PR) {
+            return Map.of();
+        }
+
+        Set<Long> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
+        return prVoteRepository.aggregateByPostIds(postIds).stream()
+            .collect(
+                Collectors.toMap(
+                    PrVoteRepository.PrVoteCountProjection::getPostId,
+                    projection ->
+                        new PrVoteSummary(
+                            projection.getTotalVoteCount()
+                        )
+                )
+            );
+    }
+
+    private String getStatus(Map<Long, PrPost> prByPostId, Long postId) {
+        PrPost prPost = prByPostId.get(postId);
+        if (prPost == null) {
+            return null;
+        }
+
+        return prPost.getResultStatusEnum() == PrStatus.OPEN ? PrStatus.OPEN.name() : PrStatus.CLOSED.name();
+    }
+
+    private String getResultStatus(Map<Long, PrPost> prByPostId, Long postId) {
+        PrPost prPost = prByPostId.get(postId);
+        return prPost != null ? prPost.getResultStatus() : null;
+    }
+
+    private Long getTotalVoteCount(Map<Long, PrVoteSummary> voteSummaryByPostId, Long postId) {
+        PrVoteSummary summary = voteSummaryByPostId.get(postId);
+        return summary != null ? summary.totalVoteCount() : null;
+    }
+
+    private LocalDateTime getDeadlineAt(Map<Long, PrPost> prByPostId, Long postId) {
+        PrPost prPost = prByPostId.get(postId);
+        return prPost != null ? prPost.getDeadlineAt() : null;
+    }
+
+    private PrSummary buildPrSummary(
+            Map<Long, PrPost> prByPostId,
+            Map<Long, PrVoteSummary> voteSummaryByPostId,
+            Long postId) {
+        PrPost prPost = prByPostId.get(postId);
+        if (prPost == null) {
+            return null;
+        }
+
+        return new PrSummary(
+                getStatus(prByPostId, postId),
+                getResultStatus(prByPostId, postId),
+                getTotalVoteCount(voteSummaryByPostId, postId),
+                getDeadlineAt(prByPostId, postId));
+    }
+
     public record CreatePostResult(
         Long postId,
         String category,
@@ -246,7 +341,21 @@ public class PostService {
         String authorNickname,
         Integer likeCount,
         Integer commentCount,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        PostExtraSummary extraSummary
+    ) {}
+
+    private record PrVoteSummary(Long totalVoteCount) {}
+
+    public record PostExtraSummary(
+        PrSummary pr
+    ) {}
+
+    public record PrSummary(
+        String status,
+        String resultStatus,
+        Long totalVoteCount,
+        LocalDateTime deadlineAt
     ) {}
 
     public record GetPostListResult(
