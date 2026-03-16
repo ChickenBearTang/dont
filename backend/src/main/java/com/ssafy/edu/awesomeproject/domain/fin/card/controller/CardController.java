@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.fin.card.controller;
 
+import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
@@ -8,37 +9,41 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/cards")
-
+@RequestMapping("fin/cards")
 public class CardController {
 
     private final CardService cardService;
 
-    //카드 목록 불러오기
     @GetMapping
     @Operation(summary = "내 카드 목록 조회", description = "현재 로그인 사용자의 카드 목록을 조회합니다.")
-    public ResponseEntity<CardListResponse> getMyCards() {
-        Long currentUserId = 1L; // TODO: Replace with authenticated user ID
-        CardListResponse response = cardService.getCardList(currentUserId);
+    public ResponseEntity<CardListResponse> getMyCards(@CurrentUserId Long userId) {
+        CardListResponse response = cardService.getCardList(userId);
         return ResponseEntity.ok(response);
     }
 
-    //카드 결제내역 불러오기
+    @PostMapping("/refresh")
+    @Operation(summary = "카드 목록 새로고침", description = "외부 API 기준으로 카드 정보를 재동기화합니다.")
+    public ResponseEntity<CardListResponse> refreshMyCards(@CurrentUserId Long userId) {
+        CardListResponse response = cardService.refreshCardList(userId);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{cardNo}")
-    @Operation(summary = "한 카드의 결제내역 조회", description = "카드 정보와 날짜를 입력하면 기간의 결제내역이 뜹니다.")
+    @Operation(summary = "카드 결제내역 조회", description = "카드 번호와 기간으로 결제내역을 조회합니다.")
     public ResponseEntity<CardTransactionResponse> getCardTransactions(
+        @CurrentUserId Long userId,
         @PathVariable String cardNo,
         @RequestParam String startDate,
         @RequestParam String endDate) {
-        Long currentUserId = 1L; // TODO: Replace with authenticated user ID
         CardTransactionResponse response =
-            cardService.getCardTransactions(currentUserId, cardNo, startDate, endDate);
+            cardService.getCardTransactions(userId, cardNo, startDate, endDate);
         return ResponseEntity.ok(response);
     }
 }

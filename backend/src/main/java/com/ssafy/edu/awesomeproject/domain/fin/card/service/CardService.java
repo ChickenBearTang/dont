@@ -1,21 +1,27 @@
 package com.ssafy.edu.awesomeproject.domain.fin.card.service;
 
+import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request.OpenBankCardTransactionRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request.OpenBankRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBankCardTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBankResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardTransactionResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.entity.Card;
+import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankClient;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankReqHeader;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -23,42 +29,76 @@ public class CardService {
 
     private static final String SUCCESS_CODE = "H0000";
 
-    //더미로 카드 넣기
-    private static final String HARDCODED_CARD_NO = "1002612577288540";
-    private static final String HARDCODED_CVC = "521";
-
     private final OpenBankClient openBankClient;
+    private final CardRepository cardRepository;
+    private final UserRepository userRepository;
 
     @Value("${auth.api.key}")
     private String apiKey;
 
-
-    // 카드목록 조회 바디
+    // 키드 목록 불러오기
+    @Transactional
     public CardListResponse getCardList(Long userId) {
-        // TODO: Replace with userKey lookup by userId
-        String userKey = "31cc0084-6b77-42c9-8927-762488bc2767";
+        List<Card> cards = cardRepository.findAllByUserId(userId);
 
-        OpenBankRequest request = createCardListRequest(userKey);
-        OpenBankResponse response = openBankClient.fetchCreditCardList(request);
-
-        return convertToCardListResponse(response);
+        if (cards.isEmpty()) {
+            RefreshResult refreshResult = refreshCardsFromExternal(userId);
+            return buildCardListResponse(
+                refreshResult.cards(),
+                refreshResult.success(),
+                refreshResult.success() ? "Card list refreshed and retrieved." : refreshResult.message());
+        }
+        return buildCardListResponse(cards, true, "Card list retrieved.");
     }
 
-    // 카드 거래내역 조회 바디
+    @Transactional
+    public CardListResponse refreshCardList(Long userId) {
+
+
+        RefreshResult refreshResult = refreshCardsFromExternal(userId);
+        return buildCardListResponse(refreshResult.cards(), refreshResult.success(), refreshResult.message());
+    }
+
+    @Transactional
     public CardTransactionResponse getCardTransactions(
         Long userId, String cardNo, String startDate, String endDate) {
-        // TODO: Replace with userKey lookup by userId
-        String userKey = "31cc0084-6b77-42c9-8927-762488bc2767";
-
+        User user = getRequiredUserWithFinanceKey(userId);
+        CardCredential credential = resolveCardCredential(userId, cardNo);
         OpenBankCardTransactionRequest request =
-            createCardTransactionRequest(userKey, startDate, endDate);
+            createCardTransactionRequest(
+                user.getSsafyFinanceUserKey(),
+                credential.cardNo(),
+                credential.cvc(),
+                startDate,
+                endDate);
         OpenBankCardTransactionResponse response = openBankClient.fetchCreditCardTransactions(request);
-
         return convertToCardTransactionResponse(response, cardNo);
     }
 
+    private RefreshResult refreshCardsFromExternal(Long userId) {
+        User user = getRequiredUserWithFinanceKey(userId);
+        OpenBankRequest request = createCardListRequest(user.getSsafyFinanceUserKey());
+        OpenBankResponse response = openBankClient.fetchCreditCardList(request);
 
-    //카드목록 리퀘스트 바디 만들기
+        boolean success = response != null
+            && response.getHeader() != null
+            && SUCCESS_CODE.equals(response.getHeader().getResponseCode());
+
+        if (!success || response.getRec() == null) {
+            List<Card> currentCards = cardRepository.findAllByUserId(userId);
+            return new RefreshResult(false, currentCards, "Failed to refresh card list.");
+        }
+
+        cardRepository.deleteByUserId(userId);
+
+        List<Card> savedCards = cardRepository.saveAll(
+            response.getRec().stream()
+                .map(rec -> toCardEntity(user, rec))
+                .collect(Collectors.toList()));
+
+        return new RefreshResult(true, savedCards, "Card list refreshed.");
+    }
+
     private OpenBankRequest createCardListRequest(String userKey) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -77,9 +117,12 @@ public class CardService {
             .build();
     }
 
-    //거래내역 리퀘스트 바디만들기
     private OpenBankCardTransactionRequest createCardTransactionRequest(
-        String userKey, String startDate, String endDate) {
+        String userKey,
+        String cardNo,
+        String cvc,
+        String startDate,
+        String endDate) {
         LocalDateTime now = LocalDateTime.now();
 
         return OpenBankCardTransactionRequest.builder()
@@ -94,55 +137,41 @@ public class CardService {
                 .apiKey(apiKey)
                 .userKey(userKey)
                 .build())
-            .cardNo(HARDCODED_CARD_NO)
-            .cvc(HARDCODED_CVC)
+            .cardNo(cardNo)
+            .cvc(cvc)
             .startDate(startDate)
             .endDate(endDate)
             .build();
     }
 
-
-    //카드목록 응답을 프론트로 보낼 형식으로 바디변환
-    private CardListResponse convertToCardListResponse(OpenBankResponse response) {
-        boolean success = response != null
-            && response.getHeader() != null
-            && SUCCESS_CODE.equals(response.getHeader().getResponseCode());
-
+    private CardListResponse buildCardListResponse(List<Card> cards, boolean success, String message) {
         String code = success ? "TRANSACTION_200_1" : "TRANSACTION_500_1";
-        String message = success ? "Card list retrieved." : "Failed to retrieve card list.";
-
-        if (response == null || response.getRec() == null) {
-            return CardListResponse.builder()
-                .success(success)
-                .code(code)
-                .message(message)
-                .cards(Collections.emptyList())
-                .build();
-        }
-
         return CardListResponse.builder()
             .success(success)
             .code(code)
             .message(message)
-            .cards(response.getRec().stream()
-                .map(card -> CardListResponse.CardItem.builder()
-                    .cardIssuerName(card.getCardIssuerName())
-                    .cardName(card.getCardName())
-                    .monthlyCardExpense(calculateMonthlyCardExpense(card))
-                    .build())
-                .collect(Collectors.toList()))
+            .cards(cards == null
+                ? Collections.emptyList()
+                : cards.stream()
+                    .map(card -> CardListResponse.CardItem.builder()
+                        .cardIssuerName(card.getCardIssuerName())
+                        .cardName(card.getCardName())
+                        .monthlyCardExpense(calculateMonthlyCardExpense(card))
+                        .build())
+                    .collect(Collectors.toList()))
             .build();
     }
 
-    //결재내역받은 바디를 프론트로 보낼 바디로 변환
     private CardTransactionResponse convertToCardTransactionResponse(
         OpenBankCardTransactionResponse response, String cardNoFromPath) {
         boolean success = response != null
             && response.getHeader() != null
             && SUCCESS_CODE.equals(response.getHeader().getResponseCode());
 
-        String code = "1231321";
-        String message = "계좌의 거래내역을 불러왔습니다.";
+        String code = success ? "TRANSACTION_200_1" : "TRANSACTION_500_1";
+        String message = success
+            ? "Card transactions retrieved."
+            : "Failed to retrieve card transactions.";
 
         if (response == null || response.getRec() == null) {
             return CardTransactionResponse.builder()
@@ -178,9 +207,7 @@ public class CardService {
             .build();
     }
 
-    //카드목록 보여줄떄 월별 사용금액 보여줘야하는데 날짜를 뭘로하고 보여주지
-    // TODO: Replace with real monthly spending aggregation logic.
-    private long calculateMonthlyCardExpense(OpenBankResponse.Rec card) {
+    private long calculateMonthlyCardExpense(Card card) {
         long maxBenefitLimit = card.getMaxBenefitLimit() == null ? 0L : card.getMaxBenefitLimit();
         long baselinePerformance =
             card.getBaselinePerformance() == null ? 0L : card.getBaselinePerformance();
@@ -194,9 +221,57 @@ public class CardService {
         return Math.min(maxBenefitLimit, baselinePerformance);
     }
 
+    private Card toCardEntity(User user, OpenBankResponse.Rec rec) {
+        return Card.builder()
+            .user(user)
+            .cardNo(rec.getCardNo())
+            .cvc(rec.getCvc())
+            .cardUniqueNo(rec.getCardUniqueNo())
+            .cardIssuerCode(rec.getCardIssuerCode())
+            .cardIssuerName(rec.getCardIssuerName())
+            .cardName(rec.getCardName())
+            .cardDescription(rec.getCardDescription())
+            .baselinePerformance(rec.getBaselinePerformance())
+            .maxBenefitLimit(rec.getMaxBenefitLimit())
+            .cardExpiryDate(rec.getCardExpiryDate())
+            .withdrawalAccountNo(rec.getWithdrawalAccountNo())
+            .withdrawalDate(rec.getWithdrawalDate())
+            .build();
+    }
+
+    private CardCredential resolveCardCredential(Long userId, String cardNo) {
+        return cardRepository.findByUserIdAndCardNo(userId, cardNo)
+            .map(card -> new CardCredential(card.getCardNo(), card.getCvc()))
+            .orElseGet(() -> {
+                refreshCardsFromExternal(userId);
+                return cardRepository.findByUserIdAndCardNo(userId, cardNo)
+                    .map(card -> new CardCredential(card.getCardNo(), card.getCvc()))
+                    .orElseThrow(() ->
+                        new IllegalArgumentException("Card not found for userId=" + userId + ", cardNo=" + cardNo));
+            });
+    }
+
+    private User getRequiredUserWithFinanceKey(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        String financeUserKey = user.getSsafyFinanceUserKey();
+        if (financeUserKey == null || financeUserKey.isBlank()) {
+            throw new IllegalArgumentException("ssafy_finance_user_key is missing for userId=" + userId);
+        }
+
+        return user;
+    }
+
     private String generateUniqueNo(LocalDateTime now) {
         String timestamp = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         int randomNo = new Random().nextInt(900000) + 100000;
         return timestamp + randomNo;
+    }
+
+    private record CardCredential(String cardNo, String cvc) {
+    }
+
+    private record RefreshResult(boolean success, List<Card> cards, String message) {
     }
 }
