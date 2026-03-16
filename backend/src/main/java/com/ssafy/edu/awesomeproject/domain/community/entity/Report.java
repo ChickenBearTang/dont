@@ -41,8 +41,9 @@ public class Report extends BaseEntity {
     @Column(name = "target_id", nullable = false)
     private Long targetId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "reason_code", nullable = false, length = 30)
-    private String reasonCode;
+    private ReportReasonCode reasonCode;
 
     @Column(name = "detail_text", columnDefinition = "TEXT")
     private String detailText;
@@ -64,7 +65,7 @@ public class Report extends BaseEntity {
             Long reporterUserId,
             ReportTargetType targetType,
             Long targetId,
-            String reasonCode,
+            ReportReasonCode reasonCode,
             String detailText) {
         this.reporterUserId = reporterUserId;
         this.targetType = targetType;
