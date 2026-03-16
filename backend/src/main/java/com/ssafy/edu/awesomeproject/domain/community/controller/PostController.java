@@ -86,36 +86,40 @@ public class PostController {
             postService.getPostsByCategory(category, generationNo, page, size);
 
         List<GetPostListResponseDto.PostSummaryDto> content = result.content().stream()
-            .map(post -> new GetPostListResponseDto.PostSummaryDto(
-                post.postId(),
-                post.category(),
-                post.generationNo(),
-                post.title(),
-                post.authorNickname(),
-                post.likeCount(),
-                post.commentCount(),
-                post.createdAt(),
-                post.extraSummary() == null
-                    ? null
-                    : new GetPostListResponseDto.PostExtraSummaryDto(
-                        post.extraSummary().hotdeal() == null
-                            ? null
-                            : new GetPostListResponseDto.HotdealSummaryDto(
-                                post.extraSummary().hotdeal().dealPriceAmount(),
-                                post.extraSummary().hotdeal().originalPriceAmount(),
-                                post.extraSummary().hotdeal().storeName(),
-                                post.extraSummary().hotdeal().expiredAt(),
-                                post.extraSummary().hotdeal().isExpired()
-                        post.extraSummary().pr() == null
-                            ? null
-                            : new GetPostListResponseDto.PrSummaryDto(
-                                post.extraSummary().pr().status(),
-                                post.extraSummary().pr().resultStatus(),
-                                post.extraSummary().pr().totalVoteCount(),
-                                post.extraSummary().pr().deadlineAt()
-                            )
-                    )
-            ))
+            .map(post -> {
+                PostService.PostExtraSummary extra = post.extraSummary();
+                return new GetPostListResponseDto.PostSummaryDto(
+                    post.postId(),
+                    post.category(),
+                    post.generationNo(),
+                    post.title(),
+                    post.authorNickname(),
+                    post.likeCount(),
+                    post.commentCount(),
+                    post.createdAt(),
+                    extra == null
+                        ? null
+                        : new GetPostListResponseDto.PostExtraSummaryDto(
+                            extra.pr() == null
+                                ? null
+                                : new GetPostListResponseDto.PrSummaryDto(
+                                    extra.pr().status(),
+                                    extra.pr().resultStatus(),
+                                    extra.pr().totalVoteCount(),
+                                    extra.pr().deadlineAt()
+                                ),
+                            extra.hotdeal() == null
+                                ? null
+                                : new GetPostListResponseDto.HotdealSummaryDto(
+                                    extra.hotdeal().dealPriceAmount(),
+                                    extra.hotdeal().originalPriceAmount(),
+                                    extra.hotdeal().storeName(),
+                                    extra.hotdeal().expiredAt(),
+                                    extra.hotdeal().isExpired()
+                                )
+                        )
+                );
+            })
             .toList();
 
         return CommonResponse.success(
