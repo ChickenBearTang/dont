@@ -24,6 +24,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -90,5 +91,92 @@ public class ReportService {
                         .orElseThrow(() -> new CommunityException(CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
         return comment.getUser().getId();
     }
-}
 
+    public AdminReportListResponseDto getReportsForAdmin(ReportStatus status, Integer page, Integer size) {
+        int pageNumber = (page == null || page < 0) ? 0 : page;
+        int pageSize = (size == null || size <= 0) ? 20 : size;
+
+        PageRequest pageRequest = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "id"));
+        Page<Report> reportPage =
+                status == null
+                        ? reportRepository.findAllByOrderByIdDesc(pageRequest)
+                        : reportRepository.findByReportStatusOrderByIdDesc(status, pageRequest);
+
+        List<AdminReportListResponseDto.ReportSummaryDto> content =
+                reportPage.getContent().stream()
+                        .map(
+                                report ->
+                                        new AdminReportListResponseDto.ReportSummaryDto(
+                                                report.getId(),
+                                                report.getReporterUserId(),
+                                                report.getTargetType().name(),
+                                                report.getTargetId(),
+                                                report.getReasonCode().name(),
+                                                report.getReportStatus().name(),
+                                                report.getCreatedAt(),
+                                                report.getProcessedAt()))
+                        .toList();
+
+        return new AdminReportListResponseDto(
+                content,
+                reportPage.getNumber(),
+                reportPage.getSize(),
+                reportPage.getTotalElements(),
+                reportPage.getTotalPages(),
+                reportPage.hasNext());
+    }
+
+    public AdminReportDetailResponseDto getReportDetailForAdmin(Long reportId) {
+        Report report = getReport(reportId);
+        return new AdminReportDetailResponseDto(
+                report.getId(),
+                report.getReporterUserId(),
+                report.getTargetType().name(),
+                report.getTargetId(),
+                report.getReasonCode().name(),
+                report.getDetailText(),
+                report.getReportStatus().name(),
+                report.getProcessedByUserId(),
+                report.getProcessNote(),
+                report.getProcessedAt(),
+                report.getCreatedAt(),
+                report.getUpdatedAt());
+    }
+
+    @Transactional
+    public ReportProcessResponseDto blind(Long reportId, Long adminUserId, ReportProcessRequestDto requestDto) {
+        Report report = getReport(reportId);
+        validateNotProcessed(report);
+        report.blind(adminUserId, requestDto.processNote());
+        return toProcessResponse(report);
+    }
+
+    @Transactional
+    public ReportProcessResponseDto reject(Long reportId, Long adminUserId, ReportProcessRequestDto requestDto) {
+        Report report = getReport(reportId);
+        validateNotProcessed(report);
+        report.reject(adminUserId, requestDto.processNote());
+        return toProcessResponse(report);
+    }
+
+    private Report getReport(Long reportId) {
+        return reportRepository
+                .findById(reportId)
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.REPORT_NOT_FOUND));
+    }
+
+    private void validateNotProcessed(Report report) {
+        if (report.getReportStatus() != ReportStatus.RECEIVED) {
+            throw new CommunityException(CommunityErrorCode.REPORT_ALREADY_PROCESSED);
+        }
+    }
+
+    private ReportProcessResponseDto toProcessResponse(Report report) {
+        return new ReportProcessResponseDto(
+                report.getId(),
+                report.getReportStatus().name(),
+                report.getProcessedByUserId(),
+                report.getProcessNote(),
+                report.getProcessedAt());
+    }
+}
