@@ -35,15 +35,15 @@ public class CardController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{cardNo}")
+    @GetMapping("/{cardId}")
     @Operation(summary = "카드 결제내역 조회", description = "카드 번호와 기간으로 결제내역을 조회합니다.")
     public ResponseEntity<CardTransactionResponse> getCardTransactions(
         @CurrentUserId Long userId,
-        @PathVariable String cardNo,
+        @PathVariable Long cardId,
         @RequestParam String startDate,
         @RequestParam String endDate) {
         CardTransactionResponse response =
-            cardService.getCardTransactions(userId, cardNo, startDate, endDate);
+            cardService.getCardTransactions(userId, cardId, startDate, endDate);
         return ResponseEntity.ok(response);
     }
 }

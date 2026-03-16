@@ -22,6 +22,6 @@ public class CardTransactionResponse {
         private String merchantName;
         private String transactionDate;
         private String transactionTime;
-        private String transactionBalance;
+        private String transactionAmount;
     }
 }
