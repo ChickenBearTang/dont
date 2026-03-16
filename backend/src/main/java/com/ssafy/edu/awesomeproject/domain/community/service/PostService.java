@@ -86,9 +86,14 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public GetPostResult getPost(Long postId) {
+    public GetPostResult getPost(Long userId, Long postId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new AuthException(CommunityErrorCode.USER_NOT_FOUND));
+
         Post post = postRepository.findByIdAndStatus(postId, PostStatus.ACTIVE)
                 .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
+
+        validatePostReadAccess(user, post);
 
         return new GetPostResult(
                 post.getId(),
@@ -106,7 +111,15 @@ public class PostService {
 
     @Transactional(readOnly = true)
     public GetPostListResult getPostsByCategory(
-            BoardCategory category, Integer generationNo, Integer page, Integer size) {
+            Long userId,
+            BoardCategory category,
+            Integer generationNo,
+            Integer page,
+            Integer size) {
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new AuthException(CommunityErrorCode.USER_NOT_FOUND));
+
         int pageNumber = (page == null || page < 0) ? 0 : page;
         int pageSize = (size == null || size <= 0) ? 5 : size;
 
@@ -121,8 +134,17 @@ public class PostService {
 
         Page<Post> postPage;
         if (category == null) {
-            postPage = postRepository.findByStatus(PostStatus.ACTIVE, pageRequest);
+            Integer userGenerationNo = getUserGenerationNo(user);
+
+            postPage = postRepository.findVisiblePostsForUser(
+                PostStatus.ACTIVE,
+                BoardCategory.COHORT,
+                userGenerationNo,
+                pageRequest
+            );
         } else if (category == BoardCategory.COHORT) {
+            validateUserCohort(user, generationNo);
+
             postPage = postRepository.findByBoard_CategoryAndBoard_Cohort_GenerationNoAndStatus(
                     category, generationNo, PostStatus.ACTIVE, pageRequest);
         } else {
@@ -188,6 +210,20 @@ public class PostService {
 
         post.delete();
         return new DeletePostResult(true, post.getDeletedAt());
+    }
+
+    private void validatePostReadAccess(User user, Post post) {
+        if (post.getBoard().getCategory() == BoardCategory.COHORT) {
+            Integer postGenerationNo = extractGenerationNo(post.getBoard());
+            validateUserCohort(user, postGenerationNo);
+        }
+    }
+
+    private Integer getUserGenerationNo(User user) {
+        if (user.getCohort() == null) {
+            return -1;
+        }
+        return user.getCohort().getGenerationNo();
     }
 
     private Board resolveBoard(BoardCategory category, Integer generationNo) {
