@@ -16,7 +16,7 @@ public record AccountListResponse(List<AccountDetail> accounts) {
         return new AccountListResponse(details);
     }
 
-    public record AccountDetail(String bankName, String bankCode, String accountNo, String accountName, String accountBalance, String currency) {
+    public record AccountDetail(String bankName, String bankCode, String accountNo, String accountName, String accountBalance, String currencyCode) {
         public static AccountDetail from(OpenBankResponse.Rec rec) {
             return new AccountDetail(rec.bankName(), rec.bankCode(), rec.accountNo(), rec.accountName(), rec.accountBalance(), rec.currency());
         }

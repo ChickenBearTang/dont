@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -39,8 +41,8 @@ public class AccountService {
                 account.getBankCode(),
                 account.getAccountNo(),
                 account.getAccountName(),
-                String.valueOf(account.getBalance()), // Long을 String으로 변환
-                account.getCurrency()
+                String.valueOf(account.getBalance()),
+                account.getCurrencyCode()
             ))
             .collect(Collectors.toList());
 
@@ -57,21 +59,25 @@ public class AccountService {
         for (AccountListResponse.AccountDetail detail : apiResponse.accounts()) {
             Optional<Account> accountOpt = accountRepository.findByAccountNo(detail.accountNo());
 
-            // String 형태의 잔액을 Long으로 변환
-            long balance = Long.parseLong(detail.accountBalance());
+            // String 형태의 잔액을 BigDecimal로 변환
+            BigDecimal balance = new BigDecimal(detail.accountBalance());
 
             if (accountOpt.isPresent()) {
-                accountOpt.get().updateInfo(detail.accountName(), balance, detail.currency()); // 이제 currency()가 존재합니다.
+                // 이미 존재하는 계좌는 동적으로 변하는 정보(잔액, 상태 등)를 업데이트합니다.
+                Account existingAccount = accountOpt.get();
+                existingAccount.updateDynamicInfo(detail.accountName(), balance, "ACTIVE"); // 상태는 예시입니다.
             } else {
+                // 새로운 계좌이면 API 응답을 바탕으로 엔티티를 생성하여 저장합니다.
                 Account newAccount = Account.builder()
                     .userId(userId)
                     .accountNo(detail.accountNo())
                     .bankName(detail.bankName())
-                    .bankCode(detail.bankCode()) // 이제 bankCode()가 존재합니다.
+                    .bankCode(detail.bankCode())
                     .accountName(detail.accountName())
-                    .currency(detail.currency())
+                    .currencyCode(detail.currencyCode())
+                    .balance(balance) // 초기 잔액 설정
                     .build();
-                accountRepository.save(newAccount).updateInfo(detail.accountName(), balance, detail.currency());
+                accountRepository.save(newAccount);
             }
         }
     }
