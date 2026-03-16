@@ -21,11 +21,13 @@ public interface PrVoteRepository extends JpaRepository<PrVote, Long> {
 
     long countByPostIdAndVoteValue(Long postId, PrVoteValue voteValue);
 
-    @Query(
-            "select v.postId as postId, "
-                    + "count(v.id) as totalVoteCount "
-                    + "from PrVote v "
-                    + "where v.postId in :postIds "
-                    + "group by v.postId")
+    @Query("""
+            select
+                v.postId as postId,
+                count(v.id) as totalVoteCount
+            from PrVote v
+            where v.postId in :postIds
+            group by v.postId
+            """)
     List<PrVoteCountProjection> aggregateByPostIds(@Param("postIds") Collection<Long> postIds);
 }
