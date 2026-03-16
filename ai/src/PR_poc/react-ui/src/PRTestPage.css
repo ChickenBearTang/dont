@@ -1,0 +1,228 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #333;
+  background-color: #f9fafb;
+  min-height: 100vh;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inputGroup {
+  margin-bottom: 1.25rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+}
+
+.input, .select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.input:focus, .select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.button {
+  width: 100%;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  margin-top: 1rem;
+}
+
+.button:hover {
+  opacity: 0.9;
+}
+
+.button:active {
+  transform: scale(0.98);
+}
+
+.button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-weight: 500;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.resultBox {
+  margin-top: 1rem;
+}
+
+.decisionBadge {
+  display: inline-block;
+  padding: 0.5rem 1.5rem;
+  border-radius: 9999px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 1.5rem;
+}
+
+.decision-HOLD { background: #fee2e2; color: #dc2626; }    /* Red */
+.decision-REVIEW { background: #fef3c7; color: #d97706; }  /* Yellow */
+.decision-WAIT { background: #e0e7ff; color: #4f46e5; }    /* Indigo */
+.decision-BUY_NOW { background: #dcfce7; color: #16a34a; } /* Green */
+
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 0.75rem;
+  margin-top: 1.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.reasonList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.reasonItem {
+  background: #f3f4f6;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  border-left: 4px solid #3b82f6;
+}
+
+.reasonItem.finance_shap {
+  border-left-color: #f59e0b;
+}
+
+.counterfactualList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.counterfactualItem {
+  background: #eff6ff;
+  border: 1px dashed #93c5fd;
+  padding: 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1e3a8a;
+}
+
+.highlight {
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.scoreGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.scoreItem {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.scoreValue {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.scoreLabel {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
