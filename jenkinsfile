@@ -39,10 +39,13 @@ pipeline {
 
         MAIN_DEPLOY_ROOT = '/opt/awesome-spring-project'
         RUNTIME_ENV_CREDENTIALS_ID = ''
+        SSH_KNOWN_HOSTS_CREDENTIALS_ID = ''
         COMPOSE_PROJECT_NAME = 'awesome-runtime'
 
         DEPLOY_SSH_CREDENTIALS_ID = ''
         AUTO_ROLLBACK_ON_MAIN = 'true'
+        DEPLOY_APPLIED = 'false'
+        INFRA_SMOKE_MODE = 'false'
     }
 
     stages {
@@ -104,10 +107,11 @@ pipeline {
                         env.EDGE_BASE_URL,
                         env.DEPLOY_SSH_CREDENTIALS_ID,
                         env.RUNTIME_ENV_CREDENTIALS_ID,
+                        env.SSH_KNOWN_HOSTS_CREDENTIALS_ID,
                         env.COMPOSE_PROJECT_NAME
                     ]
                     if (required.any { it == null || it.trim().isEmpty() }) {
-                        error('MAIN deploy variables are missing. Set MAIN_SERVER_HOST, MAIN_SERVER_USER, EDGE_BASE_URL, DEPLOY_SSH_CREDENTIALS_ID, RUNTIME_ENV_CREDENTIALS_ID, COMPOSE_PROJECT_NAME.')
+                        error('MAIN deploy variables are missing. Set MAIN_SERVER_HOST, MAIN_SERVER_USER, EDGE_BASE_URL, DEPLOY_SSH_CREDENTIALS_ID, RUNTIME_ENV_CREDENTIALS_ID, SSH_KNOWN_HOSTS_CREDENTIALS_ID, COMPOSE_PROJECT_NAME.')
                     }
 
                     if (!(env.EDGE_BASE_URL.startsWith('http://') || env.EDGE_BASE_URL.startsWith('https://'))) {
@@ -124,7 +128,10 @@ pipeline {
             }
             steps {
                 sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
-                    withCredentials([file(credentialsId: "${env.RUNTIME_ENV_CREDENTIALS_ID}", variable: 'RUNTIME_ENV_FILE')]) {
+                    withCredentials([
+                        file(credentialsId: "${env.RUNTIME_ENV_CREDENTIALS_ID}", variable: 'RUNTIME_ENV_FILE'),
+                        file(credentialsId: "${env.SSH_KNOWN_HOSTS_CREDENTIALS_ID}", variable: 'SSH_KNOWN_HOSTS_FILE')
+                    ]) {
                         sh '''
                             bash ci/deploy_runtime_remote.sh \
                               --host "${MAIN_SERVER_HOST}" \
@@ -136,10 +143,14 @@ pipeline {
                               --deploy-root "${MAIN_DEPLOY_ROOT}" \
                               --env-file "${RUNTIME_ENV_FILE}" \
                               --compose-project-name "${COMPOSE_PROJECT_NAME}" \
+                              --known-hosts-file "${SSH_KNOWN_HOSTS_FILE}" \
                               --backend-ready-url "http://127.0.0.1:8080/actuator/health/readiness" \
                               --frontend-ready-url "http://127.0.0.1:3000/"
                         '''
                     }
+                }
+                script {
+                    env.DEPLOY_APPLIED = 'true'
                 }
             }
         }
@@ -150,26 +161,28 @@ pipeline {
             }
             steps {
                 sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
-                    sh '''
-                        AI_REQUIRE_ARG=""
-                        if [ -n "${AI_SERVER_HOST}" ]; then
-                          AI_REQUIRE_ARG="--require-ai"
-                        fi
+                    withCredentials([file(credentialsId: "${env.SSH_KNOWN_HOSTS_CREDENTIALS_ID}", variable: 'SSH_KNOWN_HOSTS_FILE')]) {
+                        sh '''
+                            AI_REQUIRE_ARG=""
+                            if [ -n "${AI_SERVER_HOST}" ]; then
+                              AI_REQUIRE_ARG="--require-ai"
+                            fi
 
-                        bash ci/verify_edge.sh \
-                          --base-url "${EDGE_BASE_URL}" \
-                          --frontend-path "${EDGE_FRONTEND_PATH}" \
-                          --health-path "${EDGE_HEALTH_PATH}" \
-                          --liveness-path "${EDGE_LIVENESS_PATH}" \
-                          --readiness-path "${EDGE_READINESS_PATH}" \
-                          --ai-sample-path "${EDGE_AI_SAMPLE_PATH}" \
-                          ${AI_REQUIRE_ARG}
+                            bash ci/verify_edge.sh \
+                              --base-url "${EDGE_BASE_URL}" \
+                              --frontend-path "${EDGE_FRONTEND_PATH}" \
+                              --health-path "${EDGE_HEALTH_PATH}" \
+                              --liveness-path "${EDGE_LIVENESS_PATH}" \
+                              --readiness-path "${EDGE_READINESS_PATH}" \
+                              --ai-sample-path "${EDGE_AI_SAMPLE_PATH}" \
+                              ${AI_REQUIRE_ARG}
 
-                        if [ -n "${AI_SERVER_HOST}" ]; then
-                          ssh -o StrictHostKeyChecking=accept-new "${MAIN_SERVER_USER}@${MAIN_SERVER_HOST}" \
-                            "curl -fsS '${AI_PRIVATE_HEALTH_URL}' > /dev/null"
-                        fi
-                    '''
+                            if [ -n "${AI_SERVER_HOST}" ]; then
+                              ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile="${SSH_KNOWN_HOSTS_FILE}" "${MAIN_SERVER_USER}@${MAIN_SERVER_HOST}" \
+                                "curl -fsS '${AI_PRIVATE_HEALTH_URL}' > /dev/null"
+                            fi
+                        '''
+                    }
                 }
             }
         }
@@ -182,31 +195,36 @@ pipeline {
         }
         failure {
             script {
-                if (env.BRANCH_NAME == env.PROD_BRANCH && env.AUTO_ROLLBACK_ON_MAIN == 'true' && env.MAIN_SERVER_HOST?.trim()) {
+                if (env.BRANCH_NAME == env.PROD_BRANCH && env.AUTO_ROLLBACK_ON_MAIN == 'true' && env.DEPLOY_APPLIED == 'true' && env.MAIN_SERVER_HOST?.trim()) {
                     echo 'Main deployment failed. Attempting rollback on backend/frontend.'
                     sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
-                        sh '''
-                            set +e
-                            rollback_rc=0
+                        withCredentials([file(credentialsId: "${env.SSH_KNOWN_HOSTS_CREDENTIALS_ID}", variable: 'SSH_KNOWN_HOSTS_FILE')]) {
+                            sh '''
+                                set +e
+                                rollback_rc=0
 
-                            bash ci/rollback_runtime_remote.sh \
-                              --host "${MAIN_SERVER_HOST}" \
-                              --user "${MAIN_SERVER_USER}" \
-                              --deploy-root "${MAIN_DEPLOY_ROOT}" \
-                              --compose-project-name "${COMPOSE_PROJECT_NAME}" \
-                              --backend-ready-url "http://127.0.0.1:8080/actuator/health/readiness" \
-                              --frontend-ready-url "http://127.0.0.1:3000/" || rollback_rc=$?
+                                bash ci/rollback_runtime_remote.sh \
+                                  --host "${MAIN_SERVER_HOST}" \
+                                  --user "${MAIN_SERVER_USER}" \
+                                  --deploy-root "${MAIN_DEPLOY_ROOT}" \
+                                  --compose-project-name "${COMPOSE_PROJECT_NAME}" \
+                                  --known-hosts-file "${SSH_KNOWN_HOSTS_FILE}" \
+                                  --backend-ready-url "http://127.0.0.1:8080/actuator/health/readiness" \
+                                  --frontend-ready-url "http://127.0.0.1:3000/" || rollback_rc=$?
 
-                            if [ "${rollback_rc}" -ne 0 ]; then
-                              echo "Rollback failed. rollback_rc=${rollback_rc}"
-                              exit 1
-                            fi
-                        '''
+                                if [ "${rollback_rc}" -ne 0 ]; then
+                                  echo "Rollback failed. rollback_rc=${rollback_rc}"
+                                  exit 1
+                                fi
+                            '''
+                        }
                     }
                 } else {
                     echo 'Failure detected. Auto-rollback skipped by policy (non-main or disabled).'
                 }
-                sh 'bash ci/collect_diagnostics.sh || true'
+                withCredentials([file(credentialsId: "${env.SSH_KNOWN_HOSTS_CREDENTIALS_ID}", variable: 'SSH_KNOWN_HOSTS_FILE')]) {
+                    sh 'bash ci/collect_diagnostics.sh || true'
+                }
             }
         }
         cleanup {
