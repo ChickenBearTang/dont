@@ -69,13 +69,15 @@ public class PostController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청")
     })
     public CommonResponse<GetPostListResponseDto> getPosts(
+        @CurrentUserId Long userId,
         @RequestParam(required = false) BoardCategory category,
         @RequestParam(required = false) Integer generationNo,
         @RequestParam(defaultValue = "0") Integer page,
         @RequestParam(defaultValue = "5") Integer size
     ) {
+
         PostService.GetPostListResult result =
-            postService.getPostsByCategory(category, generationNo, page, size);
+            postService.getPostsByCategory(userId, category, generationNo, page, size);
 
         List<GetPostListResponseDto.PostSummaryDto> content = result.content().stream()
             .map(post -> {
@@ -136,8 +138,11 @@ public class PostController {
         @ApiResponse(responseCode = "200", description = "정상 응답"),
         @ApiResponse(responseCode = "404", description = "게시글 없음")
     })
-    public CommonResponse<GetPostResponseDto> getPost(@PathVariable Long postId) {
-        PostService.GetPostResult result = postService.getPost(postId);
+    public CommonResponse<GetPostResponseDto> getPost(
+        @CurrentUserId Long userId,
+        @PathVariable Long postId) {
+
+        PostService.GetPostResult result = postService.getPost(userId, postId);
 
         return CommonResponse.success(
             new GetPostResponseDto(
