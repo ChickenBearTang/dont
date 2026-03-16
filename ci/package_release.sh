@@ -20,12 +20,16 @@ BACKEND_JAR="${backend_jars[0]}"
 
 BACKEND_STAGING="${RELEASE_DIR}/backend-${RELEASE_ID}"
 FRONTEND_STAGING="${RELEASE_DIR}/frontend-${RELEASE_ID}"
+RUNTIME_STAGING="${RELEASE_DIR}/runtime-${RELEASE_ID}"
 
-rm -rf "${BACKEND_STAGING}" "${FRONTEND_STAGING}"
-mkdir -p "${BACKEND_STAGING}" "${FRONTEND_STAGING}"
+rm -rf "${BACKEND_STAGING}" "${FRONTEND_STAGING}" "${RUNTIME_STAGING}"
+mkdir -p "${BACKEND_STAGING}" "${FRONTEND_STAGING}" "${RUNTIME_STAGING}"
 
 cp "${BACKEND_JAR}" "${BACKEND_STAGING}/app.jar"
 cp -R frontend/dist "${FRONTEND_STAGING}/dist"
+cp deploy/compose/docker-compose.runtime.yml "${RUNTIME_STAGING}/docker-compose.runtime.yml"
+cp deploy/compose/backend.Dockerfile "${RUNTIME_STAGING}/backend.Dockerfile"
+cp deploy/compose/frontend.Dockerfile "${RUNTIME_STAGING}/frontend.Dockerfile"
 
 cat > "${RELEASE_DIR}/manifest-${RELEASE_ID}.json" <<EOF
 {
@@ -33,13 +37,15 @@ cat > "${RELEASE_DIR}/manifest-${RELEASE_ID}.json" <<EOF
   "gitSha": "${GIT_SHA}",
   "components": {
     "backend": "backend-${RELEASE_ID}.tgz",
-    "frontend": "frontend-${RELEASE_ID}.tgz"
+    "frontend": "frontend-${RELEASE_ID}.tgz",
+    "runtime": "runtime-${RELEASE_ID}.tgz"
   }
 }
 EOF
 
 tar -C "${RELEASE_DIR}" -czf "${RELEASE_DIR}/backend-${RELEASE_ID}.tgz" "backend-${RELEASE_ID}"
 tar -C "${RELEASE_DIR}" -czf "${RELEASE_DIR}/frontend-${RELEASE_ID}.tgz" "frontend-${RELEASE_ID}"
+tar -C "${RELEASE_DIR}" -czf "${RELEASE_DIR}/runtime-${RELEASE_ID}.tgz" "runtime-${RELEASE_ID}"
 
 echo "[package_release] Artifacts:"
 ls -al "${RELEASE_DIR}"
