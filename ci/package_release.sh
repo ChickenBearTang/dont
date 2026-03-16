@@ -11,12 +11,36 @@ shopt -s nullglob
 backend_jars=(backend/build/libs/*.jar)
 shopt -u nullglob
 
-if [ "${#backend_jars[@]}" -eq 0 ]; then
-  echo "[package_release] backend jar not found"
+runtime_jars=()
+for jar in "${backend_jars[@]}"; do
+  if [[ "${jar}" == *-plain.jar ]]; then
+    continue
+  fi
+  runtime_jars+=("${jar}")
+done
+
+if [ "${#runtime_jars[@]}" -eq 0 ]; then
+  echo "[package_release] executable backend jar not found"
   exit 1
 fi
 
-BACKEND_JAR="${backend_jars[0]}"
+if [ "${#runtime_jars[@]}" -eq 1 ]; then
+  BACKEND_JAR="${runtime_jars[0]}"
+else
+  preferred_jars=()
+  for jar in "${runtime_jars[@]}"; do
+    if [[ "${jar}" == *-SNAPSHOT.jar ]]; then
+      preferred_jars+=("${jar}")
+    fi
+  done
+
+  if [ "${#preferred_jars[@]}" -eq 1 ]; then
+    BACKEND_JAR="${preferred_jars[0]}"
+  else
+    echo "[package_release] multiple executable backend jars found: ${runtime_jars[*]}"
+    exit 1
+  fi
+fi
 
 BACKEND_STAGING="${RELEASE_DIR}/backend-${RELEASE_ID}"
 FRONTEND_STAGING="${RELEASE_DIR}/frontend-${RELEASE_ID}"
