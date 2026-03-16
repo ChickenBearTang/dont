@@ -98,6 +98,14 @@ public class PostController {
                 post.extraSummary() == null
                     ? null
                     : new GetPostListResponseDto.PostExtraSummaryDto(
+                        post.extraSummary().hotdeal() == null
+                            ? null
+                            : new GetPostListResponseDto.HotdealSummaryDto(
+                                post.extraSummary().hotdeal().dealPriceAmount(),
+                                post.extraSummary().hotdeal().originalPriceAmount(),
+                                post.extraSummary().hotdeal().storeName(),
+                                post.extraSummary().hotdeal().expiredAt(),
+                                post.extraSummary().hotdeal().isExpired()
                         post.extraSummary().pr() == null
                             ? null
                             : new GetPostListResponseDto.PrSummaryDto(
