@@ -33,6 +33,8 @@ pipeline {
         EDGE_BASE_URL = ''
         EDGE_FRONTEND_PATH = '/'
         EDGE_HEALTH_PATH = '/actuator/health'
+        EDGE_LIVENESS_PATH = '/actuator/health/liveness'
+        EDGE_READINESS_PATH = '/actuator/health/readiness'
         EDGE_AI_SAMPLE_PATH = '/api/health/ai'
 
         MAIN_DEPLOY_ROOT = '/opt/awesome-spring-project'
@@ -105,6 +107,10 @@ pipeline {
                     if (required.any { it == null || it.trim().isEmpty() }) {
                         error('MAIN deploy variables are missing. Set MAIN_SERVER_HOST, MAIN_SERVER_USER, EDGE_BASE_URL, DEPLOY_SSH_CREDENTIALS_ID.')
                     }
+
+                    if (!(env.EDGE_BASE_URL.startsWith('http://') || env.EDGE_BASE_URL.startsWith('https://'))) {
+                        error('EDGE_BASE_URL must start with http:// or https://')
+                    }
                 }
             }
         }
@@ -124,7 +130,7 @@ pipeline {
                           --archive "${RELEASE_DIR}/backend-${RELEASE_ID}.tgz" \
                           --service "${BACKEND_SERVICE_NAME}" \
                           --deploy-root "${MAIN_DEPLOY_ROOT}" \
-                          --ready-url "http://127.0.0.1:8080/actuator/health"
+                          --ready-url "http://127.0.0.1:8080/actuator/health/readiness"
                     '''
                 }
             }
@@ -158,11 +164,19 @@ pipeline {
             steps {
                 sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
                     sh '''
+                        AI_REQUIRE_ARG=""
+                        if [ -n "${AI_SERVER_HOST}" ]; then
+                          AI_REQUIRE_ARG="--require-ai"
+                        fi
+
                         bash ci/verify_edge.sh \
                           --base-url "${EDGE_BASE_URL}" \
                           --frontend-path "${EDGE_FRONTEND_PATH}" \
                           --health-path "${EDGE_HEALTH_PATH}" \
-                          --ai-sample-path "${EDGE_AI_SAMPLE_PATH}"
+                          --liveness-path "${EDGE_LIVENESS_PATH}" \
+                          --readiness-path "${EDGE_READINESS_PATH}" \
+                          --ai-sample-path "${EDGE_AI_SAMPLE_PATH}" \
+                          ${AI_REQUIRE_ARG}
 
                         if [ -n "${AI_SERVER_HOST}" ]; then
                           ssh -o StrictHostKeyChecking=accept-new "${MAIN_SERVER_USER}@${MAIN_SERVER_HOST}" \
@@ -185,19 +199,29 @@ pipeline {
                     echo 'Main deployment failed. Attempting rollback on backend/frontend.'
                     sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
                         sh '''
+                            set +e
+
+                            backend_rc=0
+                            frontend_rc=0
+
                             bash ci/rollback_remote.sh \
                               --host "${MAIN_SERVER_HOST}" \
                               --user "${MAIN_SERVER_USER}" \
                               --component backend \
                               --service "${BACKEND_SERVICE_NAME}" \
-                              --deploy-root "${MAIN_DEPLOY_ROOT}" || true
+                              --deploy-root "${MAIN_DEPLOY_ROOT}" || backend_rc=$?
 
                             bash ci/rollback_remote.sh \
                               --host "${MAIN_SERVER_HOST}" \
                               --user "${MAIN_SERVER_USER}" \
                               --component frontend \
                               --service "${FRONTEND_SERVICE_NAME}" \
-                              --deploy-root "${MAIN_DEPLOY_ROOT}" || true
+                              --deploy-root "${MAIN_DEPLOY_ROOT}" || frontend_rc=$?
+
+                            if [ "${backend_rc}" -ne 0 ] || [ "${frontend_rc}" -ne 0 ]; then
+                              echo "Rollback failed. backend_rc=${backend_rc}, frontend_rc=${frontend_rc}"
+                              exit 1
+                            fi
                         '''
                     }
                 } else {
