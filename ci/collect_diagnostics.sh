@@ -12,7 +12,21 @@ mkdir -p "${OUT_DIR}"
 
 if [ -n "${MAIN_SERVER_HOST:-}" ] && [ -n "${MAIN_SERVER_USER:-}" ]; then
   ssh -o StrictHostKeyChecking=accept-new "${MAIN_SERVER_USER}@${MAIN_SERVER_HOST}" \
-    "hostname && date && systemctl status ${BACKEND_SERVICE_NAME:-spring-backend} --no-pager && systemctl status ${FRONTEND_SERVICE_NAME:-frontend-node} --no-pager" \
+    "hostname && date && \
+    if ! command -v docker >/dev/null 2>&1; then \
+      echo 'docker command not found on main server'; \
+      exit 1; \
+    fi && \
+    if [ ! -f '${MAIN_DEPLOY_ROOT:-/opt/awesome-spring-project}/current/runtime/docker-compose.runtime.yml' ]; then \
+      echo 'runtime compose file missing on main server'; \
+      exit 1; \
+    fi && \
+    if [ ! -f '${MAIN_DEPLOY_ROOT:-/opt/awesome-spring-project}/current/runtime/.env' ]; then \
+      echo 'runtime .env missing on main server'; \
+      exit 1; \
+    fi && \
+    sudo docker compose --project-name ${COMPOSE_PROJECT_NAME:-awesome-runtime} --file '${MAIN_DEPLOY_ROOT:-/opt/awesome-spring-project}/current/runtime/docker-compose.runtime.yml' --env-file '${MAIN_DEPLOY_ROOT:-/opt/awesome-spring-project}/current/runtime/.env' ps && \
+    sudo docker compose --project-name ${COMPOSE_PROJECT_NAME:-awesome-runtime} --file '${MAIN_DEPLOY_ROOT:-/opt/awesome-spring-project}/current/runtime/docker-compose.runtime.yml' --env-file '${MAIN_DEPLOY_ROOT:-/opt/awesome-spring-project}/current/runtime/.env' logs --tail=200" \
     > "${OUT_DIR}/main-server-status.txt" 2>&1 || true
 fi
 

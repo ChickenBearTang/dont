@@ -38,8 +38,8 @@ pipeline {
         EDGE_AI_SAMPLE_PATH = '/api/health/ai'
 
         MAIN_DEPLOY_ROOT = '/opt/awesome-spring-project'
-        BACKEND_SERVICE_NAME = 'spring-backend'
-        FRONTEND_SERVICE_NAME = 'frontend-node'
+        RUNTIME_ENV_CREDENTIALS_ID = ''
+        COMPOSE_PROJECT_NAME = 'awesome-runtime'
 
         DEPLOY_SSH_CREDENTIALS_ID = ''
         AUTO_ROLLBACK_ON_MAIN = 'true'
@@ -102,57 +102,44 @@ pipeline {
                         env.MAIN_SERVER_HOST,
                         env.MAIN_SERVER_USER,
                         env.EDGE_BASE_URL,
-                        env.DEPLOY_SSH_CREDENTIALS_ID
+                        env.DEPLOY_SSH_CREDENTIALS_ID,
+                        env.RUNTIME_ENV_CREDENTIALS_ID,
+                        env.COMPOSE_PROJECT_NAME
                     ]
                     if (required.any { it == null || it.trim().isEmpty() }) {
-                        error('MAIN deploy variables are missing. Set MAIN_SERVER_HOST, MAIN_SERVER_USER, EDGE_BASE_URL, DEPLOY_SSH_CREDENTIALS_ID.')
+                        error('MAIN deploy variables are missing. Set MAIN_SERVER_HOST, MAIN_SERVER_USER, EDGE_BASE_URL, DEPLOY_SSH_CREDENTIALS_ID, RUNTIME_ENV_CREDENTIALS_ID, COMPOSE_PROJECT_NAME.')
                     }
 
                     if (!(env.EDGE_BASE_URL.startsWith('http://') || env.EDGE_BASE_URL.startsWith('https://'))) {
                         error('EDGE_BASE_URL must start with http:// or https://')
                     }
+
                 }
             }
         }
 
-        stage('Deploy Main - Backend') {
+        stage('Deploy Main - Runtime') {
             when {
                 expression { env.BRANCH_NAME == env.PROD_BRANCH }
             }
             steps {
                 sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
-                    sh '''
-                        bash ci/deploy_remote.sh \
-                          --host "${MAIN_SERVER_HOST}" \
-                          --user "${MAIN_SERVER_USER}" \
-                          --component backend \
-                          --release-id "${RELEASE_ID}" \
-                          --archive "${RELEASE_DIR}/backend-${RELEASE_ID}.tgz" \
-                          --service "${BACKEND_SERVICE_NAME}" \
-                          --deploy-root "${MAIN_DEPLOY_ROOT}" \
-                          --ready-url "http://127.0.0.1:8080/actuator/health/readiness"
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy Main - Frontend') {
-            when {
-                expression { env.BRANCH_NAME == env.PROD_BRANCH }
-            }
-            steps {
-                sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
-                    sh '''
-                        bash ci/deploy_remote.sh \
-                          --host "${MAIN_SERVER_HOST}" \
-                          --user "${MAIN_SERVER_USER}" \
-                          --component frontend \
-                          --release-id "${RELEASE_ID}" \
-                          --archive "${RELEASE_DIR}/frontend-${RELEASE_ID}.tgz" \
-                          --service "${FRONTEND_SERVICE_NAME}" \
-                          --deploy-root "${MAIN_DEPLOY_ROOT}" \
-                          --ready-url "http://127.0.0.1:3000"
-                    '''
+                    withCredentials([file(credentialsId: "${env.RUNTIME_ENV_CREDENTIALS_ID}", variable: 'RUNTIME_ENV_FILE')]) {
+                        sh '''
+                            bash ci/deploy_runtime_remote.sh \
+                              --host "${MAIN_SERVER_HOST}" \
+                              --user "${MAIN_SERVER_USER}" \
+                              --release-id "${RELEASE_ID}" \
+                              --backend-archive "${RELEASE_DIR}/backend-${RELEASE_ID}.tgz" \
+                              --frontend-archive "${RELEASE_DIR}/frontend-${RELEASE_ID}.tgz" \
+                              --runtime-archive "${RELEASE_DIR}/runtime-${RELEASE_ID}.tgz" \
+                              --deploy-root "${MAIN_DEPLOY_ROOT}" \
+                              --env-file "${RUNTIME_ENV_FILE}" \
+                              --compose-project-name "${COMPOSE_PROJECT_NAME}" \
+                              --backend-ready-url "http://127.0.0.1:8080/actuator/health/readiness" \
+                              --frontend-ready-url "http://127.0.0.1:3000/"
+                        '''
+                    }
                 }
             }
         }
@@ -200,26 +187,18 @@ pipeline {
                     sshagent(credentials: ["${env.DEPLOY_SSH_CREDENTIALS_ID}"]) {
                         sh '''
                             set +e
+                            rollback_rc=0
 
-                            backend_rc=0
-                            frontend_rc=0
-
-                            bash ci/rollback_remote.sh \
+                            bash ci/rollback_runtime_remote.sh \
                               --host "${MAIN_SERVER_HOST}" \
                               --user "${MAIN_SERVER_USER}" \
-                              --component backend \
-                              --service "${BACKEND_SERVICE_NAME}" \
-                              --deploy-root "${MAIN_DEPLOY_ROOT}" || backend_rc=$?
+                              --deploy-root "${MAIN_DEPLOY_ROOT}" \
+                              --compose-project-name "${COMPOSE_PROJECT_NAME}" \
+                              --backend-ready-url "http://127.0.0.1:8080/actuator/health/readiness" \
+                              --frontend-ready-url "http://127.0.0.1:3000/" || rollback_rc=$?
 
-                            bash ci/rollback_remote.sh \
-                              --host "${MAIN_SERVER_HOST}" \
-                              --user "${MAIN_SERVER_USER}" \
-                              --component frontend \
-                              --service "${FRONTEND_SERVICE_NAME}" \
-                              --deploy-root "${MAIN_DEPLOY_ROOT}" || frontend_rc=$?
-
-                            if [ "${backend_rc}" -ne 0 ] || [ "${frontend_rc}" -ne 0 ]; then
-                              echo "Rollback failed. backend_rc=${backend_rc}, frontend_rc=${frontend_rc}"
+                            if [ "${rollback_rc}" -ne 0 ]; then
+                              echo "Rollback failed. rollback_rc=${rollback_rc}"
                               exit 1
                             fi
                         '''
