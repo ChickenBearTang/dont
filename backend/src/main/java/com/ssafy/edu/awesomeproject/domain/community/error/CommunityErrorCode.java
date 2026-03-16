@@ -10,6 +10,14 @@ public enum CommunityErrorCode implements ErrorCode {
     INVALID_CATEGORY_AND_COHORT(
             HttpStatus.BAD_REQUEST, "COMM_400_4", "기수 게시판이 아닌 경우 generationNo 사용할 수 없습니다."),
     COHORT_NOT_FOUND(HttpStatus.BAD_REQUEST, "COMM_400_5", "존재하지 않는 기수입니다."),
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_1", "게시글을 찾을 수 없습니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_2", "사용자를 찾을 수 없습니다."),
+    POST_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_1", "해당 글에 대한 권한이 없습니다."),
+    COHORT_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_2", "해당 기수 게시판에 대한 권한이 없습니다."),
+
+    // ================================================================================================================
+
+    HOTDEAL_NOT_FOUND(HttpStatus.BAD_REQUEST,"HD_404_1", "핫딜을 찾을 수 없습니다.");
 
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_1", "게시글을 찾을 수 없습니다."),
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMM_404_2", "댓글을 찾을 수 없습니다."),

@@ -29,6 +29,15 @@ public record GetPostListResponseDto (
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record PostExtraSummaryDto(
         PrSummaryDto pr
+        HotdealSummaryDto hotdeal
+    ) {}
+
+    public record HotdealSummaryDto(
+        Long dealPriceAmount,
+        Long originalPriceAmount,
+        String storeName,
+        LocalDateTime expiredAt,
+        Boolean isExpired
     ) {}
 
     public record PrSummaryDto(
