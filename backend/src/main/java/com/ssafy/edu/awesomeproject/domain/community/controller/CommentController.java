@@ -1,8 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.community.controller;
 
+import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
-import com.ssafy.edu.awesomeproject.common.security.jwt.ParsedToken;
-import com.ssafy.edu.awesomeproject.common.security.service.AccessTokenService;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.CreateCommentRequestDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.UpdateCommentRequestDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.CreateCommentResponseDto;
@@ -21,7 +20,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,11 +28,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/community")
 public class CommentController {
     private final CommentService commentService;
-    private final AccessTokenService accessTokenService;
 
-    public CommentController(CommentService commentService, AccessTokenService accessTokenService) {
+    public CommentController(CommentService commentService) {
         this.commentService = commentService;
-        this.accessTokenService = accessTokenService;
     }
 
     // 댓글 작성 -> 원하는 post의 postId로 들어가서 작성
@@ -48,11 +44,9 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "게시글/댓글 없음")
     })
     public CommonResponse<CreateCommentResponseDto> createComment(
-            @RequestHeader("Authorization") String authorizationHeader,
+            @CurrentUserId Long userId,
             @PathVariable Long postId,
             @Valid @RequestBody CreateCommentRequestDto createCommentRequestDto) {
-
-        Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
 
         CommentService.CreateCommentResult result =
                 commentService.createComment(
@@ -73,12 +67,10 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "게시글 없음")
     })
     public CommonResponse<GetCommentListResponseDto> getComments(
-            @RequestHeader("Authorization") String authorizationHeader,
+            @CurrentUserId Long userId,
             @PathVariable Long postId,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
-
-        Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
 
         CommentService.GetCommentListResult result =
                 commentService.getComments(userId, postId, page, size);
@@ -116,11 +108,9 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "댓글 없음")
     })
     public CommonResponse<UpdateCommentResponseDto> updateComment(
-            @RequestHeader("Authorization") String authorizationHeader,
+            @CurrentUserId Long userId,
             @PathVariable Long commentId,
             @Valid @RequestBody UpdateCommentRequestDto updateCommentRequestDto) {
-
-        Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
 
         CommentService.UpdateCommentResult result =
                 commentService.updateComment(userId, commentId, updateCommentRequestDto.content());
@@ -139,32 +129,12 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "댓글 없음")
     })
     public CommonResponse<DeleteCommentResponseDto> deleteComment(
-            @RequestHeader("Authorization") String authorizationHeader,
+            @CurrentUserId Long userId,
             @PathVariable Long commentId) {
-
-        Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
 
         CommentService.DeleteCommentResult result = commentService.deleteComment(userId, commentId);
 
         return CommonResponse.success(
                 new DeleteCommentResponseDto(result.deleted(), result.deletedAt()));
-    }
-
-    private Long extractUserIdFromAuthorizationHeader(String authorizationHeader) {
-        String token = extractBearerToken(authorizationHeader);
-        ParsedToken parsedToken = accessTokenService.parseAccessToken(token);
-        return Long.parseLong(parsedToken.subject());
-    }
-
-    private String extractBearerToken(String authorizationHeader) {
-        if (authorizationHeader == null || authorizationHeader.isBlank()) {
-            throw new IllegalArgumentException("Authorization header is required");
-        }
-
-        if (authorizationHeader.startsWith("Bearer ")) {
-            return authorizationHeader.substring(7);
-        }
-
-        return authorizationHeader;
     }
 }
