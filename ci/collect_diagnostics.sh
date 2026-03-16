@@ -4,6 +4,11 @@ set -euo pipefail
 OUT_DIR="release_out/diagnostics"
 mkdir -p "${OUT_DIR}"
 
+SSH_OPTS=(-o StrictHostKeyChecking=yes)
+if [ -n "${SSH_KNOWN_HOSTS_FILE:-}" ]; then
+  SSH_OPTS+=(-o UserKnownHostsFile="${SSH_KNOWN_HOSTS_FILE}")
+fi
+
 {
   echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "branch=${BRANCH_NAME:-unknown}"
@@ -11,7 +16,7 @@ mkdir -p "${OUT_DIR}"
 } > "${OUT_DIR}/pipeline-context.txt"
 
 if [ -n "${MAIN_SERVER_HOST:-}" ] && [ -n "${MAIN_SERVER_USER:-}" ]; then
-  ssh -o StrictHostKeyChecking=accept-new "${MAIN_SERVER_USER}@${MAIN_SERVER_HOST}" \
+  ssh "${SSH_OPTS[@]}" "${MAIN_SERVER_USER}@${MAIN_SERVER_HOST}" \
     "hostname && date && \
     if ! command -v docker >/dev/null 2>&1; then \
       echo 'docker command not found on main server'; \
@@ -31,7 +36,7 @@ if [ -n "${MAIN_SERVER_HOST:-}" ] && [ -n "${MAIN_SERVER_USER:-}" ]; then
 fi
 
 if [ -n "${AI_SERVER_HOST:-}" ] && [ -n "${AI_SERVER_USER:-}" ]; then
-  ssh -o StrictHostKeyChecking=accept-new "${AI_SERVER_USER}@${AI_SERVER_HOST}" \
+  ssh "${SSH_OPTS[@]}" "${AI_SERVER_USER}@${AI_SERVER_HOST}" \
     "hostname && date" \
     > "${OUT_DIR}/ai-server-status.txt" 2>&1 || true
 fi
