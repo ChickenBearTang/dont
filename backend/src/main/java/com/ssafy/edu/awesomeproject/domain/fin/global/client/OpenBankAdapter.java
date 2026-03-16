@@ -1,16 +1,19 @@
 package com.ssafy.edu.awesomeproject.domain.fin.global.client;
 
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankCreateAccountRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankReqHeader;
+import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.request.OpenBankDetailAccountRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response.OpenBankDetailAccountResponse;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Random;
 
 @Component
 @RequiredArgsConstructor
@@ -20,6 +23,35 @@ public class OpenBankAdapter {
 
     @Value("${auth.api.key}")
     private String apiKey;
+
+    /** 수시입출금 계좌를 신규 개설합니다. */
+    public OpenBankCreateAccountResponse createDemandDepositAccount(
+            String userKey, String accountTypeUniqueNo) {
+        OpenBankCreateAccountRequest request =
+                createAccountCreationRequest(userKey, accountTypeUniqueNo);
+        return openBankClient.fetchCreateDemandDepositAccount(request);
+    }
+
+    private OpenBankCreateAccountRequest createAccountCreationRequest(
+            String userKey, String accountTypeUniqueNo) {
+        LocalDateTime now = LocalDateTime.now();
+        return OpenBankCreateAccountRequest.builder()
+                .header(
+                        OpenBankReqHeader.builder()
+                                .apiName("createDemandDepositAccount")
+                                .transmissionDate(
+                                        now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                                .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
+                                .institutionCode("00100")
+                                .fintechAppNo("001")
+                                .apiServiceCode("createDemandDepositAccount")
+                                .institutionTransactionUniqueNo(generateUniqueNo(now))
+                                .apiKey(apiKey)
+                                .userKey(userKey)
+                                .build())
+                .accountTypeUniqueNo(accountTypeUniqueNo)
+                .build();
+    }
 
     public AccountListResponse fetchDemandDepositAccounts(String userKey) {
         // 1. 외부 API용 요청 객체(Request) 생성
@@ -36,23 +68,55 @@ public class OpenBankAdapter {
         LocalDateTime now = LocalDateTime.now();
 
         return OpenBankRequest.builder()
-            .header(OpenBankReqHeader.builder()
-                .apiName("inquireDemandDepositAccountList")
-                .transmissionDate(now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
-                .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
-                .institutionCode("00100")
-                .fintechAppNo("001")
-                .apiServiceCode("inquireDemandDepositAccountList")
-                .institutionTransactionUniqueNo(generateUniqueNo(now))
-                .apiKey(apiKey)
-                .userKey(userKey)
-                .build())
-            .build();
+                .header(
+                        OpenBankReqHeader.builder()
+                                .apiName("inquireDemandDepositAccountList")
+                                .transmissionDate(
+                                        now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                                .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
+                                .institutionCode("00100")
+                                .fintechAppNo("001")
+                                .apiServiceCode("inquireDemandDepositAccountList")
+                                .institutionTransactionUniqueNo(generateUniqueNo(now))
+                                .apiKey(apiKey)
+                                .userKey(userKey)
+                                .build())
+                .build();
+    }
+
+    public OpenBankDetailAccountResponse fetchAccountDetail(String userKey, String accountNo) {
+        // 1. 외부 API용 상세 조회 요청 객체 생성
+        OpenBankDetailAccountRequest request = createAccountDetailRequest(userKey, accountNo);
+
+        // 2. 외부 API 호출
+        return openBankClient.fetchAccountDetail(request);
+    }
+
+    private OpenBankDetailAccountRequest createAccountDetailRequest(
+            String userKey, String accountNo) {
+        LocalDateTime now = LocalDateTime.now();
+
+        return OpenBankDetailAccountRequest.builder()
+                .header(
+                        OpenBankReqHeader.builder()
+                                .apiName("inquireDemandDepositAccount")
+                                .transmissionDate(
+                                        now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                                .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
+                                .institutionCode("00100")
+                                .fintechAppNo("001")
+                                .apiServiceCode("inquireDemandDepositAccount")
+                                .institutionTransactionUniqueNo(generateUniqueNo(now))
+                                .apiKey(apiKey)
+                                .userKey(userKey)
+                                .build())
+                .accountNo(accountNo)
+                .build();
     }
 
     private String generateUniqueNo(LocalDateTime now) {
         String timestamp = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        int randomNo = new Random().nextInt(900000) + 100000; // 6자리 랜덤수
+        int randomNo = ThreadLocalRandom.current().nextInt(100000, 1000000); // 6자리 랜덤수
         return timestamp + randomNo;
     }
 }
