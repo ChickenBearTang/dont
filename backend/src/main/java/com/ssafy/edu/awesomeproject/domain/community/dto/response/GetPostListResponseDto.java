@@ -28,7 +28,7 @@ public record GetPostListResponseDto (
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record PostExtraSummaryDto(
-        PrSummaryDto pr
+        PrSummaryDto pr,
         HotdealSummaryDto hotdeal
     ) {}
 
