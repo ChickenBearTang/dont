@@ -381,7 +381,8 @@ class AuthTokenServiceTest {
                         "Tester",
                         "tester",
                         null,
-                        UserRole.USER);
+                        UserRole.USER,
+                        null);
         ReflectionTestUtils.setField(user, "id", id);
         return user;
     }

@@ -1,8 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.community.controller;
 
+import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
-import com.ssafy.edu.awesomeproject.common.security.jwt.ParsedToken;
-import com.ssafy.edu.awesomeproject.common.security.service.AccessTokenService;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.CreatePostRequestDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.UpdatePostRequestDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.*;
@@ -22,13 +21,9 @@ import java.util.List;
 @RequestMapping("/community/posts")
 public class PostController {
     private final PostService postService;
-    private final AccessTokenService accessTokenService;
 
-    public PostController(
-        PostService postService,
-        AccessTokenService accessTokenService) {
+    public PostController(PostService postService) {
         this.postService = postService;
-        this.accessTokenService = accessTokenService;
     }
 
     @PostMapping
@@ -42,12 +37,9 @@ public class PostController {
         @ApiResponse(responseCode = "403", description = "접근 거부")
     })
     public CommonResponse<CreatePostResponseDto> createPost(
-        @RequestHeader("Authorization") String authorizationHeader,
+        @CurrentUserId Long userId,
         @Valid @RequestBody CreatePostRequestDto createPostRequestDto
     ) {
-
-        Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
-
         PostService.CreatePostResult result = postService.createPost(
             userId,
             createPostRequestDto.category(),
@@ -86,16 +78,40 @@ public class PostController {
             postService.getPostsByCategory(category, generationNo, page, size);
 
         List<GetPostListResponseDto.PostSummaryDto> content = result.content().stream()
-            .map(post -> new GetPostListResponseDto.PostSummaryDto(
-                post.postId(),
-                post.category(),
-                post.generationNo(),
-                post.title(),
-                post.authorNickname(),
-                post.likeCount(),
-                post.commentCount(),
-                post.createdAt()
-            ))
+            .map(post -> {
+                PostService.PostExtraSummary extra = post.extraSummary();
+                return new GetPostListResponseDto.PostSummaryDto(
+                    post.postId(),
+                    post.category(),
+                    post.generationNo(),
+                    post.title(),
+                    post.authorNickname(),
+                    post.likeCount(),
+                    post.commentCount(),
+                    post.createdAt(),
+                    extra == null
+                        ? null
+                        : new GetPostListResponseDto.PostExtraSummaryDto(
+                            extra.pr() == null
+                                ? null
+                                : new GetPostListResponseDto.PrSummaryDto(
+                                    extra.pr().status(),
+                                    extra.pr().resultStatus(),
+                                    extra.pr().totalVoteCount(),
+                                    extra.pr().deadlineAt()
+                                ),
+                            extra.hotdeal() == null
+                                ? null
+                                : new GetPostListResponseDto.HotdealSummaryDto(
+                                    extra.hotdeal().dealPriceAmount(),
+                                    extra.hotdeal().originalPriceAmount(),
+                                    extra.hotdeal().storeName(),
+                                    extra.hotdeal().expiredAt(),
+                                    extra.hotdeal().isExpired()
+                                )
+                        )
+                );
+            })
             .toList();
 
         return CommonResponse.success(
@@ -152,13 +168,10 @@ public class PostController {
         @ApiResponse(responseCode = "404", description = "게시글 없음")
     })
     public CommonResponse<UpdatePostResponseDto> updatePost(
-        @RequestHeader("Authorization") String authorizationHeader,
+        @CurrentUserId Long userId,
         @PathVariable Long postId,
         @Valid @RequestBody UpdatePostRequestDto updatePostRequestDto
     ) {
-
-        Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
-
         PostService.UpdatePostResult result = postService.updatePost(
             userId,
             postId,
@@ -186,12 +199,9 @@ public class PostController {
         @ApiResponse(responseCode = "404", description = "게시글 없음")
     })
     public CommonResponse<DeletePostResponseDto> deletePost(
-        @RequestHeader("Authorization") String authorizationHeader,
+        @CurrentUserId Long userId,
         @PathVariable Long postId
     ) {
-
-        Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
-
         PostService.DeletePostResult result = postService.deletePost(userId, postId);
 
         return CommonResponse.success(
@@ -200,23 +210,5 @@ public class PostController {
                 result.deletedAt()
             )
         );
-    }
-
-    private Long extractUserIdFromAuthorizationHeader(String authorizationHeader) {
-        String token = extractBearerToken(authorizationHeader);
-        ParsedToken parsedToken = accessTokenService.parseAccessToken(token);
-        return Long.parseLong(parsedToken.subject());
-    }
-
-    private String extractBearerToken(String authorizationHeader) {
-        if (authorizationHeader == null || authorizationHeader.isBlank()) {
-            throw new IllegalArgumentException("Authorization header is required");
-        }
-
-        if (authorizationHeader.startsWith("Bearer ")) {
-            return authorizationHeader.substring(7);
-        }
-
-        return authorizationHeader;
     }
 }
