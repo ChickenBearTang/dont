@@ -29,7 +29,11 @@ public enum CommunityErrorCode implements ErrorCode {
     PURCHASE_REQUEST_FORBIDDEN(HttpStatus.FORBIDDEN, "PR_403_1", "해당 PR에 대한 권한이 없습니다."),
     PURCHASE_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "PR_404_1", "PR을 찾을 수 없습니다."),
     PURCHASE_REQUEST_ALREADY_EXISTS(HttpStatus.CONFLICT, "PR_409_1", "해당 게시글에는 PR이 이미 존재합니다."),
-    PURCHASE_REQUEST_NOT_OPEN(HttpStatus.CONFLICT, "PR_409_2", "열려있는 PR에서만 투표할 수 있습니다.");
+    PURCHASE_REQUEST_NOT_OPEN(HttpStatus.CONFLICT, "PR_409_2", "열려있는 PR에서만 투표할 수 있습니다."),
+
+    REPORT_TARGET_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT_404_1", "신고 대상을 찾을 수 없습니다."),
+    REPORT_ALREADY_EXISTS(HttpStatus.CONFLICT, "REPORT_409_1", "이미 신고한 대상입니다."),
+    SELF_REPORT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "REPORT_400_1", "본인이 작성한 대상은 신고할 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
