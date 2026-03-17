@@ -5,22 +5,27 @@ import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Board;
 import com.ssafy.edu.awesomeproject.domain.community.entity.BoardCategory;
+import com.ssafy.edu.awesomeproject.domain.community.entity.CommentStatus;
 import com.ssafy.edu.awesomeproject.domain.community.entity.HotdealPost;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PollPost;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Post;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PostStatus;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PrPost;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PrStatus;
+import com.ssafy.edu.awesomeproject.domain.community.entity.ReactionTargetType;
+import com.ssafy.edu.awesomeproject.domain.community.entity.ReactionType;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.BoardRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CohortRepository;
+import com.ssafy.edu.awesomeproject.domain.community.repository.CommentRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.HotdealPostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PollPostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PollVoteRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PrPostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PrVoteRepository;
+import com.ssafy.edu.awesomeproject.domain.community.repository.ReactionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -46,17 +51,21 @@ public class PostService {
     private final HotdealPostRepository hotdealPostRepository;
     private final PollPostRepository pollPostRepository;
     private final PollVoteRepository pollVoteRepository;
+    private final ReactionRepository reactionRepository;
+    private final CommentRepository commentRepository;
 
     public PostService(
-            PostRepository postRepository,
-            BoardRepository boardRepository,
-            CohortRepository cohortRepository,
-            UserRepository userRepository,
-            PrPostRepository prPostRepository,
-            PrVoteRepository prVoteRepository,
-            HotdealPostRepository hotdealPostRepository,
-            PollPostRepository pollPostRepository,
-            PollVoteRepository pollVoteRepository) {
+        PostRepository postRepository,
+        BoardRepository boardRepository,
+        CohortRepository cohortRepository,
+        UserRepository userRepository,
+        PrPostRepository prPostRepository,
+        PrVoteRepository prVoteRepository,
+        HotdealPostRepository hotdealPostRepository,
+        PollPostRepository pollPostRepository,
+        PollVoteRepository pollVoteRepository,
+        ReactionRepository reactionRepository,
+        CommentRepository commentRepository) {
         this.postRepository = postRepository;
         this.boardRepository = boardRepository;
         this.cohortRepository = cohortRepository;
@@ -66,6 +75,8 @@ public class PostService {
         this.hotdealPostRepository = hotdealPostRepository;
         this.pollPostRepository = pollPostRepository;
         this.pollVoteRepository = pollVoteRepository;
+        this.reactionRepository = reactionRepository;
+        this.commentRepository = commentRepository;
     }
 
     public CreatePostResult createPost(
@@ -111,9 +122,20 @@ public class PostService {
                 post.getTitle(),
                 post.getContent(),
                 post.getUser().getNickname(),
-                0,
-                0,
-                0,
+                Math.toIntExact(
+                        reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
+                                ReactionTargetType.POST,
+                                post.getId(),
+                                ReactionType.LIKE)),
+                Math.toIntExact(
+                        reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
+                                ReactionTargetType.POST,
+                                post.getId(),
+                                ReactionType.DISLIKE)),
+                Math.toIntExact(
+                        commentRepository.countByPost_IdAndStatus(
+                                post.getId(),
+                            CommentStatus.ACTIVE)),
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }
@@ -184,8 +206,15 @@ public class PostService {
                             extractGenerationNo(post.getBoard()),
                             post.getTitle(),
                             post.getUser().getNickname(),
-                            0,
-                            0,
+                            Math.toIntExact(
+                                    reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
+                                            ReactionTargetType.POST,
+                                            post.getId(),
+                                            ReactionType.LIKE)),
+                            Math.toIntExact(
+                                    commentRepository.countByPost_IdAndStatus(
+                                            post.getId(),
+                                            CommentStatus.ACTIVE)),
                             post.getCreatedAt(),
                             extraSummary);
                 })
