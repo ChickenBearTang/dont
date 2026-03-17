@@ -64,6 +64,8 @@ services:
       - ${SSL_KEY_PATH:-/dev/null}:/etc/nginx/certs/privkey.pem:ro
       - ./infra/nginx/entrypoint-nginx.sh:/entrypoint-nginx.sh:ro
     command: ["sh", "/entrypoint-nginx.sh"]
+    environment:
+      SSL_ENABLED: ${SSL_ENABLED:-false}
     networks:
       - app-net
 
