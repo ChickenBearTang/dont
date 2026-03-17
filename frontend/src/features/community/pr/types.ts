@@ -35,6 +35,30 @@ export interface PrDetailResponseData {
   disagreeCount: number;
   totalVoteCount: number;
   closedAt: string | null;
+  reviews?: PrDetailReviewItem[];
+  events?: PrDetailEventItem[];
+  permissions?: PrDetailPermissions;
+}
+
+export interface PrDetailReviewItem {
+  reviewId: number;
+  userId: number;
+  decision: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT' | string;
+  content: string | null;
+  createdAt: string;
+}
+
+export interface PrDetailEventItem {
+  eventId: number;
+  eventType: 'CREATED' | 'REVIEW_SUBMITTED' | 'STATUS_CHANGED' | string;
+  actorUserId: number | null;
+  payload: string | null;
+  createdAt: string;
+}
+
+export interface PrDetailPermissions {
+  canVote: boolean;
+  canClose: boolean;
 }
 
 export interface PrVoteSubmitRequestPayload {
