@@ -12,5 +12,6 @@ public class OpenBankCreateAccountRequest {
     @JsonProperty("Header")
     private OpenBankReqHeader header;
 
+    @JsonProperty("accountTypeUniqueNo")
     private String accountTypeUniqueNo;
 }

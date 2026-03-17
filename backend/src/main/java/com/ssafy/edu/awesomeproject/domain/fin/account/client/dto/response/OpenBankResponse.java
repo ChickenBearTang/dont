@@ -5,8 +5,8 @@ import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankResHead
 import java.util.List;
 
 public record OpenBankResponse(
-        // global에서 만든 공통 응답 헤더 객체를 사용
-        @JsonProperty("Header") OpenBankResHeader header, @JsonProperty("REC") List<Rec> rec) {
+        @JsonProperty("Header") OpenBankResHeader header, 
+        @JsonProperty("REC") List<Rec> rec) {
 
     public record Rec(
             String bankCode,
@@ -14,6 +14,13 @@ public record OpenBankResponse(
             String userName,
             String accountNo,
             String accountName,
+            String accountTypeCode,
+            String accountTypeName,
+            String accountCreatedDate,
+            String accountExpiryDate,
+            String dailyTransferLimit,
+            String oneTimeTransferLimit,
             String accountBalance,
+            String lastTransactionDate,
             String currency) {}
 }
