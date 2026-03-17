@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, Button } from '@/shared/components';
-import { getPrDetail, submitPrVote } from '@/features/community/pr';
+import { closePr, getPrDetail, submitPrVote } from '@/features/community/pr';
 import type { PrDetailResponseData } from '@/features/community/pr';
 import { useUIStore } from '@/shared/store/useUIStore';
 
@@ -34,6 +34,7 @@ export const PrDetailPage = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [voteOpinion, setVoteOpinion] = useState('');
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+  const [isClosingPr, setIsClosingPr] = useState(false);
 
   const loadDetail = useCallback(async () => {
     if (!parsedPostId || Number.isNaN(parsedPostId)) {
@@ -78,6 +79,23 @@ export const PrDetailPage = () => {
       addToast('투표 처리에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
     } finally {
       setIsSubmittingVote(false);
+    }
+  };
+
+  const handleClosePr = async (resultStatus: 'MERGED' | 'CLOSED') => {
+    if (!detail || detail.status !== 'OPEN' || isClosingPr) {
+      return;
+    }
+
+    setIsClosingPr(true);
+    try {
+      await closePr(detail.postId, { resultStatus });
+      addToast('PR 종료가 반영되었습니다.', 'success');
+      await loadDetail();
+    } catch {
+      addToast('PR 종료 처리에 실패했습니다. (작성자만 종료 가능)', 'error');
+    } finally {
+      setIsClosingPr(false);
     }
   };
 
@@ -159,6 +177,29 @@ export const PrDetailPage = () => {
             <p>
               <span className="font-bold text-gray-900">종료 시각</span>{' '}
               {formatDateTime(detail.closedAt)}
+            </p>
+          </div>
+          <div className="pt-2 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                className="!py-2.5 text-sm !bg-emerald-600 hover:!bg-emerald-700 disabled:!bg-gray-300"
+                onClick={() => void handleClosePr('MERGED')}
+                disabled={detail.status !== 'OPEN' || isClosingPr}
+              >
+                MERGED
+              </Button>
+              <Button
+                type="button"
+                className="!py-2.5 text-sm !bg-slate-600 hover:!bg-slate-700 disabled:!bg-gray-300"
+                onClick={() => void handleClosePr('CLOSED')}
+                disabled={detail.status !== 'OPEN' || isClosingPr}
+              >
+                CLOSED
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500 font-medium">
+              작성자만 종료할 수 있으며, 종료 후에는 투표가 비활성화됩니다.
             </p>
           </div>
         </Card>
