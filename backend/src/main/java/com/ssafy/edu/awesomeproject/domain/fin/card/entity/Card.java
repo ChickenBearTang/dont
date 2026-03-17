@@ -97,4 +97,31 @@ public class Card extends BaseEntity {
         this.withdrawalAccountNo = withdrawalAccountNo;
         this.withdrawalDate = withdrawalDate;
     }
+
+    //업데이트용 메소드(setter 대용)
+    public void updateFromExternal(
+        String cardNo,
+        String cvc,
+        String cardIssuerCode,
+        String cardIssuerName,
+        String cardName,
+        String cardDescription,
+        Long baselinePerformance,
+        Long maxBenefitLimit,
+        String cardExpiryDate,
+        String withdrawalAccountNo,
+        String withdrawalDate
+    ) {
+        this.cardNo = cardNo;
+        this.cvc = cvc;
+        this.cardIssuerCode = cardIssuerCode;
+        this.cardIssuerName = cardIssuerName;
+        this.cardName = cardName;
+        this.cardDescription = cardDescription;
+        this.baselinePerformance = baselinePerformance;
+        this.maxBenefitLimit = maxBenefitLimit;
+        this.cardExpiryDate = cardExpiryDate;
+        this.withdrawalAccountNo = withdrawalAccountNo;
+        this.withdrawalDate = withdrawalDate;
+    }
 }

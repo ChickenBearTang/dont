@@ -2,6 +2,7 @@ package com.ssafy.edu.awesomeproject.domain.fin.card.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,8 +43,24 @@ public class CardController {
         @PathVariable Long cardId,
         @RequestParam String startDate,
         @RequestParam String endDate) {
+
         CardTransactionResponse response =
             cardService.getCardTransactions(userId, cardId, startDate, endDate);
         return ResponseEntity.ok(response);
+
     }
+
+    @GetMapping("/spending-summary")
+    @Operation(summary = "카드 총 결제내역 월별 요약", description = "카드의 월별 총 결제내역을 요약합니다")
+    public ResponseEntity<CardSummaryResponse> getCardSummary(
+    @CurrentUserId Long userId,
+    @RequestParam String startDate,
+    @RequestParam String endDate
+    ){
+
+        CardSummaryResponse response =
+            cardService.getCardSummary(userId, startDate, endDate);
+        return ResponseEntity.ok(response);
+    }
+
 }
