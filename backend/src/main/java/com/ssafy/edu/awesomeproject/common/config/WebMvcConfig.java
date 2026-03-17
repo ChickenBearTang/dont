@@ -19,9 +19,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     public WebMvcConfig(
             CurrentUserInterceptor currentUserInterceptor,
+            AdminAuthorizationInterceptor adminAuthorizationInterceptor,
             CurrentUserIdArgumentResolver currentUserIdArgumentResolver,
-            SignupRequestSizeInterceptor signupRequestSizeInterceptor,
-            AdminAuthorizationInterceptor adminAuthorizationInterceptor) {
+            SignupRequestSizeInterceptor signupRequestSizeInterceptor) {
         this.currentUserInterceptor = currentUserInterceptor;
         this.adminAuthorizationInterceptor = adminAuthorizationInterceptor;
         this.currentUserIdArgumentResolver = currentUserIdArgumentResolver;
