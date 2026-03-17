@@ -1,16 +1,91 @@
 services:
-    redis:
-        image: redis:7-alpine
-        container_name: redis
-        restart: unless-stopped
-        ports:
-            - "127.0.0.1:6379:6379"
-        volumes:
-            - redis-data:/data
-        healthcheck:
-            test: ["CMD", "redis-cli", "ping"]
-            interval: 10s
-            timeout: 5s
-            retries: 5
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "8080"
+    networks:
+      - app-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - app-net
+
+  edge-nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/http.conf:/etc/nginx/templates/http.conf:ro
+      - ./infra/nginx/https.conf:/etc/nginx/templates/https.conf:ro
+      - ${SSL_CERT_PATH:-/dev/null}:/etc/nginx/certs/fullchain.pem:ro
+      - ${SSL_KEY_PATH:-/dev/null}:/etc/nginx/certs/privkey.pem:ro
+      - ./infra/nginx/entrypoint-nginx.sh:/entrypoint-nginx.sh:ro
+    command: ["sh", "/entrypoint-nginx.sh"]
+    networks:
+      - app-net
+
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    restart: unless-stopped
+    profiles: ["ci"]
+    user: root
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
+
 volumes:
-    redis-data:
+  redis-data:
+  jenkins_home:
