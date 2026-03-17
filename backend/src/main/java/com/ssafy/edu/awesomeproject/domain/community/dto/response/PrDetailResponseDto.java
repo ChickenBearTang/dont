@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.community.dto.response;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record PrDetailResponseDto(
         Long postId,
@@ -15,4 +16,7 @@ public record PrDetailResponseDto(
         Long agreeCount,
         Long disagreeCount,
         Long totalVoteCount,
-        LocalDateTime closedAt) {}
+        LocalDateTime closedAt,
+        List<PrDetailReviewDto> reviews,
+        List<PrDetailEventDto> events,
+        PrDetailPermissionsDto permissions) {}
