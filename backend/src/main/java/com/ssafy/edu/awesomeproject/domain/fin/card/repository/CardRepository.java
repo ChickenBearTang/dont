@@ -10,6 +10,7 @@ public interface CardRepository extends JpaRepository<Card, Long> {
 
     void deleteByUser_Id(Long userId);
 
+
     Optional<Card> findByIdAndUserId(Long id, Long userId);
 
 

@@ -55,6 +55,34 @@ public class CardService {
     }
 
     @Transactional
+    public CardListResponse.CardItem getCardItem(Long userId, Long cardId,String startDate, String endDate) {
+
+        Card card = cardRepository.findById(cardId).orElseThrow();
+
+        LocalDate start = parseDateOrThrow(startDate, "startDate");
+        LocalDate end = parseDateOrThrow(endDate, "endDate");
+        if (start.isAfter(end)) {
+            throw new IllegalArgumentException("startDate must be before or equal to endDate.");
+        }
+
+        List<CardTransaction> transactions = cardTransactionRepository
+            .findByUserIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(userId,start,end);
+
+        //유저의 결제금액 총합
+        Long totalAmount = transactions.stream()
+            .mapToLong(CardTransaction::getTransactionAmount)
+            .sum();
+
+       return CardListResponse.CardItem.builder()
+           .cardIssuerName(card.getCardIssuerName())
+           .cardName(card.getCardName())
+           .monthlyCardExpense(totalAmount)
+           .build();
+
+    }
+
+
+    @Transactional
     public CardListResponse refreshCardList(Long userId) {
         RefreshResult refreshResult = refreshCardsFromExternal(userId);
         return buildCardListResponse(refreshResult.cards(), refreshResult.success(), refreshResult.message());

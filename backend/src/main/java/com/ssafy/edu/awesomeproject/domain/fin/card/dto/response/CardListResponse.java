@@ -18,6 +18,8 @@ public class CardListResponse {
     public static class CardItem {
         private String cardIssuerName;
         private String cardName;
+
+        //해당달 총 지출금액
         private long monthlyCardExpense;
     }
 }
