@@ -6,11 +6,11 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CardRepository extends JpaRepository<Card, Long> {
-    List<Card> findAllByUserId(Long userId);
+    List<Card> findAllByUser_Id(Long userId);
 
-    Optional<Card> findByUserIdAndCardNo(Long userId, String cardNo);
+    void deleteByUser_Id(Long userId);
 
     Optional<Card> findByIdAndUserId(Long id, Long userId);
 
-    void deleteByUserId(Long userId);
+
 }

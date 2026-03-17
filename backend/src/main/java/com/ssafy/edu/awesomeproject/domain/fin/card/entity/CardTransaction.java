@@ -54,6 +54,9 @@ public class CardTransaction extends BaseEntity {
     @Column(name = "description", length = 500)
     private String description;
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @Builder
     public CardTransaction(
         Card card,
@@ -64,7 +67,9 @@ public class CardTransaction extends BaseEntity {
         Long transactionAmount,
         String transactionType,
         String approvalNo,
-        String description) {
+        String description,
+        Long userId
+       ) {
         this.card = card;
         this.transactionDate = transactionDate;
         this.transactionTime = transactionTime;
@@ -74,5 +79,7 @@ public class CardTransaction extends BaseEntity {
         this.transactionType = transactionType;
         this.approvalNo = approvalNo;
         this.description = description;
+        this.userId = userId;
+
     }
 }

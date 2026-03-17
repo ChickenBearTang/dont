@@ -5,6 +5,7 @@ import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request.OpenBankRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBankResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.Card;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
@@ -16,14 +17,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 @Service
 @RequiredArgsConstructor
@@ -43,7 +43,7 @@ public class CardService {
 
     @Transactional
     public CardListResponse getCardList(Long userId) {
-        List<Card> cards = cardRepository.findAllByUserId(userId);
+        List<Card> cards = cardRepository.findAllByUser_Id(userId);
         if (cards.isEmpty()) {
             RefreshResult refreshResult = refreshCardsFromExternal(userId);
             return buildCardListResponse(
@@ -83,6 +83,61 @@ public class CardService {
             card.getCardName());
     }
 
+    @Transactional(readOnly = true)
+    public CardSummaryResponse getCardSummary(
+        Long userId,String startDate, String endDate
+    ){
+        LocalDate start = parseDateOrThrow(startDate, "startDate");
+        LocalDate end = parseDateOrThrow(endDate, "endDate");
+        if (start.isAfter(end)) {
+            throw new IllegalArgumentException("startDate must be before or equal to endDate.");
+        }
+
+        //유저id + 날짜로 필터링(직전달 포함)
+        List<CardTransaction> transactions = cardTransactionRepository
+            .findByUserIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(userId,start,end);
+
+        //유저의 결제금액 총합
+        Long totalAmount = transactions.stream()
+            .mapToLong(CardTransaction::getTransactionAmount)
+            .sum();
+
+        Map<String, Long> amountByCategory = transactions.stream()
+            .collect(Collectors.groupingBy(
+                CardTransaction::getCategoryName,   // 카테고리 꺼내는 getter 이름에 맞게 수정
+                Collectors.summingLong(CardTransaction::getTransactionAmount)
+            ));
+
+        List<CardSummaryResponse.RankColum> rankColumList = amountByCategory.entrySet().stream()
+            .map(entry -> {
+                long amount = entry.getValue();
+
+                double percentage = totalAmount == 0
+                    ? 0.0
+                    : (amount * 100.0) / totalAmount;
+
+                return CardSummaryResponse.RankColum.builder()
+                    .categoryName(entry.getKey())
+                    .percentage(percentage)
+                    .amount((int) amount) // 가능하면 Long으로 바꾸는거 추천
+                    .build();
+            })
+            .sorted(Comparator.comparing(CardSummaryResponse.RankColum::getPercentage).reversed())
+            .toList();
+
+
+        return CardSummaryResponse.builder()
+            .success(true)
+            .code(SUCCESS_CODE)
+            .message("Card summary retrieved.")
+            .totalAmount(totalAmount)
+            .RankColumList(rankColumList)
+            .build();
+
+    }
+
+
+
     private RefreshResult refreshCardsFromExternal(Long userId) {
         User user = getRequiredUserWithFinanceKey(userId);
         OpenBankRequest request = createCardListRequest(user.getSsafyFinanceUserKey());
@@ -93,18 +148,42 @@ public class CardService {
             && SUCCESS_CODE.equals(response.getHeader().getResponseCode());
 
         if (!success || response.getRec() == null) {
-            List<Card> currentCards = cardRepository.findAllByUserId(userId);
+            List<Card> currentCards = cardRepository.findAllByUser_Id(userId);
             return new RefreshResult(false, currentCards, "Failed to refresh card list.");
         }
 
-        cardRepository.deleteByUserId(userId);
+        List<Card> existingCards = cardRepository.findAllByUser_Id(userId);
 
-        List<Card> savedCards = cardRepository.saveAll(
-            response.getRec().stream()
-                .map(rec -> toCardEntity(user, rec))
-                .collect(Collectors.toList()));
+        Map<String, Card> existingCardMap = existingCards.stream()
+            .collect(Collectors.toMap(Card::getCardUniqueNo, card -> card));
 
-        return new RefreshResult(true, savedCards, "Card list refreshed.");
+        List<Card> resultCards = new ArrayList<>();
+
+        for (OpenBankResponse.Rec rec : response.getRec()) {
+            Card existingCard = existingCardMap.get(rec.getCardUniqueNo());
+
+            if (existingCard != null) {
+                existingCard.updateFromExternal(
+                    rec.getCardNo(),
+                    rec.getCvc(),
+                    rec.getCardIssuerCode(),
+                    rec.getCardIssuerName(),
+                    rec.getCardName(),
+                    rec.getCardDescription(),
+                    rec.getBaselinePerformance(),
+                    rec.getMaxBenefitLimit(),
+                    rec.getCardExpiryDate(),
+                    rec.getWithdrawalAccountNo(),
+                    rec.getWithdrawalDate()
+                );
+                resultCards.add(existingCard);
+            } else {
+                Card newCard = toCardEntity(user, rec);
+                resultCards.add(cardRepository.save(newCard));
+            }
+        }
+
+        return new RefreshResult(true, resultCards, "Card list refreshed.");
     }
 
     private OpenBankRequest createCardListRequest(String userKey) {

@@ -9,5 +9,14 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
     List<CardTransaction> findByCardIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
         Long cardId,
         LocalDate startDate,
-        LocalDate endDate);
+        LocalDate endDate
+    );
+
+    //한 유저 + 날짜로 거래내역 필터링
+    List<CardTransaction> findByUserIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+        Long userId,
+        LocalDate startDate,
+        LocalDate endDate
+    );
+
 }

@@ -8,8 +8,6 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenB
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransactionHistoryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransferResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request.OpenBankCardTransactionRequest;
-import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBankCardTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.request.OpenBankDetailAccountRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response.OpenBankDetailAccountResponse;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,19 +25,14 @@ public interface OpenBankClient {
     OpenBankDetailAccountResponse fetchAccountDetail(
             @RequestBody OpenBankDetailAccountRequest request);
 
-    // 카드목록 호출 url
+    // 카드 목록 조회
     @PostExchange("/ssafy/api/v1/edu/creditCard/inquireSignUpCreditCardList")
     com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBankResponse
             fetchCreditCardList(
                     @RequestBody
                             com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request
-                                            .OpenBankRequest
+                                             .OpenBankRequest
                                     request);
-
-    // 카드 거래내역 호출 url
-    @PostExchange("/ssafy/api/v1/edu/creditCard/inquireCreditCardTransactionList")
-    OpenBankCardTransactionResponse fetchCreditCardTransactions(
-            @RequestBody OpenBankCardTransactionRequest request);
 
     @PostExchange("/ssafy/api/v1/edu/demandDeposit/inquireTransactionHistoryList")
     OpenBankTransactionHistoryResponse fetchTransactionHistory(
