@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react';
 import './StrictSecretaryResult.css';
 
 export interface AIResultData {
@@ -14,6 +15,51 @@ interface StrictSecretaryResultProps {
 }
 
 export default function StrictSecretaryResult({ status, data, onRetry, onReset }: StrictSecretaryResultProps) {
+  const [ttsState, setTtsState] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handlePlayVoice = async () => {
+    if (!data) return;
+
+    // 이미 재생 중이면 정지
+    if (ttsState === 'playing' && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setTtsState('idle');
+      return;
+    }
+
+    setTtsState('loading');
+
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/strict-secretary/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: data.fact_violence_comment }),
+      });
+
+      if (!res.ok) throw new Error('TTS 요청 실패');
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+
+      audio.onended = () => {
+        setTtsState('idle');
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+      };
+
+      audioRef.current = audio;
+      await audio.play();
+      setTtsState('playing');
+    } catch (err) {
+      console.error('TTS error:', err);
+      alert('음성 생성에 실패했습니다. ELEVEN_API_KEY를 .env에 추가했는지 확인해주세요.');
+      setTtsState('idle');
+    }
+  };
+
   if (status === 'RETRY' || !data) {
     return (
       <div className="ss-result-container retry">
@@ -36,7 +82,19 @@ export default function StrictSecretaryResult({ status, data, onRetry, onReset }
       </div>
       
       <div className="ss-fact-violence">
-        <h3>비서의 팩트 폭력</h3>
+        <div className="ss-fact-violence-header">
+          <h3>비서의 팩트 폭력</h3>
+          <button
+            className="ss-tts-btn"
+            onClick={handlePlayVoice}
+            disabled={ttsState === 'loading'}
+            aria-label="팩트폭력 음성으로 듣기"
+          >
+            {ttsState === 'idle' && '🔊 듣기'}
+            {ttsState === 'loading' && '⏳ 생성 중...'}
+            {ttsState === 'playing' && '⏹ 정지'}
+          </button>
+        </div>
         <p>"{fact_violence_comment}"</p>
       </div>
 
@@ -53,3 +111,4 @@ export default function StrictSecretaryResult({ status, data, onRetry, onReset }
     </div>
   );
 }
+

@@ -106,6 +106,22 @@ def handle_strict_secretary(req: PurchaseIntentionRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+class TTSRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/v1/strict-secretary/tts")
+def handle_tts(req: TTSRequest):
+    from strict_secretary.voice import generate_tts_audio
+    from fastapi.responses import Response
+
+    audio_bytes = generate_tts_audio(req.text)
+    if audio_bytes is None:
+        raise HTTPException(status_code=500, detail="TTS 생성 실패 (API 키를 확인하세요)")
+    return Response(content=audio_bytes, media_type="audio/mpeg")
+
+
+
 @app.get("/api/v1/consumption-report")
 def get_consumption_report(
     user_id: str | None = Query(default=None),

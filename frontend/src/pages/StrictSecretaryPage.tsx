@@ -10,12 +10,12 @@ type PageState = 'IDLE' | 'FORM_OPEN' | 'LOADING_VIDEO' | 'RESULT' | 'RETRY';
 export default function StrictSecretaryPage() {
   const [pageState, setPageState] = useState<PageState>('IDLE');
   const [aiResult, setAiResult] = useState<AIResultData | null>(null);
+  const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
 
-  // We use refs to track if video ended and if API returned, 
-  // so we know when to transition to RESULT or RETRY.
   const isVideoEndedRef = useRef(false);
   const isApiResolvedRef = useRef(false);
   const currentAiDataRef = useRef<AIResultData | null>(null);
+  const ttsAudioUrlRef = useRef<string | null>(null);
 
   const toggleForm = () => {
     setPageState(prev => prev === 'IDLE' ? 'FORM_OPEN' : 'IDLE');
@@ -24,24 +24,45 @@ export default function StrictSecretaryPage() {
   const resetAll = () => {
     setPageState('IDLE');
     setAiResult(null);
+    setTtsAudioUrl(null);
     isVideoEndedRef.current = false;
     isApiResolvedRef.current = false;
     currentAiDataRef.current = null;
+    ttsAudioUrlRef.current = null;
+  };
+
+  // TTS 음성을 미리 생성하는 함수 (영상 재생 중에 백그라운드로 호출)
+  const prefetchTts = (text: string) => {
+    fetch('http://localhost:8000/api/v1/strict-secretary/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('TTS 생성 실패');
+        return res.blob();
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        ttsAudioUrlRef.current = url;
+        setTtsAudioUrl(url);
+      })
+      .catch((err) => {
+        console.warn('TTS prefetch 실패 (음성 없이 결과만 표시):', err);
+      });
   };
 
   const handleFormSubmit = (data: { item_text: string; item_link: string; user_reason: string }) => {
     console.log('Purchase Request Data:', data);
-    
-    // 1. Transition to Video Loading State
+
     setPageState('LOADING_VIDEO');
     isVideoEndedRef.current = false;
     isApiResolvedRef.current = false;
     currentAiDataRef.current = null;
+    ttsAudioUrlRef.current = null;
+    setTtsAudioUrl(null);
 
-    // 2. 실제 strict_secretary API 호출
-    // 엔드포인트: POST /api/v1/strict-secretary (index.html과 동일)
-    // user_name은 폼에서 입력받지 않으므로 기본값 사용
-    // TODO: 추후 사용자 선택 기능 추가 시 동적으로 변경
+    // 1. 텍스트 API 호출 → 성공하면 바로 TTS도 호출
     fetch('http://localhost:8000/api/v1/strict-secretary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -60,6 +81,9 @@ export default function StrictSecretaryPage() {
         isApiResolvedRef.current = true;
         currentAiDataRef.current = result;
 
+        // 2. 텍스트 결과를 받자마자 TTS 생성도 백그라운드로 시작
+        prefetchTts(result.fact_violence_comment);
+
         // 영상이 이미 끝났다면 바로 결과 화면으로 전환
         if (isVideoEndedRef.current) {
           setAiResult(result);
@@ -68,14 +92,13 @@ export default function StrictSecretaryPage() {
       })
       .catch((err) => {
         console.error('strict-secretary API error:', err);
-        // API 실패 시에도 영상 끝나면 RETRY 화면으로 가도록 처리
         isApiResolvedRef.current = false;
       });
   };
 
   const handleVideoEnded = () => {
     isVideoEndedRef.current = true;
-    
+
     if (isApiResolvedRef.current && currentAiDataRef.current) {
       setAiResult(currentAiDataRef.current);
       setPageState('RESULT');
@@ -99,12 +122,11 @@ export default function StrictSecretaryPage() {
         <h1>엄격한 비서 (Strict Secretary)</h1>
         <p>당신의 충동구매를 막아드립니다. 아래 버튼을 눌러 구매 기안을 작성하세요.</p>
       </header>
-      
+
       <main className="ss-main">
-        {/* IDLE state shows the circular button */}
         {(pageState === 'IDLE' || pageState === 'FORM_OPEN') && (
-          <button 
-            className="ss-circle-btn" 
+          <button
+            className="ss-circle-btn"
             onClick={toggleForm}
             aria-label="구매 요청서 작성 폼 열기"
           >
@@ -112,26 +134,24 @@ export default function StrictSecretaryPage() {
           </button>
         )}
 
-        {/* The Form Modal */}
         {pageState === 'FORM_OPEN' && (
-          <StrictSecretaryForm 
-            onSubmit={handleFormSubmit} 
-            onClose={toggleForm} 
+          <StrictSecretaryForm
+            onSubmit={handleFormSubmit}
+            onClose={toggleForm}
           />
         )}
 
-        {/* Landing Video */}
         {pageState === 'LOADING_VIDEO' && (
           <StrictSecretaryLanding onVideoEnded={handleVideoEnded} />
         )}
 
-        {/* Result & Retry States */}
         {(pageState === 'RESULT' || pageState === 'RETRY') && (
-          <StrictSecretaryResult 
-            status={pageState === 'RESULT' ? 'RESULT' : 'RETRY'} 
-            data={aiResult || undefined} 
-            onRetry={handleRetry} 
-            onReset={resetAll} 
+          <StrictSecretaryResult
+            status={pageState === 'RESULT' ? 'RESULT' : 'RETRY'}
+            data={aiResult || undefined}
+            audioUrl={ttsAudioUrl || undefined}
+            onRetry={handleRetry}
+            onReset={resetAll}
           />
         )}
       </main>
