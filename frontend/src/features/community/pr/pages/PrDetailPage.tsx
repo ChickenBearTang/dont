@@ -338,9 +338,20 @@ export const PrDetailPage = () => {
             <div className="divide-y divide-gray-100">
               {detail.reviews.map((review) => (
                 <div key={review.reviewId} className="px-5 py-4 space-y-1.5">
-                  <p className="text-sm font-bold text-gray-900">
-                    {review.decision} · 사용자 #{review.userId}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    {review.userProfileImageUrl ? (
+                      <img
+                        src={review.userProfileImageUrl}
+                        alt={review.userNickname ?? `사용자 ${review.userId}`}
+                        className="w-7 h-7 rounded-full object-cover border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-gray-100 border border-gray-200" />
+                    )}
+                    <p className="text-sm font-bold text-gray-900">
+                      {review.decision} · {review.userNickname ?? `사용자 #${review.userId}`}
+                    </p>
+                  </div>
                   <p className="text-xs text-gray-500">{formatRelativeTime(review.createdAt)}</p>
                   <p className="text-sm text-gray-700">
                     {review.content && review.content.trim().length > 0 ? review.content : '의견 없이 결정만 등록했습니다.'}

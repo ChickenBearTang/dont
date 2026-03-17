@@ -1,4 +1,4 @@
-﻿package com.ssafy.edu.awesomeproject.domain.community.controller;
+package com.ssafy.edu.awesomeproject.domain.community.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.ApiCommonResponses;
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;

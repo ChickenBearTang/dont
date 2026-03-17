@@ -43,6 +43,8 @@ export interface PrDetailResponseData {
 export interface PrDetailReviewItem {
   reviewId: number;
   userId: number;
+  userNickname?: string | null;
+  userProfileImageUrl?: string | null;
   decision: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT' | string;
   content: string | null;
   createdAt: string;

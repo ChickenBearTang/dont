@@ -189,16 +189,27 @@ public class PrPostService {
         long agreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.AGREE);
         long disagreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.DISAGREE);
         long totalVoteCount = prVoteRepository.countByPostId(postId);
+        List<PrReview> reviewEntities = prReviewRepository.findAllByPostIdOrderByCreatedAtAsc(postId);
+        Set<Long> reviewUserIds = reviewEntities.stream().map(PrReview::getUserId).collect(Collectors.toSet());
+        Map<Long, User> reviewUserById = new HashMap<>();
+        if (!reviewUserIds.isEmpty()) {
+            userRepository.findAllById(reviewUserIds).forEach(user -> reviewUserById.put(user.getId(), user));
+        }
+
         List<PrDetailReviewDto> reviews =
-                prReviewRepository.findAllByPostIdOrderByCreatedAtAsc(postId).stream()
+                reviewEntities.stream()
                         .map(
-                                review ->
-                                        new PrDetailReviewDto(
-                                                review.getId(),
-                                                review.getUserId(),
-                                                review.getDecision().name(),
-                                                review.getContent(),
-                                                review.getCreatedAt()))
+                                review -> {
+                                    User reviewUser = reviewUserById.get(review.getUserId());
+                                    return new PrDetailReviewDto(
+                                            review.getId(),
+                                            review.getUserId(),
+                                            reviewUser == null ? null : reviewUser.getNickname(),
+                                            reviewUser == null ? null : reviewUser.getProfileImageUrl(),
+                                            review.getDecision().name(),
+                                            review.getContent(),
+                                            review.getCreatedAt());
+                                })
                         .toList();
         List<PrDetailEventDto> events =
                 buildEventDtos(postId);
@@ -274,7 +285,6 @@ public class PrPostService {
         if (!isAuthor) return "작성자만 PR을 종료할 수 있습니다.";
         return null;
     }
-
     private User getUserOrThrow(Long userId) {
         return userRepository
                 .findById(userId)
