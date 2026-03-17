@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.controller;
 
+import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SavingsSettingRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountCreateResponse;
@@ -32,22 +33,20 @@ public class AccountController {
 
     @Operation(summary = "계좌 목록 조회", description = "사용자의 수시입출금 계좌 목록을 조회합니다. (주 계좌 설정용)")
     @GetMapping
-    public ResponseEntity<AccountListResponse> getMyAccounts() {
+    public ResponseEntity<AccountListResponse> getMyAccounts(@CurrentUserId Long userId) {
 
-        Long currentUserId = 10L; // (사용자 10번으로 연동)
-
-        AccountListResponse response = accountService.getAccountList(currentUserId);
+        AccountListResponse response = accountService.getAccountList(userId);
 
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "계좌 상세 조회", description = "특정 계좌의 상세 정보를 조회합니다.")
     @GetMapping("/{accountId}")
-    public ResponseEntity<AccountResponse> getAccountDetail(@PathVariable Long accountId) {
+    public ResponseEntity<AccountResponse> getAccountDetail(
+            @CurrentUserId Long userId,
+            @PathVariable Long accountId) {
 
-        Long currentUserId = 10L; // (사용자 10번으로 연동)
-
-        AccountResponse response = accountService.getAccount(currentUserId, accountId);
+        AccountResponse response = accountService.getAccount(userId, accountId);
 
         return ResponseEntity.ok(response);
     }
@@ -55,33 +54,30 @@ public class AccountController {
     @Operation(summary = "세이브 박스 개설", description = "신규 '세이브 박스' 계좌를 개설합니다. (DB 저장 없음)")
     @PostMapping("/save-box")
     public ResponseEntity<AccountCreateResponse> createSaveBox(
+            @CurrentUserId Long userId,
             @RequestBody SaveBoxCreateRequest request) {
 
-        Long currentUserId = 10L; // (사용자 10번으로 연동)
-
-        AccountCreateResponse response = accountService.createSaveBox(currentUserId, request);
+        AccountCreateResponse response = accountService.createSaveBox(userId, request);
 
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "계좌 목록 새로고침", description = "외부 API 기준으로 계좌 정보를 재동기화합니다. (DB 업데이트)")
     @PostMapping("/refresh")
-    public ResponseEntity<AccountListResponse> refreshMyAccounts() {
+    public ResponseEntity<AccountListResponse> refreshMyAccounts(@CurrentUserId Long userId) {
 
-        Long currentUserId = 10L; // (사용자 10번으로 연동)
-
-        AccountListResponse response = accountService.refreshAccountList(currentUserId);
+        AccountListResponse response = accountService.refreshAccountList(userId);
 
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "주 계좌 설정", description = "특정 계좌를 사용자의 '주 계좌'로 설정합니다.")
     @PatchMapping("/{accountId}/primary")
-    public ResponseEntity<AccountResponse> setPrimaryAccount(@PathVariable Long accountId) {
+    public ResponseEntity<AccountResponse> setPrimaryAccount(
+            @CurrentUserId Long userId,
+            @PathVariable Long accountId) {
 
-        Long currentUserId = 10L; // (사용자 10번으로 연동)
-
-        AccountResponse response = accountService.setPrimaryAccount(currentUserId, accountId);
+        AccountResponse response = accountService.setPrimaryAccount(userId, accountId);
 
         return ResponseEntity.ok(response);
     }
@@ -89,39 +85,38 @@ public class AccountController {
     @Operation(summary = "계좌 거래 내역 조회", description = "특정 계좌의 거래 내역을 조회합니다. (자동으로 최신 동기화 시도)")
     @GetMapping("/{accountId}/transactions")
     public ResponseEntity<AccountTransactionResponse> getAccountTransactions(
+            @CurrentUserId Long userId,
             @PathVariable Long accountId,
             @Parameter(description = "조회 시작일 (YYYYMMDD)", example = "20240101") @RequestParam(defaultValue = "20240101") String startDate,
             @Parameter(description = "조회 종료일 (YYYYMMDD)", example = "20241231") @RequestParam(defaultValue = "20241231") String endDate) {
 
-        Long currentUserId = 10L;
-
-        AccountTransactionResponse response = accountService.getAccountTransactions(currentUserId, accountId, startDate, endDate);
+        AccountTransactionResponse response = accountService.getAccountTransactions(userId, accountId, startDate, endDate);
 
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "저축 설정 조회", description = "사용자의 현재 자동 저축 설정을 조회합니다.")
     @GetMapping("/savings-settings")
-    public ResponseEntity<SavingsSettingResponse> getSavingsSetting() {
-        Long currentUserId = 10L;
-        SavingsSettingResponse response = accountService.getSavingsSetting(currentUserId);
+    public ResponseEntity<SavingsSettingResponse> getSavingsSetting(@CurrentUserId Long userId) {
+        SavingsSettingResponse response = accountService.getSavingsSetting(userId);
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "저축 설정 생성/수정", description = "자동 저축 규칙을 설정합니다. (키워드 매칭 시 자동 이체)")
     @PostMapping("/savings-settings")
     public ResponseEntity<SavingsSettingResponse> saveSavingsSetting(
+            @CurrentUserId Long userId,
             @RequestBody SavingsSettingRequest request) {
-        Long currentUserId = 10L;
-        SavingsSettingResponse response = accountService.createOrUpdateSavingsSetting(currentUserId, request);
+        SavingsSettingResponse response = accountService.createOrUpdateSavingsSetting(userId, request);
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "수동 저축 실행", description = "설정된 주계좌에서 세이브박스로 직접 금액을 이체합니다.")
     @PostMapping("/manual-savings")
-    public ResponseEntity<Void> manualSavings(@RequestParam java.math.BigDecimal amount) {
-        Long currentUserId = 10L;
-        accountService.manualSavings(currentUserId, amount);
+    public ResponseEntity<Void> manualSavings(
+            @CurrentUserId Long userId,
+            @RequestParam java.math.BigDecimal amount) {
+        accountService.manualSavings(userId, amount);
         return ResponseEntity.ok().build();
     }
 }
