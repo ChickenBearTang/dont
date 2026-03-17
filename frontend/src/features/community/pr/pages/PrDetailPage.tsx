@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, Button } from '@/shared/components';
-import { getPrDetail } from '@/features/community/pr';
+import { getPrDetail, submitPrVote } from '@/features/community/pr';
 import type { PrDetailResponseData } from '@/features/community/pr';
 import { useUIStore } from '@/shared/store/useUIStore';
 
@@ -32,31 +32,54 @@ export const PrDetailPage = () => {
   const [detail, setDetail] = useState<PrDetailResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [voteOpinion, setVoteOpinion] = useState('');
+  const [isSubmittingVote, setIsSubmittingVote] = useState(false);
+
+  const loadDetail = useCallback(async () => {
+    if (!parsedPostId || Number.isNaN(parsedPostId)) {
+      setErrorMessage('유효하지 않은 PR ID입니다.');
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await getPrDetail(parsedPostId);
+      setDetail(response.data);
+    } catch {
+      setDetail(null);
+      setErrorMessage('PR 상세 정보를 불러오지 못했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [parsedPostId]);
 
   useEffect(() => {
-    const loadDetail = async () => {
-      if (!parsedPostId || Number.isNaN(parsedPostId)) {
-        setErrorMessage('유효하지 않은 PR ID입니다.');
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      try {
-        const response = await getPrDetail(parsedPostId);
-        setDetail(response.data);
-      } catch {
-        setDetail(null);
-        setErrorMessage('PR 상세 정보를 불러오지 못했습니다.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     void loadDetail();
-  }, [parsedPostId]);
+  }, [loadDetail]);
+
+  const handleVote = async (voteValue: 'AGREE' | 'DISAGREE') => {
+    if (!detail || detail.status !== 'OPEN' || isSubmittingVote) {
+      return;
+    }
+
+    setIsSubmittingVote(true);
+    try {
+      await submitPrVote(detail.postId, {
+        voteValue,
+        opinionText: voteOpinion.trim() || undefined,
+      });
+      addToast('투표가 반영되었습니다.', 'success');
+      setVoteOpinion('');
+      await loadDetail();
+    } catch {
+      addToast('투표 처리에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    } finally {
+      setIsSubmittingVote(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -152,6 +175,38 @@ export const PrDetailPage = () => {
             <p>
               <span className="font-bold text-gray-900">총 참여</span> {detail.totalVoteCount}표
             </p>
+          </div>
+
+          <div className="pt-2 space-y-3">
+            <textarea
+              className="w-full min-h-[88px] rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary-blue"
+              placeholder="의견을 남기면 함께 저장됩니다. (선택)"
+              value={voteOpinion}
+              onChange={(event) => setVoteOpinion(event.target.value)}
+              disabled={detail.status !== 'OPEN' || isSubmittingVote}
+              maxLength={1000}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                className="!py-2.5 text-sm !bg-green-600 hover:!bg-green-700 disabled:!bg-gray-300"
+                onClick={() => void handleVote('AGREE')}
+                disabled={detail.status !== 'OPEN' || isSubmittingVote}
+              >
+                찬성
+              </Button>
+              <Button
+                type="button"
+                className="!py-2.5 text-sm !bg-red-600 hover:!bg-red-700 disabled:!bg-gray-300"
+                onClick={() => void handleVote('DISAGREE')}
+                disabled={detail.status !== 'OPEN' || isSubmittingVote}
+              >
+                반대
+              </Button>
+            </div>
+            {detail.status !== 'OPEN' && (
+              <p className="text-xs text-gray-500 font-medium">종료된 PR은 투표할 수 없습니다.</p>
+            )}
           </div>
         </Card>
       </div>
