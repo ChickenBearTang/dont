@@ -1,4 +1,4 @@
-package com.ssafy.edu.awesomeproject.domain.community.controller;
+﻿package com.ssafy.edu.awesomeproject.domain.community.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.ApiCommonResponses;
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
@@ -39,14 +39,15 @@ public class PrPostController {
 
     @GetMapping("/{postId}")
     @ApiCommonResponses
-    @Operation(summary = "구매 PR 조회 API", description = "구매 PR을 상세 조회합니다.")
-    public CommonResponse<PrDetailResponseDto> getPurchaseRequestDetail(@PathVariable Long postId) {
-        return CommonResponse.success(prPostService.detail(postId));
+    @Operation(summary = "구매 PR 조회 API", description = "구매 PR 상세를 조회합니다.")
+    public CommonResponse<PrDetailResponseDto> getPurchaseRequestDetail(
+            @PathVariable Long postId, @CurrentUserId Long userId) {
+        return CommonResponse.success(prPostService.detail(postId, userId));
     }
 
     @PostMapping("/{postId}/votes")
     @ApiCommonResponses
-    @Operation(summary = "구매 PR 투표 API", description = "다른 사용자가 올린 PR 내용을 보고 동의하는 지 반대하는 지 투표합니다.")
+    @Operation(summary = "구매 PR 투표 API", description = "구매 PR에 찬성/반대 투표를 등록합니다.")
     public CommonResponse<PrVoteSubmitResponseDto> submitVote(
             @PathVariable Long postId,
             @CurrentUserId Long userId,
@@ -56,7 +57,7 @@ public class PrPostController {
 
     @PostMapping("/{postId}/close")
     @ApiCommonResponses
-    @Operation(summary = "구매 PR 닫기 API", description = "작성자가 수동으로 구매 PR을 닫습니다.")
+    @Operation(summary = "구매 PR 종료 API", description = "작성자가 수동으로 구매 PR을 종료합니다.")
     public CommonResponse<PrCloseResponseDto> closePurchaseRequest(
             @PathVariable Long postId,
             @CurrentUserId Long userId,
@@ -64,4 +65,3 @@ public class PrPostController {
         return CommonResponse.success(prPostService.close(postId, userId, prCloseRequestDto));
     }
 }
-

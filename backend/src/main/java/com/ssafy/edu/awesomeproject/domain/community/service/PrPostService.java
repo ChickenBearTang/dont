@@ -159,7 +159,7 @@ public class PrPostService {
                 prPost.getClosedAt());
     }
 
-    public PrDetailResponseDto detail(Long postId) {
+    public PrDetailResponseDto detail(Long postId, Long currentUserId) {
         PrPost prPost = getPurchaseRequestOrThrow(postId);
 
         long agreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.AGREE);
@@ -188,10 +188,10 @@ public class PrPostService {
                                                 event.getCreatedAt()))
                         .toList();
 
-        String status =
-                prPost.getResultStatusEnum() == PrStatus.OPEN
-                        ? PrStatus.OPEN.name()
-                        : PrStatus.CLOSED.name();
+        String status = prPost.getResultStatusEnum().name();
+        boolean isOpen = prPost.getResultStatusEnum() == PrStatus.OPEN;
+        boolean isAuthor = prPost.getPost().isAuthor(currentUserId);
+        boolean alreadyVoted = prVoteRepository.existsByPostIdAndUserId(postId, currentUserId);
 
         return new PrDetailResponseDto(
                 prPost.getPostId(),
@@ -210,8 +210,8 @@ public class PrPostService {
                 reviews,
                 events,
                 new PrDetailPermissionsDto(
-                        prPost.getResultStatusEnum() == PrStatus.OPEN,
-                        prPost.getResultStatusEnum() == PrStatus.OPEN));
+                        isOpen && !isAuthor && !alreadyVoted,
+                        isOpen && isAuthor));
     }
 
     private User getUserOrThrow(Long userId) {

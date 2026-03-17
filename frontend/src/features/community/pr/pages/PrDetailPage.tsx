@@ -4,6 +4,7 @@ import { Button, Card } from '@/shared/components';
 import { closePr, getPrDetail, submitPrVote } from '@/features/community/pr';
 import type { PrDetailResponseData } from '@/features/community/pr';
 import { useUIStore } from '@/shared/store/useUIStore';
+import { formatRelativeTime } from '@/shared/utils/date';
 
 const formatCurrency = (value: number): string =>
   new Intl.NumberFormat('ko-KR', {
@@ -48,7 +49,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
           title: '리뷰 제출',
           subTitle: event.payload ?? '리뷰가 등록되었습니다.',
           content: `리뷰어 #${event.actorUserId ?? '-'}가 의견을 남겼습니다.`,
-          timeLabel: formatDateTime(event.createdAt),
+          timeLabel: formatRelativeTime(event.createdAt),
         };
       }
 
@@ -59,7 +60,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
           title: '상태 변경',
           subTitle: event.payload ?? `현재 상태: ${detail.status}`,
           content: '요청 상태가 변경되었습니다.',
-          timeLabel: formatDateTime(event.createdAt),
+          timeLabel: formatRelativeTime(event.createdAt),
         };
       }
 
@@ -69,7 +70,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
         title: '구매 요청 생성',
         subTitle: `카테고리: ${detail.category ?? '미지정'}`,
         content: event.payload ?? detail.content,
-        timeLabel: formatDateTime(event.createdAt),
+        timeLabel: formatRelativeTime(event.createdAt),
       };
     });
   }
@@ -211,6 +212,10 @@ export const PrDetailPage = () => {
   const canClose = detail.permissions?.canClose ?? isOpen;
   const agreeRatio = detail.totalVoteCount > 0 ? (detail.agreeCount / detail.totalVoteCount) * 100 : 0;
   const timelineEvents = buildTimelineEvents(detail);
+  const latestEventTime =
+    detail.events && detail.events.length > 0
+      ? detail.events[detail.events.length - 1].createdAt
+      : detail.closedAt;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
@@ -235,7 +240,9 @@ export const PrDetailPage = () => {
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
               <p className="font-black text-gray-900 text-lg">요청자</p>
-              <p className="text-sm text-gray-500 font-medium">최근 업데이트 {formatDateTime(detail.closedAt)}</p>
+              <p className="text-sm text-gray-500 font-medium">
+                최근 업데이트 {latestEventTime ? formatRelativeTime(latestEventTime) : '-'}
+              </p>
             </div>
             <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
               마이데이터 연동됨
