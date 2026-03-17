@@ -48,3 +48,5 @@ export type {
   PrVoteSubmitResponseData,
   PrVoteValue,
 } from '@/features/community/pr/types';
+
+export * from '@/features/community/pr/pages/PrDetailPage';

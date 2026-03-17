@@ -2,7 +2,12 @@
 import PublicLayout from '@/shared/components/PublicLayout';
 import { SignUpPage, LoginPage } from '@/features/auth';
 import { OnboardingPage } from '@/features/user';
-import { AuthenticatedLayoutRoute, DashboardRoute, HomeRoute } from '@/app/routeComponents';
+import {
+  AuthenticatedLayoutRoute,
+  DashboardRoute,
+  HomeRoute,
+  PrDetailRoute,
+} from '@/app/routeComponents';
 
 export const router = createBrowserRouter([
   {
@@ -49,7 +54,10 @@ export const router = createBrowserRouter([
         path: '/dashboard',
         element: <DashboardRoute />,
       },
+      {
+        path: '/community/pr/:postId',
+        element: <PrDetailRoute />,
+      },
     ],
   },
 ]);
-
