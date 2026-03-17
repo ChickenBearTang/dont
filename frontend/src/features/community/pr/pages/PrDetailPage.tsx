@@ -253,96 +253,85 @@ export const PrDetailPage = () => {
       : detail.closedAt;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-      <section className="xl:col-span-8 space-y-4">
-        <div className="flex items-center justify-between gap-3">
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-[34px] font-black text-gray-900 leading-none">Purchase Request #{detail.postId}</h1>
-            <span className={`px-3 py-1 rounded-full border text-xs font-bold ${getStatusBadgeClass(detail.status)}`}>
+            <h1 className="text-[38px] font-black text-gray-900 leading-none">Purchase Request #{detail.postId}</h1>
+            <span className={`px-3.5 py-1 rounded-full border text-sm font-bold ${getStatusBadgeClass(detail.status)}`}>
               {detail.status}
             </span>
           </div>
           <button
             type="button"
-            className="px-4 py-2 rounded-xl border border-gray-300 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-5 py-2.5 rounded-2xl border border-gray-300 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
             onClick={() => navigate('/community/pr/new')}
           >
             New PR
           </button>
         </div>
 
-        <Card className="!p-0 overflow-hidden hover:!translate-y-0">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <Card className="!p-0 overflow-hidden border border-gray-200 hover:!translate-y-0">
+          <div className="px-7 py-5 border-b border-gray-200 flex items-center justify-between gap-3">
             <div>
-              <p className="font-black text-gray-900 text-lg">요청자</p>
-              <p className="text-sm text-gray-500 font-medium">
+              <p className="text-[31px] font-black text-gray-900 leading-none">{detail.itemName}</p>
+              <p className="text-sm text-gray-500 font-semibold mt-2">
                 최근 업데이트 {latestEventTime ? formatRelativeTime(latestEventTime) : '-'}
               </p>
             </div>
-            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 shrink-0">
               마이데이터 연동됨
             </span>
           </div>
 
-          <div className="px-6 py-4 border-b border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-3 bg-[#fbfdff]">
-            <div className="rounded-xl bg-[#eef3ff] px-4 py-3">
+          <div className="px-7 py-5 border-b border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-3 bg-gradient-to-r from-slate-50 to-blue-50/40">
+            <div className="rounded-2xl bg-slate-100/80 px-4 py-3.5">
               <p className="text-xs font-bold text-gray-500">요청 금액</p>
-              <p className="text-lg font-black text-gray-900 mt-1">{formatCurrency(detail.priceAmount)}</p>
+              <p className="text-[28px] font-black text-gray-900 mt-1 leading-none">{formatCurrency(detail.priceAmount)}</p>
             </div>
-            <div className="rounded-xl bg-[#eafaf0] px-4 py-3">
+            <div className="rounded-2xl bg-emerald-50 px-4 py-3.5">
               <p className="text-xs font-bold text-gray-500">현재 찬성</p>
-              <p className="text-lg font-black text-emerald-700 mt-1">{detail.agreeCount}표</p>
+              <p className="text-[28px] font-black text-emerald-700 mt-1 leading-none">{detail.agreeCount}표</p>
             </div>
-            <div className="rounded-xl bg-[#f5f0ff] px-4 py-3">
+            <div className="rounded-2xl bg-violet-50 px-4 py-3.5">
               <p className="text-xs font-bold text-gray-500">전체 투표</p>
-              <p className="text-lg font-black text-violet-700 mt-1">{detail.totalVoteCount}표</p>
+              <p className="text-[28px] font-black text-violet-700 mt-1 leading-none">{detail.totalVoteCount}표</p>
             </div>
           </div>
 
-          <div className="px-6 py-5 space-y-2">
-            <h3 className="text-2xl font-black text-gray-900">{detail.itemName}</h3>
-            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{detail.content}</p>
+          <div className="px-7 py-6 space-y-3">
+            <p className="text-[17px] leading-relaxed text-gray-800 whitespace-pre-wrap">{detail.content}</p>
             <p className="text-sm font-semibold text-gray-600">카테고리: {detail.category ?? '-'}</p>
           </div>
         </Card>
 
-        <div className="relative pl-9 space-y-4">
-          <div className="absolute left-4 top-2 bottom-2 w-px bg-gray-200" />
-
+        <div className="relative pl-10 space-y-4">
+          <div className="absolute left-4 top-3 bottom-3 w-px bg-gradient-to-b from-blue-200 via-gray-200 to-violet-200" />
           {timelineEvents.map((event) => (
             <div key={event.id} className="relative">
               <span
-                className={`absolute -left-[29px] top-4 w-4 h-4 rounded-full border-4 border-white shadow ${getTimelineDotClass(event.type)}`}
+                className={`absolute -left-[30px] top-5 w-4 h-4 rounded-full border-[3px] border-white shadow-md ${getTimelineDotClass(event.type)}`}
               />
-              <Card className="!p-0 overflow-hidden hover:!translate-y-0">
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+              <Card className="!p-0 overflow-hidden border border-gray-200 hover:!translate-y-0">
+                <div className="px-5 py-3.5 border-b border-gray-200 bg-gray-50/70 flex items-center justify-between gap-3">
                   <p className="text-base font-black text-gray-900">
                     {event.title}
-                    {event.actorLabel ? (
-                      <span className="ml-2 text-xs font-semibold text-gray-500">{event.actorLabel}</span>
-                    ) : null}
+                    {event.actorLabel ? <span className="ml-2 text-xs font-semibold text-gray-500">{event.actorLabel}</span> : null}
                   </p>
-                  <span className="text-xs font-semibold text-gray-500">{event.timeLabel}</span>
+                  <span className="text-xs font-semibold text-gray-500 shrink-0">{event.timeLabel}</span>
                 </div>
-                <div className="px-5 py-4 space-y-2">
+                <div className="px-5 py-4 space-y-2.5">
                   <p className="text-sm font-bold text-gray-600">{event.subTitle}</p>
-                  <p className="text-[15px] leading-relaxed text-gray-800">{event.content}</p>
+                  <p className="text-[15px] leading-relaxed text-gray-800 whitespace-pre-wrap">{event.content}</p>
                 </div>
               </Card>
             </div>
           ))}
         </div>
 
-        {!isOpen && (
-          <Card className="text-center py-10 hover:!translate-y-0 bg-[#f8fafc]">
-            <h3 className="text-3xl font-black text-gray-900">이 구매 요청은 {detail.status} 되었습니다.</h3>
-            <p className="text-gray-500 font-medium mt-2">결정이 완료되어 더 이상 리뷰를 남길 수 없습니다.</p>
-          </Card>
-        )}
-
         {detail.reviews && detail.reviews.length > 0 ? (
-          <Card className="!p-0 overflow-hidden hover:!translate-y-0">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+          <Card className="!p-0 overflow-hidden border border-gray-200 hover:!translate-y-0">
+            <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-black text-gray-900">리뷰 코멘트</h3>
               <span className="text-xs font-semibold text-gray-500">{detail.reviews.length}건</span>
             </div>
@@ -354,42 +343,47 @@ export const PrDetailPage = () => {
                   </p>
                   <p className="text-xs text-gray-500">{formatRelativeTime(review.createdAt)}</p>
                   <p className="text-sm text-gray-700">
-                    {review.content && review.content.trim().length > 0
-                      ? review.content
-                      : '의견 없이 결정만 등록했습니다.'}
+                    {review.content && review.content.trim().length > 0 ? review.content : '의견 없이 결정만 등록했습니다.'}
                   </p>
                 </div>
               ))}
             </div>
           </Card>
         ) : null}
+
+        {!isOpen && (
+          <Card className="text-center py-10 hover:!translate-y-0 bg-slate-50 border border-slate-200">
+            <h3 className="text-[32px] font-black text-gray-900 leading-none">이 구매 요청은 {detail.status} 되었습니다.</h3>
+            <p className="text-gray-500 font-medium mt-3">결정이 완료되어 더 이상 리뷰를 남길 수 없습니다.</p>
+          </Card>
+        )}
       </section>
 
-      <aside className="xl:col-span-4 space-y-4 xl:sticky xl:top-24">
-        <Card className="!p-0 overflow-hidden hover:!translate-y-0">
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-lg font-black text-gray-900">대상 핫딜</h3>
+      <aside className="space-y-4 xl:sticky xl:top-24">
+        <Card className="!p-0 overflow-hidden border border-gray-200 hover:!translate-y-0">
+          <div className="px-5 py-3.5 border-b border-gray-200">
+            <h3 className="text-[30px] font-black text-gray-900 leading-none">대상 핫딜</h3>
           </div>
-          <div className="p-4 space-y-3">
+          <div className="p-5 space-y-3.5">
             {detail.imageUrl ? (
               <img
                 src={detail.imageUrl}
                 alt={detail.itemName}
-                className="w-full h-44 object-cover rounded-xl border border-gray-100"
+                className="w-full h-48 object-cover rounded-2xl border border-gray-200"
               />
             ) : (
-              <div className="w-full h-44 rounded-xl border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-sm font-bold text-gray-400">
+              <div className="w-full h-48 rounded-2xl border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-base font-bold text-gray-400">
                 이미지 없음
               </div>
             )}
-            <p className="font-black text-lg text-gray-900 leading-snug">{detail.itemName}</p>
-            <p className="text-4xl font-black text-gray-900 tracking-tight">{formatCurrency(detail.priceAmount)}</p>
+            <p className="font-black text-[22px] text-gray-900 leading-snug">{detail.itemName}</p>
+            <p className="text-[42px] font-black text-gray-900 tracking-tight leading-none">{formatCurrency(detail.priceAmount)}</p>
             {detail.purchaseUrl ? (
               <a
                 href={detail.purchaseUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="block text-center rounded-xl bg-[#11162b] text-white text-base font-black py-3 hover:bg-[#1a2341] transition-colors"
+                className="block text-center rounded-xl bg-[#101934] text-white text-[22px] font-black py-3.5 hover:bg-[#1a2341] transition-colors"
               >
                 구매처에서 보기
               </a>
@@ -399,35 +393,35 @@ export const PrDetailPage = () => {
           </div>
         </Card>
 
-        <Card className="!p-0 overflow-hidden hover:!translate-y-0">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="text-lg font-black text-gray-900">리뷰어 투표 현황</h3>
-            <span className="text-xs font-bold px-2 py-1 rounded-full bg-gray-100 text-gray-700">{detail.totalVoteCount}명 참여</span>
+        <Card className="!p-0 overflow-hidden border border-gray-200 hover:!translate-y-0">
+          <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="text-[30px] font-black text-gray-900 leading-none">리뷰어 투표 현황</h3>
+            <span className="text-sm font-bold text-gray-700">{detail.totalVoteCount}명 참여</span>
           </div>
-          <div className="p-4 space-y-3">
+          <div className="p-5 space-y-4">
             <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full bg-emerald-500" style={{ width: `${agreeRatio}%` }} />
             </div>
-            <div className="grid grid-cols-3 gap-2 text-sm">
-              <p className="font-bold text-emerald-700">찬성 {detail.agreeCount}</p>
-              <p className="font-bold text-red-700">반대 {detail.disagreeCount}</p>
-              <p className="font-bold text-gray-900">총 {detail.totalVoteCount}</p>
+            <div className="grid grid-cols-3 gap-2 text-xl">
+              <p className="font-black text-emerald-700">찬성 {detail.agreeCount}</p>
+              <p className="font-black text-red-700">반대 {detail.disagreeCount}</p>
+              <p className="font-black text-gray-900">총 {detail.totalVoteCount}</p>
             </div>
 
             {canVote ? (
               <>
                 <textarea
-                  className="w-full min-h-[84px] rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary-blue"
+                  className="w-full min-h-[90px] rounded-xl border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-primary-blue"
                   placeholder="의견을 남겨주세요 (선택)"
                   value={voteOpinion}
                   onChange={(event) => setVoteOpinion(event.target.value)}
                   disabled={isSubmittingVote}
                   maxLength={1000}
                 />
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <Button
                     type="button"
-                    className="!py-2.5 text-sm !bg-green-600 hover:!bg-green-700 disabled:!bg-gray-300"
+                    className="!py-2.5 text-xl !bg-green-600 hover:!bg-green-700 disabled:!bg-gray-300"
                     onClick={() => void handleVote('AGREE')}
                     disabled={isSubmittingVote}
                   >
@@ -435,7 +429,7 @@ export const PrDetailPage = () => {
                   </Button>
                   <Button
                     type="button"
-                    className="!py-2.5 text-sm !bg-red-600 hover:!bg-red-700 disabled:!bg-gray-300"
+                    className="!py-2.5 text-xl !bg-red-600 hover:!bg-red-700 disabled:!bg-gray-300"
                     onClick={() => void handleVote('DISAGREE')}
                     disabled={isSubmittingVote}
                   >
@@ -444,22 +438,24 @@ export const PrDetailPage = () => {
                 </div>
               </>
             ) : (
-              <p className="text-xs text-gray-500 font-medium">{voteDisabledReason}</p>
+              <div className="rounded-xl bg-gray-50 border border-gray-200 px-3 py-2.5">
+                <p className="text-xs text-gray-500 font-semibold">{voteDisabledReason}</p>
+              </div>
             )}
           </div>
         </Card>
 
-        <Card className="!p-0 overflow-hidden hover:!translate-y-0">
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-lg font-black text-gray-900">PR 종료</h3>
+        <Card className="!p-0 overflow-hidden border border-gray-200 hover:!translate-y-0">
+          <div className="px-5 py-3.5 border-b border-gray-200">
+            <h3 className="text-[30px] font-black text-gray-900 leading-none">PR 종료</h3>
           </div>
-          <div className="p-4 space-y-3">
+          <div className="p-5 space-y-3.5">
             <p className="text-xs text-gray-500 font-medium">작성자만 PR을 종료할 수 있으며, 권한은 서버에서 검증됩니다.</p>
             {canClose ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <Button
                   type="button"
-                  className="!py-2.5 text-sm !bg-emerald-600 hover:!bg-emerald-700 disabled:!bg-gray-300"
+                  className="!py-2.5 text-xl !bg-emerald-600 hover:!bg-emerald-700 disabled:!bg-gray-300"
                   onClick={() => void handleClosePr('MERGED')}
                   disabled={isClosingPr}
                 >
@@ -467,7 +463,7 @@ export const PrDetailPage = () => {
                 </Button>
                 <Button
                   type="button"
-                  className="!py-2.5 text-sm !bg-slate-600 hover:!bg-slate-700 disabled:!bg-gray-300"
+                  className="!py-2.5 text-xl !bg-slate-600 hover:!bg-slate-700 disabled:!bg-gray-300"
                   onClick={() => void handleClosePr('CLOSED')}
                   disabled={isClosingPr}
                 >
@@ -475,7 +471,9 @@ export const PrDetailPage = () => {
                 </Button>
               </div>
             ) : (
-              <p className="text-xs text-gray-500 font-medium">{closeDisabledReason}</p>
+              <div className="rounded-xl bg-gray-50 border border-gray-200 px-3 py-2.5">
+                <p className="text-xs text-gray-500 font-semibold">{closeDisabledReason}</p>
+              </div>
             )}
           </div>
         </Card>
