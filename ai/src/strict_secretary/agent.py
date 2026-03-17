@@ -66,7 +66,7 @@ Your job:
 Return ONLY strict JSON with the following structure:
 {{
   "is_approved": true or false,
-  "fact_violence_comment": "Your brutally honest, funny, informal response (반말) to the user",
+  "fact_violence_comment": "Your brutally honest, funny, informal response (반말) to the user. MUST be EXACTLY 3 sentences.",
   "reasoning": ["반말 이유 1 (e.g., 너 이번 달에 벌써 100만원 썼어)", "반말 이유 2", "..."]
 }}
 
