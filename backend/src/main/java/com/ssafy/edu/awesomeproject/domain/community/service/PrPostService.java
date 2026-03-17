@@ -1,5 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.community.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrCloseRequestDto;
@@ -36,6 +38,7 @@ import com.ssafy.edu.awesomeproject.domain.community.repository.PrVoteRepository
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +52,7 @@ public class PrPostService {
     private final PrVoteRepository prVoteRepository;
     private final PrReviewRepository prReviewRepository;
     private final PrEventRepository prEventRepository;
+    private final ObjectMapper objectMapper;
 
     public PrPostService(
             UserRepository userRepository,
@@ -57,7 +61,8 @@ public class PrPostService {
             PrPostRepository prPostRepository,
             PrVoteRepository prVoteRepository,
             PrReviewRepository prReviewRepository,
-            PrEventRepository prEventRepository) {
+            PrEventRepository prEventRepository,
+            ObjectMapper objectMapper) {
         this.userRepository = userRepository;
         this.boardRepository = boardRepository;
         this.postRepository = postRepository;
@@ -65,6 +70,7 @@ public class PrPostService {
         this.prVoteRepository = prVoteRepository;
         this.prReviewRepository = prReviewRepository;
         this.prEventRepository = prEventRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -86,7 +92,11 @@ public class PrPostService {
                         savedPrPost.getPostId(),
                         userId,
                         PrEventType.CREATED,
-                        "PR created: " + savedPrPost.getItemName()));
+                        writePayload(
+                                Map.of(
+                                        "title", prCreateRequestDto.title(),
+                                        "itemName", savedPrPost.getItemName(),
+                                        "priceAmount", savedPrPost.getPriceAmount()))));
 
         return new PrCreateResponseDto(
                 savedPrPost.getPostId(),
@@ -120,7 +130,14 @@ public class PrPostService {
                         postId,
                         userId,
                         PrEventType.REVIEW_SUBMITTED,
-                        "Review submitted: " + voteValue.name()));
+                        writePayload(
+                                Map.of(
+                                        "decision", mapReviewDecision(voteValue).name(),
+                                        "voteValue", voteValue.name(),
+                                        "opinionText",
+                                                prVoteSubmitRequestDto.opinionText() == null
+                                                        ? ""
+                                                        : prVoteSubmitRequestDto.opinionText()))));
 
         return new PrVoteSubmitResponseDto(
                 savedVote.getPostId(),
@@ -143,7 +160,11 @@ public class PrPostService {
                         postId,
                         userId,
                         PrEventType.STATUS_CHANGED,
-                        "Status changed to " + targetStatus.name()));
+                        writePayload(
+                                Map.of(
+                                        "before", PrStatus.OPEN.name(),
+                                        "after", targetStatus.name(),
+                                        "closeReason", PrCloseReason.USER_ACTION.name()))));
 
         long agreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.AGREE);
         long disagreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.DISAGREE);
@@ -285,6 +306,14 @@ public class PrPostService {
             return PrReviewDecision.APPROVE;
         }
         return PrReviewDecision.REQUEST_CHANGES;
+    }
+
+    private String writePayload(Map<String, Object> payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException exception) {
+            return "{}";
+        }
     }
 
     private PrPost toEntity(Post post, PrCreateRequestDto prCreateRequestDto) {

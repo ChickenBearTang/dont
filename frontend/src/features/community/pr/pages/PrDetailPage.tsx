@@ -39,16 +39,43 @@ interface TimelineEvent {
   timeLabel: string;
 }
 
+interface EventPayload {
+  title?: string;
+  itemName?: string;
+  priceAmount?: number;
+  decision?: string;
+  voteValue?: string;
+  opinionText?: string;
+  before?: string;
+  after?: string;
+  closeReason?: string;
+}
+
+const parseEventPayload = (payload: string | null): EventPayload => {
+  if (!payload) return {};
+
+  try {
+    return JSON.parse(payload) as EventPayload;
+  } catch {
+    return {};
+  }
+};
+
 const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
   if (detail.events && detail.events.length > 0) {
     return detail.events.map((event) => {
+      const payload = parseEventPayload(event.payload);
+
       if (event.eventType === 'REVIEW_SUBMITTED') {
         return {
           id: `event-${event.eventId}`,
           type: 'review',
           title: '리뷰 제출',
-          subTitle: event.payload ?? '리뷰가 등록되었습니다.',
-          content: `리뷰어 #${event.actorUserId ?? '-'}가 의견을 남겼습니다.`,
+          subTitle: payload.decision ? `결정: ${payload.decision}` : '리뷰가 등록되었습니다.',
+          content:
+            payload.opinionText && payload.opinionText.trim().length > 0
+              ? payload.opinionText
+              : `리뷰어 #${event.actorUserId ?? '-'}가 의견을 남겼습니다.`,
           timeLabel: formatRelativeTime(event.createdAt),
         };
       }
@@ -58,8 +85,11 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
           id: `event-${event.eventId}`,
           type: 'status',
           title: '상태 변경',
-          subTitle: event.payload ?? `현재 상태: ${detail.status}`,
-          content: '요청 상태가 변경되었습니다.',
+          subTitle:
+            payload.before && payload.after
+              ? `${payload.before} -> ${payload.after}`
+              : `현재 상태: ${detail.status}`,
+          content: payload.closeReason ? `종료 사유: ${payload.closeReason}` : '요청 상태가 변경되었습니다.',
           timeLabel: formatRelativeTime(event.createdAt),
         };
       }
@@ -69,7 +99,10 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
         type: 'base',
         title: '구매 요청 생성',
         subTitle: `카테고리: ${detail.category ?? '미지정'}`,
-        content: event.payload ?? detail.content,
+        content:
+          payload.title && payload.itemName
+            ? `${payload.title} / ${payload.itemName}`
+            : detail.content,
         timeLabel: formatRelativeTime(event.createdAt),
       };
     });
