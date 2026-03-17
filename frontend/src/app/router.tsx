@@ -1,28 +1,8 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import AppLayout from '@/shared/components/AppLayout';
+﻿import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
 import { SignUpPage, LoginPage } from '@/features/auth';
 import { OnboardingPage } from '@/features/user';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { useAuthStore } from '@/features/auth/store/useAuthStore';
-
-const HomeRoute = () => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />;
-};
-
-const AuthenticatedLayoutRoute = () => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-
-  return <AppLayout user={user} onLogout={logout} isAuthenticated={isAuthenticated} />;
-};
-
-const DashboardRoute = () => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <DashboardPage /> : <Navigate to="/" replace />;
-};
+import { AuthenticatedLayoutRoute, DashboardRoute, HomeRoute } from '@/app/routeComponents';
 
 export const router = createBrowserRouter([
   {
@@ -30,45 +10,46 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/',
-        element: <HomeRoute />
+        element: <HomeRoute />,
       },
       {
         path: '/login',
-        element: <LoginPage />
+        element: <LoginPage />,
       },
       {
         path: '/onboarding',
-        element: <OnboardingPage />
+        element: <OnboardingPage />,
       },
       {
         path: '/signup',
-        element: <SignUpPage />
+        element: <SignUpPage />,
       },
       {
         path: '/finance-connect',
-        element: <div>FinanceConnect Placeholder</div>
+        element: <div>FinanceConnect Placeholder</div>,
       },
       {
         path: '/loading',
-        element: <div>LoadingScreen Placeholder</div>
+        element: <div>LoadingScreen Placeholder</div>,
       },
       {
         path: '/savebox-setup',
-        element: <div>SaveboxSetup Placeholder</div>
+        element: <div>SaveboxSetup Placeholder</div>,
       },
       {
         path: '/success',
-        element: <div>SuccessScreen Placeholder</div>
-      }
-    ]
+        element: <div>SuccessScreen Placeholder</div>,
+      },
+    ],
   },
   {
     element: <AuthenticatedLayoutRoute />,
     children: [
       {
         path: '/dashboard',
-        element: <DashboardRoute />
-      }
-    ]
-  }
+        element: <DashboardRoute />,
+      },
+    ],
+  },
 ]);
+
