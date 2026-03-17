@@ -52,6 +52,8 @@ export interface PrDetailEventItem {
   eventId: number;
   eventType: 'CREATED' | 'REVIEW_SUBMITTED' | 'STATUS_CHANGED' | string;
   actorUserId: number | null;
+  actorNickname?: string | null;
+  actorProfileImageUrl?: string | null;
   payload: Record<string, unknown> | null;
   createdAt: string;
 }
@@ -59,6 +61,8 @@ export interface PrDetailEventItem {
 export interface PrDetailPermissions {
   canVote: boolean;
   canClose: boolean;
+  voteDisabledReason?: string | null;
+  closeDisabledReason?: string | null;
 }
 
 export interface PrVoteSubmitRequestPayload {

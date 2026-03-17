@@ -36,9 +36,12 @@ import com.ssafy.edu.awesomeproject.domain.community.repository.PrPostRepository
 import com.ssafy.edu.awesomeproject.domain.community.repository.PrReviewRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PrVoteRepository;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -198,21 +201,14 @@ public class PrPostService {
                                                 review.getCreatedAt()))
                         .toList();
         List<PrDetailEventDto> events =
-                prEventRepository.findAllByPostIdOrderByCreatedAtAsc(postId).stream()
-                        .map(
-                                event ->
-                                        new PrDetailEventDto(
-                                                event.getId(),
-                                                event.getEventType().name(),
-                                                event.getActorUserId(),
-                                                event.getPayload(),
-                                                event.getCreatedAt()))
-                        .toList();
+                buildEventDtos(postId);
 
         String status = prPost.getResultStatusEnum().name();
         boolean isOpen = prPost.getResultStatusEnum() == PrStatus.OPEN;
         boolean isAuthor = prPost.getPost().isAuthor(currentUserId);
         boolean alreadyVoted = prVoteRepository.existsByPostIdAndUserId(postId, currentUserId);
+        boolean canVote = isOpen && !isAuthor && !alreadyVoted;
+        boolean canClose = isOpen && isAuthor;
 
         return new PrDetailResponseDto(
                 prPost.getPostId(),
@@ -231,8 +227,52 @@ public class PrPostService {
                 reviews,
                 events,
                 new PrDetailPermissionsDto(
-                        isOpen && !isAuthor && !alreadyVoted,
-                        isOpen && isAuthor));
+                        canVote,
+                        canClose,
+                        resolveVoteDisabledReason(isOpen, isAuthor, alreadyVoted),
+                        resolveCloseDisabledReason(isOpen, isAuthor)));
+    }
+
+    private List<PrDetailEventDto> buildEventDtos(Long postId) {
+        List<PrEvent> prEvents = prEventRepository.findAllByPostIdOrderByCreatedAtAsc(postId);
+        Set<Long> actorIds =
+                prEvents.stream()
+                        .map(PrEvent::getActorUserId)
+                        .filter(id -> id != null)
+                        .collect(Collectors.toSet());
+        Map<Long, User> actorById = new HashMap<>();
+        if (!actorIds.isEmpty()) {
+            userRepository.findAllById(actorIds).forEach(user -> actorById.put(user.getId(), user));
+        }
+
+        return prEvents.stream()
+                        .map(
+                                event -> {
+                                    User actor = event.getActorUserId() == null ? null : actorById.get(event.getActorUserId());
+                                    return
+                                        new PrDetailEventDto(
+                                                event.getId(),
+                                                event.getEventType().name(),
+                                                event.getActorUserId(),
+                                                actor == null ? null : actor.getNickname(),
+                                                actor == null ? null : actor.getProfileImageUrl(),
+                                                event.getPayload(),
+                                                event.getCreatedAt());
+                                })
+                        .toList();
+    }
+
+    private String resolveVoteDisabledReason(boolean isOpen, boolean isAuthor, boolean alreadyVoted) {
+        if (!isOpen) return "종료된 PR은 투표할 수 없습니다.";
+        if (isAuthor) return "작성자는 자신의 PR에 투표할 수 없습니다.";
+        if (alreadyVoted) return "이미 투표한 PR입니다.";
+        return null;
+    }
+
+    private String resolveCloseDisabledReason(boolean isOpen, boolean isAuthor) {
+        if (!isOpen) return "이미 종료된 PR입니다.";
+        if (!isAuthor) return "작성자만 PR을 종료할 수 있습니다.";
+        return null;
     }
 
     private User getUserOrThrow(Long userId) {

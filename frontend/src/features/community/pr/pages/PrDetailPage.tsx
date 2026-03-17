@@ -37,6 +37,7 @@ interface TimelineEvent {
   subTitle: string;
   content: string;
   timeLabel: string;
+  actorLabel?: string;
 }
 
 interface EventPayload {
@@ -73,6 +74,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
               ? payload.opinionText
               : `리뷰어 #${event.actorUserId ?? '-'}가 의견을 남겼습니다.`,
           timeLabel: formatRelativeTime(event.createdAt),
+          actorLabel: event.actorNickname ?? null,
         };
       }
 
@@ -87,6 +89,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
               : `현재 상태: ${detail.status}`,
           content: payload.closeReason ? `종료 사유: ${payload.closeReason}` : '요청 상태가 변경되었습니다.',
           timeLabel: formatRelativeTime(event.createdAt),
+          actorLabel: event.actorNickname ?? null,
         };
       }
 
@@ -100,6 +103,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
             ? `${payload.title} / ${payload.itemName}`
             : detail.content,
         timeLabel: formatRelativeTime(event.createdAt),
+        actorLabel: event.actorNickname ?? null,
       };
     });
   }
@@ -239,6 +243,8 @@ export const PrDetailPage = () => {
   const isOpen = detail.status === 'OPEN';
   const canVote = detail.permissions?.canVote ?? isOpen;
   const canClose = detail.permissions?.canClose ?? isOpen;
+  const voteDisabledReason = detail.permissions?.voteDisabledReason ?? '투표할 수 없습니다.';
+  const closeDisabledReason = detail.permissions?.closeDisabledReason ?? 'PR을 종료할 수 없습니다.';
   const agreeRatio = detail.totalVoteCount > 0 ? (detail.agreeCount / detail.totalVoteCount) * 100 : 0;
   const timelineEvents = buildTimelineEvents(detail);
   const latestEventTime =
@@ -310,7 +316,12 @@ export const PrDetailPage = () => {
               />
               <Card className="!p-0 overflow-hidden hover:!translate-y-0">
                 <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <p className="text-base font-black text-gray-900">{event.title}</p>
+                  <p className="text-base font-black text-gray-900">
+                    {event.title}
+                    {event.actorLabel ? (
+                      <span className="ml-2 text-xs font-semibold text-gray-500">{event.actorLabel}</span>
+                    ) : null}
+                  </p>
                   <span className="text-xs font-semibold text-gray-500">{event.timeLabel}</span>
                 </div>
                 <div className="px-5 py-4 space-y-2">
@@ -328,6 +339,30 @@ export const PrDetailPage = () => {
             <p className="text-gray-500 font-medium mt-2">결정이 완료되어 더 이상 리뷰를 남길 수 없습니다.</p>
           </Card>
         )}
+
+        {detail.reviews && detail.reviews.length > 0 ? (
+          <Card className="!p-0 overflow-hidden hover:!translate-y-0">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-black text-gray-900">리뷰 코멘트</h3>
+              <span className="text-xs font-semibold text-gray-500">{detail.reviews.length}건</span>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {detail.reviews.map((review) => (
+                <div key={review.reviewId} className="px-5 py-4 space-y-1.5">
+                  <p className="text-sm font-bold text-gray-900">
+                    {review.decision} · 사용자 #{review.userId}
+                  </p>
+                  <p className="text-xs text-gray-500">{formatRelativeTime(review.createdAt)}</p>
+                  <p className="text-sm text-gray-700">
+                    {review.content && review.content.trim().length > 0
+                      ? review.content
+                      : '의견 없이 결정만 등록했습니다.'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        ) : null}
       </section>
 
       <aside className="xl:col-span-4 space-y-4 xl:sticky xl:top-24">
@@ -409,7 +444,7 @@ export const PrDetailPage = () => {
                 </div>
               </>
             ) : (
-              <p className="text-xs text-gray-500 font-medium">종료된 PR은 투표가 마감되었습니다.</p>
+              <p className="text-xs text-gray-500 font-medium">{voteDisabledReason}</p>
             )}
           </div>
         </Card>
@@ -440,7 +475,7 @@ export const PrDetailPage = () => {
                 </Button>
               </div>
             ) : (
-              <p className="text-xs text-gray-500 font-medium">이미 종료된 PR입니다.</p>
+              <p className="text-xs text-gray-500 font-medium">{closeDisabledReason}</p>
             )}
           </div>
         </Card>
