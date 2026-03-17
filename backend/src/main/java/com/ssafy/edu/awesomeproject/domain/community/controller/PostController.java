@@ -110,6 +110,18 @@ public class PostController {
                                     extra.hotdeal().storeName(),
                                     extra.hotdeal().expiredAt(),
                                     extra.hotdeal().isExpired()
+                                ),
+                            extra.poll() == null
+                                ? null
+                                : new GetPostListResponseDto.PollSummaryDto(
+                                    extra.poll().question(),
+                                    extra.poll().optionA(),
+                                    extra.poll().optionB(),
+                                    extra.poll().deadlineAt(),
+                                    extra.poll().isClosed(),
+                                    extra.poll().optionACount(),
+                                    extra.poll().optionBCount(),
+                                    extra.poll().totalVoteCount()
                                 )
                         )
                 );

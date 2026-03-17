@@ -3,6 +3,8 @@ package com.ssafy.edu.awesomeproject.domain.auth.entity;
 import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Cohort;
 import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -21,11 +23,13 @@ public class User extends BaseEntity {
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
-    // TODO : nullable=false로 변경해야함. 작업 속도 증진을 위해서 우선 null로 둠(회원가입 시 매번 이름을 입력하는 것이 번거로움)
-    @Column(name = "name", length = 32)
+    @Column(name = "name", nullable = false, length = 50)
     private String name;
 
-    @Column(name = "nickname", length = 16)
+    @Column(name = "birth_date", nullable = false)
+    private LocalDate birthDate;
+
+    @Column(name = "nickname", nullable = false, length = 60)
     private String nickname;
 
     @Column(name = "profile_image_url")
@@ -35,13 +39,19 @@ public class User extends BaseEntity {
     @Column(name = "ssafy_finance_user_key", length = 255)
     private String ssafyFinanceUserKey;
 
+    @Column(name = "terms_agreed", nullable = false)
+    private boolean termsAgreed;
+
+    @Column(name = "terms_agreed_at")
+    private LocalDateTime termsAgreedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "user_role", nullable = false, length = 32)
     private UserRole userRole;
 
     //cohort 매핑을 위한 FK 조건 추가
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cohort_id")
+    @JoinColumn(name = "cohort_id", nullable = false)
     private Cohort cohort;
 
     public String getUserRole() {
@@ -52,15 +62,21 @@ public class User extends BaseEntity {
             String email,
             String password,
             String name,
+            LocalDate birthDate,
             String nickname,
             String profileImageUrl,
+            boolean termsAgreed,
+            LocalDateTime termsAgreedAt,
             UserRole userRole,
             Cohort cohort) {
         this.email = email;
         this.password = password;
         this.name = name;
+        this.birthDate = birthDate;
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
+        this.termsAgreed = termsAgreed;
+        this.termsAgreedAt = termsAgreedAt;
         this.userRole = userRole;
         this.cohort = cohort;
     }
