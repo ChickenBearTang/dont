@@ -80,7 +80,6 @@ public class PrPost {
             String purchaseUrl,
             String imageUrl,
             LocalDateTime deadlineAt) {
-        this.postId = post.getId();
         this.post = post;
         this.itemName = itemName;
         this.priceAmount = priceAmount;
