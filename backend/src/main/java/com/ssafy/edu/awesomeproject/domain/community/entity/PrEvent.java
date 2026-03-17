@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.community.entity;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,6 +13,8 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Table(name = "pr_events")
 @Getter
@@ -32,10 +35,11 @@ public class PrEvent extends BaseEntity {
     @Column(name = "event_type", nullable = false, length = 40)
     private PrEventType eventType;
 
-    @Column(name = "payload", columnDefinition = "TEXT")
-    private String payload;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "payload", columnDefinition = "jsonb")
+    private JsonNode payload;
 
-    public PrEvent(Long postId, Long actorUserId, PrEventType eventType, String payload) {
+    public PrEvent(Long postId, Long actorUserId, PrEventType eventType, JsonNode payload) {
         this.postId = postId;
         this.actorUserId = actorUserId;
         this.eventType = eventType;

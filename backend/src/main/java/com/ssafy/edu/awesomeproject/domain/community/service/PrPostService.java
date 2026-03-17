@@ -1,6 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.community.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
@@ -308,12 +308,8 @@ public class PrPostService {
         return PrReviewDecision.REQUEST_CHANGES;
     }
 
-    private String writePayload(Map<String, Object> payload) {
-        try {
-            return objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException exception) {
-            return "{}";
-        }
+    private JsonNode writePayload(Map<String, Object> payload) {
+        return objectMapper.valueToTree(payload);
     }
 
     private PrPost toEntity(Post post, PrCreateRequestDto prCreateRequestDto) {

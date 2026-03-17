@@ -52,7 +52,7 @@ export interface PrDetailEventItem {
   eventId: number;
   eventType: 'CREATED' | 'REVIEW_SUBMITTED' | 'STATUS_CHANGED' | string;
   actorUserId: number | null;
-  payload: string | null;
+  payload: Record<string, unknown> | null;
   createdAt: string;
 }
 

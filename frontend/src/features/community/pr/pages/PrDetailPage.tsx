@@ -51,14 +51,10 @@ interface EventPayload {
   closeReason?: string;
 }
 
-const parseEventPayload = (payload: string | null): EventPayload => {
+const parseEventPayload = (payload: Record<string, unknown> | null): EventPayload => {
   if (!payload) return {};
 
-  try {
-    return JSON.parse(payload) as EventPayload;
-  } catch {
-    return {};
-  }
+  return payload as EventPayload;
 };
 
 const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
