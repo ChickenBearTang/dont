@@ -1,24 +1,24 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.entity;
 
-import jakarta.persistence.Table;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "accounts") // 1. 실제 DB 테이블 이름이 'accounts'임을 명시
+@Table(name = "accounts")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -44,10 +44,7 @@ public class Account {
     private String accountRole;
 
     @Column(name = "is_primary", nullable = false)
-    private boolean isPrimary; // 2. isMainAccount -> isPrimary로 DB와 일치
-
-    @Column(name = "account_type_unique_no", length = 50)
-    private String accountTypeUniqueNo;
+    private boolean isPrimary;
 
     @Column(name = "account_type_code", length = 20)
     private String accountTypeCode;
@@ -71,59 +68,54 @@ public class Account {
     private BigDecimal oneTimeTransferLimit;
 
     @Column(name = "balance", nullable = false, precision = 15, scale = 2)
-    private BigDecimal balance; // 3. 금액/잔액은 Long 대신 BigDecimal 사용
+    private BigDecimal balance;
 
     @Column(name = "last_transaction_date")
     private LocalDate lastTransactionDate;
 
     @Column(name = "currency_code", length = 10)
-    private String currencyCode; // 4. currency -> currencyCode로 DB와 일치
-
-    @Column(name = "is_verified", nullable = false)
-    private boolean isVerified;
-
-    @Column(name = "verified_at")
-    private LocalDateTime verifiedAt;
+    private String currencyCode;
 
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
-    @CreationTimestamp // 5. 엔티티 생성 시 자동으로 현재 시간 저장
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp // 5. 엔티티 수정 시 자동으로 현재 시간 저장
+    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
-    // --- 6. API 분석을 통해 추가한 컬럼들 ---
-    @Column(name = "account_description", length = 500)
-    private String accountDescription;
-
-    @Column(name = "account_type", length = 20)
-    private String accountType;
-
-    @Column(name = "currency_name", length = 20)
-    private String currencyName;
 
     @Column(name = "user_name", length = 100)
     private String userName;
 
-    @Column(name = "saving_target_amount")
-    private Long savingTargetAmount;
-
     @Builder
-    public Account(Long userId, String accountNo, String bankCode, String bankName, String accountRole,
-                   String accountTypeUniqueNo, String accountTypeCode, String accountTypeName, String accountName,
-                   LocalDate accountCreatedDate, LocalDate accountExpiryDate, BigDecimal dailyTransferLimit,
-                   BigDecimal oneTimeTransferLimit, BigDecimal balance, LocalDate lastTransactionDate, String currencyCode,
-                   String status, String accountDescription, String accountType, String currencyName, String userName) {
+    public Account(
+            Long userId,
+            String accountNo,
+            String bankCode,
+            String bankName,
+            String accountRole,
+            String accountTypeCode,
+            String accountTypeName,
+            String accountName,
+            LocalDate accountCreatedDate,
+            LocalDate accountExpiryDate,
+            boolean isPrimary,
+            BigDecimal dailyTransferLimit,
+            BigDecimal oneTimeTransferLimit,
+            BigDecimal balance,
+            LocalDate lastTransactionDate,
+            String currencyCode,
+            String status,
+            String userName) {
         this.userId = userId;
         this.accountNo = accountNo;
         this.bankCode = bankCode;
         this.bankName = bankName;
         this.accountRole = accountRole;
-        this.accountTypeUniqueNo = accountTypeUniqueNo;
+        this.isPrimary = isPrimary;
         this.accountTypeCode = accountTypeCode;
         this.accountTypeName = accountTypeName;
         this.accountName = accountName;
@@ -135,9 +127,6 @@ public class Account {
         this.lastTransactionDate = lastTransactionDate;
         this.currencyCode = currencyCode;
         this.status = status;
-        this.accountDescription = accountDescription;
-        this.accountType = accountType;
-        this.currencyName = currencyName;
         this.userName = userName;
     }
 
@@ -145,5 +134,13 @@ public class Account {
         this.accountName = accountName;
         this.balance = balance;
         this.status = status;
+    }
+
+    public void setAsPrimary() {
+        this.isPrimary = true;
+    }
+
+    public void unsetPrimary() {
+        this.isPrimary = false;
     }
 }

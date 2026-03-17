@@ -11,9 +11,7 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 public class OpenBankConfig {
     @Bean
     public OpenBankClient openBankClient() {
-        RestClient restClient = RestClient.builder()
-            .baseUrl("https://finopenapi.ssafy.io")
-            .build();
+        RestClient restClient = RestClient.builder().baseUrl("https://finopenapi.ssafy.io").build();
 
         RestClientAdapter adapter = RestClientAdapter.create(restClient);
         HttpServiceProxyFactory factory = HttpServiceProxyFactory.builderFor(adapter).build();
