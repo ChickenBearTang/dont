@@ -2,8 +2,12 @@ package com.ssafy.edu.awesomeproject.domain.fin.global.client;
 
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankCreateAccountRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankTransactionHistoryRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankTransferRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransactionHistoryResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransferResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankReqHeader;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.request.OpenBankDetailAccountRequest;
@@ -112,6 +116,72 @@ public class OpenBankAdapter {
                                 .build())
                 .accountNo(accountNo)
                 .build();
+    }
+
+    public OpenBankTransactionHistoryResponse fetchTransactionHistory(
+            String userKey,
+            String accountNo,
+            String startDate,
+            String endDate,
+            String transactionType,
+            String orderByType) {
+        LocalDateTime now = LocalDateTime.now();
+        OpenBankTransactionHistoryRequest request =
+                OpenBankTransactionHistoryRequest.builder()
+                        .header(
+                                OpenBankReqHeader.builder()
+                                        .apiName("inquireTransactionHistoryList")
+                                        .transmissionDate(
+                                                now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                                        .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
+                                        .institutionCode("00100")
+                                        .fintechAppNo("001")
+                                        .apiServiceCode("inquireTransactionHistoryList")
+                                        .institutionTransactionUniqueNo(generateUniqueNo(now))
+                                        .apiKey(apiKey)
+                                        .userKey(userKey)
+                                        .build())
+                        .accountNo(accountNo)
+                        .startDate(startDate)
+                        .endDate(endDate)
+                        .transactionType(transactionType)
+                        .orderByType(orderByType)
+                        .build();
+
+        return openBankClient.fetchTransactionHistory(request);
+    }
+
+    public OpenBankTransferResponse fetchAccountTransfer(
+            String userKey,
+            String depositAccountNo,
+            String depositTransactionSummary,
+            String transactionBalance,
+            String withdrawalAccountNo,
+            String withdrawalTransactionSummary) {
+        LocalDateTime now = LocalDateTime.now();
+        OpenBankTransferRequest request =
+                OpenBankTransferRequest.builder()
+                        .header(
+                                OpenBankReqHeader.builder()
+                                        .apiName("updateDemandDepositAccountTransfer")
+                                        .transmissionDate(
+                                                now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                                        .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
+                                        .institutionCode("00100")
+                                        .fintechAppNo("001")
+                                        .apiServiceCode("updateDemandDepositAccountTransfer")
+                                        .institutionTransactionUniqueNo(generateUniqueNo(now))
+                                        .apiKey(apiKey)
+                                        .userKey(userKey)
+                                        .build())
+                        .depositAccountNo(depositAccountNo)
+                        .depositTransactionSummary(depositTransactionSummary)
+                        .transactionBalance(transactionBalance)
+                        .withdrawalAccountNo(withdrawalAccountNo)
+                        .withdrawalTransactionSummary(withdrawalTransactionSummary)
+                        .build();
+
+        return openBankClient.fetchAccountTransfer(request);
     }
 
     private String generateUniqueNo(LocalDateTime now) {

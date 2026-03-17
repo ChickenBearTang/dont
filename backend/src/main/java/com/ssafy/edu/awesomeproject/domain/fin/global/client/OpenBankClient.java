@@ -2,8 +2,12 @@ package com.ssafy.edu.awesomeproject.domain.fin.global.client;
 
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankCreateAccountRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankTransactionHistoryRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.request.OpenBankTransferRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransactionHistoryResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransferResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request.OpenBankCardTransactionRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBankCardTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.request.OpenBankDetailAccountRequest;
@@ -36,4 +40,11 @@ public interface OpenBankClient {
     @PostExchange("/ssafy/api/v1/edu/creditCard/inquireCreditCardTransactionList")
     OpenBankCardTransactionResponse fetchCreditCardTransactions(
             @RequestBody OpenBankCardTransactionRequest request);
+
+    @PostExchange("/ssafy/api/v1/edu/demandDeposit/inquireTransactionHistoryList")
+    OpenBankTransactionHistoryResponse fetchTransactionHistory(
+            @RequestBody OpenBankTransactionHistoryRequest request);
+
+    @PostExchange("/ssafy/api/v1/edu/demandDeposit/updateDemandDepositAccountTransfer")
+    OpenBankTransferResponse fetchAccountTransfer(@RequestBody OpenBankTransferRequest request);
 }

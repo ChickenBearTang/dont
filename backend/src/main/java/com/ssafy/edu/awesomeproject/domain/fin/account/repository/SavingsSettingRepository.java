@@ -1,0 +1,10 @@
+package com.ssafy.edu.awesomeproject.domain.fin.account.repository;
+
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.SavingsSetting;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface SavingsSettingRepository extends JpaRepository<SavingsSetting, Long> {
+    Optional<SavingsSetting> findByUserIdAndIsActiveTrue(Long userId);
+    java.util.List<SavingsSetting> findAllByUserId(Long userId);
+}
