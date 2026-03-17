@@ -6,6 +6,7 @@ import {
   AuthenticatedLayoutRoute,
   DashboardRoute,
   HomeRoute,
+  PrCreateRoute,
   PrDetailRoute,
 } from '@/app/routeComponents';
 
@@ -57,6 +58,10 @@ export const router = createBrowserRouter([
       {
         path: '/community/pr/:postId',
         element: <PrDetailRoute />,
+      },
+      {
+        path: '/community/pr/new',
+        element: <PrCreateRoute />,
       },
     ],
   },

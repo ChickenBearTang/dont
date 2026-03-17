@@ -50,3 +50,4 @@ export type {
 } from '@/features/community/pr/types';
 
 export * from '@/features/community/pr/pages/PrDetailPage';
+export * from '@/features/community/pr/pages/PrCreatePage';
