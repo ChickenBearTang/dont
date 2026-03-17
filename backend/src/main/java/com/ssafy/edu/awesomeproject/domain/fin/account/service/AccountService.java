@@ -2,7 +2,7 @@ package com.ssafy.edu.awesomeproject.domain.fin.account.service;
 
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
-import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SavingTargetRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountCreateResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.Account;
@@ -18,162 +18,154 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-@Transactional // DB에 데이터를 저장/수정하므로 트랜잭션 관리가 필수입니다.
+@Transactional
 public class AccountService {
 
     private final OpenBankAdapter openBankAdapter;
     private final AccountRepository accountRepository;
+    private final com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository userRepository;
 
-    /** '세이브 박스' 계좌를 신규 개설합니다. (Command) */
-    public AccountResponse createSaveBox(Long userId, SaveBoxCreateRequest request) {
-        String userKey = "31cc0084-6b77-42c9-8927-762488bc2767"; // 임시 userKey
+    /** '세이브 박스' 계좌를 신규 개설합니다. (Stateless) */
+    public AccountCreateResponse createSaveBox(Long userId, SaveBoxCreateRequest request) {
+        com.ssafy.edu.awesomeproject.domain.auth.entity.User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "사용자를 찾을 수 없습니다. (ID: " + userId + ")"));
 
-        // 1. 외부 API를 통한 실제 계좌 개설
+        String userKey = user.getSsafyFinanceUserKey();
+        if (userKey == null || userKey.isBlank()) {
+            throw new IllegalArgumentException("사용자의 Finance User Key가 설정되지 않았습니다.");
+        }
+
         OpenBankCreateAccountResponse apiResponse =
                 openBankAdapter.createDemandDepositAccount(userKey, request.accountTypeUniqueNo());
 
-        if (apiResponse == null || apiResponse.getRec() == null) {
-            throw new RuntimeException("계좌 개설에 실패했습니다.");
+        if (apiResponse == null || apiResponse.getHeader() == null || apiResponse.getRec() == null) {
+            throw new RuntimeException("금융 API 응답이 올바르지 않거나 계좌 개설에 실패했습니다.");
+        }
+
+        String responseCode = apiResponse.getHeader().getResponseCode();
+        if (!"201".equals(responseCode) && !"H0000".equals(responseCode)) {
+            String errorMsg = apiResponse.getHeader().getResponseMessage();
+            throw new RuntimeException("계좌 개설 실패: " + (errorMsg != null ? errorMsg : "알 수 없는 오류"));
         }
 
         OpenBankCreateAccountResponse.Rec rec = apiResponse.getRec();
 
-        // 2. 개설된 계좌 정보를 우리 DB에 저장
-        Account newAccount =
-                Account.builder()
-                        .userId(userId)
-                        .accountNo(rec.getAccountNo())
-                        .bankName(rec.getBankName())
-                        .bankCode(rec.getBankCode())
-                        .accountName(rec.getAccountName())
-                        .currencyCode(rec.getCurrency())
-                        .balance(BigDecimal.ZERO)
-                        .status("ACTIVE")
-                        .isPrimary(false)
-                        .accountRole("SAVE_BOX") // 비상금 용도인 세이브 박스 역할 부여
-                        .userName(rec.getUserName())
-                        .accountTypeCode(rec.getAccountTypeCode())
-                        .accountTypeName(rec.getAccountTypeName())
-                        .accountCreatedDate(parseLocalDate(rec.getAccountCreatedDate()))
-                        .accountExpiryDate(parseLocalDate(rec.getAccountExpiryDate()))
-                        .dailyTransferLimit(new BigDecimal(rec.getDailyTransferLimit()))
-                        .oneTimeTransferLimit(new BigDecimal(rec.getOneTimeTransferLimit()))
-                        .lastTransactionDate(parseLocalDate(rec.getAccountCreatedDate()))
-                        .build();
-
-        Account saved = accountRepository.save(newAccount);
-
-        return AccountResponse.from(saved);
+        return AccountCreateResponse.builder()
+                .accountNo(rec.getAccountNo())
+                .bankCode(rec.getBankCode())
+                .bankName("SSAFY Bank")
+                .build();
     }
 
-    /** 저축 목표 금액을 설정하거나 변경합니다. (Command) */
-    public AccountResponse updateSavingTargetAmount(
-            Long userId, Long accountId, SavingTargetRequest request) {
-        Account account =
-                accountRepository
-                        .findById(accountId)
-                        .filter(a -> a.getUserId().equals(userId))
-                        .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
-
-        account.updateSavingTargetAmount(request.savingTargetAmount());
-
-        return AccountResponse.from(account);
+    private BigDecimal parseBigDecimal(String value) {
+        if (value == null || value.isBlank()) {
+            return BigDecimal.ZERO;
+        }
+        try {
+            String cleaned = value.replaceAll("[^0-9.]", "");
+            return new BigDecimal(cleaned);
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
+        }
     }
 
-    /** 사용자의 특정 계좌 상세 정보를 조회합니다. (Query) */
     @Transactional(readOnly = true)
     public AccountResponse getAccount(Long userId, Long accountId) {
-        Account account =
-                accountRepository
-                        .findById(accountId)
-                        .filter(a -> a.getUserId().equals(userId))
-                        .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
+        Account account = accountRepository
+                .findById(accountId)
+                .filter(a -> a.getUserId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
 
         return AccountResponse.from(account);
     }
 
-    /** 사용자의 계좌 목록을 조회합니다. 1. 외부 API와 동기화하여 DB를 최신 상태로 만듭니다. 2. 우리 DB에 저장된 계좌 정보를 조회하여 반환합니다. */
+    @Transactional(readOnly = true)
     public AccountListResponse getAccountList(Long userId) {
-        // 1. 외부 API와 동기화 (Command)
-        syncAccounts(userId);
-
-        // 2. DB에서 최신 계좌 목록 조회 (Query)
         List<Account> accounts = accountRepository.findAllByUserId(userId);
 
-        // 3. 조회된 엔티티 목록을 DTO로 변환하여 반환
         List<AccountListResponse.AccountDetail> accountDetails =
                 accounts.stream()
                         .map(
                                 account ->
                                         new AccountListResponse.AccountDetail(
-                                                account.getBankName(),
                                                 account.getBankCode(),
+                                                account.getBankName(),
+                                                account.getUserName(),
                                                 account.getAccountNo(),
                                                 account.getAccountName(),
+                                                account.getAccountTypeCode(),
+                                                account.getAccountTypeName(),
+                                                account.getAccountCreatedDate() != null ? account.getAccountCreatedDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
+                                                account.getAccountExpiryDate() != null ? account.getAccountExpiryDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
+                                                String.valueOf(account.getDailyTransferLimit()),
+                                                String.valueOf(account.getOneTimeTransferLimit()),
                                                 String.valueOf(account.getBalance()),
+                                                account.getLastTransactionDate() != null ? account.getLastTransactionDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
                                                 account.getCurrencyCode()))
                         .collect(Collectors.toList());
 
         return new AccountListResponse(accountDetails);
     }
 
-    /** 외부 API를 통해 계좌 정보를 가져와 DB와 동기화합니다. (Upsert) */
+    public AccountListResponse refreshAccountList(Long userId) {
+        syncAccounts(userId);
+        return getAccountList(userId);
+    }
+
     private void syncAccounts(Long userId) {
-        String userKey = "31cc0084-6b77-42c9-8927-762488bc2767"; // 임시 userKey
-        AccountListResponse apiResponse = openBankAdapter.fetchDemandDepositAccounts(userKey);
+        com.ssafy.edu.awesomeproject.domain.auth.entity.User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        for (AccountListResponse.AccountDetail listDetail : apiResponse.accounts()) {
-            // 상세 정보 조회를 통해 더 풍부한 데이터를 가져옵니다.
-            com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response
-                            .OpenBankDetailAccountResponse
-                    detailResponse =
-                            openBankAdapter.fetchAccountDetail(userKey, listDetail.accountNo());
+        String userKey = user.getSsafyFinanceUserKey();
+        if (userKey == null || userKey.isBlank()) {
+            return;
+        }
 
-            if (detailResponse == null || detailResponse.rec() == null) {
-                continue;
-            }
+        // 1. 전체 계좌 목록 조회
+        AccountListResponse listResponse = openBankAdapter.fetchDemandDepositAccounts(userKey);
+        
+        if (listResponse == null || listResponse.accounts() == null) return;
 
-            com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response
-                            .OpenBankDetailAccountResponse.Rec
-                    rec = detailResponse.rec();
-            Optional<Account> accountOpt = accountRepository.findByAccountNo(rec.accountNo());
+        // 2. 응답 데이터를 DB에 반영 (Upsert)
+        for (AccountListResponse.AccountDetail detail : listResponse.accounts()) {
+            String accountNo = detail.accountNo();
+            Optional<Account> accountOpt = accountRepository.findByAccountNo(accountNo);
 
-            BigDecimal balance = new BigDecimal(rec.accountBalance());
-            BigDecimal dailyLimit = new BigDecimal(rec.dailyTransferLimit());
-            BigDecimal oneTimeLimit = new BigDecimal(rec.oneTimeTransferLimit());
+            BigDecimal balance = parseBigDecimal(detail.accountBalance());
 
             if (accountOpt.isPresent()) {
-                // 이미 존재하는 계좌는 동적으로 변하는 정보를 업데이트합니다.
                 Account existingAccount = accountOpt.get();
-                existingAccount.updateDynamicInfo(rec.accountName(), balance, "ACTIVE");
+                existingAccount.updateDynamicInfo(detail.accountName(), balance, "ACTIVE");
             } else {
-                // 새로운 계좌 생성 및 저장
                 Account newAccount =
                         Account.builder()
                                 .userId(userId)
-                                .accountNo(rec.accountNo())
-                                .bankName(rec.bankName())
-                                .bankCode(rec.bankCode())
-                                .accountName(rec.accountName())
-                                .currencyCode(rec.currency())
-                                .balance(
-                                        BigDecimal.ZERO) // 상세 조회 시점의 잔액은 아래에서 바로 갱신될 수 있으나 builder에
-                                // 포함
+                                .accountNo(detail.accountNo())
+                                .bankName(detail.bankName())
+                                .bankCode(detail.bankCode())
+                                .accountName(detail.accountName())
+                                .currencyCode(detail.currencyCode())
+                                .balance(balance)
                                 .status("ACTIVE")
                                 .isPrimary(false)
                                 .accountRole("LINKED_DEPOSIT")
-                                .userName(rec.userName())
-                                .accountTypeCode(rec.accountTypeCode())
-                                .accountTypeName(rec.accountTypeName())
-                                .accountCreatedDate(parseLocalDate(rec.accountCreatedDate()))
-                                .accountExpiryDate(parseLocalDate(rec.accountExpiryDate()))
-                                .dailyTransferLimit(dailyLimit)
-                                .oneTimeTransferLimit(oneTimeLimit)
-                                .lastTransactionDate(parseLocalDate(rec.lastTransactionDate()))
+                                .userName(detail.userName())
+                                .accountTypeCode(detail.accountTypeCode())
+                                .accountTypeName(detail.accountTypeName())
+                                .accountCreatedDate(parseLocalDate(detail.accountCreatedDate()))
+                                .accountExpiryDate(parseLocalDate(detail.accountExpiryDate()))
+                                .dailyTransferLimit(parseBigDecimal(detail.dailyTransferLimit()))
+                                .oneTimeTransferLimit(parseBigDecimal(detail.oneTimeTransferLimit()))
+                                .lastTransactionDate(parseLocalDate(detail.lastTransactionDate()))
                                 .build();
 
-                // 빌더에서 누락될 수 있는 balance 보정 (updateDynamicInfo 등을 활용 가능하지만 여기서는 builder 완성에 집중)
-                newAccount.updateDynamicInfo(rec.accountName(), balance, "ACTIVE");
                 accountRepository.save(newAccount);
             }
         }
@@ -191,24 +183,19 @@ public class AccountService {
         }
     }
 
-    /** 특정 계좌를 사용자의 '주 계좌'로 설정합니다. (Command) */
     public AccountResponse setPrimaryAccount(Long userId, Long accountId) {
-        // 1. 기존 주 계좌가 있다면 해제
-        java.util.List<Account> primaryAccounts =
-                accountRepository.findAll().stream()
-                        .filter(a -> a.getUserId().equals(userId) && a.isPrimary())
-                        .toList();
+        java.util.List<Account> primaryAccounts = accountRepository.findAll().stream()
+                .filter(a -> a.getUserId().equals(userId) && a.isPrimary())
+                .toList();
 
         for (Account a : primaryAccounts) {
             a.unsetPrimary();
         }
 
-        // 2. 새로운 주 계좌 설정
-        Account account =
-                accountRepository
-                        .findById(accountId)
-                        .filter(a -> a.getUserId().equals(userId))
-                        .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
+        Account account = accountRepository
+                .findById(accountId)
+                .filter(a -> a.getUserId().equals(userId))
+                .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
 
         account.setAsPrimary();
 
