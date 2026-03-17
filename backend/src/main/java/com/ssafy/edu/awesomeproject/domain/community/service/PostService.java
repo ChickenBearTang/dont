@@ -26,18 +26,17 @@ import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PrPostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PrVoteRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.ReactionRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
@@ -55,17 +54,17 @@ public class PostService {
     private final CommentRepository commentRepository;
 
     public PostService(
-        PostRepository postRepository,
-        BoardRepository boardRepository,
-        CohortRepository cohortRepository,
-        UserRepository userRepository,
-        PrPostRepository prPostRepository,
-        PrVoteRepository prVoteRepository,
-        HotdealPostRepository hotdealPostRepository,
-        PollPostRepository pollPostRepository,
-        PollVoteRepository pollVoteRepository,
-        ReactionRepository reactionRepository,
-        CommentRepository commentRepository) {
+            PostRepository postRepository,
+            BoardRepository boardRepository,
+            CohortRepository cohortRepository,
+            UserRepository userRepository,
+            PrPostRepository prPostRepository,
+            PrVoteRepository prVoteRepository,
+            HotdealPostRepository hotdealPostRepository,
+            PollPostRepository pollPostRepository,
+            PollVoteRepository pollVoteRepository,
+            ReactionRepository reactionRepository,
+            CommentRepository commentRepository) {
         this.postRepository = postRepository;
         this.boardRepository = boardRepository;
         this.cohortRepository = cohortRepository;
@@ -80,38 +79,56 @@ public class PostService {
     }
 
     public CreatePostResult createPost(
-            Long userId,
-            BoardCategory category,
-            Integer generationNo,
-            String title,
-            String content) {
-        validateCategoryAndCohort(category, generationNo);
-        Board board = resolveBoard(category, generationNo);
+        Long userId,
+        BoardCategory category,
+        Integer generationNo,
+        String title,
+        String content) {
 
-        User user = userRepository.findById(userId)
+        User user =
+            userRepository
+                .findById(userId)
                 .orElseThrow(() -> new AuthException(CommunityErrorCode.USER_NOT_FOUND));
 
+        Integer resolvedGenerationNo = generationNo;
+
         if (category == BoardCategory.COHORT) {
-            validateUserCohort(user, generationNo);
+            resolvedGenerationNo = getUserGenerationNo(user);
+
+            if (resolvedGenerationNo == null || resolvedGenerationNo < 0) {
+                throw new CommunityException(CommunityErrorCode.COHORT_FORBIDDEN);
+            }
+        }
+
+        validateCategoryAndCohort(category, resolvedGenerationNo);
+        Board board = resolveBoard(category, resolvedGenerationNo);
+
+        if (category == BoardCategory.COHORT) {
+            validateUserCohort(user, resolvedGenerationNo);
         }
 
         Post post = new Post(board, user, title, content);
         Post savedPost = postRepository.save(post);
 
         return new CreatePostResult(
-                savedPost.getId(),
-                savedPost.getBoard().getCategory().name(),
-                extractGenerationNo(savedPost.getBoard()),
-                savedPost.getCreatedAt());
+            savedPost.getId(),
+            savedPost.getBoard().getCategory().name(),
+            extractGenerationNo(savedPost.getBoard()),
+            savedPost.getCreatedAt());
     }
 
     @Transactional(readOnly = true)
     public GetPostResult getPost(Long userId, Long postId) {
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new AuthException(CommunityErrorCode.USER_NOT_FOUND));
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AuthException(CommunityErrorCode.USER_NOT_FOUND));
 
-        Post post = postRepository.findByIdAndStatus(postId, PostStatus.ACTIVE)
-                .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
+        Post post =
+                postRepository
+                        .findByIdAndStatus(postId, PostStatus.ACTIVE)
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
 
         validatePostReadAccess(user, post);
 
@@ -124,114 +141,128 @@ public class PostService {
                 post.getUser().getNickname(),
                 Math.toIntExact(
                         reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
-                                ReactionTargetType.POST,
-                                post.getId(),
-                                ReactionType.LIKE)),
+                                ReactionTargetType.POST, post.getId(), ReactionType.LIKE)),
                 Math.toIntExact(
                         reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
-                                ReactionTargetType.POST,
-                                post.getId(),
-                                ReactionType.DISLIKE)),
+                                ReactionTargetType.POST, post.getId(), ReactionType.DISLIKE)),
                 Math.toIntExact(
                         commentRepository.countByPost_IdAndStatus(
-                                post.getId(),
-                            CommentStatus.ACTIVE)),
+                                post.getId(), CommentStatus.ACTIVE)),
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }
 
     @Transactional(readOnly = true)
     public GetPostListResult getPostsByCategory(
-            Long userId,
-            BoardCategory category,
-            Integer generationNo,
-            Integer page,
-            Integer size) {
+        Long userId, BoardCategory category, Integer generationNo, Integer page, Integer size) {
 
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new AuthException(CommunityErrorCode.USER_NOT_FOUND));
+        User user =
+            userRepository
+                .findById(userId)
+                .orElseThrow(() -> new AuthException(CommunityErrorCode.USER_NOT_FOUND));
 
         int pageNumber = (page == null || page < 0) ? 0 : page;
         int pageSize = (size == null || size <= 0) ? 5 : size;
 
-        if (category != null) {
+        Integer resolvedGenerationNo = generationNo;
+
+        if (category != null && category != BoardCategory.COHORT) {
             validateCategoryAndCohort(category, generationNo);
         }
 
-        PageRequest pageRequest = PageRequest.of(
-                pageNumber,
-                pageSize,
-                Sort.by(Sort.Direction.DESC, "id"));
+        if (category == BoardCategory.COHORT && resolvedGenerationNo == null) {
+            resolvedGenerationNo = getUserGenerationNo(user);
+        }
+
+        PageRequest pageRequest =
+            PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "id"));
 
         Page<Post> postPage;
         if (category == null) {
             Integer userGenerationNo = getUserGenerationNo(user);
 
-            postPage = postRepository.findVisiblePostsForUser(
-                PostStatus.ACTIVE,
-                BoardCategory.COHORT,
-                userGenerationNo,
-                pageRequest
-            );
+            postPage =
+                postRepository.findVisiblePostsForUser(
+                    PostStatus.ACTIVE, BoardCategory.COHORT, userGenerationNo, pageRequest);
         } else if (category == BoardCategory.COHORT) {
-            validateUserCohort(user, generationNo);
+            validateUserCohort(user, resolvedGenerationNo);
 
-            postPage = postRepository.findByBoard_CategoryAndBoard_Cohort_GenerationNoAndStatus(
-                    category, generationNo, PostStatus.ACTIVE, pageRequest);
+            postPage =
+                postRepository.findByBoard_CategoryAndBoard_Cohort_GenerationNoAndStatus(
+                    category, resolvedGenerationNo, PostStatus.ACTIVE, pageRequest);
         } else {
-            postPage = postRepository.findByBoard_CategoryAndStatus(
+            postPage =
+                postRepository.findByBoard_CategoryAndStatus(
                     category, PostStatus.ACTIVE, pageRequest);
         }
 
         Map<Long, PrPost> prByPostId = getPrByPostId(postPage.getContent(), category);
-        Map<Long, PrVoteSummary> voteSummaryByPostId = getPrVoteSummaryByPostId(postPage.getContent(), category);
-        Map<Long, HotdealPost> hotdealByPostId = getHotdealByPostId(postPage.getContent(), category);
+        Map<Long, PrVoteSummary> voteSummaryByPostId =
+            getPrVoteSummaryByPostId(postPage.getContent(), category);
+        Map<Long, HotdealPost> hotdealByPostId =
+            getHotdealByPostId(postPage.getContent(), category);
         Map<Long, PollPost> pollByPostId = getPollByPostId(postPage.getContent(), category);
-        Map<Long, PollVoteSummary> pollVoteSummaryByPostId = getPollVoteSummaryByPostId(postPage.getContent(), category);
+        Map<Long, PollVoteSummary> pollVoteSummaryByPostId =
+            getPollVoteSummaryByPostId(postPage.getContent(), category);
 
-        List<PostSummary> content = postPage.getContent().stream()
-                .map(post -> {
-                    PrSummary prSummary = buildPrSummary(prByPostId, voteSummaryByPostId, post.getId());
-                    HotdealSummary hotdealSummary = buildHotdealSummary(hotdealByPostId, post.getId());
-                    PollSummary pollSummary = buildPollSummary(pollByPostId, pollVoteSummaryByPostId, post.getId());
+        List<PostSummary> content =
+            postPage.getContent().stream()
+                .map(
+                    post -> {
+                        PrSummary prSummary =
+                            buildPrSummary(
+                                prByPostId, voteSummaryByPostId, post.getId());
+                        HotdealSummary hotdealSummary =
+                            buildHotdealSummary(hotdealByPostId, post.getId());
+                        PollSummary pollSummary =
+                            buildPollSummary(
+                                pollByPostId,
+                                pollVoteSummaryByPostId,
+                                post.getId());
 
-                    PostExtraSummary extraSummary =
-                            (prSummary != null || hotdealSummary != null || pollSummary != null)
-                                    ? new PostExtraSummary(prSummary, hotdealSummary, pollSummary)
-                                    : null;
+                        PostExtraSummary extraSummary =
+                            (prSummary != null
+                                || hotdealSummary != null
+                                || pollSummary != null)
+                                ? new PostExtraSummary(
+                                prSummary, hotdealSummary, pollSummary)
+                                : null;
 
-                    return new PostSummary(
+                        return new PostSummary(
                             post.getId(),
                             post.getBoard().getCategory().name(),
                             extractGenerationNo(post.getBoard()),
                             post.getTitle(),
                             post.getUser().getNickname(),
                             Math.toIntExact(
-                                    reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
-                                            ReactionTargetType.POST,
-                                            post.getId(),
-                                            ReactionType.LIKE)),
+                                reactionRepository
+                                    .countByTargetTypeAndTargetIdAndReactionType(
+                                        ReactionTargetType.POST,
+                                        post.getId(),
+                                        ReactionType.LIKE)),
                             Math.toIntExact(
-                                    commentRepository.countByPost_IdAndStatus(
-                                            post.getId(),
-                                            CommentStatus.ACTIVE)),
+                                commentRepository.countByPost_IdAndStatus(
+                                    post.getId(), CommentStatus.ACTIVE)),
                             post.getCreatedAt(),
                             extraSummary);
-                })
+                    })
                 .toList();
 
         return new GetPostListResult(
-                content,
-                postPage.getNumber(),
-                postPage.getSize(),
-                postPage.getTotalElements(),
-                postPage.getTotalPages(),
-                postPage.hasNext());
+            content,
+            postPage.getNumber(),
+            postPage.getSize(),
+            postPage.getTotalElements(),
+            postPage.getTotalPages(),
+            postPage.hasNext());
     }
 
     public UpdatePostResult updatePost(Long userId, Long postId, String title, String content) {
-        Post post = postRepository.findByIdAndStatus(postId, PostStatus.ACTIVE)
-                .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
+        Post post =
+                postRepository
+                        .findByIdAndStatus(postId, PostStatus.ACTIVE)
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
 
         if (!post.isAuthor(userId)) {
             throw new CommunityException(CommunityErrorCode.POST_FORBIDDEN);
@@ -242,8 +273,11 @@ public class PostService {
     }
 
     public DeletePostResult deletePost(Long userId, Long postId) {
-        Post post = postRepository.findByIdAndStatus(postId, PostStatus.ACTIVE)
-                .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
+        Post post =
+                postRepository
+                        .findByIdAndStatus(postId, PostStatus.ACTIVE)
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
 
         if (!post.isAuthor(userId)) {
             throw new CommunityException(CommunityErrorCode.POST_FORBIDDEN);
@@ -269,14 +303,17 @@ public class PostService {
 
     private Board resolveBoard(BoardCategory category, Integer generationNo) {
         if (category == BoardCategory.COHORT) {
-            cohortRepository.findByGenerationNo(generationNo)
+            cohortRepository
+                    .findByGenerationNo(generationNo)
                     .orElseThrow(() -> new CommunityException(CommunityErrorCode.COHORT_NOT_FOUND));
 
-            return boardRepository.findByCategoryAndCohort_GenerationNo(category, generationNo)
+            return boardRepository
+                    .findByCategoryAndCohort_GenerationNo(category, generationNo)
                     .orElseThrow(() -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
         }
 
-        return boardRepository.findByCategory(category)
+        return boardRepository
+                .findByCategory(category)
                 .orElseThrow(() -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
     }
 
@@ -314,16 +351,18 @@ public class PostService {
                 .collect(Collectors.toMap(PrPost::getPostId, Function.identity()));
     }
 
-    private Map<Long, PrVoteSummary> getPrVoteSummaryByPostId(List<Post> posts, BoardCategory category) {
+    private Map<Long, PrVoteSummary> getPrVoteSummaryByPostId(
+            List<Post> posts, BoardCategory category) {
         if (posts.isEmpty() || category != BoardCategory.PR) {
             return Map.of();
         }
 
         Set<Long> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
         return prVoteRepository.aggregateByPostIds(postIds).stream()
-                .collect(Collectors.toMap(
-                        PrVoteRepository.PrVoteCountProjection::getPostId,
-                        projection -> new PrVoteSummary(projection.getTotalVoteCount())));
+                .collect(
+                        Collectors.toMap(
+                                PrVoteRepository.PrVoteCountProjection::getPostId,
+                                projection -> new PrVoteSummary(projection.getTotalVoteCount())));
     }
 
     private PrSummary buildPrSummary(
@@ -339,7 +378,9 @@ public class PostService {
         Long totalVoteCount = summary != null ? summary.totalVoteCount() : null;
 
         return new PrSummary(
-                prPost.getResultStatusEnum() == PrStatus.OPEN ? PrStatus.OPEN.name() : PrStatus.CLOSED.name(),
+                prPost.getResultStatusEnum() == PrStatus.OPEN
+                        ? PrStatus.OPEN.name()
+                        : PrStatus.CLOSED.name(),
                 prPost.getResultStatus(),
                 totalVoteCount,
                 prPost.getDeadlineAt());
@@ -355,7 +396,8 @@ public class PostService {
                 .collect(Collectors.toMap(HotdealPost::getPostId, Function.identity()));
     }
 
-    private HotdealSummary buildHotdealSummary(Map<Long, HotdealPost> hotdealByPostId, Long postId) {
+    private HotdealSummary buildHotdealSummary(
+            Map<Long, HotdealPost> hotdealByPostId, Long postId) {
         HotdealPost hotdealPost = hotdealByPostId.get(postId);
         if (hotdealPost == null) {
             return null;
@@ -382,7 +424,8 @@ public class PostService {
                 .collect(Collectors.toMap(PollPost::getPostId, Function.identity()));
     }
 
-    private Map<Long, PollVoteSummary> getPollVoteSummaryByPostId(List<Post> posts, BoardCategory category) {
+    private Map<Long, PollVoteSummary> getPollVoteSummaryByPostId(
+            List<Post> posts, BoardCategory category) {
         if (posts.isEmpty() || category != BoardCategory.POLL) {
             return Map.of();
         }
@@ -400,7 +443,9 @@ public class PostService {
     }
 
     private PollSummary buildPollSummary(
-            Map<Long, PollPost> pollByPostId, Map<Long, PollVoteSummary> pollVoteSummaryByPostId, Long postId) {
+            Map<Long, PollPost> pollByPostId,
+            Map<Long, PollVoteSummary> pollVoteSummaryByPostId,
+            Long postId) {
         PollPost pollPost = pollByPostId.get(postId);
         if (pollPost == null) {
             return null;
@@ -421,11 +466,7 @@ public class PostService {
     }
 
     public record CreatePostResult(
-            Long postId,
-            String category,
-            Integer generationNo,
-            LocalDateTime createdAt) {
-    }
+            Long postId, String category, Integer generationNo, LocalDateTime createdAt) {}
 
     public record GetPostResult(
             Long postId,
@@ -438,8 +479,7 @@ public class PostService {
             Integer dislikeCount,
             Integer commentCount,
             LocalDateTime createdAt,
-            LocalDateTime updatedAt) {
-    }
+            LocalDateTime updatedAt) {}
 
     public record PostSummary(
             Long postId,
@@ -450,33 +490,23 @@ public class PostService {
             Integer likeCount,
             Integer commentCount,
             LocalDateTime createdAt,
-            PostExtraSummary extraSummary) {
-    }
+            PostExtraSummary extraSummary) {}
 
-    private record PrVoteSummary(Long totalVoteCount) {
-    }
+    private record PrVoteSummary(Long totalVoteCount) {}
+
     private record PollVoteSummary(Long optionACount, Long optionBCount, Long totalVoteCount) {}
 
-    public record PostExtraSummary(
-            PrSummary pr,
-            HotdealSummary hotdeal,
-            PollSummary poll) {
-    }
+    public record PostExtraSummary(PrSummary pr, HotdealSummary hotdeal, PollSummary poll) {}
 
     public record PrSummary(
-            String status,
-            String resultStatus,
-            Long totalVoteCount,
-            LocalDateTime deadlineAt) {
-    }
+            String status, String resultStatus, Long totalVoteCount, LocalDateTime deadlineAt) {}
 
     public record HotdealSummary(
             Long dealPriceAmount,
             Long originalPriceAmount,
             String storeName,
             LocalDateTime expiredAt,
-            Boolean isExpired) {
-    }
+            Boolean isExpired) {}
 
     public record PollSummary(
             String question,
@@ -494,12 +524,9 @@ public class PostService {
             int size,
             long totalElements,
             int totalPages,
-            boolean hasNext) {
-    }
+            boolean hasNext) {}
 
-    public record UpdatePostResult(Long postId, LocalDateTime updatedAt) {
-    }
+    public record UpdatePostResult(Long postId, LocalDateTime updatedAt) {}
 
-    public record DeletePostResult(Boolean deleted, LocalDateTime deletedAt) {
-    }
+    public record DeletePostResult(Boolean deleted, LocalDateTime deletedAt) {}
 }
