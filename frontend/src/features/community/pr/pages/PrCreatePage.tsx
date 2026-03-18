@@ -39,8 +39,8 @@ export const PrCreatePage = () => {
     if (!form.title.trim()) return '제목을 입력해주세요.';
     if (!form.content.trim()) return '내용을 입력해주세요.';
     if (!form.itemName.trim()) return '상품명을 입력해주세요.';
-    if (!form.priceAmount || Number(form.priceAmount) < 1000) {
-      return '가격은 1,000원 이상이어야 합니다.';
+    if (!form.priceAmount || Number(form.priceAmount) < 0) {
+      return '가격은 0원 이상이어야 합니다.';
     }
     if (form.purchaseUrl.trim() && !isValidUrl(form.purchaseUrl.trim())) {
       return '구매 링크는 http 또는 https URL이어야 합니다.';
@@ -114,7 +114,7 @@ export const PrCreatePage = () => {
           label="가격"
           name="priceAmount"
           type="number"
-          min={1000}
+          min={0}
           value={form.priceAmount}
           onChange={handleChange}
           placeholder="예: 1590000"

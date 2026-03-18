@@ -112,6 +112,7 @@ public class PrPostService {
             Long postId, Long userId, PrVoteSubmitRequestDto prVoteSubmitRequestDto) {
         PrPost prPost = getPurchaseRequestOrThrow(postId);
         validatePurchaseRequestOpen(prPost, true);
+        validateNotPurchaseRequestOwner(prPost, userId);
         validateNotAlreadyReacted(postId, userId);
 
         PrVoteValue voteValue = parseVoteValue(prVoteSubmitRequestDto.voteValue());
@@ -214,8 +215,12 @@ public class PrPostService {
         List<PrDetailEventDto> events =
                 buildEventDtos(postId);
 
-        String status = prPost.getResultStatusEnum().name();
-        boolean isOpen = prPost.getResultStatusEnum() == PrStatus.OPEN;
+        boolean deadlineExpired = isDeadlineExpired(prPost.getDeadlineAt());
+        boolean isOpen = prPost.getResultStatusEnum() == PrStatus.OPEN && !deadlineExpired;
+        String status =
+                prPost.getResultStatusEnum() == PrStatus.OPEN && deadlineExpired
+                        ? PrStatus.CLOSED.name()
+                        : prPost.getResultStatusEnum().name();
         boolean isAuthor = prPost.getPost().isAuthor(currentUserId);
         boolean alreadyVoted = prVoteRepository.existsByPostIdAndUserId(postId, currentUserId);
         boolean canVote = isOpen && !isAuthor && !alreadyVoted;
@@ -230,7 +235,7 @@ public class PrPostService {
                 prPost.getPurchaseUrl(),
                 prPost.getImageUrl(),
                 status,
-                prPost.getResultStatus(),
+                status,
                 agreeCount,
                 disagreeCount,
                 totalVoteCount,
@@ -305,6 +310,12 @@ public class PrPostService {
 
     private void validatePurchaseRequestOwner(PrPost prPost, Long userId) {
         if (!prPost.getPost().isAuthor(userId)) {
+            throw new CommunityException(CommunityErrorCode.PURCHASE_REQUEST_FORBIDDEN);
+        }
+    }
+
+    private void validateNotPurchaseRequestOwner(PrPost prPost, Long userId) {
+        if (prPost.getPost().isAuthor(userId)) {
             throw new CommunityException(CommunityErrorCode.PURCHASE_REQUEST_FORBIDDEN);
         }
     }
