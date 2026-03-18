@@ -20,7 +20,7 @@ public class User extends BaseEntity {
     @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "password", nullable = false, length = 255)
+    @Column(name = "password", nullable = false, length = 72)
     private String password;
 
     @Column(name = "name", nullable = false, length = 50)
@@ -45,7 +45,7 @@ public class User extends BaseEntity {
     @Column(name = "user_role", nullable = false, length = 32)
     private UserRole userRole;
 
-    //cohort 매핑을 위한 FK 조건 추가
+    // cohort 매핑을 위한 FK 조건 추가
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cohort_id", nullable = false)
     private Cohort cohort;
