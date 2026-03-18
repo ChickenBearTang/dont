@@ -5,6 +5,7 @@ import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransactionHistoryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransferResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response.OpenBankDetailAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SavingsSettingRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountCreateResponse;
@@ -13,6 +14,8 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountRespo
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.SavingsSettingResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.Account;
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountRole;
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountStatus;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountTransaction;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.SavingsSetting;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
@@ -73,6 +76,39 @@ public class AccountService {
         }
 
         OpenBankCreateAccountResponse.Rec rec = apiResponse.getRec();
+
+        // [Bug Fix] 개설 성공 직후 상세 조회를 통해 우리 DB에 즉시 저장 (SAVE_BOX 역할 부여)
+        try {
+            OpenBankDetailAccountResponse detailResponse = openBankAdapter.fetchAccountDetail(userKey, rec.getAccountNo());
+            if (detailResponse != null && detailResponse.rec() != null) {
+                OpenBankDetailAccountResponse.Rec detail = detailResponse.rec();
+                Account newAccount = Account.builder()
+                        .userId(userId)
+                        .accountNo(detail.accountNo())
+                        .bankName(detail.bankName())
+                        .bankCode(detail.bankCode())
+                        .accountName(detail.accountName())
+                        .currencyCode(detail.currency() != null ? detail.currency().currency() : "KRW")
+                        .balance(parseBigDecimal(detail.accountBalance()))
+                        .status(AccountStatus.ACTIVE)
+                        .isPrimary(false)
+                        .accountRole(AccountRole.SAVE_BOX) // 명시적으로 SAVE_BOX 지정
+                        .userName(detail.userName())
+                        .accountTypeCode(detail.accountTypeCode())
+                        .accountTypeName(detail.accountTypeName())
+                        .accountCreatedDate(parseLocalDate(detail.accountCreatedDate()))
+                        .accountExpiryDate(parseLocalDate(detail.accountExpiryDate()))
+                        .dailyTransferLimit(parseBigDecimal(detail.dailyTransferLimit()))
+                        .oneTimeTransferLimit(parseBigDecimal(detail.oneTimeTransferLimit()))
+                        .lastTransactionDate(parseLocalDate(detail.lastTransactionDate()))
+                        .build();
+                accountRepository.save(newAccount);
+                log.info("세이브박스 DB 저장 완료: {}", rec.getAccountNo());
+            }
+        } catch (Exception e) {
+            log.error("세이브박스 DB 저장 중 오류 발생 (계좌는 생성됨): {}", e.getMessage());
+            // 비즈니스 정책에 따라 예외를 던질지, 로그만 남길지 결정 가능 (현재는 로그 후 진행)
+        }
 
         return AccountCreateResponse.builder()
                 .accountNo(rec.getAccountNo())
@@ -383,7 +419,7 @@ public class AccountService {
 
             if (accountOpt.isPresent()) {
                 Account existingAccount = accountOpt.get();
-                existingAccount.updateDynamicInfo(detail.accountName(), balance, "ACTIVE");
+                existingAccount.updateDynamicInfo(detail.accountName(), balance, AccountStatus.ACTIVE);
             } else {
                 Account newAccount =
                         Account.builder()
@@ -394,9 +430,9 @@ public class AccountService {
                                 .accountName(detail.accountName())
                                 .currencyCode(detail.currencyCode())
                                 .balance(balance)
-                                .status("ACTIVE")
+                                .status(AccountStatus.ACTIVE)
                                 .isPrimary(false)
-                                .accountRole("LINKED_DEPOSIT")
+                                .accountRole(AccountRole.LINKED_DEPOSIT)
                                 .userName(detail.userName())
                                 .accountTypeCode(detail.accountTypeCode())
                                 .accountTypeName(detail.accountTypeName())

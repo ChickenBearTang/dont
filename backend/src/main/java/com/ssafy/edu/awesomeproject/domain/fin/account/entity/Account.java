@@ -3,6 +3,8 @@ package com.ssafy.edu.awesomeproject.domain.fin.account.entity;
 import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -38,8 +40,9 @@ public class Account extends BaseEntity {
     @Column(name = "bank_name", nullable = false, length = 100)
     private String bankName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "account_role", nullable = false, length = 20)
-    private String accountRole;
+    private AccountRole accountRole;
 
     @Column(name = "is_primary", nullable = false)
     private boolean isPrimary;
@@ -74,8 +77,9 @@ public class Account extends BaseEntity {
     @Column(name = "currency_code", length = 10)
     private String currencyCode;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private AccountStatus status;
 
     @Column(name = "user_name", length = 100)
     private String userName;
@@ -86,7 +90,7 @@ public class Account extends BaseEntity {
             String accountNo,
             String bankCode,
             String bankName,
-            String accountRole,
+            AccountRole accountRole,
             String accountTypeCode,
             String accountTypeName,
             String accountName,
@@ -98,7 +102,7 @@ public class Account extends BaseEntity {
             BigDecimal balance,
             LocalDate lastTransactionDate,
             String currencyCode,
-            String status,
+            AccountStatus status,
             String userName) {
         this.userId = userId;
         this.accountNo = accountNo;
@@ -120,7 +124,7 @@ public class Account extends BaseEntity {
         this.userName = userName;
     }
 
-    public void updateDynamicInfo(String accountName, BigDecimal balance, String status) {
+    public void updateDynamicInfo(String accountName, BigDecimal balance, AccountStatus status) {
         this.accountName = accountName;
         this.balance = balance;
         this.status = status;

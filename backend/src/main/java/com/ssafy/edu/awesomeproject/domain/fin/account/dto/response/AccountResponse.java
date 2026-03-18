@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.dto.response;
 
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.Account;
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountStatus;
 import java.math.BigDecimal;
 import lombok.Builder;
 
@@ -14,7 +15,7 @@ public record AccountResponse(
         String accountName,
         BigDecimal balance,
         String userName,
-        String status) {
+        AccountStatus status) {
 
     public static AccountResponse from(Account account) {
         return AccountResponse.builder()
