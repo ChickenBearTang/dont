@@ -12,6 +12,7 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -55,7 +56,7 @@ public class AccountController {
     @PostMapping("/save-box")
     public ResponseEntity<AccountCreateResponse> createSaveBox(
             @CurrentUserId Long userId,
-            @RequestBody SaveBoxCreateRequest request) {
+            @Valid @RequestBody SaveBoxCreateRequest request) {
 
         AccountCreateResponse response = accountService.createSaveBox(userId, request);
 
@@ -106,7 +107,7 @@ public class AccountController {
     @PostMapping("/savings-settings")
     public ResponseEntity<SavingsSettingResponse> saveSavingsSetting(
             @CurrentUserId Long userId,
-            @RequestBody SavingsSettingRequest request) {
+            @Valid @RequestBody SavingsSettingRequest request) {
         SavingsSettingResponse response = accountService.createOrUpdateSavingsSetting(userId, request);
         return ResponseEntity.ok(response);
     }

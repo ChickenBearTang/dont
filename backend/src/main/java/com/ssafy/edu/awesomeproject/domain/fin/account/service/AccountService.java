@@ -327,6 +327,15 @@ public class AccountService {
     }
 
     public SavingsSettingResponse createOrUpdateSavingsSetting(Long userId, SavingsSettingRequest request) {
+        // 본인 소유 계좌인지 검증 (BOLA 방어)
+        accountRepository.findById(request.primaryAccountId())
+                .filter(a -> a.getUserId().equals(userId))
+                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
+
+        accountRepository.findById(request.saveboxAccountId())
+                .filter(a -> a.getUserId().equals(userId))
+                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
+
         SavingsSetting setting = savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)
                 .orElse(SavingsSetting.builder()
                         .userId(userId)
@@ -371,8 +380,11 @@ public class AccountService {
                 .orElseThrow(() -> new AccountException(AccountErrorCode.SAVINGS_SETTING_NOT_FOUND));
         
         Account primaryAccount = accountRepository.findById(setting.getPrimaryAccountId())
+                .filter(a -> a.getUserId().equals(userId)) // 소유권 재검증
                 .orElseThrow(() -> new AccountException(AccountErrorCode.PRIMARY_ACCOUNT_NOT_FOUND));
+
         Account saveboxAccount = accountRepository.findById(setting.getSaveboxAccountId())
+                .filter(a -> a.getUserId().equals(userId)) // 소유권 재검증
                 .orElseThrow(() -> new AccountException(AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
 
         User user = userRepository.findById(userId).orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
