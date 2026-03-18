@@ -183,10 +183,19 @@ public class AccountService {
         // 1. 거래 내역 동기화 (간편하게 조회 시마다 최신화 시도)
         syncTransactions(userId, account, startDate, endDate);
 
-        // 2. DB에서 거래 내역 조회
-        List<AccountTransaction> transactions =
-                accountTransactionRepository
-                        .findAllByAccountIdOrderByTransactionDateDescTransactionTimeDesc(accountId);
+        // 2. DB에서 거래 내역 조회 (날짜 필터 적용)
+        LocalDate start = parseLocalDate(startDate);
+        LocalDate end = parseLocalDate(endDate);
+
+        List<AccountTransaction> transactions;
+        if (start != null && end != null) {
+            transactions = accountTransactionRepository
+                    .findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+                            accountId, start, end);
+        } else {
+            transactions = accountTransactionRepository
+                    .findAllByAccountIdOrderByTransactionDateDescTransactionTimeDesc(accountId);
+        }
 
         return AccountTransactionResponse.builder()
                 .accountNo(account.getAccountNo())
