@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './StrictSecretaryResult.css';
 
 export interface AIResultData {
@@ -10,13 +10,33 @@ export interface AIResultData {
 interface StrictSecretaryResultProps {
   status: 'RESULT' | 'RETRY';
   data?: AIResultData;
+  audioUrl?: string;
   onRetry: () => void;
   onReset: () => void;
 }
 
-export default function StrictSecretaryResult({ status, data, onRetry, onReset }: StrictSecretaryResultProps) {
+export default function StrictSecretaryResult({ status, data, audioUrl, onRetry, onReset }: StrictSecretaryResultProps) {
   const [ttsState, setTtsState] = useState<'idle' | 'loading' | 'playing'>('idle');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasAutoPlayedRef = useRef(false);
+
+  // 결과 페이지 도달 시 audioUrl이 있으면 자동 재생
+  useEffect(() => {
+    if (status === 'RESULT' && audioUrl && !hasAutoPlayedRef.current) {
+      hasAutoPlayedRef.current = true;
+      const audio = new Audio(audioUrl);
+
+      audio.onended = () => {
+        setTtsState('idle');
+        audioRef.current = null;
+      };
+
+      audioRef.current = audio;
+      audio.play()
+        .then(() => setTtsState('playing'))
+        .catch((err) => console.warn('자동 재생 실패:', err));
+    }
+  }, [status, audioUrl]);
 
   const handlePlayVoice = async () => {
     if (!data) return;
@@ -29,27 +49,37 @@ export default function StrictSecretaryResult({ status, data, onRetry, onReset }
       return;
     }
 
-    setTtsState('loading');
+    // 미리 생성된 audioUrl이 있으면 그걸 재사용
+    if (audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.onended = () => {
+        setTtsState('idle');
+        audioRef.current = null;
+      };
+      audioRef.current = audio;
+      await audio.play();
+      setTtsState('playing');
+      return;
+    }
 
+    // audioUrl이 없으면 직접 TTS API 호출 (fallback)
+    setTtsState('loading');
     try {
       const res = await fetch('http://localhost:8000/api/v1/strict-secretary/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: data.fact_violence_comment }),
       });
-
       if (!res.ok) throw new Error('TTS 요청 실패');
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-
       audio.onended = () => {
         setTtsState('idle');
         URL.revokeObjectURL(url);
         audioRef.current = null;
       };
-
       audioRef.current = audio;
       await audio.play();
       setTtsState('playing');
@@ -80,7 +110,7 @@ export default function StrictSecretaryResult({ status, data, onRetry, onReset }
       <div className="ss-result-status">
         {is_approved ? '✅ 구매 승인' : '❌ 구매 기각'}
       </div>
-      
+
       <div className="ss-fact-violence">
         <div className="ss-fact-violence-header">
           <h3>비서의 팩트 폭력</h3>
@@ -90,7 +120,7 @@ export default function StrictSecretaryResult({ status, data, onRetry, onReset }
             disabled={ttsState === 'loading'}
             aria-label="팩트폭력 음성으로 듣기"
           >
-            {ttsState === 'idle' && '🔊 듣기'}
+            {ttsState === 'idle' && '🔊 다시 듣기'}
             {ttsState === 'loading' && '⏳ 생성 중...'}
             {ttsState === 'playing' && '⏹ 정지'}
           </button>
@@ -111,4 +141,3 @@ export default function StrictSecretaryResult({ status, data, onRetry, onReset }
     </div>
   );
 }
-
