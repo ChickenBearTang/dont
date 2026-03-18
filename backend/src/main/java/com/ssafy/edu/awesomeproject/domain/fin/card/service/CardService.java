@@ -65,8 +65,10 @@ public class CardService {
             throw new IllegalArgumentException("startDate must be before or equal to endDate.");
         }
 
-        List<CardTransaction> transactions = cardTransactionRepository
-            .findByUserIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(userId,start,end);
+        List<CardTransaction> transactions =
+            cardTransactionRepository
+                .findByCardIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+                    cardId, start, end);
 
         //유저의 결제금액 총합
         Long totalAmount = transactions.stream()
