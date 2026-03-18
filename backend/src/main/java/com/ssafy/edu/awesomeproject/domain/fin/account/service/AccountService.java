@@ -1,5 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.service;
 
+import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransactionHistoryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransferResponse;
@@ -18,6 +20,9 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountTransac
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSettingRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankAdapter;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -35,11 +40,11 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final AccountTransactionRepository accountTransactionRepository;
     private final SavingsSettingRepository savingsSettingRepository;
-    private final com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository userRepository;
+    private final UserRepository userRepository;
 
     /** '세이브 박스' 계좌를 신규 개설합니다. (Stateless) */
     public AccountCreateResponse createSaveBox(Long userId, SaveBoxCreateRequest request) {
-        com.ssafy.edu.awesomeproject.domain.auth.entity.User user =
+        User user =
                 userRepository
                         .findById(userId)
                         .orElseThrow(
@@ -112,12 +117,12 @@ public class AccountService {
                                                 account.getAccountName(),
                                                 account.getAccountTypeCode(),
                                                 account.getAccountTypeName(),
-                                                account.getAccountCreatedDate() != null ? account.getAccountCreatedDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
-                                                account.getAccountExpiryDate() != null ? account.getAccountExpiryDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
+                                                account.getAccountCreatedDate() != null ? account.getAccountCreatedDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
+                                                account.getAccountExpiryDate() != null ? account.getAccountExpiryDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
                                                 String.valueOf(account.getDailyTransferLimit()),
                                                 String.valueOf(account.getOneTimeTransferLimit()),
                                                 String.valueOf(account.getBalance()),
-                                                account.getLastTransactionDate() != null ? account.getLastTransactionDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
+                                                account.getLastTransactionDate() != null ? account.getLastTransactionDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
                                                 account.getCurrencyCode()))
                         .collect(Collectors.toList());
 
@@ -157,8 +162,7 @@ public class AccountService {
                                                         .transactionDate(
                                                                 t.getTransactionDate()
                                                                         .format(
-                                                                                java.time.format
-                                                                                        .DateTimeFormatter
+                                                                                DateTimeFormatter
                                                                                         .ofPattern(
                                                                                                 "yyyyMMdd")))
                                                         .transactionTime(t.getTransactionTime())
@@ -175,7 +179,7 @@ public class AccountService {
     }
 
     private void syncTransactions(Long userId, Account account, String startDate, String endDate) {
-        com.ssafy.edu.awesomeproject.domain.auth.entity.User user =
+        User user =
                 userRepository
                         .findById(userId)
                         .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
@@ -257,7 +261,7 @@ public class AccountService {
                 user.getSsafyFinanceUserKey(),
                 saveboxAccount.getAccountNo(),
                 "(자동저축) 입금",
-                setting.getSavingsAmount().setScale(0, java.math.RoundingMode.DOWN).toString(),
+                setting.getSavingsAmount().setScale(0, RoundingMode.DOWN).toString(),
                 primaryAccount.getAccountNo(),
                 "(자동저축) 출금"
         );
@@ -324,8 +328,7 @@ public class AccountService {
         Account saveboxAccount = accountRepository.findById(setting.getSaveboxAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("세이브박스 계좌를 찾을 수 없습니다."));
 
-        com.ssafy.edu.awesomeproject.domain.auth.entity.User user =
-                userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         System.out.println("수동 저축 실행 시도 - 사용자: " + userId);
         System.out.println("출금 계좌 (주계좌): " + primaryAccount.getAccountNo() + " (ID: " + primaryAccount.getId() + ", 잔액: " + primaryAccount.getBalance() + ")");
@@ -336,7 +339,7 @@ public class AccountService {
                 user.getSsafyFinanceUserKey(),
                 saveboxAccount.getAccountNo(),
                 "(수동저축) 입금",
-                amount.setScale(0, java.math.RoundingMode.DOWN).toString(),
+                amount.setScale(0, RoundingMode.DOWN).toString(),
                 primaryAccount.getAccountNo(),
                 "(수동저축) 출금"
         );
@@ -355,7 +358,7 @@ public class AccountService {
     }
 
     private void syncAccounts(Long userId) {
-        com.ssafy.edu.awesomeproject.domain.auth.entity.User user =
+        User user =
                 userRepository
                         .findById(userId)
                         .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
@@ -408,21 +411,21 @@ public class AccountService {
         }
     }
 
-    private java.time.LocalDate parseLocalDate(String dateStr) {
+    private LocalDate parseLocalDate(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) {
             return null;
         }
         try {
-            return java.time.LocalDate.parse(
-                    dateStr, java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+            return LocalDate.parse(
+                    dateStr, DateTimeFormatter.ofPattern("yyyyMMdd"));
         } catch (Exception e) {
             return null;
         }
     }
 
     public AccountResponse setPrimaryAccount(Long userId, Long accountId) {
-        java.util.List<Account> primaryAccounts = accountRepository.findAll().stream()
-                .filter(a -> a.getUserId().equals(userId) && a.isPrimary())
+        List<Account> primaryAccounts = accountRepository.findAllByUserId(userId).stream()
+                .filter(Account::isPrimary)
                 .toList();
 
         for (Account a : primaryAccounts) {
