@@ -38,7 +38,7 @@ public class CardService {
     private final CardTransactionRepository cardTransactionRepository;
     private final UserRepository userRepository;
 
-    @Value("${auth.api.key}")
+    @Value("${ssafy.api.key}")
     private String apiKey;
 
     @Transactional
