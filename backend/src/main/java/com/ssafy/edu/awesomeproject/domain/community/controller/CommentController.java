@@ -83,7 +83,9 @@ public class CommentController {
                                                 comment.commentId(),
                                                 comment.parentCommentId(),
                                                 comment.content(),
+                                                comment.authorId(),
                                                 comment.authorNickname(),
+                                                comment.isMine(),
                                                 comment.likeCount(),
                                                 comment.createdAt()))
                         .toList();
@@ -129,8 +131,7 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "댓글 없음")
     })
     public CommonResponse<DeleteCommentResponseDto> deleteComment(
-            @CurrentUserId Long userId,
-            @PathVariable Long commentId) {
+            @CurrentUserId Long userId, @PathVariable Long commentId) {
 
         CommentService.DeleteCommentResult result = commentService.deleteComment(userId, commentId);
 

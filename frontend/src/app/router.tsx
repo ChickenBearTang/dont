@@ -1,8 +1,14 @@
-﻿import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
 import { SignUpPage, LoginPage } from '@/features/auth';
 import { OnboardingPage } from '@/features/user';
-import { AuthenticatedLayoutRoute, DashboardRoute, HomeRoute } from '@/app/routeComponents';
+import {
+  AuthenticatedLayoutRoute,
+  DashboardRoute,
+  HomeRoute,
+  PrCreateRoute,
+  PrDetailRoute,
+} from '@/app/routeComponents';
 
 export const router = createBrowserRouter([
   {
@@ -49,7 +55,52 @@ export const router = createBrowserRouter([
         path: '/dashboard',
         element: <DashboardRoute />,
       },
+      {
+        path: '/community/pr/new',
+        element: <PrCreateRoute />,
+      },
+      {
+        path: '/community/pr/:postId',
+        element: <PrDetailRoute />,
+      },
+      {
+        path: '/community',
+        async lazy() {
+          const { CommunityLayout } = await import(
+            '@/features/community/components/CommunityLayout'
+          );
+          return { Component: CommunityLayout };
+        },
+        children: [
+          {
+            index: true,
+            async lazy() {
+              const { CommunityPage } = await import(
+                '@/features/community/pages/CommunityPage'
+              );
+              return { Component: CommunityPage };
+            },
+          },
+          {
+            path: 'write',
+            async lazy() {
+              const { CreatePostPage } = await import(
+                '@/features/community/pages/CreatePostPage'
+              );
+              return { Component: CreatePostPage };
+            },
+          },
+          {
+            path: ':postId',
+            async lazy() {
+              const { PostDetailPage } = await import(
+                '@/features/community/pages/PostDetailPage'
+              );
+              return { Component: PostDetailPage };
+            },
+          },
+        ],
+      },
     ],
   },
 ]);
-

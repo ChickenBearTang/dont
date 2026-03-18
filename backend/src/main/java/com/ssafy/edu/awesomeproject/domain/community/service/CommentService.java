@@ -14,10 +14,9 @@ import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CommentRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
+import com.ssafy.edu.awesomeproject.domain.community.repository.ReactionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
-
-import com.ssafy.edu.awesomeproject.domain.community.repository.ReactionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -33,9 +32,10 @@ public class CommentService {
     private final ReactionRepository reactionRepository;
 
     public CommentService(
-        CommentRepository commentRepository,
-        PostRepository postRepository,
-        UserRepository userRepository, ReactionRepository reactionRepository) {
+            CommentRepository commentRepository,
+            PostRepository postRepository,
+            UserRepository userRepository,
+            ReactionRepository reactionRepository) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
@@ -114,23 +114,26 @@ public class CommentService {
                 commentRepository.findByPost_IdAndStatus(postId, CommentStatus.ACTIVE, pageRequest);
 
         List<CommentSummary> content =
-                commentPage.getContent().stream()
-                        .map(
-                                comment ->
-                                        new CommentSummary(
-                                                comment.getId(),
-                                                comment.getParentComment() != null
-                                                        ? comment.getParentComment().getId()
-                                                        : null,
-                                                comment.getContent(),
-                                                comment.getUser().getNickname(),
-                                                Math.toIntExact(
-                                                        reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
-                                                            ReactionTargetType.COMMENT,
-                                                            comment.getId(),
-                                                            ReactionType.LIKE)),
-                                                comment.getCreatedAt()))
-                        .toList();
+            commentPage.getContent().stream()
+                .map(
+                    comment ->
+                        new CommentSummary(
+                            comment.getId(),
+                            comment.getParentComment() != null
+                                ? comment.getParentComment().getId()
+                                : null,
+                            comment.getContent(),
+                            comment.getUser().getId(),
+                            comment.getUser().getNickname(),
+                            comment.isAuthor(userId),
+                            Math.toIntExact(
+                                reactionRepository
+                                    .countByTargetTypeAndTargetIdAndReactionType(
+                                        ReactionTargetType.COMMENT,
+                                        comment.getId(),
+                                        ReactionType.LIKE)),
+                            comment.getCreatedAt()))
+                .toList();
 
         return new GetCommentListResult(
                 content,
@@ -197,7 +200,9 @@ public class CommentService {
             Long commentId,
             Long parentCommentId,
             String content,
+            Long authorId,
             String authorNickname,
+            Boolean isMine,
             Integer likeCount,
             LocalDateTime createdAt) {}
 

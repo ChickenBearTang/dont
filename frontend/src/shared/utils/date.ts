@@ -1,5 +1,5 @@
-/**
- * 날짜 관련 포맷팅 유틸리티
+﻿/**
+ * 날짜 관련 유틸리티
  */
 
 /**
@@ -14,27 +14,32 @@ export const formatDate = (date: Date | string | number): string => {
 };
 
 /**
- * 날짜를 "N분 전", "N시간 전" 등 상대적인 시간으로 표현합니다.
+ * 날짜를 "N분 전", "N시간 전" 같은 상대 시간으로 표현합니다.
  */
 export const formatRelativeTime = (date: Date | string | number): string => {
   const start = new Date(date).getTime();
   const end = new Date().getTime();
   const diff = (end - start) / 1000;
 
-  const times = [
-    { name: '년', milliSeconds: 60 * 60 * 24 * 365 },
-    { name: '개월', milliSeconds: 60 * 60 * 24 * 30 },
-    { name: '일', milliSeconds: 60 * 60 * 24 },
-    { name: '시간', milliSeconds: 60 * 60 },
-    { name: '분', milliSeconds: 60 },
+  if (Number.isNaN(diff) || diff < 0) {
+    return '방금 전';
+  }
+
+  const units = [
+    { label: '년', seconds: 60 * 60 * 24 * 365 },
+    { label: '개월', seconds: 60 * 60 * 24 * 30 },
+    { label: '일', seconds: 60 * 60 * 24 },
+    { label: '시간', seconds: 60 * 60 },
+    { label: '분', seconds: 60 },
   ];
 
-  for (const value of times) {
-    const betweenTime = Math.floor(diff / value.milliSeconds);
-    if (betweenTime > 0) {
-      return `${betweenTime}${value.name} 전`;
+  for (const unit of units) {
+    const value = Math.floor(diff / unit.seconds);
+    if (value > 0) {
+      return `${value}${unit.label} 전`;
     }
   }
+
   return '방금 전';
 };
 
@@ -44,6 +49,7 @@ export const formatRelativeTime = (date: Date | string | number): string => {
 export const isToday = (date: Date | string | number): boolean => {
   const d = new Date(date);
   const today = new Date();
+
   return (
     d.getDate() === today.getDate() &&
     d.getMonth() === today.getMonth() &&
