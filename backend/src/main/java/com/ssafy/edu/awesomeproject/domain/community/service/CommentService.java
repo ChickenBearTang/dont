@@ -8,12 +8,16 @@ import com.ssafy.edu.awesomeproject.domain.community.entity.Comment;
 import com.ssafy.edu.awesomeproject.domain.community.entity.CommentStatus;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Post;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PostStatus;
+import com.ssafy.edu.awesomeproject.domain.community.entity.ReactionTargetType;
+import com.ssafy.edu.awesomeproject.domain.community.entity.ReactionType;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CommentRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.ssafy.edu.awesomeproject.domain.community.repository.ReactionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -26,14 +30,16 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final ReactionRepository reactionRepository;
 
     public CommentService(
-            CommentRepository commentRepository,
-            PostRepository postRepository,
-            UserRepository userRepository) {
+        CommentRepository commentRepository,
+        PostRepository postRepository,
+        UserRepository userRepository, ReactionRepository reactionRepository) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
+        this.reactionRepository = reactionRepository;
     }
 
     // 댓글 작성
@@ -118,7 +124,11 @@ public class CommentService {
                                                         : null,
                                                 comment.getContent(),
                                                 comment.getUser().getNickname(),
-                                                0,
+                                                Math.toIntExact(
+                                                        reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
+                                                            ReactionTargetType.COMMENT,
+                                                            comment.getId(),
+                                                            ReactionType.LIKE)),
                                                 comment.getCreatedAt()))
                         .toList();
 

@@ -29,7 +29,8 @@ public record GetPostListResponseDto (
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record PostExtraSummaryDto(
         PrSummaryDto pr,
-        HotdealSummaryDto hotdeal
+        HotdealSummaryDto hotdeal,
+        PollSummaryDto poll
     ) {}
 
     public record HotdealSummaryDto(
@@ -45,5 +46,16 @@ public record GetPostListResponseDto (
         String resultStatus,
         Long totalVoteCount,
         LocalDateTime deadlineAt
+    ) {}
+
+    public record PollSummaryDto(
+        String question,
+        String optionA,
+        String optionB,
+        LocalDateTime deadlineAt,
+        Boolean isClosed,
+        Long optionACount,
+        Long optionBCount,
+        Long totalVoteCount
     ) {}
 }

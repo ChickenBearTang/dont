@@ -4,6 +4,7 @@ import com.ssafy.edu.awesomeproject.common.security.error.TokenErrorCode;
 import com.ssafy.edu.awesomeproject.common.security.error.TokenException;
 import com.ssafy.edu.awesomeproject.common.security.jwt.ParsedToken;
 import com.ssafy.edu.awesomeproject.common.security.service.AccessTokenService;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.UserRole;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +34,33 @@ public class CurrentUserExtractor {
         return extractUserId(request.getHeader(AUTHORIZATION_HEADER));
     }
 
+    public CurrentUserAuth extractAuthFromRequestHeader(HttpServletRequest request) {
+        String token = extractBearerToken(request.getHeader(AUTHORIZATION_HEADER));
+        ParsedToken parsedToken = accessTokenService.parseAccessToken(token);
+        return new CurrentUserAuth(parseUserId(parsedToken), parseUserRole(parsedToken));
+    }
+
+    private Long parseUserId(ParsedToken parsedToken) {
+        try {
+            return Long.parseLong(parsedToken.subject());
+        } catch (NumberFormatException exception) {
+            throw new TokenException(TokenErrorCode.TOKEN_INVALID);
+        }
+    }
+
+    private UserRole parseUserRole(ParsedToken parsedToken) {
+        Object roleClaim = parsedToken.claims().get("role");
+        if (!(roleClaim instanceof String role)) {
+            throw new TokenException(TokenErrorCode.TOKEN_INVALID);
+        }
+
+        try {
+            return UserRole.valueOf(role);
+        } catch (IllegalArgumentException exception) {
+            throw new TokenException(TokenErrorCode.TOKEN_INVALID);
+        }
+    }
+
     private String extractBearerToken(String authorizationHeader) {
         if (authorizationHeader == null || authorizationHeader.isBlank()) {
             throw new TokenException(TokenErrorCode.TOKEN_INVALID);
@@ -48,5 +76,6 @@ public class CurrentUserExtractor {
 
         return authorizationHeader;
     }
-}
 
+    public record CurrentUserAuth(Long userId, UserRole role) {}
+}

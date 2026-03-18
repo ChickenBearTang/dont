@@ -12,4 +12,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     // 목록 조회
     Page<Comment> findByPost_IdAndStatus(Long postId, CommentStatus status, Pageable pageable);
+
+    //댓글 목록 좋아요 count
+    long countByPost_IdAndStatus(Long postId, CommentStatus status);
 }
