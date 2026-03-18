@@ -41,7 +41,6 @@ public class PollPost {
     private LocalDateTime deadlineAt;
 
     public PollPost(Post post, String question, String optionA, String optionB, LocalDateTime deadlineAt) {
-        this.postId = post.getId();
         this.post = post;
         this.question = question;
         this.optionA = optionA;
