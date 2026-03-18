@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 public enum CommonErrorCode implements ErrorCode {
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "COMMON_400_1", "Invalid input."),
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "COMMON_400_2", "Validation failed."),
+    PAYLOAD_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "COMMON_413_1", "Request payload too large."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON_404_1", "Resource not found."),
     BUSINESS_RULE_VIOLATION(HttpStatus.CONFLICT, "COMMON_409_1", "Business rule violation."),
     INTERNAL_SERVER_ERROR(

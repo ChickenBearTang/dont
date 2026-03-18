@@ -18,6 +18,8 @@ public interface RefreshTokenStore {
 
     void deleteBySessionId(String sessionId);
 
+    void invalidateSession(String sessionId);
+
     void blacklistRefreshToken(String tokenId, Duration timeToLive);
 
     boolean isRefreshTokenBlacklisted(String tokenId);
