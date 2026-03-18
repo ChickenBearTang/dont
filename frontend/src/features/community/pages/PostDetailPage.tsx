@@ -27,8 +27,12 @@ export const PostDetailPage = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 추가: 현재 내가 누른 반응 상태
-  const [selectedReaction, setSelectedReaction] = useState<ReactionType | null>(null);
+  // 추가: 현재 내가 누른 반응 상태 (localStorage로 유지)
+  const reactionStorageKey = `post_reaction_${postId}`;
+  const [selectedReaction, setSelectedReaction] = useState<ReactionType | null>(() => {
+    const saved = localStorage.getItem(`post_reaction_${postId}`);
+    return saved === 'LIKE' || saved === 'DISLIKE' ? saved : null;
+  });
 
   const currentUser = useAuthStore((state) => state.user);
   const isAuthor = post?.isMine ?? currentUser?.userId === post?.authorId;
@@ -52,11 +56,9 @@ export const PostDetailPage = () => {
           setHasMoreComments(commentsRes.data?.hasNext || false);
           setCommentPage(0);
 
-          // 참고:
-          // 현재 getPost 응답에 "내가 이미 LIKE/DISLIKE 눌렀는지" 정보가 없어서
-          // 상세 페이지를 새로 들어왔을 때는 selectedReaction을 정확히 복원할 수 없음
-          // 그래서 일단 진입 시 초기화만 해둠
-          setSelectedReaction(null);
+          // localStorage에서 복원
+          const saved = localStorage.getItem(reactionStorageKey);
+          setSelectedReaction(saved === 'LIKE' || saved === 'DISLIKE' ? saved : null);
         } else {
           setError('게시글을 찾을 수 없습니다.');
         }
@@ -201,8 +203,14 @@ export const PostDetailPage = () => {
           dislikeCount: res.data.dislikeCount,
         });
 
-        // 추가: 반응 등록되면 해당 버튼 활성화
-        setSelectedReaction(res.data.active ? res.data.reactionType : null);
+        // 반응 등록되면 해당 버튼 활성화 + localStorage 저장
+        const nextReaction = res.data.active ? res.data.reactionType : null;
+        setSelectedReaction(nextReaction);
+        if (nextReaction) {
+          localStorage.setItem(reactionStorageKey, nextReaction);
+        } else {
+          localStorage.removeItem(reactionStorageKey);
+        }
       }
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.status === 409) {
@@ -221,8 +229,14 @@ export const PostDetailPage = () => {
               dislikeCount: cancelRes.data.dislikeCount,
             });
 
-            // 추가: 반응 취소되면 비활성화
-            setSelectedReaction(cancelRes.data.active ? cancelRes.data.reactionType : null);
+            // 반응 취소되면 비활성화 + localStorage 업데이트
+            const nextReaction = cancelRes.data.active ? cancelRes.data.reactionType : null;
+            setSelectedReaction(nextReaction);
+            if (nextReaction) {
+              localStorage.setItem(reactionStorageKey, nextReaction);
+            } else {
+              localStorage.removeItem(reactionStorageKey);
+            }
           }
         } catch (cancelErr) {
           console.error('Failed to cancel reaction:', cancelErr);
