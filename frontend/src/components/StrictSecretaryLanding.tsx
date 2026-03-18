@@ -20,15 +20,20 @@ export default function StrictSecretaryLanding({ onVideoEnded }: StrictSecretary
 
   return (
     <div className="ss-landing-overlay">
-      <video 
-        ref={videoRef}
-        className="ss-landing-video"
-        src={LandingVideo} 
-        onEnded={onVideoEnded}
-        playsInline
-        muted // Needed for autoplay in most browsers
-        autoPlay
-      />
+      <div className="ss-landing-container">
+        <div className="ss-landing-header">
+          <span>깐지가 판단 중입니다...</span>
+        </div>
+        <video
+          ref={videoRef}
+          className="ss-landing-video"
+          src={LandingVideo}
+          onEnded={onVideoEnded}
+          playsInline
+          muted // Needed for autoplay in most browsers
+          autoPlay
+        />
+      </div>
     </div>
   );
 }

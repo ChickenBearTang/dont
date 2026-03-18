@@ -28,7 +28,7 @@ def generate_tts_audio(text: str) -> bytes | None:
         # 여기서 voice_id는 본인이 디자인한 ID로 교체하세요.
         audio_gen = client.text_to_speech.convert(
             text=text,
-            voice_id="aUsm128vM4Pk6IAM9jNW", 
+            voice_id="7N2OPp0g9JRF3evrzZMW", 
             model_id="eleven_multilingual_v2", # 한국어 설정
             output_format="mp3_44100_128",
         )

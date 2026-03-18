@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import './StrictSecretaryResult.css';
+import ApprovedImg from '@/assets/approved.mp4';
+import RejectedImg from '@/assets/rejected.mp4';
 
 export interface AIResultData {
   is_approved: boolean;
@@ -111,21 +113,31 @@ export default function StrictSecretaryResult({ status, data, audioUrl, onRetry,
         {is_approved ? '✅ 구매 승인' : '❌ 구매 기각'}
       </div>
 
-      <div className="ss-fact-violence">
-        <div className="ss-fact-violence-header">
-          <h3>비서의 팩트 폭력</h3>
-          <button
-            className="ss-tts-btn"
-            onClick={handlePlayVoice}
-            disabled={ttsState === 'loading'}
-            aria-label="팩트폭력 음성으로 듣기"
-          >
-            {ttsState === 'idle' && '🔊 다시 듣기'}
-            {ttsState === 'loading' && '⏳ 생성 중...'}
-            {ttsState === 'playing' && '⏹ 정지'}
-          </button>
+      <div className="ss-character-speech">
+        <video
+          className="ss-character-img"
+          src={is_approved ? ApprovedImg : RejectedImg}
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+        <div className="ss-speech-bubble">
+          <div className="ss-speech-bubble-header">
+            <h3>깐지의 한마디</h3>
+            <button
+              className="ss-tts-btn"
+              onClick={handlePlayVoice}
+              disabled={ttsState === 'loading'}
+              aria-label="팩트폭력 음성으로 듣기"
+            >
+              {ttsState === 'idle' && '🔊 다시 듣기'}
+              {ttsState === 'loading' && '⏳ 생성 중...'}
+              {ttsState === 'playing' && '⏹ 정지'}
+            </button>
+          </div>
+          <p>"{fact_violence_comment}"</p>
         </div>
-        <p>"{fact_violence_comment}"</p>
       </div>
 
       <div className="ss-reasoning">
