@@ -1,4 +1,4 @@
-﻿export type UserRole = 'ROLE_USER' | 'ROLE_ADMIN';
+export type UserRole = 'ROLE_USER' | 'ROLE_ADMIN';
 
 export interface UserProfile {
   userId: number;
@@ -7,6 +7,7 @@ export interface UserProfile {
   onboardingCompleted?: boolean;
   profileImageUrl?: string;
   role: UserRole;
+  cohortId?: number;
 }
 
 export interface LoginRequestPayload {
@@ -21,6 +22,7 @@ export interface LoginResponseData {
   accessToken: string;
   tokenType: string;
   expiresInSeconds: number;
+  cohortId?: number;
 }
 
 export interface TokenReissueResponseData {
@@ -53,4 +55,3 @@ export interface SignUpResponseData {
   onboardingStatus: string;
   createdAt: string;
 }
-

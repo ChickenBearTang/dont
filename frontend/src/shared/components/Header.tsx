@@ -1,5 +1,5 @@
 import type { UserProfile } from '@/features/auth/types';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface HeaderProps {
   user: UserProfile | null;
@@ -12,6 +12,7 @@ interface HeaderProps {
  */
 const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <header className="fixed top-0 left-0 right-0 h-[64px] bg-white/80 backdrop-blur-md border-b border-gray-100 z-50 flex justify-center w-full transition-all">
@@ -20,25 +21,33 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
           className="flex items-center gap-2 cursor-pointer"
           onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
         >
-          <div className="text-[24px] font-black text-primary-blue">
-            DON'T
-          </div>
+          <div className="text-[24px] font-black text-primary-blue">DON'T</div>
         </div>
 
         {isAuthenticated && (
           <nav className="hidden md:flex ml-12 flex-1 h-full font-bold gap-1">
-            {['홈', '세이브박스', '소비리포트', '랭킹', '커뮤니티'].map((tab) => (
-              <div
-                key={tab}
-                className={`flex items-center justify-center px-5 cursor-pointer text-[15px] border-b-2 transition-all duration-300 hover:text-primary-blue ${
-                  tab === '홈'
-                    ? 'border-primary-blue text-primary-blue'
-                    : 'border-transparent text-gray-500 hover:border-gray-200'
-                }`}
-              >
-                {tab}
-              </div>
-            ))}
+            {[
+              { label: '홈', path: '/dashboard' },
+              { label: '세이브박스', path: '/savebox-setup' },
+              { label: '소비리포트', path: '/finance-connect' },
+              { label: '랭킹', path: '/ranking' },
+              { label: '커뮤니티', path: '/community' },
+            ].map((tab) => {
+              const isActive = location.pathname.startsWith(tab.path);
+              return (
+                <div
+                  key={tab.label}
+                  onClick={() => navigate(tab.path)}
+                  className={`flex items-center justify-center px-5 cursor-pointer text-[15px] border-b-[3px] transition-all duration-300 hover:text-primary-blue ${
+                    isActive
+                      ? 'border-primary-blue text-primary-blue'
+                      : 'border-transparent text-gray-500 hover:border-gray-200'
+                  }`}
+                >
+                  {tab.label}
+                </div>
+              );
+            })}
           </nav>
         )}
 
