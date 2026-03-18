@@ -35,6 +35,10 @@ public class User extends BaseEntity {
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
+    //유저의 키를 받아오는용
+    @Column(name = "ssafy_finance_user_key", length = 255)
+    private String ssafyFinanceUserKey;
+
     @Column(name = "terms_agreed", nullable = false)
     private boolean termsAgreed;
 
