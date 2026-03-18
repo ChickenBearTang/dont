@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.dto.response;
 
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankResponse;
+import lombok.Builder;
 import java.util.List;
 
 public record AccountListResponse(List<AccountDetail> accounts) {
@@ -16,6 +17,7 @@ public record AccountListResponse(List<AccountDetail> accounts) {
         return new AccountListResponse(details);
     }
 
+    @Builder
     public record AccountDetail(
             String bankCode,
             String bankName,
@@ -32,21 +34,22 @@ public record AccountListResponse(List<AccountDetail> accounts) {
             String lastTransactionDate,
             String currencyCode) {
         public static AccountDetail from(OpenBankResponse.Rec rec) {
-            return new AccountDetail(
-                    rec.bankCode(),
-                    rec.bankName(),
-                    rec.userName(),
-                    rec.accountNo(),
-                    rec.accountName(),
-                    rec.accountTypeCode(),
-                    rec.accountTypeName(),
-                    rec.accountCreatedDate(),
-                    rec.accountExpiryDate(),
-                    rec.dailyTransferLimit(),
-                    rec.oneTimeTransferLimit(),
-                    rec.accountBalance(),
-                    rec.lastTransactionDate(),
-                    rec.currency());
+            return AccountDetail.builder()
+                    .bankCode(rec.bankCode())
+                    .bankName(rec.bankName())
+                    .userName(rec.userName())
+                    .accountNo(rec.accountNo())
+                    .accountName(rec.accountName())
+                    .accountTypeCode(rec.accountTypeCode())
+                    .accountTypeName(rec.accountTypeName())
+                    .accountCreatedDate(rec.accountCreatedDate())
+                    .accountExpiryDate(rec.accountExpiryDate())
+                    .dailyTransferLimit(rec.dailyTransferLimit())
+                    .oneTimeTransferLimit(rec.oneTimeTransferLimit())
+                    .accountBalance(rec.accountBalance())
+                    .lastTransactionDate(rec.lastTransactionDate())
+                    .currencyCode(rec.currency())
+                    .build();
         }
     }
 }
