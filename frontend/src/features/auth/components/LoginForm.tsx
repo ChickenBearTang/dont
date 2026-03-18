@@ -62,12 +62,13 @@ export const LoginForm = () => {
           data: null,
           errors: {},
         };
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
       } catch (error: any) {
         return {
           success: false,
           message: '로그인 중 에러가 발생했습니다.',
           data: null,
-          errors: {}
+          errors: {},
         };
       }
     },
@@ -93,14 +94,10 @@ export const LoginForm = () => {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <Input
-        label="이메일"
-        name="email"
-        type="email"
-        placeholder="example@test.com"
-        required
-      />
-      {state.errors.email && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.email}</p>}
+      <Input label="이메일" name="email" type="email" placeholder="example@test.com" required />
+      {state.errors.email && (
+        <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.email}</p>
+      )}
 
       <Input
         label="비밀번호"
@@ -109,7 +106,9 @@ export const LoginForm = () => {
         placeholder="비밀번호를 입력하세요"
         required
       />
-      {state.errors.password && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.password}</p>}
+      {state.errors.password && (
+        <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.password}</p>
+      )}
 
       <Button type="submit" className="mt-8" disabled={isPending}>
         {isPending ? '로그인 중...' : '로그인'}

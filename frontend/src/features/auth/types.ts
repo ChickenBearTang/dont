@@ -21,12 +21,12 @@ export interface LoginRequestPayload {
   password: string;
 }
 
-export interface LoginResponseData extends UserProfile {}
+export type LoginResponseData = UserProfile;
 
 export interface SignUpRequestPayload {
   email: string;
   password?: string;
-  realName: string;
+  name: string;
   birthDate: string;
   nickname: string;
   cohortId: number;
@@ -41,4 +41,3 @@ export interface SignUpResponseData {
   onboardingStatus: string;
   createdAt: string;
 }
-
