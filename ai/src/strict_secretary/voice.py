@@ -2,15 +2,21 @@ from __future__ import annotations
 
 import os
 import io
-from consumption_poc.config import get_env
+import logging
+from pathlib import Path
+from dotenv import load_dotenv
+
+# .env 경로 설정 및 로드
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 def generate_tts_audio(text: str) -> bytes | None:
     """
-    ElevenLabs TTS로 텍스트를 음성으로 변환합니다.
-    ELEVEN_API_KEY가 없으면 None을 반환합니다.
+    ElevenLabs 공식 SDK 패턴을 적용하여 텍스트를 음성 바이트로 변환합니다.
     """
-    api_key = get_env("ELEVEN_API_KEY")
+    api_key = os.getenv("ELEVEN_API_KEY")
     if not api_key:
+        logging.error(f"API Key 로드 실패. 경로 확인: {env_path}")
         return None
 
     try:
@@ -18,23 +24,24 @@ def generate_tts_audio(text: str) -> bytes | None:
 
         client = ElevenLabs(api_key=api_key)
 
-        # 사용자가 지정한 Voice ID
-        VOICE_ID = "TRO4gatqxbbwLXHLDLSk"
-
+        # 1. 공식 문서 패턴의 호출 방식 (convert 메서드 사용)
+        # 여기서 voice_id는 본인이 디자인한 ID로 교체하세요.
         audio_gen = client.text_to_speech.convert(
-            voice_id=VOICE_ID,
             text=text,
-            model_id="eleven_multilingual_v2",  # 한국어는 v2 필수
+            voice_id="aUsm128vM4Pk6IAM9jNW", 
+            model_id="eleven_multilingual_v2", # 한국어 설정
+            output_format="mp3_44100_128",
         )
 
-        # generator → bytes 변환
+        # 2. 전송받은 제너레이터 데이터를 바이트로 병합
+        # play(audio) 대신 서버 응답을 위해 메모리 버퍼에 저장합니다.
         buffer = io.BytesIO()
         for chunk in audio_gen:
             if chunk:
                 buffer.write(chunk)
+        
         return buffer.getvalue()
 
     except Exception as e:
-        import logging
-        logging.warning(f"TTS 생성 실패: {e}")
+        logging.error(f"ElevenLabs API 실행 오류: {e}")
         return None
