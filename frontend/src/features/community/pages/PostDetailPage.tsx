@@ -27,6 +27,13 @@ export const PostDetailPage = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 추가: 현재 내가 누른 반응 상태 (localStorage로 유지)
+  const reactionStorageKey = `post_reaction_${postId}`;
+  const [selectedReaction, setSelectedReaction] = useState<ReactionType | null>(() => {
+    const saved = localStorage.getItem(`post_reaction_${postId}`);
+    return saved === 'LIKE' || saved === 'DISLIKE' ? saved : null;
+  });
+
   const currentUser = useAuthStore((state) => state.user);
   const isAuthor = post?.isMine ?? currentUser?.userId === post?.authorId;
 
@@ -48,6 +55,10 @@ export const PostDetailPage = () => {
           setComments(commentsRes.data?.content || []);
           setHasMoreComments(commentsRes.data?.hasNext || false);
           setCommentPage(0);
+
+          // localStorage에서 복원
+          const saved = localStorage.getItem(reactionStorageKey);
+          setSelectedReaction(saved === 'LIKE' || saved === 'DISLIKE' ? saved : null);
         } else {
           setError('게시글을 찾을 수 없습니다.');
         }
@@ -131,6 +142,32 @@ export const PostDetailPage = () => {
     }
   };
 
+  const handleCommentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!postId || !commentInput.trim() || submittingComment) return;
+
+    setSubmittingComment(true);
+    try {
+      await createComment(Number(postId), { content: commentInput.trim() });
+      setCommentInput('');
+      await refreshCommentsFirstPage();
+
+      setPost((prev) =>
+        prev
+          ? {
+              ...prev,
+              commentCount: prev.commentCount + 1,
+            }
+          : prev
+      );
+    } catch (err) {
+      console.error('Failed to create comment:', err);
+      alert('댓글 작성에 실패했습니다.');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
   const loadMoreComments = async () => {
     if (!postId || !hasMoreComments) return;
 
@@ -165,6 +202,15 @@ export const PostDetailPage = () => {
           likeCount: res.data.likeCount,
           dislikeCount: res.data.dislikeCount,
         });
+
+        // 반응 등록되면 해당 버튼 활성화 + localStorage 저장
+        const nextReaction = res.data.active ? res.data.reactionType : null;
+        setSelectedReaction(nextReaction);
+        if (nextReaction) {
+          localStorage.setItem(reactionStorageKey, nextReaction);
+        } else {
+          localStorage.removeItem(reactionStorageKey);
+        }
       }
     } catch (error: unknown) {
       if (axios.isAxiosError(error) && error.response?.status === 409) {
@@ -182,6 +228,15 @@ export const PostDetailPage = () => {
               likeCount: cancelRes.data.likeCount,
               dislikeCount: cancelRes.data.dislikeCount,
             });
+
+            // 반응 취소되면 비활성화 + localStorage 업데이트
+            const nextReaction = cancelRes.data.active ? cancelRes.data.reactionType : null;
+            setSelectedReaction(nextReaction);
+            if (nextReaction) {
+              localStorage.setItem(reactionStorageKey, nextReaction);
+            } else {
+              localStorage.removeItem(reactionStorageKey);
+            }
           }
         } catch (cancelErr) {
           console.error('Failed to cancel reaction:', cancelErr);
@@ -191,33 +246,6 @@ export const PostDetailPage = () => {
         console.error('Failed to toggle reaction:', error);
         alert('반응 처리에 실패했습니다.');
       }
-    }
-  };
-
-  const handleCommentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!postId || !commentInput.trim()) return;
-
-    setSubmittingComment(true);
-
-    try {
-      await createComment(Number(postId), { content: commentInput.trim() });
-      setCommentInput('');
-      await refreshCommentsFirstPage();
-
-      setPost((prev) =>
-        prev
-          ? {
-              ...prev,
-              commentCount: prev.commentCount + 1,
-            }
-          : prev
-      );
-    } catch (err) {
-      console.error('Failed to create comment:', err);
-      alert('댓글 작성에 실패했습니다.');
-    } finally {
-      setSubmittingComment(false);
     }
   };
 
@@ -310,7 +338,7 @@ export const PostDetailPage = () => {
   }
 
   return (
-    <div className="bg-white min-h-[100dvh] flex flex-col pb-20 relative lg:max-w-2xl lg:mx-auto lg:border-x lg:border-gray-100 lg:shadow-sm">
+    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col">
       <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-4 h-14 flex items-center justify-between border-b border-gray-100">
         <button
           onClick={() => navigate('/community')}
@@ -353,7 +381,7 @@ export const PostDetailPage = () => {
               <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col overflow-hidden">
                 <button
                   className="px-4 py-2.5 text-left text-[14px] font-medium text-gray-700 hover:bg-gray-50 border-b border-gray-50"
-                  onClick={() => alert('게시글 수정 페이지 연결 전입니다.')}
+                  onClick={() => navigate(`/community/${postId}/edit`)}
                 >
                   수정
                 </button>
@@ -415,10 +443,16 @@ export const PostDetailPage = () => {
         <div className="mt-8 px-5 flex items-center gap-2">
           <button
             onClick={() => handleToggleReaction('LIKE')}
-            className="inline-flex items-center gap-1.5 border border-gray-200 rounded-full px-4 py-1.5 hover:bg-gray-50 transition-colors"
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${
+              selectedReaction === 'LIKE'
+                ? 'border border-blue-500 bg-blue-50'
+                : 'border border-gray-200 hover:bg-gray-50'
+            }`}
           >
             <svg
-              className="w-[18px] h-[18px] text-gray-800"
+              className={`w-[18px] h-[18px] ${
+                selectedReaction === 'LIKE' ? 'text-blue-600' : 'text-gray-800'
+              }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -430,15 +464,27 @@ export const PostDetailPage = () => {
                 d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
               />
             </svg>
-            <span className="text-[13px] font-medium text-gray-700">좋아요 {post.likeCount}</span>
+            <span
+              className={`text-[13px] font-medium ${
+                selectedReaction === 'LIKE' ? 'text-blue-700' : 'text-gray-700'
+              }`}
+            >
+              좋아요 {post.likeCount}
+            </span>
           </button>
 
           <button
             onClick={() => handleToggleReaction('DISLIKE')}
-            className="inline-flex items-center gap-1.5 border border-gray-200 rounded-full px-4 py-1.5 hover:bg-gray-50 transition-colors"
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${
+              selectedReaction === 'DISLIKE'
+                ? 'border border-blue-500 bg-blue-50'
+                : 'border border-gray-200 hover:bg-gray-50'
+            }`}
           >
             <svg
-              className="w-[18px] h-[18px] text-gray-800"
+              className={`w-[18px] h-[18px] ${
+                selectedReaction === 'DISLIKE' ? 'text-blue-600' : 'text-gray-800'
+              }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -450,7 +496,11 @@ export const PostDetailPage = () => {
                 d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"
               />
             </svg>
-            <span className="text-[13px] font-medium text-gray-700">
+            <span
+              className={`text-[13px] font-medium ${
+                selectedReaction === 'DISLIKE' ? 'text-blue-700' : 'text-gray-700'
+              }`}
+            >
               싫어요 {post.dislikeCount}
             </span>
           </button>
@@ -488,15 +538,15 @@ export const PostDetailPage = () => {
                         <div className="flex items-center gap-2 shrink-0">
                           <button
                             type="button"
-                            className="text-[12px] font-medium text-gray-500 hover:text-blue-600"
                             onClick={() => handleEditComment(comment)}
+                            className="text-[12px] font-medium text-gray-400 hover:text-gray-700"
                           >
                             수정
                           </button>
                           <button
                             type="button"
-                            className="text-[12px] font-medium text-gray-500 hover:text-red-500"
                             onClick={() => handleDeleteComment(comment.commentId)}
+                            className="text-[12px] font-medium text-red-400 hover:text-red-600"
                           >
                             삭제
                           </button>
@@ -504,103 +554,47 @@ export const PostDetailPage = () => {
                       )}
                     </div>
 
-                    <div className="text-[14px] text-gray-800 leading-snug mt-1 w-full whitespace-pre-wrap word-break-all">
+                    <div className="mt-1.5 text-[14px] text-gray-800 whitespace-pre-wrap leading-relaxed">
                       {comment.content}
-                    </div>
-
-                    <div className="mt-2 flex items-center gap-3">
-                      <button className="inline-flex items-center gap-1 text-gray-500">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                          />
-                        </svg>
-                      </button>
-
-                      <button className="inline-flex items-center gap-1 text-gray-500">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                          />
-                        </svg>
-                        <span className="text-[13px]">{comment.likeCount}</span>
-                      </button>
                     </div>
                   </div>
                 </div>
               ))
             )}
-
-            {hasMoreComments && (
-              <div className="flex justify-center mt-2">
-                <button
-                  onClick={loadMoreComments}
-                  className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 font-medium text-[13px] rounded-full transition-colors border border-gray-100"
-                >
-                  이전 댓글 더보기 ({(commentPage + 1) * 4} / {post.commentCount})
-                </button>
-              </div>
-            )}
           </div>
+
+          {hasMoreComments && (
+            <button
+              type="button"
+              onClick={loadMoreComments}
+              className="w-full mt-6 py-3 rounded-xl border border-gray-200 text-[14px] font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              댓글 더 보기
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="fixed bottom-0 lg:max-w-2xl lg:ml-[-1px] w-full bg-white border-t border-gray-100 flex items-center px-4 py-3 pb-8 lg:pb-3 z-20">
-        <div className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center shrink-0 mr-3 text-gray-400 bg-gray-50">
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="1"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </div>
-
-        <form
-          onSubmit={handleCommentSubmit}
-          className="flex-1 flex bg-gray-50 rounded-full items-center px-4 py-1 ring-1 ring-gray-100 focus-within:ring-gray-300 transition-shadow"
-        >
+      <form
+        onSubmit={handleCommentSubmit}
+        className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-3"
+      >
+        <div className="flex items-center gap-2">
           <input
-            type="text"
             value={commentInput}
             onChange={(e) => setCommentInput(e.target.value)}
-            placeholder="댓글을 작성해 보세요."
-            className="flex-1 bg-transparent text-[14px] font-medium text-gray-800 placeholder:text-gray-400 outline-none w-full h-8"
-            disabled={submittingComment}
+            placeholder="댓글을 입력하세요."
+            className="flex-1 h-11 px-4 rounded-full bg-gray-100 text-[14px] outline-none placeholder:text-gray-400"
           />
           <button
             type="submit"
-            className={`font-bold text-[14px] ml-2 ${
-              commentInput.trim() ? 'text-blue-500' : 'text-gray-300'
-            }`}
             disabled={submittingComment || !commentInput.trim()}
+            className="h-11 px-4 rounded-full bg-blue-600 text-white text-[14px] font-bold disabled:bg-gray-300 transition-colors"
           >
             등록
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 };
