@@ -15,7 +15,9 @@ public record GetCommentListResponseDto(
             Long commentId,
             Long parentCommentId,
             String content,
+            Long authorId,
             String authorNickname,
+            Boolean isMine,
             Integer likeCount,
             LocalDateTime createdAt) {}
 }
