@@ -18,6 +18,8 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.entity.SavingsSetting;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSettingRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountErrorCode;
+import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountException;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankAdapter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,9 +30,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -49,25 +53,23 @@ public class AccountService {
                         .findById(userId)
                         .orElseThrow(
                                 () ->
-                                        new IllegalArgumentException(
-                                                "사용자를 찾을 수 없습니다. (ID: " + userId + ")"));
+                                        new AccountException(AccountErrorCode.USER_NOT_FOUND));
 
         String userKey = user.getSsafyFinanceUserKey();
         if (userKey == null || userKey.isBlank()) {
-            throw new IllegalArgumentException("사용자의 Finance User Key가 설정되지 않았습니다.");
+            throw new AccountException(AccountErrorCode.FINANCE_USER_KEY_NOT_FOUND);
         }
 
         OpenBankCreateAccountResponse apiResponse =
                 openBankAdapter.createDemandDepositAccount(userKey, request.accountTypeUniqueNo());
 
         if (apiResponse == null || apiResponse.getHeader() == null || apiResponse.getRec() == null) {
-            throw new RuntimeException("금융 API 응답이 올바르지 않거나 계좌 개설에 실패했습니다.");
+            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR);
         }
 
         String responseCode = apiResponse.getHeader().getResponseCode();
         if (!"201".equals(responseCode) && !"H0000".equals(responseCode)) {
-            String errorMsg = apiResponse.getHeader().getResponseMessage();
-            throw new RuntimeException("계좌 개설 실패: " + (errorMsg != null ? errorMsg : "알 수 없는 오류"));
+            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR, apiResponse.getHeader().getResponseMessage());
         }
 
         OpenBankCreateAccountResponse.Rec rec = apiResponse.getRec();
@@ -96,7 +98,7 @@ public class AccountService {
         Account account = accountRepository
                 .findById(accountId)
                 .filter(a -> a.getUserId().equals(userId))
-                .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
         return AccountResponse.from(account);
     }
@@ -140,7 +142,7 @@ public class AccountService {
                 accountRepository
                         .findById(accountId)
                         .filter(a -> a.getUserId().equals(userId))
-                        .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
         // 1. 거래 내역 동기화 (간편하게 조회 시마다 최신화 시도)
         syncTransactions(userId, account, startDate, endDate);
@@ -182,7 +184,7 @@ public class AccountService {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
 
         OpenBankTransactionHistoryResponse apiResponse =
                 openBankAdapter.fetchTransactionHistory(
@@ -270,7 +272,7 @@ public class AccountService {
             String responseCode = apiResponse.getHeader().getResponseCode();
             if (!"H0000".equals(responseCode)) {
                 // 자동 이체 실패 시 로깅하거나 무시할 수 있지만, 일단은 명시적으로 확인
-                System.err.println("자동 저축 이체 실패: " + apiResponse.getHeader().getResponseMessage());
+                log.error("자동 저축 이체 실패: {}", apiResponse.getHeader().getResponseMessage());
                 return; // 실패 시 이후 동기화 생략
             }
         }
@@ -321,19 +323,19 @@ public class AccountService {
 
     public void manualSavings(Long userId, BigDecimal amount) {
         SavingsSetting setting = savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)
-                .orElseThrow(() -> new IllegalArgumentException("활성화된 저축 설정이 없습니다. 먼저 설정을 완료해 주세요."));
+                .orElseThrow(() -> new AccountException(AccountErrorCode.SAVINGS_SETTING_NOT_FOUND));
         
         Account primaryAccount = accountRepository.findById(setting.getPrimaryAccountId())
-                .orElseThrow(() -> new IllegalArgumentException("주계좌를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AccountException(AccountErrorCode.PRIMARY_ACCOUNT_NOT_FOUND));
         Account saveboxAccount = accountRepository.findById(setting.getSaveboxAccountId())
-                .orElseThrow(() -> new IllegalArgumentException("세이브박스 계좌를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AccountException(AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
 
-        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        User user = userRepository.findById(userId).orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
 
-        System.out.println("수동 저축 실행 시도 - 사용자: " + userId);
-        System.out.println("출금 계좌 (주계좌): " + primaryAccount.getAccountNo() + " (ID: " + primaryAccount.getId() + ", 잔액: " + primaryAccount.getBalance() + ")");
-        System.out.println("입금 계좌 (세이브박스): " + saveboxAccount.getAccountNo() + " (ID: " + saveboxAccount.getId() + ", 잔액: " + saveboxAccount.getBalance() + ")");
-        System.out.println("이체 금액: " + amount);
+        log.info("수동 저축 실행 시도 - 사용자: {}", userId);
+        log.info("출금 계좌 (주계좌): {} (ID: {}, 잔액: {})", primaryAccount.getAccountNo(), primaryAccount.getId(), primaryAccount.getBalance());
+        log.info("입금 계좌 (세이브박스): {} (ID: {}, 잔액: {})", saveboxAccount.getAccountNo(), saveboxAccount.getId(), saveboxAccount.getBalance());
+        log.info("이체 금액: {}", amount);
 
         OpenBankTransferResponse apiResponse = openBankAdapter.fetchAccountTransfer(
                 user.getSsafyFinanceUserKey(),
@@ -345,13 +347,12 @@ public class AccountService {
         );
 
         if (apiResponse == null || apiResponse.getHeader() == null) {
-            throw new RuntimeException("금융 API 응답이 없거나 통신에 실패했습니다.");
+            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR);
         }
 
         String responseCode = apiResponse.getHeader().getResponseCode();
         if (!"H0000".equals(responseCode)) {
-            String errorMsg = apiResponse.getHeader().getResponseMessage();
-            throw new RuntimeException("이체 실패: " + (errorMsg != null ? errorMsg : "알 수 없는 금융 서버 오류"));
+            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR, apiResponse.getHeader().getResponseMessage());
         }
 
         syncAccounts(userId);
@@ -361,7 +362,7 @@ public class AccountService {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
 
         String userKey = user.getSsafyFinanceUserKey();
         if (userKey == null || userKey.isBlank()) {
@@ -435,7 +436,7 @@ public class AccountService {
         Account account = accountRepository
                 .findById(accountId)
                 .filter(a -> a.getUserId().equals(userId))
-                .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
         account.setAsPrimary();
 
