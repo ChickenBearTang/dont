@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.entity;
 
+import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -11,18 +12,16 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "account_transactions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class AccountTransaction {
+public class AccountTransaction extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -61,10 +60,6 @@ public class AccountTransaction {
 
     @Column(name = "transaction_memo", length = 500)
     private String transactionMemo;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
 
     @Builder
     public AccountTransaction(
