@@ -1,4 +1,5 @@
 export type BoardCategory = 'FREE' | 'COHORT' | 'PR' | 'POLL' | 'HOTDEAL';
+export type ReactionType = 'LIKE' | 'DISLIKE';
 
 export interface PrSummaryDto {
   status: string;
@@ -37,17 +38,19 @@ export interface PostSummaryDto {
   category: BoardCategory;
   generationNo: number | null;
   title: string;
+  authorId: number;
   authorNickname: string;
+  isMine: boolean;
   likeCount: number;
   commentCount: number;
   createdAt: string;
-  extra?: PostExtraSummaryDto | null;
+  extraSummary?: PostExtraSummaryDto | null;
 }
 
 export interface GetPostListResponseDto {
   content: PostSummaryDto[];
-  pageNumber: number;
-  pageSize: number;
+  page: number;
+  size: number;
   totalElements: number;
   totalPages: number;
   hasNext: boolean;
@@ -57,6 +60,7 @@ export interface CreatePostRequestDto {
   category: BoardCategory;
   title: string;
   content: string;
+  generationNo?: number;
 }
 
 export interface CreatePostResponseDto {
@@ -64,4 +68,85 @@ export interface CreatePostResponseDto {
   category: BoardCategory;
   generationNo: number | null;
   createdAt: string;
+}
+
+export interface GetPostResponseDto {
+  postId: number;
+  category: BoardCategory;
+  generationNo: number | null;
+  title: string;
+  content: string;
+  authorId: number;
+  authorNickname: string;
+  isMine: boolean;
+  likeCount: number;
+  dislikeCount: number;
+  commentCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommentSummaryDto {
+  commentId: number;
+  parentCommentId: number | null;
+  content: string;
+  authorId: number;
+  authorNickname: string;
+  isMine: boolean;
+  likeCount: number;
+  createdAt: string;
+}
+
+export interface GetCommentListResponseDto {
+  content: CommentSummaryDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface CreateCommentRequestDto {
+  parentCommentId?: number | null;
+  content: string;
+}
+
+export interface CreateCommentResponseDto {
+  commentId: number;
+  createdAt: string;
+}
+
+export interface UpdatePostRequestDto {
+  title: string;
+  content: string;
+}
+
+export interface UpdatePostResponseDto {
+  postId: number;
+  updatedAt: string;
+}
+
+export interface UpdateCommentRequestDto {
+  content: string;
+}
+
+export interface UpdateCommentResponseDto {
+  commentId: number;
+  updatedAt: string;
+}
+
+export interface ToggleReactionRequestDto {
+  targetType: 'POST' | 'COMMENT';
+  targetId: number;
+  reactionType: ReactionType;
+  active: boolean;
+}
+
+export interface ToggleReactionResponseDto {
+  targetType: 'POST' | 'COMMENT';
+  targetId: number;
+  reactionType: ReactionType;
+  active: boolean;
+  likeCount: number;
+  dislikeCount: number;
 }

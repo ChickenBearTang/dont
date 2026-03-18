@@ -243,6 +243,7 @@ export const CommunityPage = () => {
             posts.map((post, idx) => (
               <div
                 key={post.postId}
+                onClick={() => navigate(`/community/${post.postId}`)}
                 className={`grid grid-cols-12 gap-3 py-3.5 text-[13.5px] items-center hover:bg-gray-50/60 transition-colors cursor-pointer group ${
                   idx !== posts.length - 1 ? 'border-b border-gray-50' : ''
                 }`}
@@ -257,36 +258,34 @@ export const CommunityPage = () => {
                 </div>
 
                 <div className="col-span-7 flex items-center gap-2 min-w-0">
-                  <span className="text-gray-800 font-medium group-hover:text-gray-950 transition-colors truncate">
+                  <span className="truncate text-gray-800 font-medium group-hover:text-gray-900">
                     {post.title}
                   </span>
+
                   {post.commentCount > 0 && (
-                    <span className="text-primary-blue text-[11px] font-bold flex-shrink-0 tabular-nums">
+                    <span className="text-[12px] font-semibold text-blue-500 shrink-0">
                       [{post.commentCount}]
                     </span>
                   )}
-                  {post.extra?.poll && !post.extra.poll.isClosed && (
-                    <span className="text-[10px] font-bold text-emerald-500 border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 rounded flex-shrink-0 leading-none">
+
+                  {post.extraSummary?.poll && !post.extraSummary.poll.isClosed && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-500 font-semibold shrink-0">
+                      진행중
+                    </span>
+                  )}
+
+                  {post.extraSummary?.pr && post.extraSummary.pr.status === 'OPEN' && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-500 font-semibold shrink-0">
                       투표중
                     </span>
                   )}
-                  {post.extra?.pr && post.extra.pr.status === 'OPEN' && (
-                    <span className="text-[10px] font-bold text-amber-500 border border-amber-200 bg-amber-50 px-1.5 py-0.5 rounded flex-shrink-0 leading-none">
-                      심사중
-                    </span>
-                  )}
                 </div>
 
-                <div className="col-span-2 text-center flex items-center justify-center gap-1.5">
-                  <div className="w-5 h-5 rounded-full bg-gray-100 flex-shrink-0 flex items-center justify-center text-[10px] text-gray-400 font-bold">
-                    {(post.authorNickname ?? '?').substring(0, 1)}
-                  </div>
-                  <span className="text-gray-400 font-medium truncate max-w-[70px] text-[12.5px]">
-                    {post.authorNickname ?? '알 수 없음'}
-                  </span>
+                <div className="col-span-2 text-center text-gray-500 text-[13px] font-medium truncate">
+                  {post.authorNickname || '알 수 없음'}
                 </div>
 
-                <div className="col-span-2 text-right text-gray-300 font-medium text-[12px] pr-1 tabular-nums">
+                <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium">
                   {formatDate(post.createdAt)}
                 </div>
               </div>
@@ -295,42 +294,36 @@ export const CommunityPage = () => {
         </div>
 
         {!loading && totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-6">
+          <div className="mt-6 flex items-center justify-center gap-1.5">
             <button
               type="button"
               onClick={() => moveToListPage(currentPage - 1)}
               disabled={currentPage <= 1}
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-300 bg-white px-4 text-[14px] font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
             >
               이전
             </button>
 
-            <div className="flex items-center gap-1">
-              {visiblePageNumbers.map((pageNumber) => {
-                const isActive = pageNumber === currentPage;
-
-                return (
-                  <button
-                    key={pageNumber}
-                    type="button"
-                    onClick={() => moveToListPage(pageNumber)}
-                    className={`inline-flex h-10 min-w-[40px] items-center justify-center rounded-xl border px-3 text-[14px] font-bold shadow-sm transition ${
-                      isActive
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNumber}
-                  </button>
-                );
-              })}
-            </div>
+            {visiblePageNumbers.map((pageNumber) => (
+              <button
+                key={pageNumber}
+                type="button"
+                onClick={() => moveToListPage(pageNumber)}
+                className={`min-w-[36px] h-[36px] rounded-lg text-[13px] font-semibold transition ${
+                  pageNumber === currentPage
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {pageNumber}
+              </button>
+            ))}
 
             <button
               type="button"
               onClick={() => moveToListPage(currentPage + 1)}
               disabled={currentPage >= totalPages}
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-gray-300 bg-white px-4 text-[14px] font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
             >
               다음
             </button>

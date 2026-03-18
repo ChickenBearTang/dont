@@ -71,6 +71,13 @@ export const router = createBrowserRouter([
               return { Component: CreatePostPage };
             },
           },
+          {
+            path: ':postId',
+            async lazy() {
+              const { PostDetailPage } = await import('@/features/community/pages/PostDetailPage');
+              return { Component: PostDetailPage };
+            },
+          },
         ],
       },
     ],
