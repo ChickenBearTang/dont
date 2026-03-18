@@ -25,7 +25,7 @@ export type LoginResponseData = UserProfile;
 
 export interface SignUpRequestPayload {
   email: string;
-  password?: string;
+  password: string;
   name: string;
   birthDate: string;
   nickname: string;
@@ -34,10 +34,6 @@ export interface SignUpRequestPayload {
 }
 
 export interface SignUpResponseData {
-  userId: number;
-  email: string;
-  nickname: string;
-  onboardingRequired: boolean;
-  onboardingStatus: string;
-  createdAt: string;
+  verificationToken: string;
+  expiresInSeconds: number;
 }
