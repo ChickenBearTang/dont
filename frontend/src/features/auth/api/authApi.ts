@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import axiosInstance from '@/shared/api/axiosInstance';
 import type {
   LoginRequestPayload,
@@ -24,7 +24,7 @@ export const mapUserProfileFromLogin = (data: LoginResponseData): UserProfile =>
   userId: data.userId,
   email: data.email,
   role: data.userRole,
-  // Until a dedicated profile API exists, keep optional fields undefined.
+  cohortId: data.cohortId,
   nickname: undefined,
   onboardingCompleted: undefined,
 });
@@ -34,7 +34,10 @@ export const login = async (data: LoginRequestPayload): Promise<ApiResponse<Logi
 };
 
 export const refreshAccessToken = async (): Promise<ApiResponse<TokenReissueResponseData>> => {
-  const response = await authClient.post<ApiResponse<TokenReissueResponseData>>('/auth/reissue', {});
+  const response = await authClient.post<ApiResponse<TokenReissueResponseData>>(
+    '/auth/reissue',
+    {}
+  );
   return response.data;
 };
 
@@ -43,8 +46,7 @@ export const logout = async (): Promise<void> => {
 };
 
 export const signup = async (
-  data: SignUpRequestPayload,
+  data: SignUpRequestPayload
 ): Promise<ApiResponse<SignUpResponseData>> => {
   return await axiosInstance.post('/auth/signup', data);
 };
-
