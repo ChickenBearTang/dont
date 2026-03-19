@@ -24,14 +24,17 @@ public class LoginService {
     }
 
     public LoginResult login(String email, String password) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AuthException(AuthErrorCode.BAD_CREDENTIALS));
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.BAD_CREDENTIALS));
 
         if (!passwordHashService.matches(password, user.getPassword())) {
             throw new AuthException(AuthErrorCode.BAD_CREDENTIALS);
         }
 
-        AuthTokenService.LoginTokenResult loginTokenResult = authTokenService.issueLoginTokens(user);
+        AuthTokenService.LoginTokenResult loginTokenResult =
+                authTokenService.issueLoginTokens(user);
 
         return new LoginResult(
                 user.getId(),

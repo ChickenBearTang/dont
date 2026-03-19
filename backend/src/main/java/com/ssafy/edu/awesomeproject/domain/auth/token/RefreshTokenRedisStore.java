@@ -1,9 +1,9 @@
 package com.ssafy.edu.awesomeproject.domain.auth.token;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -46,7 +46,9 @@ public class RefreshTokenRedisStore implements RefreshTokenStore {
 
         String refreshKey = refreshKey(sessionId);
 
-        stringRedisTemplate.opsForHash().put(refreshKey, TOKEN_HASH_FIELD, refreshTokenHashService.hash(refreshToken));
+        stringRedisTemplate
+                .opsForHash()
+                .put(refreshKey, TOKEN_HASH_FIELD, refreshTokenHashService.hash(refreshToken));
         stringRedisTemplate.opsForHash().put(refreshKey, TOKEN_ID_FIELD, tokenId);
         stringRedisTemplate.opsForHash().put(refreshKey, USER_ID_FIELD, String.valueOf(userId));
         stringRedisTemplate.expire(refreshKey, timeToLive);
@@ -72,9 +74,15 @@ public class RefreshTokenRedisStore implements RefreshTokenStore {
     @Override
     public boolean matches(String sessionId, String refreshToken) {
         return findBySessionId(sessionId)
-                .map(storedRefreshToken -> MessageDigest.isEqual(
-                        storedRefreshToken.tokenHash().getBytes(StandardCharsets.UTF_8),
-                        refreshTokenHashService.hash(refreshToken).getBytes(StandardCharsets.UTF_8)))
+                .map(
+                        storedRefreshToken ->
+                                MessageDigest.isEqual(
+                                        storedRefreshToken
+                                                .tokenHash()
+                                                .getBytes(StandardCharsets.UTF_8),
+                                        refreshTokenHashService
+                                                .hash(refreshToken)
+                                                .getBytes(StandardCharsets.UTF_8)))
                 .orElse(false);
     }
 
@@ -84,13 +92,18 @@ public class RefreshTokenRedisStore implements RefreshTokenStore {
     }
 
     @Override
+    public void invalidateSession(String sessionId) {
+        deleteBySessionId(sessionId);
+    }
+
+    @Override
     public void blacklistRefreshToken(String tokenId, Duration timeToLive) {
         writeBlacklistEntry(refreshBlacklistKey(tokenId), timeToLive);
     }
 
     @Override
     public boolean isRefreshTokenBlacklisted(String tokenId) {
-        return Boolean.TRUE.equals(stringRedisTemplate.hasKey(refreshBlacklistKey(tokenId)));
+        return stringRedisTemplate.hasKey(refreshBlacklistKey(tokenId));
     }
 
     @Override
@@ -100,7 +113,7 @@ public class RefreshTokenRedisStore implements RefreshTokenStore {
 
     @Override
     public boolean isAccessTokenBlacklisted(String tokenId) {
-        return Boolean.TRUE.equals(stringRedisTemplate.hasKey(accessBlacklistKey(tokenId)));
+        return stringRedisTemplate.hasKey(accessBlacklistKey(tokenId));
     }
 
     @Override

@@ -1,28 +1,14 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import AppLayout from '@/shared/components/AppLayout';
+import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
 import { SignUpPage, LoginPage } from '@/features/auth';
 import { OnboardingPage } from '@/features/user';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { useAuthStore } from '@/features/auth/store/useAuthStore';
-
-const HomeRoute = () => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />;
-};
-
-const AuthenticatedLayoutRoute = () => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-
-  return <AppLayout user={user} onLogout={logout} isAuthenticated={isAuthenticated} />;
-};
-
-const DashboardRoute = () => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <DashboardPage /> : <Navigate to="/" replace />;
-};
+import {
+  AuthenticatedLayoutRoute,
+  DashboardRoute,
+  HomeRoute,
+  PrCreateRoute,
+  PrDetailRoute,
+} from '@/app/routeComponents';
 
 export const router = createBrowserRouter([
   {
@@ -30,45 +16,105 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/',
-        element: <HomeRoute />
+        element: <HomeRoute />,
       },
       {
         path: '/login',
-        element: <LoginPage />
+        element: <LoginPage />,
       },
       {
         path: '/onboarding',
-        element: <OnboardingPage />
+        element: <OnboardingPage />,
       },
       {
         path: '/signup',
-        element: <SignUpPage />
+        element: <SignUpPage />,
       },
       {
         path: '/finance-connect',
-        element: <div>FinanceConnect Placeholder</div>
+        element: <div>FinanceConnect Placeholder</div>,
       },
       {
         path: '/loading',
-        element: <div>LoadingScreen Placeholder</div>
+        element: <div>LoadingScreen Placeholder</div>,
       },
       {
         path: '/savebox-setup',
-        element: <div>SaveboxSetup Placeholder</div>
+        element: <div>SaveboxSetup Placeholder</div>,
       },
       {
         path: '/success',
-        element: <div>SuccessScreen Placeholder</div>
-      }
-    ]
+        element: <div>SuccessScreen Placeholder</div>,
+      },
+    ],
   },
   {
     element: <AuthenticatedLayoutRoute />,
     children: [
       {
         path: '/dashboard',
-        element: <DashboardRoute />
-      }
-    ]
-  }
+        element: <DashboardRoute />,
+      },
+      {
+        path: '/community/pr/new',
+        element: <PrCreateRoute />,
+      },
+      {
+        path: '/community/pr/:postId',
+        element: <PrDetailRoute />,
+      },
+      {
+        path: '/community',
+        async lazy() {
+          const { CommunityLayout } =
+            await import('@/features/community/components/CommunityLayout');
+          return { Component: CommunityLayout };
+        },
+        children: [
+          {
+            index: true,
+            async lazy() {
+              const { CommunityPage } = await import('@/features/community/pages/CommunityPage');
+              return { Component: CommunityPage };
+            },
+          },
+          {
+            path: 'write',
+            async lazy() {
+              const { CreatePostPage } = await import('@/features/community/pages/CreatePostPage');
+              return { Component: CreatePostPage };
+            },
+          },
+          {
+            path: ':postId',
+            async lazy() {
+              const { PostDetailPage } = await import('@/features/community/pages/PostDetailPage');
+              return { Component: PostDetailPage };
+            },
+          },
+          {
+            path: ':postId/edit',
+            async lazy() {
+              const { EditPostPage } = await import('@/features/community/pages/EditPostPage');
+              return { Component: EditPostPage };
+            },
+          },
+        ],
+      },
+      {
+        path: '/finance/cards',
+        async lazy() {
+          const { CardListPage } = await import('@/features/finance/card');
+          return { Component: CardListPage };
+        },
+      },
+      {
+        path: '/finance/cards/:cardId',
+        async lazy() {
+          const { CardDetailPage } = await import('@/features/finance/card');
+          return { Component: CardDetailPage };
+        },
+      },
+    ],
+  },
 ]);

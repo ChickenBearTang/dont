@@ -1,19 +1,13 @@
-// 회원가입, 로그인 시 등 여러 과정에서 쓰이는 타입들을 정의합니다.
-
 export type UserRole = 'ROLE_USER' | 'ROLE_ADMIN';
 
 export interface UserProfile {
   userId: number;
-  nickname: string;
-  onboardingCompleted: boolean;
+  email?: string;
+  nickname?: string;
+  onboardingCompleted?: boolean;
   profileImageUrl?: string;
   role: UserRole;
-}
-
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: UserProfile;
+  cohortId?: number;
 }
 
 export interface LoginRequestPayload {
@@ -21,7 +15,27 @@ export interface LoginRequestPayload {
   password: string;
 }
 
-export interface LoginResponseData extends UserProfile {}
+export interface LoginResponseData {
+  userId: number;
+  email: string;
+  userRole: UserRole;
+  accessToken: string;
+  tokenType: string;
+  expiresInSeconds: number;
+  cohortId?: number;
+}
+
+export interface TokenReissueResponseData {
+  accessToken: string;
+  tokenType: string;
+  expiresInSeconds: number;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: UserProfile;
+}
 
 export interface SignUpRequestPayload {
   email: string;
@@ -41,4 +55,3 @@ export interface SignUpResponseData {
   onboardingStatus: string;
   createdAt: string;
 }
-

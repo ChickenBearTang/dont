@@ -1,36 +1,52 @@
+import axios from 'axios';
 import axiosInstance from '@/shared/api/axiosInstance';
-import type { 
-  LoginRequestPayload, 
-  AuthResponse, 
-  SignUpRequestPayload, 
+import type {
+  LoginRequestPayload,
+  LoginResponseData,
+  SignUpRequestPayload,
   SignUpResponseData,
-  LoginResponseData
+  TokenReissueResponseData,
+  UserProfile,
 } from '@/features/auth/types';
 import type { ApiResponse } from '@/shared/types';
 
-/**
- * 로그인 요청 API
- * @param data 이메일, 비밀번호
- * @returns JWT 토큰 및 유저 정보
- */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT) || 10000;
+
+const authClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+});
+
+export const mapUserProfileFromLogin = (data: LoginResponseData): UserProfile => ({
+  userId: data.userId,
+  email: data.email,
+  role: data.userRole,
+  cohortId: data.cohortId,
+  nickname: undefined,
+  onboardingCompleted: undefined,
+});
+
 export const login = async (data: LoginRequestPayload): Promise<ApiResponse<LoginResponseData>> => {
   return await axiosInstance.post('/auth/login', data);
 };
 
-/**
- * 카카오 소셜 로그인 요청 API (예시)
- */
-export const loginWithKakao = async (authCode: string): Promise<AuthResponse> => {
-  return await axiosInstance.post('/auth/kakao', { code: authCode });
+export const refreshAccessToken = async (): Promise<ApiResponse<TokenReissueResponseData>> => {
+  const response = await authClient.post<ApiResponse<TokenReissueResponseData>>(
+    '/auth/reissue',
+    {}
+  );
+  return response.data;
 };
 
-/**
- * 회원가입 API
- * @param data 이메일, 패스워드, 이름, 닉네임, 생년월일 등
- * @returns 회원가입 성공 결과 데이터
- */
-export const signup = async (data: SignUpRequestPayload): Promise<ApiResponse<SignUpResponseData>> => {
-  return await axiosInstance.post('/auth/sign-up', data);
+export const logout = async (): Promise<void> => {
+  await authClient.post('/auth/logout', {});
 };
 
-
+export const signup = async (
+  data: SignUpRequestPayload
+): Promise<ApiResponse<SignUpResponseData>> => {
+  return await axiosInstance.post('/auth/signup', data);
+};
