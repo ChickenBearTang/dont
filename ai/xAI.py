@@ -20,7 +20,8 @@ rng = np.random.default_rng(SEED)
 # 1) 가짜 학습 데이터 생성(Mock)
 # ============================================================
 
-#가격 데이터
+
+# 가격 데이터
 def make_price_data(n: int = 1500) -> pd.DataFrame:
     brands = ["Apple", "Samsung", "Sony", "LG"]
     categories = ["earbuds", "tablet", "watch"]
@@ -83,6 +84,7 @@ def make_price_data(n: int = 1500) -> pd.DataFrame:
         )
     return pd.DataFrame(rows)
 
+
 # 재무 데이터
 def make_finance_data(n: int = 1500) -> pd.DataFrame:
     trends = ["increase", "stable", "decrease"]
@@ -120,7 +122,10 @@ def make_finance_data(n: int = 1500) -> pd.DataFrame:
             risk_score += 1.0
         if projected_balance_after_purchase < monthly_total_spending * 0.15:
             risk_score += 1.0
-        if days_until_card_due < 7 and expected_card_payment_amount > current_balance * 0.4:
+        if (
+            days_until_card_due < 7
+            and expected_card_payment_amount > current_balance * 0.4
+        ):
             risk_score += 1.0
         if non_essential_flag == 1:
             risk_score += 0.5
@@ -137,7 +142,9 @@ def make_finance_data(n: int = 1500) -> pd.DataFrame:
                 "monthly_total_spending": round(monthly_total_spending, 2),
                 "monthly_fixed_spending": round(monthly_fixed_spending, 2),
                 "monthly_variable_spending": round(monthly_variable_spending, 2),
-                "recent_30d_spending_growth_rate": round(recent_30d_spending_growth_rate, 4),
+                "recent_30d_spending_growth_rate": round(
+                    recent_30d_spending_growth_rate, 4
+                ),
                 "recent_90d_spending_trend": recent_90d_spending_trend,
                 "current_balance": round(current_balance, 2),
                 "emergency_fund_balance": round(emergency_fund_balance, 2),
@@ -146,10 +153,16 @@ def make_finance_data(n: int = 1500) -> pd.DataFrame:
                 "days_until_card_due": days_until_card_due,
                 "avg_monthly_income": round(avg_monthly_income, 2),
                 "product_price": round(product_price, 2),
-                "product_price_vs_monthly_spending": round(product_price_vs_monthly_spending, 4),
+                "product_price_vs_monthly_spending": round(
+                    product_price_vs_monthly_spending, 4
+                ),
                 "product_price_vs_balance": round(product_price_vs_balance, 4),
-                "projected_balance_after_purchase": round(projected_balance_after_purchase, 2),
-                "product_price_vs_emergency_fund": round(product_price_vs_emergency_fund, 4),
+                "projected_balance_after_purchase": round(
+                    projected_balance_after_purchase, 2
+                ),
+                "product_price_vs_emergency_fund": round(
+                    product_price_vs_emergency_fund, 4
+                ),
                 "category_purchase_count_90d": category_purchase_count_90d,
                 "non_essential_flag": non_essential_flag,
                 "label_finance_risk_bucket": label,
@@ -163,8 +176,11 @@ def make_finance_data(n: int = 1500) -> pd.DataFrame:
 # 2) 모델 3개 학습
 # ============================================================
 
+
 # 가격 모델 학습
-def train_price_model(df: pd.DataFrame) -> Tuple[CatBoostClassifier, List[str], List[str]]:
+def train_price_model(
+    df: pd.DataFrame,
+) -> Tuple[CatBoostClassifier, List[str], List[str]]:
     feature_cols = [
         "brand",
         "category",
@@ -197,8 +213,11 @@ def train_price_model(df: pd.DataFrame) -> Tuple[CatBoostClassifier, List[str], 
     model.fit(X, y, cat_features=cat_idx)
     return model, feature_cols, cat_cols
 
+
 # 재무 모델 학습
-def train_finance_model(df: pd.DataFrame) -> Tuple[lgb.LGBMClassifier, List[str], List[str]]:
+def train_finance_model(
+    df: pd.DataFrame,
+) -> Tuple[lgb.LGBMClassifier, List[str], List[str]]:
     feature_cols = [
         "monthly_total_spending",
         "monthly_fixed_spending",
@@ -237,8 +256,11 @@ def train_finance_model(df: pd.DataFrame) -> Tuple[lgb.LGBMClassifier, List[str]
     model.fit(X, y, categorical_feature=cat_cols)
     return model, feature_cols, cat_cols
 
+
 # DiCE를 위한 재무 모델 학습
-def train_finance_model_for_dice(df: pd.DataFrame) -> Tuple[lgb.LGBMClassifier, List[str]]:
+def train_finance_model_for_dice(
+    df: pd.DataFrame,
+) -> Tuple[lgb.LGBMClassifier, List[str]]:
     # DiCE 호환성을 위해 numeric-only 모델 사용
     feature_cols = [
         "monthly_total_spending",
@@ -285,9 +307,15 @@ def apply_decision_rule(
 ) -> str:
     if finance_risk_bucket == "high":
         return "HOLD"
-    elif price_bucket == "cheap" and finance_risk_bucket == "low":
+    elif (
+        price_bucket == "cheap"
+        and finance_risk_bucket == "low"
+        and affordability_score >= 0.55
+    ):
         return "BUY_NOW"
-    elif expected_drop_prob >= 0.5:
+
+    wait_threshold = 0.45 if affordability_score < 0.4 else 0.6
+    if expected_drop_prob >= wait_threshold:
         return "WAIT"
     else:
         return "REVIEW"
@@ -303,8 +331,14 @@ REASON_CODE_MAP = {
     "shipping_fee": ("SHIPPING_COST_REDUCES_ATTRACTIVENESS", "price_shap"),
     "recent_30d_spending_growth_rate": ("RECENT_SPENDING_SURGE", "finance_shap"),
     "emergency_fund_balance": ("EMERGENCY_FUND_TOO_LOW", "finance_shap"),
-    "projected_balance_after_purchase": ("BALANCE_AFTER_PURCHASE_TOO_LOW", "finance_shap"),
-    "product_price_vs_monthly_spending": ("PRICE_TOO_LARGE_VS_MONTHLY_SPENDING", "finance_shap"),
+    "projected_balance_after_purchase": (
+        "BALANCE_AFTER_PURCHASE_TOO_LOW",
+        "finance_shap",
+    ),
+    "product_price_vs_monthly_spending": (
+        "PRICE_TOO_LARGE_VS_MONTHLY_SPENDING",
+        "finance_shap",
+    ),
     "days_until_card_due": ("CARD_DUE_SOON", "finance_shap"),
 }
 
@@ -321,7 +355,9 @@ REASON_TEXT = {
 }
 
 
-def extract_top_reasons_from_shap(shap_values_1d, feature_names: List[str], top_k: int = 3) -> List[Dict[str, Any]]:
+def extract_top_reasons_from_shap(
+    shap_values_1d, feature_names: List[str], top_k: int = 3
+) -> List[Dict[str, Any]]:
     vals = np.array(shap_values_1d).reshape(-1)
     pairs = list(zip(feature_names, vals))
     pairs = sorted(pairs, key=lambda x: abs(float(x[1])), reverse=True)[:top_k]
@@ -367,7 +403,7 @@ def build_dice_from_finance_training(
 def get_desired_finance_class(current_class: str) -> int:
     # low=0, medium=1, high=2
     if current_class == "high":
-        return 1   # 너무 aggressive한 high->low 대신 high->medium
+        return 1  # 너무 aggressive한 high->low 대신 high->medium
     elif current_class == "medium":
         return 0
     else:
@@ -391,7 +427,7 @@ def build_counterfactual_fallback(finance_row: pd.DataFrame) -> List[Dict[str, A
         suggestions.append(
             {
                 "type": "fallback_counterfactual",
-                "message": f"비상자금을 약 {int(target - emergency_fund):,}원 더 확보하면 재무 위험이 완화될 수 있습니다."
+                "message": f"비상자금을 약 {int(target - emergency_fund):,}원 더 확보하면 재무 위험이 완화될 수 있습니다.",
             }
         )
 
@@ -402,7 +438,7 @@ def build_counterfactual_fallback(finance_row: pd.DataFrame) -> List[Dict[str, A
         suggestions.append(
             {
                 "type": "fallback_counterfactual",
-                "message": f"구매 후 잔액이 너무 낮아지므로, 현재 잔액이 약 {gap:,}원 더 높거나 상품 가격이 더 낮으면 판단이 완화될 수 있습니다."
+                "message": f"구매 후 잔액이 너무 낮아지므로, 현재 잔액이 약 {gap:,}원 더 높거나 상품 가격이 더 낮으면 판단이 완화될 수 있습니다.",
             }
         )
 
@@ -410,7 +446,7 @@ def build_counterfactual_fallback(finance_row: pd.DataFrame) -> List[Dict[str, A
         suggestions.append(
             {
                 "type": "fallback_counterfactual",
-                "message": "카드 결제일 이후로 구매 시점을 미루면 현금흐름 부담이 완화될 수 있습니다."
+                "message": "카드 결제일 이후로 구매 시점을 미루면 현금흐름 부담이 완화될 수 있습니다.",
             }
         )
 
@@ -418,7 +454,7 @@ def build_counterfactual_fallback(finance_row: pd.DataFrame) -> List[Dict[str, A
         suggestions.append(
             {
                 "type": "fallback_counterfactual",
-                "message": "최근 비필수 소비 증가가 완화되면 재무 판단이 더 긍정적으로 바뀔 수 있습니다."
+                "message": "최근 비필수 소비 증가가 완화되면 재무 판단이 더 긍정적으로 바뀔 수 있습니다.",
             }
         )
 
@@ -426,7 +462,7 @@ def build_counterfactual_fallback(finance_row: pd.DataFrame) -> List[Dict[str, A
         suggestions.append(
             {
                 "type": "fallback_counterfactual",
-                "message": "가격이 더 낮아지거나 가용 잔액이 높아지면 추천이 달라질 수 있습니다."
+                "message": "가격이 더 낮아지거나 가용 잔액이 높아지면 추천이 달라질 수 있습니다.",
             }
         )
 
@@ -453,12 +489,27 @@ def generate_counterfactuals(
                 "days_until_card_due",
             ],
             permitted_range={
-                "current_balance": [float(query_df["current_balance"].iloc[0]), 2_000_000],
-                "emergency_fund_balance": [float(query_df["emergency_fund_balance"].iloc[0]), 3_000_000],
+                "current_balance": [
+                    float(query_df["current_balance"].iloc[0]),
+                    2_000_000,
+                ],
+                "emergency_fund_balance": [
+                    float(query_df["emergency_fund_balance"].iloc[0]),
+                    3_000_000,
+                ],
                 "product_price": [200_000, float(query_df["product_price"].iloc[0])],
-                "recent_30d_spending_growth_rate": [-0.05, float(query_df["recent_30d_spending_growth_rate"].iloc[0])],
-                "expected_card_payment_amount": [0, float(query_df["expected_card_payment_amount"].iloc[0])],
-                "days_until_card_due": [int(query_df["days_until_card_due"].iloc[0]), 30],
+                "recent_30d_spending_growth_rate": [
+                    -0.05,
+                    float(query_df["recent_30d_spending_growth_rate"].iloc[0]),
+                ],
+                "expected_card_payment_amount": [
+                    0,
+                    float(query_df["expected_card_payment_amount"].iloc[0]),
+                ],
+                "days_until_card_due": [
+                    int(query_df["days_until_card_due"].iloc[0]),
+                    30,
+                ],
             },
         )
 
@@ -481,7 +532,9 @@ def main():
 
     price_model, price_features, _ = train_price_model(price_df)
     finance_model, finance_features, _ = train_finance_model(finance_df)
-    finance_model_for_dice, finance_dice_features = train_finance_model_for_dice(finance_df)
+    finance_model_for_dice, finance_dice_features = train_finance_model_for_dice(
+        finance_df
+    )
 
     # sample request
     price_row = pd.DataFrame(
@@ -541,7 +594,7 @@ def main():
     price_bucket = str(price_model.predict(price_row).flatten()[0])
     price_proba = price_model.predict_proba(price_row)[0]
     cheap_idx = list(price_model.classes_).index("cheap")
-    expected_drop_prob = max(0.0, 1.0 - float(price_proba[cheap_idx])) * 0.5
+    expected_drop_prob = max(0.0, 1.0 - float(price_proba[cheap_idx]))
     fair_price = float(price_row["avg_price_30d"].iloc[0] * 0.96)
 
     finance_bucket = str(finance_model.predict(finance_row_for_model)[0])
@@ -586,7 +639,11 @@ def main():
     finance_shap_values = finance_explainer.shap_values(finance_row_for_model)
 
     finance_classes = list(finance_model.classes_)
-    target_class = "high" if decision_code == "HOLD" and "high" in finance_classes else finance_bucket
+    target_class = (
+        "high"
+        if decision_code == "HOLD" and "high" in finance_classes
+        else finance_bucket
+    )
     target_idx = finance_classes.index(target_class)
 
     if isinstance(finance_shap_values, list):
@@ -609,7 +666,9 @@ def main():
         finance_dice_features,
     )
 
-    finance_row_for_dice = finance_row[finance_dice_features].copy()
+    finance_row_for_dice: pd.DataFrame = finance_row.loc[
+        :, finance_dice_features
+    ].copy()
     desired_class = get_desired_finance_class(finance_bucket)
     counterfactuals = generate_counterfactuals(
         dice_exp,
