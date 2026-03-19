@@ -36,6 +36,10 @@ export const closePr = async (
   return await axiosInstance.post(`${PR_BASE_PATH}/${postId}/close`, payload);
 };
 
+export const mergePr = async (postId: number): Promise<ApiResponse<PrCloseResponseData>> => {
+  return await axiosInstance.post(`${PR_BASE_PATH}/${postId}/merge`);
+};
+
 export type {
   PrCloseRequestPayload,
   PrCloseResponseData,

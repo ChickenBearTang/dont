@@ -2,14 +2,25 @@ package com.ssafy.edu.awesomeproject.domain.community.repository;
 
 import com.ssafy.edu.awesomeproject.domain.community.entity.Board;
 import com.ssafy.edu.awesomeproject.domain.community.entity.BoardCategory;
-import org.springframework.data.jpa.repository.JpaRepository;
-
+import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-// Board는 (PR, 자유게시판, 기수별 게시판) -> enum boardCategory로 조회
-public interface BoardRepository extends JpaRepository<Board,Long> {
+public interface BoardRepository extends JpaRepository<Board, Long> {
     Optional<Board> findByCategory(BoardCategory category);
 
-    //category = cohort 일 때 cohort_id 별로 기수 게시판 조회
     Optional<Board> findByCategoryAndCohort_GenerationNo(BoardCategory category, Integer generationNo);
+
+    @Query("""
+            select b.id
+            from Board b
+            left join b.cohort c
+            where b.category <> :cohortCategory
+               or (c is not null and c.generationNo = :generationNo)
+            """)
+    List<Long> findVisibleBoardIdsForUser(
+            @Param("cohortCategory") BoardCategory cohortCategory,
+            @Param("generationNo") Integer generationNo);
 }

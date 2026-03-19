@@ -176,17 +176,23 @@ public class PostService {
                 Page<Post> postPage;
                 if (category == null) {
                         Integer userGenerationNo = getUserGenerationNo(user);
+                        List<Long> visibleBoardIds =
+                                        boardRepository.findVisibleBoardIdsForUser(BoardCategory.COHORT, userGenerationNo);
 
-                        postPage = postRepository.findVisiblePostsForUser(
-                                        PostStatus.ACTIVE, BoardCategory.COHORT, userGenerationNo, pageRequest);
-                } else if (category == BoardCategory.COHORT) {
-                        validateUserCohort(user, resolvedGenerationNo);
-
-                        postPage = postRepository.findByBoard_CategoryAndBoard_Cohort_GenerationNoAndStatus(
-                                        category, resolvedGenerationNo, PostStatus.ACTIVE, pageRequest);
+                        if (visibleBoardIds.isEmpty()) {
+                                postPage = Page.empty(pageRequest);
+                        } else {
+                                postPage = postRepository.findByBoard_IdInAndStatus(
+                                                visibleBoardIds, PostStatus.ACTIVE, pageRequest);
+                        }
                 } else {
-                        postPage = postRepository.findByBoard_CategoryAndStatus(
-                                        category, PostStatus.ACTIVE, pageRequest);
+                        if (category == BoardCategory.COHORT) {
+                                validateUserCohort(user, resolvedGenerationNo);
+                        }
+
+                        Board board = resolveBoard(category, resolvedGenerationNo);
+                        postPage = postRepository.findByBoard_IdAndStatus(
+                                        board.getId(), PostStatus.ACTIVE, pageRequest);
                 }
 
                 Map<Long, PrPost> prByPostId = getPrByPostId(postPage.getContent(), category);
@@ -196,6 +202,8 @@ public class PostService {
                 Map<Long, PollPost> pollByPostId = getPollByPostId(postPage.getContent(), category);
                 Map<Long, PollVoteSummary> pollVoteSummaryByPostId = getPollVoteSummaryByPostId(postPage.getContent(),
                                 category);
+                Map<Long, Long> postLikeCountByPostId = getPostLikeCountByPostId(postPage.getContent());
+                Map<Long, Long> commentCountByPostId = getCommentCountByPostId(postPage.getContent());
 
                 List<PostSummary> content = postPage.getContent().stream()
                                 .map(
@@ -226,15 +234,12 @@ public class PostService {
                                                         post.getUser().getId(),
                                                         post.getUser().getNickname(),
                                                         post.isAuthor(userId),
-                                                        Math.toIntExact(
-                                                            reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
-                                                                ReactionTargetType.POST,
-                                                                post.getId(),
-                                                                ReactionType.LIKE)),
-                                                        Math.toIntExact(
-                                                            commentRepository.countByPost_IdAndStatus(
-                                                                post.getId(),
-                                                                CommentStatus.ACTIVE)),
+                                                        postLikeCountByPostId.containsKey(post.getId())
+                                                                ? Math.toIntExact(postLikeCountByPostId.get(post.getId()))
+                                                                : 0,
+                                                        commentCountByPostId.containsKey(post.getId())
+                                                                ? Math.toIntExact(commentCountByPostId.get(post.getId()))
+                                                                : 0,
                                                         post.getCreatedAt(),
                                                         extraSummary);
                                                 })
@@ -331,6 +336,39 @@ public class PostService {
                 return board.getCohort() != null ? board.getCohort().getGenerationNo() : null;
         }
 
+        private Map<Long, Long> getPostLikeCountByPostId(List<Post> posts) {
+                if (posts.isEmpty()) {
+                        return Map.of();
+                }
+
+                Set<Long> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
+                return reactionRepository
+                                .aggregateByTargetTypeAndReactionTypeAndTargetIdIn(
+                                                ReactionTargetType.POST,
+                                                ReactionType.LIKE,
+                                                postIds)
+                                .stream()
+                                .collect(
+                                                Collectors.toMap(
+                                                                ReactionRepository.ReactionCountProjection::getTargetId,
+                                                                ReactionRepository.ReactionCountProjection::getReactionCount));
+        }
+
+        private Map<Long, Long> getCommentCountByPostId(List<Post> posts) {
+                if (posts.isEmpty()) {
+                        return Map.of();
+                }
+
+                Set<Long> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
+                return commentRepository
+                                .aggregateCountByPostIdsAndStatus(postIds, CommentStatus.ACTIVE)
+                                .stream()
+                                .collect(
+                                                Collectors.toMap(
+                                                                CommentRepository.PostCommentCountProjection::getPostId,
+                                                                CommentRepository.PostCommentCountProjection::getCommentCount));
+        }
+
         private Map<Long, PrPost> getPrByPostId(List<Post> posts, BoardCategory category) {
                 if (posts.isEmpty() || category != BoardCategory.PR) {
                         return Map.of();
@@ -367,14 +405,25 @@ public class PostService {
 
                 PrVoteSummary summary = voteSummaryByPostId.get(postId);
                 Long totalVoteCount = summary != null ? summary.totalVoteCount() : null;
+                boolean deadlineExpired = isDeadlineExpired(prPost.getDeadlineAt());
+                String status =
+                                prPost.getResultStatusEnum() == PrStatus.OPEN && deadlineExpired
+                                                ? PrStatus.CLOSED.name()
+                                                : prPost.getResultStatusEnum().name();
 
                 return new PrSummary(
-                                prPost.getResultStatusEnum() == PrStatus.OPEN
-                                                ? PrStatus.OPEN.name()
-                                                : PrStatus.CLOSED.name(),
+                                status,
                                 prPost.getResultStatus(),
                                 totalVoteCount,
                                 prPost.getDeadlineAt());
+        }
+
+        private boolean isDeadlineExpired(LocalDateTime deadlineAt) {
+                if (deadlineAt == null) {
+                        return false;
+                }
+
+                return !deadlineAt.isAfter(LocalDateTime.now());
         }
 
         private Map<Long, HotdealPost> getHotdealByPostId(List<Post> posts, BoardCategory category) {

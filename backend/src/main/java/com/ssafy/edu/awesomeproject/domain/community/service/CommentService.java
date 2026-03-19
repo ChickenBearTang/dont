@@ -17,6 +17,9 @@ import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.ReactionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -112,6 +115,7 @@ public class CommentService {
 
         Page<Comment> commentPage =
                 commentRepository.findByPost_IdAndStatus(postId, CommentStatus.ACTIVE, pageRequest);
+        Map<Long, Long> commentLikeCountByCommentId = getCommentLikeCountByCommentId(commentPage.getContent());
 
         List<CommentSummary> content =
             commentPage.getContent().stream()
@@ -126,12 +130,9 @@ public class CommentService {
                             comment.getUser().getId(),
                             comment.getUser().getNickname(),
                             comment.isAuthor(userId),
-                            Math.toIntExact(
-                                reactionRepository
-                                    .countByTargetTypeAndTargetIdAndReactionType(
-                                        ReactionTargetType.COMMENT,
-                                        comment.getId(),
-                                        ReactionType.LIKE)),
+                            commentLikeCountByCommentId.containsKey(comment.getId())
+                                ? Math.toIntExact(commentLikeCountByCommentId.get(comment.getId()))
+                                : 0,
                             comment.getCreatedAt()))
                 .toList();
 
@@ -142,6 +143,24 @@ public class CommentService {
                 commentPage.getTotalElements(),
                 commentPage.getTotalPages(),
                 commentPage.hasNext());
+    }
+
+    private Map<Long, Long> getCommentLikeCountByCommentId(List<Comment> comments) {
+        if (comments.isEmpty()) {
+            return Map.of();
+        }
+
+        Set<Long> commentIds = comments.stream().map(Comment::getId).collect(Collectors.toSet());
+        return reactionRepository
+            .aggregateByTargetTypeAndReactionTypeAndTargetIdIn(
+                ReactionTargetType.COMMENT,
+                ReactionType.LIKE,
+                commentIds)
+            .stream()
+            .collect(
+                Collectors.toMap(
+                    ReactionRepository.ReactionCountProjection::getTargetId,
+                    ReactionRepository.ReactionCountProjection::getReactionCount));
     }
 
     // 댓글 수정
