@@ -392,6 +392,27 @@
       </section>
 
       <section class="panel">
+        <h2>💳 AI 맞춤 카드 추천</h2>
+        <div id="ai-card-status" class="status" style="margin-top: 6px;">추천 엔진을 구동하는 중입니다...</div>
+        <div class="ai-panel" id="recommendation-content" style="display: none; margin-top: 12px;">
+          <article class="ai-card" style="border-left: 4px solid var(--yellow);">
+            <div style="font-size:12px; color:var(--yellow); font-weight:bold; margin-bottom:4px">당신의 소비 페르소나</div>
+            <h3 id="persona-nickname" style="font-size:18px; color:#fff">페르소나명</h3>
+            <p id="persona-desc" style="color:var(--muted); font-size:13px; margin:0 0 10px; line-height:1.4"></p>
+          </article>
+          <article class="ai-card" style="border-left: 4px solid var(--blue);">
+            <div style="font-size:12px; color:var(--blue); font-weight:bold; margin-bottom:4px">1위 추천 카드</div>
+            <h3 id="rec-card-name" style="font-size:18px; color:#fff">카드명</h3>
+            <p id="rec-card-comment" style="color:var(--muted); font-size:13px; margin:0 0 10px; line-height:1.4"></p>
+            <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-top: 10px;">
+              <div style="font-size: 13px; color: var(--muted);">예상 월 혜택</div>
+              <strong id="rec-card-savings" style="font-size: 20px; color: var(--blue); display:block; margin-top:4px;">0원</strong>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2>AI 분석</h2>
         <div id="ai-status" class="ai-status">AI 분석을 불러오는 중입니다.</div>
         <div class="ai-panel" style="margin-top: 12px;">
@@ -593,6 +614,24 @@
         renderBulletList("ai-solutions", analysis.actionable_solutions, "제안할 관리 팁이 없습니다.");
       }
 
+      function renderRecommendation(payload) {
+        if (payload.error || !payload.user_persona || !payload.best_card) {
+          document.getElementById("ai-card-status").textContent = payload.error || "추천 카드가 없습니다.";
+          document.getElementById("ai-card-status").style.display = "block";
+          document.getElementById("recommendation-content").style.display = "none";
+          return;
+        }
+        document.getElementById("ai-card-status").style.display = "none";
+        document.getElementById("recommendation-content").style.display = "grid";
+        
+        document.getElementById("persona-nickname").textContent = payload.user_persona.nickname;
+        document.getElementById("persona-desc").textContent = payload.user_persona.description;
+        
+        document.getElementById("rec-card-name").textContent = payload.best_card.name;
+        document.getElementById("rec-card-comment").textContent = payload.best_card.comment;
+        document.getElementById("rec-card-savings").textContent = formatCurrency(payload.best_card.estimated_savings) + ` (피킹률: ${payload.best_card.picking_rate}%)`;
+      }
+
       async function loadUsers() {
         const response = await fetch("/api/v1/users");
         const payload = await response.json();
@@ -621,9 +660,10 @@
             include_ai: "true"
           });
 
-          const [statsResponse, aiResponse] = await Promise.all([
+          const [statsResponse, aiResponse, recResponse] = await Promise.all([
             fetch(`/api/v1/mock-consumption-stats?${statsParams.toString()}`),
-            fetch(`/api/v1/consumption-report?${aiParams.toString()}`)
+            fetch(`/api/v1/consumption-report?${aiParams.toString()}`),
+            fetch(`/api/v1/recommendation?${statsParams.toString()}`)
           ]);
 
           if (!statsResponse.ok) {
@@ -635,9 +675,10 @@
             throw new Error(payload.detail || "AI 분석을 불러오지 못했습니다.");
           }
 
-          const [statsPayload, aiPayload] = await Promise.all([statsResponse.json(), aiResponse.json()]);
+          const [statsPayload, aiPayload, recPayload] = await Promise.all([statsResponse.json(), aiResponse.json(), recResponse.json()]);
           renderSummary(statsPayload);
           renderAiAnalysis(aiPayload);
+          renderRecommendation(recPayload);
           setStatus(`${statsPayload.meta.user_name} · ${formatMonthLabel(statsPayload.meta.selected_month)} 통계를 불러왔습니다.`);
         } catch (error) {
           setStatus(error.message);

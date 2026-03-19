@@ -99,3 +99,14 @@ def get_mock_consumption_stats(
         return service.build_mock_statistics(month=month, user_id=user_id, user_name=user_name)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/recommendation")
+def get_recommendation(
+    month: str = Query(...),
+    user_name: str | None = Query(default=None),
+) -> dict:
+    try:
+        return service.get_card_recommendation(user_name=user_name, month=month)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
