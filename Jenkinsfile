@@ -137,7 +137,7 @@ pipeline {
                 sh '''
                     for i in $(seq 1 20); do
                       if curl -fsS http://127.0.0.1/ >/dev/null && \
-                         curl -fsS http://127.0.0.1/api/v1/actuator/health/readiness >/dev/null; then
+                         curl -fsS http://127.0.0.1/actuator/health/readiness >/dev/null; then
                         echo "Smoke test passed"
                         exit 0
                       fi
