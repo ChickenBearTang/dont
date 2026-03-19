@@ -1,17 +1,27 @@
 import axiosInstance from '@/shared/api/axiosInstance';
-import type { ApiResponse } from '@/shared/types';
-import type { CardDto, GetCardsResponse, TransactionDto } from '../types';
+
+import type { GetCardsResponse, CardDetailDto, GetCardTransactionsResponse } from '../types';
 
 export const getMyCards = async (): Promise<GetCardsResponse> => {
   return await axiosInstance.get('/fin/cards');
 };
 
-export const getCard = async (cardName: string): Promise<ApiResponse<CardDto>> => {
-  return await axiosInstance.get(`/fin/cards/${cardName}`);
+export const getCard = async (
+  cardId: string,
+  startDate: string,
+  endDate: string
+): Promise<CardDetailDto> => {
+  return await axiosInstance.get(`/fin/cards/${cardId}`, {
+    params: { startDate, endDate },
+  });
 };
 
 export const getCardTransactions = async (
-  cardName: string
-): Promise<ApiResponse<TransactionDto[]>> => {
-  return await axiosInstance.get(`/fin/cards/${cardName}/transactions`);
+  cardId: string,
+  startDate: string,
+  endDate: string
+): Promise<GetCardTransactionsResponse> => {
+  return await axiosInstance.get(`/fin/cards/${cardId}/transactions`, {
+    params: { startDate, endDate },
+  });
 };
