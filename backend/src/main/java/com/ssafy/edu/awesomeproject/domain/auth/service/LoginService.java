@@ -4,6 +4,7 @@ import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +25,11 @@ public class LoginService {
     }
 
     public LoginResult login(String email, String password) {
+        String normalizedEmail = normalizeEmail(email);
+
         User user =
                 userRepository
-                        .findByEmail(email)
+                        .findByEmail(normalizedEmail)
                         .orElseThrow(() -> new AuthException(AuthErrorCode.BAD_CREDENTIALS));
 
         if (!passwordHashService.matches(password, user.getPassword())) {
@@ -45,6 +48,10 @@ public class LoginService {
                 loginTokenResult.expiresInSeconds(),
                 loginTokenResult.refreshToken(),
                 loginTokenResult.refreshTokenExpiresInSeconds());
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     public record LoginResult(
