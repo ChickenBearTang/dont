@@ -115,6 +115,21 @@ export const router = createBrowserRouter([
           return { Component: CardDetailPage };
         },
       },
+      {
+        path: '/account',
+        async lazy() {
+          const { AccountPage } = await import('@/features/finance/account/pages/AccountPage');
+          return { Component: AccountPage };
+        },
+      },
+      {
+        path: '/account/:accountId',
+        async lazy() {
+          const { AccountDetailPage } =
+            await import('@/features/finance/account/pages/AccountDetailPage');
+          return { Component: AccountDetailPage };
+        },
+      },
     ],
   },
 ]);
