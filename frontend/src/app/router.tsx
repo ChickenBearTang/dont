@@ -101,6 +101,20 @@ export const router = createBrowserRouter([
           },
         ],
       },
+      {
+        path: '/finance/cards',
+        async lazy() {
+          const { CardListPage } = await import('@/features/finance/card');
+          return { Component: CardListPage };
+        },
+      },
+      {
+        path: '/finance/cards/:cardId',
+        async lazy() {
+          const { CardDetailPage } = await import('@/features/finance/card');
+          return { Component: CardDetailPage };
+        },
+      },
     ],
   },
 ]);
