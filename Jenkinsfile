@@ -135,30 +135,8 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
-                    api_path="$(awk -F= '
-                      /^[[:space:]]*#/ { next }
-                      /^[[:space:]]*$/ { next }
-                      {
-                        line=$0
-                        sub(/\r$/, "", line)
-                        pos=index(line, "=")
-                        if (pos == 0) next
-                        key=substr(line, 1, pos - 1)
-                        gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-                        if (key == "API_PATH") {
-                          value=substr(line, pos + 1)
-                          gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-                          gsub(/^"|"$/, "", value)
-                          gsub(/^'\''|'\''$/, "", value)
-                          print value
-                          found=1
-                          exit
-                        }
-                      }
-                      END {
-                        if (!found) print ""
-                      }
-                    ' "${ENV_FILE}")"
+                    api_path="$(docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T backend printenv API_PATH 2>/dev/null || true)"
+                    api_path="$(printf '%s' "${api_path}" | tr -d '\r')"
 
                     if [ -n "${api_path}" ] && [ "${api_path#'/'}" = "${api_path}" ]; then
                       api_path="/${api_path}"
