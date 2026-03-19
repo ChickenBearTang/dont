@@ -379,8 +379,11 @@ class AuthTokenServiceTest {
                         "test@example.com",
                         "encoded-password",
                         "Tester",
+                        java.time.LocalDate.of(1996, 1, 1),
                         "tester",
                         null,
+                        true,
+                        java.time.LocalDateTime.now(),
                         UserRole.USER,
                         null);
         ReflectionTestUtils.setField(user, "id", id);
