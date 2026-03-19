@@ -2,7 +2,7 @@ import os
 import json
 import difflib
 import pandas as pd
-from openai import OpenAI
+from consumption_poc.config import get_env, DEFAULT_GEMINI_MODEL
 
 class AIConsumptionEngine:
     def __init__(self, personas, cards):
@@ -18,9 +18,14 @@ class AIConsumptionEngine:
         else:
             self.keyword_map = {}
             
-        # LLM fallback을 위한 OpenAI 클라이언트 초기화 (.env에 OPENAI_API_KEY가 있다고 가정)
+        # LLM fallback을 위한 Gemini 클라이언트 초기화
         try:
-            self.llm_client = OpenAI() if os.getenv("OPENAI_API_KEY") else None
+            gemini_key = get_env("GEMINI_API_KEY")
+            if gemini_key:
+                from google import genai
+                self.llm_client = genai.Client(api_key=gemini_key)
+            else:
+                self.llm_client = None
         except Exception:
             self.llm_client = None
 
@@ -30,20 +35,16 @@ class AIConsumptionEngine:
             return "ETC"
             
         try:
-            # P01~P10 카테고리 설명을 프롬프트에 제공하여 매칭
+            # P01~P13 카테고리 설명을 프롬프트에 제공하여 매칭 (Gemini용 프롬프트)
             categories_desc = ", ".join([f"{k}({v[0]} 등)" for k, v in self.keyword_map.items()])
-            prompt = f"다음 상호명이 어느 카테고리에 속하는지 P01부터 P10 중에서 하나만 출력하세요. 속하는 곳이 전혀 없다면 ETC를 출력하세요. 카테고리 정보: {categories_desc}"
+            prompt = f"다음 상호명이 어느 카테고리에 속하는지 P01부터 P13 중에서 하나만 출력하세요. 속하는 곳이 전혀 없다면 ETC를 출력하세요.\n\n카테고리 정보: {categories_desc}\n\n상호명: {store_name}\n\n출력형식: P01 등 단일 코드만 출력하세요."
             
-            response = self.llm_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": store_name}
-                ],
-                temperature=0.0,
-                max_tokens=10
+            response = self.llm_client.models.generate_content(
+                model=DEFAULT_GEMINI_MODEL,
+                contents=prompt,
             )
-            result = response.choices[0].message.content.strip()
+            result = getattr(response, "text", "") or ""
+            result = result.strip()
             
             # 응답값이 유효한 카테고리인지 확인
             if result in self.keyword_map or result == "ETC":
