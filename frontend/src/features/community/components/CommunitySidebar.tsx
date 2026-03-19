@@ -132,7 +132,7 @@ export const CommunitySidebar = () => {
             className={() =>
               `px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-all duration-150 flex items-center gap-2.5 ${
                 isActive
-                  ? 'bg-slate-800 text-white'
+                  ? 'bg-blue-50 text-blue-600 font-bold'
                   : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
               }`
             }

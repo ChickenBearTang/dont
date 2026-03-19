@@ -13,10 +13,18 @@ export const CommunityPage = () => {
   const category = searchParams.get('category') as BoardCategory | null;
   const pageParam = Number(searchParams.get('page'));
   const currentPage = Number.isInteger(pageParam) && pageParam >= 1 ? pageParam : 1;
+  const urlSearch = searchParams.get('search') || '';
 
   const [posts, setPosts] = useState<PostSummaryDto[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [pageInfo, setPageInfo] = useState<GetPostListResponseDto | null>(null);
+  const [searchInput, setSearchInput] = useState(urlSearch);
+  const [keyword, setKeyword] = useState(urlSearch);
+
+  useEffect(() => {
+    setSearchInput(urlSearch);
+    setKeyword(urlSearch);
+  }, [urlSearch]);
 
   const getCategoryName = (cat: BoardCategory | undefined) => {
     switch (cat) {
@@ -63,16 +71,38 @@ export const CommunityPage = () => {
       params.set('page', String(targetPage));
     }
 
+    if (keyword) {
+      params.set('keyword', keyword);
+      params.set('search', keyword); // Use 'search' param for keyword in URL
+    }
+
     const queryString = params.toString();
     navigate(queryString ? `/community?${queryString}` : '/community');
   };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = searchInput.trim();
+    if (trimmed) {
+      navigate(`/community?search=${encodeURIComponent(trimmed)}`);
+    } else {
+      navigate('/community');
+    }
+  };
+
+  useEffect(() => {
+    // The keyword for fetching posts should come from the 'search' param now
+    const kw = searchParams.get('search') || '';
+    setKeyword(kw);
+    setSearchInput(kw);
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchPosts = async () => {
       setLoading(true);
 
       try {
-        const res = await getPosts(category, undefined, currentPage - 1, PAGE_SIZE);
+        const res = await getPosts(category, keyword || undefined, currentPage - 1, PAGE_SIZE);
 
         if (res.data) {
           setPosts(res.data.content ?? []);
@@ -91,15 +121,23 @@ export const CommunityPage = () => {
     };
 
     fetchPosts();
-  }, [category, currentPage]);
+  }, [category, currentPage, keyword]);
 
-  const categoryTitle = category ? `${getCategoryName(category)} 게시판` : '전체 게시글';
+  const totalPages = pageInfo?.totalPages ?? 0;
+  const totalElements = pageInfo?.totalElements ?? 0;
+
+  const categoryTitle = keyword
+    ? `'${keyword}' 검색 결과`
+    : category
+      ? `${getCategoryName(category)} 게시판`
+      : '전체 게시글';
 
   const cohortGenerationNo =
     category === 'COHORT' && posts.length > 0 ? posts[0].generationNo : null;
 
-  const categoryDescription =
-    category === 'COHORT'
+  const categoryDescription = keyword
+    ? `${totalElements}개의 게시물을 찾았습니다.`
+    : category === 'COHORT'
       ? cohortGenerationNo
         ? `${cohortGenerationNo}기 게시판입니다. 자유롭게 의견을 나눠보세요.`
         : '기수 게시판입니다. 자유롭게 의견을 나눠보세요.'
@@ -122,8 +160,10 @@ export const CommunityPage = () => {
     });
   };
 
-  const totalPages = pageInfo?.totalPages ?? 0;
-  const totalElements = pageInfo?.totalElements ?? 0;
+  const filteredPosts = useMemo(() => {
+    if (!keyword) return posts;
+    return posts.filter((post) => post.title.toLowerCase().includes(keyword.toLowerCase()));
+  }, [posts, keyword]);
 
   const visiblePageNumbers = useMemo(() => {
     if (totalPages <= 0) return [];
@@ -154,23 +194,30 @@ export const CommunityPage = () => {
         </div>
 
         <div className="flex gap-2.5 items-center shrink-0">
-          <div className="relative hidden md:block">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-gray-300"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
+          <form onSubmit={handleSearch} className="relative">
+            <button
+              type="submit"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
             >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" strokeLinecap="round" />
-            </svg>
+              <svg
+                className="w-[15px] h-[15px]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+              </svg>
+            </button>
             <input
               type="text"
               placeholder="검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="bg-gray-50 border border-gray-100 text-[13px] rounded-lg pl-9 pr-3 py-2 w-[180px] outline-none focus:border-gray-200 focus:bg-white transition-all font-medium text-gray-600 placeholder:text-gray-300"
             />
-          </div>
+          </form>
 
           <button
             type="button"
@@ -198,7 +245,11 @@ export const CommunityPage = () => {
       <div className="px-7 pb-6 flex-1 flex flex-col">
         <div className="flex items-center justify-between py-3">
           <div className="text-[12px] text-gray-400 font-medium">
-            총 <span className="font-bold text-gray-700">{totalElements}</span>개
+            총{' '}
+            <span className="font-bold text-gray-700">
+              {keyword ? filteredPosts.length : totalElements}
+            </span>
+            개
           </div>
           <div className="text-[12px] text-gray-400 font-medium">
             페이지 <span className="font-bold text-gray-700">{currentPage}</span>
@@ -240,7 +291,7 @@ export const CommunityPage = () => {
               <p className="text-[12px] text-gray-300 mt-1">첫 번째 작성자가 되어보세요</p>
             </div>
           ) : (
-            posts.map((post, idx) => (
+            filteredPosts.map((post, idx) => (
               <div
                 key={post.postId}
                 onClick={() => navigate(`/community/${post.postId}`)}
@@ -267,6 +318,15 @@ export const CommunityPage = () => {
                       [{post.commentCount}]
                     </span>
                   )}
+
+                  <div className="flex items-center gap-2 ml-1 shrink-0">
+                    <div className="flex items-center gap-0.5 text-rose-400">
+                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" />
+                      </svg>
+                      <span className="text-[11.5px] font-bold">{post.likeCount || 0}</span>
+                    </div>
+                  </div>
 
                   {post.extraSummary?.poll && !post.extraSummary.poll.isClosed && (
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-500 font-semibold shrink-0">
