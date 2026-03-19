@@ -31,6 +31,6 @@ export const loginWithKakao = async (authCode: string): Promise<AuthResponse> =>
  */
 export const signup = async (
   data: SignUpRequestPayload
-): Promise<ApiResponse<SignUpResponseData>> => {
+): Promise<ApiResponse<SignUpResponseData | null>> => {
   return await axiosInstance.post('/auth/signup', data);
 };

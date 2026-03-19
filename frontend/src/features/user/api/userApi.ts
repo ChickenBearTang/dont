@@ -8,7 +8,7 @@ import type { OnboardingPayload, OnboardingResponse } from '../types';
  * @returns 기수 목록
  */
 export const fetchCohorts = async (): Promise<ApiResponse<Cohort[]>> => {
-  return await axiosInstance.get('/auth/cohorts');
+  return await axiosInstance.get('/community/cohorts');
 };
 
 /**

@@ -2,10 +2,10 @@ import { useActionState, useEffect, useState } from 'react';
 import axios from 'axios';
 import { Input, Select, Checkbox, DatePicker, Button } from '@/shared/components';
 import { useUIStore } from '@/shared/store/useUIStore';
-import { mockDb } from '@/shared/api/mockDb';
 import { signup } from '@/features/auth/api/authApi';
+import { fetchCohorts } from '@/features/user/api/userApi';
 import type { SignUpRequestPayload } from '@/features/auth/types';
-import type { Cohort, SelectOption } from '@/shared/types';
+import type { SelectOption } from '@/shared/types';
 
 const EMAIL_REGEX = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,72}$/;
@@ -91,15 +91,22 @@ export const SignUpForm = () => {
   // 기수 정보 불러오기
   useEffect(() => {
     const loadCohorts = async () => {
-      const options = mockDb.getCohorts().map((c: Cohort) => ({
-        value: c.cohortId,
-        label: c.cohortCode,
-      }));
-      setCohortOptions(options);
-      setLoadingCohorts(false);
+      try {
+        const cohortResponse = await fetchCohorts();
+        const options = (cohortResponse.data ?? []).map((cohort) => ({
+          value: cohort.cohortId,
+          label: cohort.cohortCode,
+        }));
+        setCohortOptions(options);
+      } catch (error) {
+        console.error('Cohort load error:', error);
+        addToast('기수 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.', 'error');
+      } finally {
+        setLoadingCohorts(false);
+      }
     };
     loadCohorts();
-  }, []);
+  }, [addToast]);
 
   /**
    * React 19 useActionState 핸들러

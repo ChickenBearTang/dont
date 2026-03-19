@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.auth.service;
 
+import com.ssafy.edu.awesomeproject.common.error.CommonErrorCode;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.UserRole;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
@@ -64,7 +65,25 @@ public class SignupService {
         try {
             userRepository.save(user);
         } catch (DataIntegrityViolationException ex) {
-            throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+            if (isEmailUniqueViolation(ex)) {
+                throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
+            }
+            throw new AuthException(CommonErrorCode.BUSINESS_RULE_VIOLATION);
         }
+    }
+
+    private boolean isEmailUniqueViolation(DataIntegrityViolationException ex) {
+        Throwable cause = ex.getMostSpecificCause();
+        String errorMessage = cause != null ? cause.getMessage() : ex.getMessage();
+        if (errorMessage == null || errorMessage.isBlank()) {
+            return false;
+        }
+
+        String normalizedMessage = errorMessage.toLowerCase(Locale.ROOT);
+        return normalizedMessage.contains("email")
+                && (normalizedMessage.contains("unique")
+                        || normalizedMessage.contains("duplicate")
+                        || normalizedMessage.contains("constraint")
+                        || normalizedMessage.contains("uk_"));
     }
 }
