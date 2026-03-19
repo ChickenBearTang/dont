@@ -65,7 +65,7 @@ export const CommunitySidebar = () => {
     { label: '자유 게시판', category: 'FREE' },
     { label: 'PR 게시판', category: 'PR' },
     { label: '기수 게시판', category: 'COHORT' },
-    { label: '토론 게시판', category: 'POLL' },
+    { label: '투표 게시판', category: 'POLL' },
     { label: '핫딜 게시판', category: 'HOTDEAL' },
   ];
 
@@ -86,9 +86,7 @@ export const CommunitySidebar = () => {
             to={to}
             className={() =>
               `px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-all duration-150 flex items-center gap-2.5 ${
-                isActive
-                  ? 'bg-slate-800 text-white'
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                isActive ? 'bg-slate-800 text-white' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
               }`
             }
           >

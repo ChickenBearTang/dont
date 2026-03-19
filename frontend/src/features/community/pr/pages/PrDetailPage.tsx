@@ -1,7 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card } from '@/shared/components';
-import { closePr, getPrDetail, submitPrVote } from '@/features/community/pr';
+import { getPrDetail, mergePr, submitPrVote } from '@/features/community/pr';
 import type { PrDetailResponseData } from '@/features/community/pr';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { formatRelativeTime } from '@/shared/utils/date';
@@ -156,7 +156,7 @@ export const PrDetailPage = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [voteOpinion, setVoteOpinion] = useState('');
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
-  const [isClosingPr, setIsClosingPr] = useState(false);
+  const [isMergingPr, setIsMergingPr] = useState(false);
 
   const loadDetail = useCallback(async () => {
     if (!parsedPostId || Number.isNaN(parsedPostId)) {
@@ -202,18 +202,18 @@ export const PrDetailPage = () => {
     }
   };
 
-  const handleClosePr = async (resultStatus: 'MERGED' | 'CLOSED') => {
-    if (!detail || detail.status !== 'OPEN' || isClosingPr) return;
+  const handleMergePr = async () => {
+    if (!detail || detail.status !== 'OPEN' || isMergingPr) return;
 
-    setIsClosingPr(true);
+    setIsMergingPr(true);
     try {
-      await closePr(detail.postId, { resultStatus });
-      addToast(`PR이 ${resultStatus} 상태로 종료되었습니다.`, 'success');
+      await mergePr(detail.postId);
+      addToast('PR이 MERGED 상태로 종료되었습니다.', 'success');
       await loadDetail();
     } catch {
-      addToast('PR 종료에 실패했습니다. 작성자만 종료할 수 있습니다.', 'error');
+      addToast('PR merge에 실패했습니다. 작성자만 merge할 수 있습니다.', 'error');
     } finally {
-      setIsClosingPr(false);
+      setIsMergingPr(false);
     }
   };
 
@@ -458,27 +458,19 @@ export const PrDetailPage = () => {
 
         <Card className="!p-0 overflow-hidden border border-gray-200 hover:!translate-y-0">
           <div className="px-5 py-3.5 border-b border-gray-200">
-            <h3 className="text-[30px] font-black text-gray-900 leading-none">PR 종료</h3>
+            <h3 className="text-[30px] font-black text-gray-900 leading-none">PR Merge</h3>
           </div>
           <div className="p-5 space-y-3.5">
-            <p className="text-xs text-gray-500 font-medium">작성자만 PR을 종료할 수 있으며, 권한은 서버에서 검증됩니다.</p>
+            <p className="text-xs text-gray-500 font-medium">작성자만 merge할 수 있으며, 권한은 서버에서 검증됩니다.</p>
             {canClose ? (
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 gap-2.5">
                 <Button
                   type="button"
                   className="!py-2.5 text-xl !bg-emerald-600 hover:!bg-emerald-700 disabled:!bg-gray-300"
-                  onClick={() => void handleClosePr('MERGED')}
-                  disabled={isClosingPr}
+                  onClick={() => void handleMergePr()}
+                  disabled={isMergingPr}
                 >
-                  MERGED
-                </Button>
-                <Button
-                  type="button"
-                  className="!py-2.5 text-xl !bg-slate-600 hover:!bg-slate-700 disabled:!bg-gray-300"
-                  onClick={() => void handleClosePr('CLOSED')}
-                  disabled={isClosingPr}
-                >
-                  CLOSED
+                  Merge
                 </Button>
               </div>
             ) : (
