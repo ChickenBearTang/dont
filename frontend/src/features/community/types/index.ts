@@ -196,6 +196,27 @@ export interface UpdatePostResponseDto {
   updatedAt: string;
 }
 
+export interface UpdatePollPostRequestDto {
+  title: string;
+  content: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  deadlineAt: string;
+}
+
+export interface UpdateHotdealPostRequestDto {
+  title: string;
+  content: string;
+  productName: string;
+  storeName?: string;
+  dealPriceAmount: number;
+  originalPriceAmount?: number;
+  dealUrl?: string;
+  shippingInfo?: string;
+  expiredAt?: string;
+}
+
 export interface UpdateCommentRequestDto {
   content: string;
 }
