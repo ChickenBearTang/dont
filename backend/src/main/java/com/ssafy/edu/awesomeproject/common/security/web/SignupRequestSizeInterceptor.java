@@ -26,7 +26,7 @@ public class SignupRequestSizeInterceptor implements HandlerInterceptor {
         }
 
         long contentLength = request.getContentLengthLong();
-        if (contentLength < 0 || contentLength > maxSignupRequestBytes) {
+        if (contentLength > maxSignupRequestBytes) {
             throw new CommonException(CommonErrorCode.PAYLOAD_TOO_LARGE);
         }
 
