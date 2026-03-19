@@ -122,6 +122,14 @@ export const router = createBrowserRouter([
           return { Component: AccountPage };
         },
       },
+      {
+        path: '/account/:accountId',
+        async lazy() {
+          const { AccountDetailPage } =
+            await import('@/features/finance/account/pages/AccountDetailPage');
+          return { Component: AccountDetailPage };
+        },
+      },
     ],
   },
 ]);
