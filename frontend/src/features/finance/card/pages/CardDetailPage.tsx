@@ -3,6 +3,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getCard, getCardTransactions } from '../api/cardApi';
 import type { CardDetailDto, TransactionItemDto } from '../types';
 
+const CATEGORY_ICONS: Record<string, string> = {
+  '식사/음식': new URL('../../../../assets/categories/food.png', import.meta.url).href,
+  '문화/여가': new URL('../../../../assets/categories/culture.png', import.meta.url).href,
+  '의료/건강': new URL('../../../../assets/categories/health.png', import.meta.url).href,
+  '카페/디저트': new URL('../../../../assets/categories/dessert.png', import.meta.url).href,
+  '편의점/마트': new URL('../../../../assets/categories/mart.png', import.meta.url).href,
+  default: new URL('../../../../assets/categories/food.png', import.meta.url).href,
+};
+
+const getCategoryIcon = (categoryName?: string) => {
+  return CATEGORY_ICONS[categoryName || ''] || CATEGORY_ICONS['default'];
+};
+
 const formatToYYYYMMDD = (date: Date) => {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -104,7 +117,7 @@ export const CardDetailPage = () => {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px]">
+    <div className="w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px]">
       <div className="px-7 pt-7 pb-5 flex items-center justify-between border-b border-gray-100">
         <div className="flex items-center gap-3">
           <button
@@ -149,13 +162,16 @@ export const CardDetailPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="text-center">
-            <h2 className="text-[18px] font-black text-gray-800 tracking-tight">
-              {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월 결제내역
-            </h2>
-            <p className="text-[13px] font-medium text-gray-400 mt-0.5">
-              총 ₩{cardInfo.monthlyCardExpense?.toLocaleString() || 0}
-            </p>
+          <div className="text-center flex flex-col items-center">
+            <span className="text-[14px] font-extrabold text-blue-600 mb-1 tracking-tight bg-blue-50 px-3 py-1 rounded-full">
+              {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
+            </span>
+            <div className="flex items-baseline mt-1">
+              <span className="text-[34px] font-black tracking-tighter text-blue-600">
+                {cardInfo.monthlyCardExpense?.toLocaleString() || 0}
+              </span>
+              <span className="text-[18px] font-bold text-gray-800 ml-1">원</span>
+            </div>
           </div>
           <button
             onClick={handleNextMonth}
@@ -208,29 +224,43 @@ export const CardDetailPage = () => {
             {transactions.map((tx, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between py-4 border-b border-gray-50 hover:bg-gray-50/50 transition-colors px-4 -mx-4 rounded-xl"
+                className="flex items-center justify-between p-4 mb-2 bg-white border border-gray-100/60 rounded-2xl hover:border-blue-100 hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                    <span className="text-[12px] font-bold text-blue-600">
-                      {tx.categoryName?.[0] || '기'}
-                    </span>
+                <div className="flex items-center gap-5">
+                  <div className="w-24 h-24 shrink-0 flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+                    <img
+                      src={getCategoryIcon(tx.categoryName)}
+                      alt={tx.categoryName || '기타'}
+                      className="w-full h-full object-contain drop-shadow-sm"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (target.src !== CATEGORY_ICONS['default']) {
+                          target.src = CATEGORY_ICONS['default'];
+                        }
+                      }}
+                    />
                   </div>
-                  <div>
-                    <div className="text-[15px] font-bold text-gray-800 mb-0.5">
+                  <div className="flex flex-col justify-center">
+                    <div className="text-[16px] font-extrabold text-gray-900 mb-1 tracking-tight group-hover:text-blue-600 transition-colors">
                       {tx.merchantName}
                     </div>
-                    <div className="text-[12px] text-gray-400 font-medium">
-                      {formatTransactionDate(tx.transactionDate, tx.transactionTime)} |{' '}
-                      {tx.categoryName}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] text-gray-500 font-medium tracking-tight">
+                        {formatTransactionDate(tx.transactionDate, tx.transactionTime)}
+                      </span>
+                      <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                      <span className="text-[11px] font-bold text-blue-600 bg-blue-50/80 px-2 py-0.5 rounded-md">
+                        {tx.categoryName || '기타'}
+                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-[16px] font-bold tracking-tight text-gray-900">
-                    -{Number(tx.transactionAmount).toLocaleString()}원
+                <div className="text-right flex flex-col justify-center">
+                  <div className="text-[18px] font-black tracking-tighter text-gray-900">
+                    -{Number(tx.transactionAmount).toLocaleString()}
+                    <span className="text-[14px] font-bold ml-0.5">원</span>
                   </div>
-                  <div className="text-[11px] font-bold text-gray-300 mt-1">승인</div>
+                  <div className="text-[12px] font-semibold text-gray-400 mt-1">승인완료</div>
                 </div>
               </div>
             ))}

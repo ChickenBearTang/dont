@@ -6,10 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/**
- * Account 도메인 전용 예외 처리기
- * basePackages를 지정하여 타 도메인에 영향을 주지 않도록 격리함
- */
+/** Account 도메인 전용 예외 처리기 basePackages를 지정하여 타 도메인에 영향을 주지 않도록 격리함 */
 @Slf4j
 @RestControllerAdvice(basePackages = "com.ssafy.edu.awesomeproject.domain.fin.account.controller")
 public class AccountExceptionHandler {
@@ -17,8 +14,7 @@ public class AccountExceptionHandler {
     @ExceptionHandler(AccountException.class)
     public ResponseEntity<AccountApiResponse<Void>> handleAccountException(AccountException e) {
         log.error("Account 도메인 예외 발생: [{}] {}", e.getErrorCode().code(), e.getMessage());
-        return ResponseEntity
-                .status(e.getErrorCode().status())
+        return ResponseEntity.status(e.getErrorCode().status())
                 .body(AccountApiResponse.error(e.getErrorCode().code(), e.getMessage()));
     }
 }

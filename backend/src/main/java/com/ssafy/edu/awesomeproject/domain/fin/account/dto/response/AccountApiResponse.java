@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * Account 도메인 전용 규격화된 응답 DTO (Envelope Pattern)
+ *
  * @param <T> 응답 데이터 타입
  */
 @Getter

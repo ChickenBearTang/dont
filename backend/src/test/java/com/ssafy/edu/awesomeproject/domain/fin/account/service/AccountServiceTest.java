@@ -67,7 +67,7 @@ class AccountServiceTest {
         Long otherUserId = 999L;
         Long accountId = 100L;
         Account otherAccount = mock(Account.class);
-        
+
         given(otherAccount.getUserId()).willReturn(otherUserId);
         given(accountRepository.findById(accountId)).willReturn(Optional.of(otherAccount));
 
@@ -85,7 +85,7 @@ class AccountServiceTest {
         // given
         Long userId = 1L;
         BigDecimal amount = new BigDecimal("10000");
-        
+
         SavingsSetting setting = mock(SavingsSetting.class);
         given(setting.getPrimaryAccountId()).willReturn(10L);
         given(setting.getSaveboxAccountId()).willReturn(20L);
@@ -97,7 +97,7 @@ class AccountServiceTest {
         given(primaryAccount.getAccountNo()).willReturn("111-222");
         given(saveboxAccount.getUserId()).willReturn(userId);
         given(saveboxAccount.getAccountNo()).willReturn("333-444");
-        
+
         given(accountRepository.findById(10L)).willReturn(Optional.of(primaryAccount));
         given(accountRepository.findById(20L)).willReturn(Optional.of(saveboxAccount));
 
@@ -133,7 +133,7 @@ class AccountServiceTest {
         // given
         Long userId = 1L;
         SaveBoxCreateRequest request = new SaveBoxCreateRequest("unique-no");
-        
+
         User user = mock(User.class);
         given(user.getSsafyFinanceUserKey()).willReturn("user-key");
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
