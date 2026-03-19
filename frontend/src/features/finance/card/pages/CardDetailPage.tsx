@@ -1,83 +1,38 @@
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-
-interface Transaction {
-  id: string;
-  date: string;
-  merchant: string;
-  amount: number;
-  category: string;
-  type: 'PAYMENT' | 'REFUND';
-}
-
-const DUMMY_TRANSACTIONS: Record<string, Transaction[]> = {
-  '1': [
-    {
-      id: 't1',
-      date: '2026-03-19T08:30:00Z',
-      merchant: '스타벅스',
-      amount: 5500,
-      category: '식비',
-      type: 'PAYMENT',
-    },
-    {
-      id: 't2',
-      date: '2026-03-18T12:15:00Z',
-      merchant: '배달의민족',
-      amount: 24000,
-      category: '식비',
-      type: 'PAYMENT',
-    },
-    {
-      id: 't3',
-      date: '2026-03-18T09:00:00Z',
-      merchant: 'GS25',
-      amount: 3200,
-      category: '생활',
-      type: 'PAYMENT',
-    },
-  ],
-  '2': [
-    {
-      id: 't4',
-      date: '2026-03-19T10:00:00Z',
-      merchant: '쿠팡',
-      amount: 45000,
-      category: '쇼핑',
-      type: 'PAYMENT',
-    },
-    {
-      id: 't5',
-      date: '2026-03-17T18:30:00Z',
-      merchant: '쿠팡 (환불)',
-      amount: -45000,
-      category: '쇼핑',
-      type: 'REFUND',
-    },
-  ],
-  '3': [
-    {
-      id: 't6',
-      date: '2026-03-15T15:20:00Z',
-      merchant: '넷플릭스',
-      amount: 14500,
-      category: '구독',
-      type: 'PAYMENT',
-    },
-  ],
-};
-
-const DUMMY_CARDS = {
-  '1': { name: '신한 Deep Dream', company: '신한카드', number: '1234-****-****-5678' },
-  '2': { name: 'KB국민 노리 체크카드', company: 'KB국민카드', number: '8765-****-****-4321' },
-  '3': { name: '현대카드 ZERO Edition2', company: '현대카드', number: '4321-****-****-8765' },
-};
+import { getCard, getCardTransactions } from '../api/cardApi';
+import type { CardDto, TransactionDto } from '../types';
 
 export const CardDetailPage = () => {
   const { cardId } = useParams<{ cardId: string }>();
   const navigate = useNavigate();
 
-  const transactions = cardId ? DUMMY_TRANSACTIONS[cardId] || [] : [];
-  const cardInfo = cardId ? DUMMY_CARDS[cardId as keyof typeof DUMMY_CARDS] : null;
+  const [cardInfo, setCardInfo] = useState<CardDto | null>(null);
+  const [transactions, setTransactions] = useState<TransactionDto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!cardId) return;
+
+    const fetchDetail = async () => {
+      try {
+        setLoading(true);
+        const [cardRes, txRes] = await Promise.all([getCard(cardId), getCardTransactions(cardId)]);
+
+        const cardData = 'data' in cardRes ? cardRes.data : (cardRes as unknown as CardDto);
+        const txData = 'data' in txRes ? txRes.data : (txRes as unknown as TransactionDto[]);
+
+        setCardInfo(cardData || null);
+        setTransactions(Array.isArray(txData) ? txData : []);
+      } catch (error) {
+        console.error('Failed to fetch card details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetail();
+  }, [cardId]);
 
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);
@@ -88,6 +43,14 @@ export const CardDetailPage = () => {
       minute: '2-digit',
     });
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <div className="w-8 h-8 border-4 border-gray-100 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!cardInfo) {
     return (
@@ -123,10 +86,10 @@ export const CardDetailPage = () => {
           </button>
           <div>
             <h1 className="text-[20px] font-bold text-gray-900 tracking-[-0.02em]">
-              {cardInfo.name}
+              {cardInfo.cardName}
             </h1>
             <p className="text-gray-400 mt-1 text-[13px] font-medium tracking-[-0.01em]">
-              {cardInfo.company} | {cardInfo.number}
+              {cardInfo.cardIssuerName} | 이번 달 ₩{cardInfo.monthlyCardExpense.toLocaleString()}
             </p>
           </div>
         </div>
