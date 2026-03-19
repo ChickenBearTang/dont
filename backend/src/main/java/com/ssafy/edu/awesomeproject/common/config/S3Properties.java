@@ -129,11 +129,9 @@ public class S3Properties {
 
     public static class CacheProperties {
 
-        @NotBlank
-        private String publicCacheControl = "public, max-age=31536000, immutable";
+        @NotBlank private String publicCacheControl = "public, max-age=31536000, immutable";
 
-        @NotBlank
-        private String privateCacheControl = "private, no-store";
+        @NotBlank private String privateCacheControl = "private, no-store";
 
         public String getPublicCacheControl() {
             return publicCacheControl;

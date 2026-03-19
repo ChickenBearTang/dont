@@ -114,26 +114,26 @@ public class CommentService {
                 commentRepository.findByPost_IdAndStatus(postId, CommentStatus.ACTIVE, pageRequest);
 
         List<CommentSummary> content =
-            commentPage.getContent().stream()
-                .map(
-                    comment ->
-                        new CommentSummary(
-                            comment.getId(),
-                            comment.getParentComment() != null
-                                ? comment.getParentComment().getId()
-                                : null,
-                            comment.getContent(),
-                            comment.getUser().getId(),
-                            comment.getUser().getNickname(),
-                            comment.isAuthor(userId),
-                            Math.toIntExact(
-                                reactionRepository
-                                    .countByTargetTypeAndTargetIdAndReactionType(
-                                        ReactionTargetType.COMMENT,
-                                        comment.getId(),
-                                        ReactionType.LIKE)),
-                            comment.getCreatedAt()))
-                .toList();
+                commentPage.getContent().stream()
+                        .map(
+                                comment ->
+                                        new CommentSummary(
+                                                comment.getId(),
+                                                comment.getParentComment() != null
+                                                        ? comment.getParentComment().getId()
+                                                        : null,
+                                                comment.getContent(),
+                                                comment.getUser().getId(),
+                                                comment.getUser().getNickname(),
+                                                comment.isAuthor(userId),
+                                                Math.toIntExact(
+                                                        reactionRepository
+                                                                .countByTargetTypeAndTargetIdAndReactionType(
+                                                                        ReactionTargetType.COMMENT,
+                                                                        comment.getId(),
+                                                                        ReactionType.LIKE)),
+                                                comment.getCreatedAt()))
+                        .toList();
 
         return new GetCommentListResult(
                 content,

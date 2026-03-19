@@ -14,4 +14,3 @@ public interface S3PresignService {
 
     PresignedUrlResponse createDownloadUrl(CreateDownloadPresignedUrlRequest request);
 }
-

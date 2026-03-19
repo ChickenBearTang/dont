@@ -9,4 +9,3 @@ public record ReportCreateRequestDto(
         @NotNull Long targetId,
         @NotNull ReportReasonCode reasonCode,
         String detailText) {}
-

@@ -1,9 +1,8 @@
 package com.ssafy.edu.awesomeproject.domain.fin.card.dto.response;
 
+import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
-
-import java.util.List;
 
 @Builder
 @Getter
@@ -12,7 +11,7 @@ public class CardSummaryResponse {
     private boolean success;
     private String code;
     private String message;
-    //달 총 지출
+    // 달 총 지출
     private Long totalAmount;
 
     private List<RankColum> RankColumList;
@@ -27,7 +26,5 @@ public class CardSummaryResponse {
 
         private int amount;
         private int amount_prv;
-
     }
-
 }

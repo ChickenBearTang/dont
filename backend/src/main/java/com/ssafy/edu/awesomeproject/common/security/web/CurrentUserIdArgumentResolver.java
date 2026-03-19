@@ -25,13 +25,13 @@ public class CurrentUserIdArgumentResolver implements HandlerMethodArgumentResol
             ModelAndViewContainer mavContainer,
             NativeWebRequest webRequest,
             WebDataBinderFactory binderFactory) {
-        Object userId = webRequest.getAttribute(
-                CurrentUserInterceptor.CURRENT_USER_ID_ATTR,
-                NativeWebRequest.SCOPE_REQUEST);
+        Object userId =
+                webRequest.getAttribute(
+                        CurrentUserInterceptor.CURRENT_USER_ID_ATTR,
+                        NativeWebRequest.SCOPE_REQUEST);
         if (userId == null) {
             throw new TokenException(TokenErrorCode.TOKEN_INVALID);
         }
         return userId;
     }
 }
-
