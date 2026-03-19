@@ -1,0 +1,27 @@
+# 1. Build & Compile Artifacts
+.gradle/
+build/
+
+# 2. Backend IDE Metadata (local)
+.classpath
+.project
+
+# 3. Security & Local Configs
+application-secret.yml
+application-secret.properties
+application-local.yml
+application-local.properties
+
+# 4. Spring Boot & Testing Extras
+HELP.md
+
+# Local H2 DB
+*.h2.db
+.h2.server.properties
+
+# 5. Test & Analysis Outputs
+coverage/
+jacoco/
+.sonar/
+
+.gradle-user-home/
