@@ -76,7 +76,9 @@ export const LoginForm = () => {
         onChange={(event) => setEmail(event.target.value)}
         error={!!errors.email}
       />
-      {errors.email && <p className="text-error-red text-[13px] ml-1 font-medium">{errors.email}</p>}
+      {errors.email && (
+        <p className="text-error-red text-[13px] ml-1 font-medium">{errors.email}</p>
+      )}
 
       <Input
         label="비밀번호"
@@ -88,7 +90,9 @@ export const LoginForm = () => {
         onChange={(event) => setPassword(event.target.value)}
         error={!!errors.password}
       />
-      {errors.password && <p className="text-error-red text-[13px] ml-1 font-medium">{errors.password}</p>}
+      {errors.password && (
+        <p className="text-error-red text-[13px] ml-1 font-medium">{errors.password}</p>
+      )}
 
       <Button type="submit" className="mt-8" disabled={isPending}>
         {isPending ? '로그인 중...' : '로그인'}
@@ -96,4 +100,3 @@ export const LoginForm = () => {
     </form>
   );
 };
-

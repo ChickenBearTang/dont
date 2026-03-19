@@ -10,4 +10,3 @@ public record PollVoteSubmitResponseDto(
         Long optionBCount,
         Long totalVoteCount,
         LocalDateTime updatedAt) {}
-

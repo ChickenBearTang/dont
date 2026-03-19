@@ -1,7 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.community.dto.request;
 
-import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 public record PollUpdateRequestDto(

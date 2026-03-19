@@ -26,7 +26,8 @@ public interface PollVoteRepository extends JpaRepository<PollVote, Long> {
 
     long countByPostIdAndVoteOption(Long postId, PollVoteOption voteOption);
 
-    @Query("""
+    @Query(
+            """
             select
                 v.postId as postId,
                 coalesce(sum(case when v.voteOption = :optionA then 1 else 0 end), 0) as optionACount,
@@ -42,6 +43,7 @@ public interface PollVoteRepository extends JpaRepository<PollVote, Long> {
             @Param("optionB") PollVoteOption optionB);
 
     default List<PollVoteCountProjection> aggregateByPostIds(Collection<Long> postIds) {
-        return aggregateByPostIdsInternal(postIds, PollVoteOption.OPTION_A, PollVoteOption.OPTION_B);
+        return aggregateByPostIdsInternal(
+                postIds, PollVoteOption.OPTION_A, PollVoteOption.OPTION_B);
     }
 }

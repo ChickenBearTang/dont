@@ -51,7 +51,31 @@ public class HotdealPostController {
             @PathVariable Long postId,
             @CurrentUserId Long userId,
             @Valid @RequestBody HotdealUpdateRequestDto hotdealUpdateRequestDto) {
+        Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
         return CommonResponse.success(
                 hotdealPostService.update(postId, userId, hotdealUpdateRequestDto));
+    }
+
+    private Long extractUserIdFromAuthorizationHeader(String authorizationHeader) {
+        String token = extractBearerToken(authorizationHeader);
+        ParsedToken parsedToken = accessTokenService.parseAccessToken(token);
+
+        try {
+            return Long.parseLong(parsedToken.subject());
+        } catch (NumberFormatException exception) {
+            throw new CommunityException(CommunityErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private String extractBearerToken(String authorizationHeader) {
+        if (authorizationHeader == null || authorizationHeader.isBlank()) {
+            throw new CommunityException(CommunityErrorCode.INVALID_INPUT);
+        }
+
+        if (authorizationHeader.startsWith(BEARER_PREFIX)) {
+            return authorizationHeader.substring(BEARER_PREFIX.length()).trim();
+        }
+
+        return authorizationHeader;
     }
 }

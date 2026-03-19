@@ -19,14 +19,14 @@ import type {
 
 export const getPosts = async (
   category?: BoardCategory | null,
-  generationNo?: number,
+  keyword?: string,
   page: number = 0,
   size: number = 15
 ): Promise<ApiResponse<GetPostListResponseDto>> => {
   return await axiosInstance.get('/community/posts', {
     params: {
       category: category || undefined,
-      generationNo,
+      keyword,
       page,
       size,
     },

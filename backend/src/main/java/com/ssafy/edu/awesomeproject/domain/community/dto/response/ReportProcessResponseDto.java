@@ -8,4 +8,3 @@ public record ReportProcessResponseDto(
         Long processedByUserId,
         String processNote,
         LocalDateTime processedAt) {}
-

@@ -30,4 +30,3 @@ public class ReportController {
         return CommonResponse.success(reportService.create(userId, requestDto));
     }
 }
-

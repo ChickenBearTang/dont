@@ -4,8 +4,8 @@ import com.ssafy.edu.awesomeproject.domain.community.entity.PrVote;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PrVoteValue;
 import java.util.Collection;
 import java.util.List;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface PrVoteRepository extends JpaRepository<PrVote, Long> {
@@ -21,7 +21,8 @@ public interface PrVoteRepository extends JpaRepository<PrVote, Long> {
 
     long countByPostIdAndVoteValue(Long postId, PrVoteValue voteValue);
 
-    @Query("""
+    @Query(
+            """
             select
                 v.postId as postId,
                 count(v.id) as totalVoteCount
