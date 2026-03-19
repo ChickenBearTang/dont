@@ -13,6 +13,8 @@ import type {
   CreateCommentResponseDto,
   UpdatePostRequestDto,
   UpdatePostResponseDto,
+  UpdatePollPostRequestDto,
+  UpdateHotdealPostRequestDto,
   UpdateCommentRequestDto,
   UpdateCommentResponseDto,
   ToggleReactionRequestDto,
@@ -85,6 +87,20 @@ export const updatePost = async (
   data: UpdatePostRequestDto
 ): Promise<ApiResponse<UpdatePostResponseDto>> => {
   return await axiosInstance.patch(`/community/posts/${postId}`, data);
+};
+
+export const updatePollPost = async (
+  postId: number,
+  data: UpdatePollPostRequestDto
+): Promise<ApiResponse<UpdatePostResponseDto>> => {
+  return await axiosInstance.patch(`/community/polls/${postId}`, data);
+};
+
+export const updateHotdealPost = async (
+  postId: number,
+  data: UpdateHotdealPostRequestDto
+): Promise<ApiResponse<UpdatePostResponseDto>> => {
+  return await axiosInstance.patch(`/community/hotdeals/${postId}`, data);
 };
 
 export const deletePost = async (postId: number): Promise<ApiResponse<void>> => {

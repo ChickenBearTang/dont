@@ -41,6 +41,7 @@ export const CreatePostPage = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
+  const [pollQuestion, setPollQuestion] = useState<string>('');
   const [optionA, setOptionA] = useState<string>('');
   const [optionB, setOptionB] = useState<string>('');
   const [deadlineAt, setDeadlineAt] = useState<string>('');
@@ -84,18 +85,19 @@ export const CreatePostPage = () => {
 
   const submitByCategory = async (trimmedTitle: string, trimmedContent: string) => {
     if (category === 'POLL') {
+      const question = pollQuestion.trim();
       const a = optionA.trim();
       const b = optionB.trim();
 
-      if (!a || !b || !deadlineAt) {
-        setErrorMessage('토론 선택지/마감일을 모두 입력해 주세요.');
+      if (!question || !a || !b || !deadlineAt) {
+        setErrorMessage('토론 질문/선택지/마감일을 모두 입력해 주세요.');
         return;
       }
 
       await createPollPost({
         title: trimmedTitle,
         content: trimmedContent,
-        question: trimmedContent,
+        question,
         optionA: a,
         optionB: b,
         deadlineAt,
@@ -109,7 +111,7 @@ export const CreatePostPage = () => {
       const originalPrice = originalPriceAmount ? Number(originalPriceAmount) : undefined;
 
       if (!product || !Number.isFinite(dealPrice) || dealPrice <= 0) {
-        setErrorMessage('상품명과 할인가(1원 이상)는 필수입니다.');
+        setErrorMessage('상품명과 딜가(1원 이상)는 필수입니다.');
         return;
       }
 
@@ -224,6 +226,17 @@ export const CreatePostPage = () => {
 
         {category === 'POLL' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+            <div className="md:col-span-2 flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">투표 질문</label>
+              <input
+                type="text"
+                maxLength={255}
+                value={pollQuestion}
+                onChange={(event) => setPollQuestion(event.target.value)}
+                placeholder="선택지에 대한 질문을 입력해 주세요"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
             <div className="flex flex-col gap-2">
               <label className="text-[13px] font-semibold text-gray-700">선택지 A</label>
               <input
@@ -267,7 +280,7 @@ export const CreatePostPage = () => {
                 maxLength={200}
                 value={productName}
                 onChange={(event) => setProductName(event.target.value)}
-                placeholder="예: 디지로카 카드 1년 무료"
+                placeholder="예: 무선 이어폰 특가"
                 className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
               />
             </div>
@@ -297,7 +310,7 @@ export const CreatePostPage = () => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[13px] font-semibold text-gray-700">할인가(원)</label>
+              <label className="text-[13px] font-semibold text-gray-700">딜가(원)</label>
               <input
                 type="number"
                 min={1}
@@ -309,7 +322,7 @@ export const CreatePostPage = () => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-[13px] font-semibold text-gray-700">원가(원)</label>
+              <label className="text-[13px] font-semibold text-gray-700">정가(원)</label>
               <input
                 type="number"
                 min={1}
@@ -321,7 +334,7 @@ export const CreatePostPage = () => {
             </div>
 
             <div className="md:col-span-2 flex flex-col gap-2">
-              <label className="text-[13px] font-semibold text-gray-700">딜 URL</label>
+              <label className="text-[13px] font-semibold text-gray-700">상품 URL</label>
               <input
                 type="url"
                 maxLength={2000}
@@ -352,7 +365,7 @@ export const CreatePostPage = () => {
             id="content"
             placeholder={
               category === 'POLL'
-                ? '토론 질문/설명을 입력해 주세요. (질문으로도 사용됩니다)'
+                ? '투표 배경/설명을 입력해 주세요.'
                 : `${selectedCategoryLabel}에 등록할 내용을 입력해 주세요.`
             }
             value={content}
@@ -380,7 +393,7 @@ export const CreatePostPage = () => {
             disabled={isSubmitting}
             className="inline-flex h-11 items-center justify-center rounded-xl border border-blue-600 bg-blue-600 px-5 text-[14px] font-bold text-white shadow-sm transition hover:border-blue-700 hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-300"
           >
-            {isSubmitting ? '등록 중...' : '작성 완료'}
+            {isSubmitting ? '등록 중..' : '작성 완료'}
           </button>
         </div>
       </form>
