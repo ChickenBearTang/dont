@@ -8,7 +8,7 @@ import type {
   SavingsSetting,
   SavingsSettingRequest,
   AccountCreateResponse,
-} from '../types/account';
+} from '../types';
 
 /**
  * 계좌 관리 API 서비스
