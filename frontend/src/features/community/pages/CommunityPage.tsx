@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getPosts } from '../api/communityApi';
 import type { BoardCategory, GetPostListResponseDto, PostSummaryDto } from '../types';
@@ -21,17 +21,17 @@ export const CommunityPage = () => {
   const getCategoryName = (cat: BoardCategory | undefined) => {
     switch (cat) {
       case 'FREE':
-        return '?먯쑀';
+        return '자유';
       case 'COHORT':
-        return '湲곗닔';
+        return '기수';
       case 'PR':
         return 'PR';
       case 'POLL':
-        return '?좊줎';
+        return '토론';
       case 'HOTDEAL':
-        return '?ル뵜';
+        return '핫딜';
       default:
-        return '?꾩껜';
+        return '전체';
     }
   };
 
@@ -93,7 +93,7 @@ export const CommunityPage = () => {
     fetchPosts();
   }, [category, currentPage]);
 
-  const categoryTitle = category ? `${getCategoryName(category)} 寃뚯떆?? : '?꾩껜 寃뚯떆湲';
+  const categoryTitle = category ? `${getCategoryName(category)} 게시판` : '전체 게시글';
 
   const cohortGenerationNo =
     category === 'COHORT' && posts.length > 0 ? posts[0].generationNo : null;
@@ -101,9 +101,9 @@ export const CommunityPage = () => {
   const categoryDescription =
     category === 'COHORT'
       ? cohortGenerationNo
-        ? `${cohortGenerationNo}湲?寃뚯떆?먯엯?덈떎. ?먯쑀濡?쾶 ?섍껄???섎닠蹂댁꽭??`
-        : '湲곗닔 寃뚯떆?먯엯?덈떎. ?먯쑀濡?쾶 ?섍껄???섎닠蹂댁꽭??'
-      : '?곕━留뚯쓽 ?뚯떇???섎늻怨??④퍡 ?뚰넻??蹂댁꽭??';
+        ? `${cohortGenerationNo}기 게시판입니다. 자유롭게 의견을 나눠보세요.`
+        : '기수 게시판입니다. 자유롭게 의견을 나눠보세요.'
+      : '우리만의 소식을 나누고 함께 소통해 보세요.';
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -112,22 +112,15 @@ export const CommunityPage = () => {
     const diffMin = Math.floor(diffMs / 60000);
     const diffHour = Math.floor(diffMs / 3600000);
 
-    if (diffMin < 1) return '諛⑷툑';
-    if (diffMin < 60) return `${diffMin}遺???;
-    if (diffHour < 24) return `${diffHour}?쒓컙 ??;
+    if (diffMin < 1) return '방금';
+    if (diffMin < 60) return `${diffMin}분 전`;
+    if (diffHour < 24) return `${diffHour}시간 전`;
 
     return date.toLocaleDateString('ko-KR', {
       month: 'numeric',
       day: 'numeric',
     });
   };
-
-  const toWon = (value: number) =>
-    new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0,
-    }).format(value);
 
   const totalPages = pageInfo?.totalPages ?? 0;
   const totalElements = pageInfo?.totalElements ?? 0;
@@ -174,7 +167,7 @@ export const CommunityPage = () => {
             </svg>
             <input
               type="text"
-              placeholder="寃??
+              placeholder="검색"
               className="bg-gray-50 border border-gray-100 text-[13px] rounded-lg pl-9 pr-3 py-2 w-[180px] outline-none focus:border-gray-200 focus:bg-white transition-all font-medium text-gray-600 placeholder:text-gray-300"
             />
           </div>
@@ -195,7 +188,7 @@ export const CommunityPage = () => {
             >
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
             </svg>
-            <span>湲?곌린</span>
+            <span>글쓰기</span>
           </button>
         </div>
       </div>
@@ -205,27 +198,26 @@ export const CommunityPage = () => {
       <div className="px-7 pb-6 flex-1 flex flex-col">
         <div className="flex items-center justify-between py-3">
           <div className="text-[12px] text-gray-400 font-medium">
-            珥?<span className="font-bold text-gray-700">{totalElements}</span>媛?          </div>
+            총 <span className="font-bold text-gray-700">{totalElements}</span>개
+          </div>
           <div className="text-[12px] text-gray-400 font-medium">
-            ?섏씠吏 <span className="font-bold text-gray-700">{currentPage}</span>
+            페이지 <span className="font-bold text-gray-700">{currentPage}</span>
             {totalPages > 0 ? ` / ${totalPages}` : ''}
           </div>
         </div>
 
-        {category !== ''HOTDEAL'' && (
-          <div className="grid grid-cols-12 gap-3 py-3 text-[12px] font-semibold text-gray-300 uppercase tracking-wider items-center border-t border-gray-50">
-            <div className="col-span-1">遺꾨쪟</div>
-            <div className="col-span-7">?쒕ぉ</div>
-            <div className="col-span-2 text-center">?묒꽦??/div>
-            <div className="col-span-2 text-right pr-1">?좎쭨</div>
-          </div>
-        )}
+        <div className="grid grid-cols-12 gap-3 py-3 text-[12px] font-semibold text-gray-300 uppercase tracking-wider items-center border-t border-gray-50">
+          <div className="col-span-1">분류</div>
+          <div className="col-span-7">제목</div>
+          <div className="col-span-2 text-center">작성자</div>
+          <div className="col-span-2 text-right pr-1">날짜</div>
+        </div>
 
         <div className="flex flex-col flex-1">
           {loading ? (
             <div className="py-28 flex flex-col items-center justify-center">
               <div className="w-6 h-6 border-2 border-gray-100 border-t-gray-400 rounded-full animate-spin" />
-              <span className="text-[12px] text-gray-300 mt-3 font-medium">遺덈윭?ㅻ뒗 以?/span>
+              <span className="text-[12px] text-gray-300 mt-3 font-medium">불러오는 중</span>
             </div>
           ) : posts.length === 0 ? (
             <div className="py-28 flex flex-col items-center justify-center">
@@ -244,8 +236,8 @@ export const CommunityPage = () => {
                   />
                 </svg>
               </div>
-              <p className="font-semibold text-gray-400 text-[13px]">?깅줉??寃뚯떆臾쇱씠 ?놁뒿?덈떎</p>
-              <p className="text-[12px] text-gray-300 mt-1">泥?踰덉㎏ ?묒꽦?먭? ?섏뼱蹂댁꽭??/p>
+              <p className="font-semibold text-gray-400 text-[13px]">등록된 게시물이 없습니다</p>
+              <p className="text-[12px] text-gray-300 mt-1">첫 번째 작성자가 되어보세요</p>
             </div>
           ) : (
             posts.map((post, idx) => (
@@ -278,17 +270,19 @@ export const CommunityPage = () => {
 
                   {post.extraSummary?.poll && !post.extraSummary.poll.isClosed && (
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-500 font-semibold shrink-0">
-                      吏꾪뻾以?                    </span>
+                      진행중
+                    </span>
                   )}
 
                   {post.extraSummary?.pr && post.extraSummary.pr.status === 'OPEN' && (
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-500 font-semibold shrink-0">
-                      ?ы몴以?                    </span>
+                      투표중
+                    </span>
                   )}
                 </div>
 
                 <div className="col-span-2 text-center text-gray-500 text-[13px] font-medium truncate">
-                  {post.authorNickname || '?????놁쓬'}
+                  {post.authorNickname || '알 수 없음'}
                 </div>
 
                 <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium">
@@ -307,7 +301,7 @@ export const CommunityPage = () => {
               disabled={currentPage <= 1}
               className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
             >
-              ?댁쟾
+              이전
             </button>
 
             {visiblePageNumbers.map((pageNumber) => (
@@ -331,7 +325,7 @@ export const CommunityPage = () => {
               disabled={currentPage >= totalPages}
               className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
             >
-              ?ㅼ쓬
+              다음
             </button>
           </div>
         )}
@@ -339,4 +333,3 @@ export const CommunityPage = () => {
     </div>
   );
 };
-
