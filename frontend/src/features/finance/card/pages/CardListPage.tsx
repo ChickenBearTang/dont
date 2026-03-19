@@ -44,7 +44,7 @@ export const CardListPage = () => {
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px]">
+    <div className="w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px]">
       <div className="px-7 pt-7 pb-5">
         <h1 className="text-[22px] font-bold text-gray-900 tracking-[-0.02em]">내 카드 목록</h1>
         <p className="text-gray-400 mt-1 text-[13px] font-medium tracking-[-0.01em]">
@@ -73,7 +73,7 @@ export const CardListPage = () => {
                 className="flex items-center justify-between p-5 rounded-2xl border border-gray-100 hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group bg-gradient-to-br from-white to-gray-50/50 hover:to-blue-50/10"
               >
                 <div className="flex items-center gap-6">
-                  <div className="w-3240 h-20 shrink-0 group-hover:scale-105 transition-transform flex items-center justify-center drop-shadow-md">
+                  <div className="w-32 h-20 shrink-0 group-hover:scale-105 transition-transform flex items-center justify-center drop-shadow-md">
                     <img
                       src={getCardImage(card.cardIssuerName)}
                       alt={card.cardIssuerName}
