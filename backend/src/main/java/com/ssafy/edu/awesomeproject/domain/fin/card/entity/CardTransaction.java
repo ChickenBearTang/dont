@@ -59,17 +59,16 @@ public class CardTransaction extends BaseEntity {
 
     @Builder
     public CardTransaction(
-        Card card,
-        LocalDate transactionDate,
-        String transactionTime,
-        String merchantName,
-        String categoryName,
-        Long transactionAmount,
-        String transactionType,
-        String approvalNo,
-        String description,
-        Long userId
-       ) {
+            Card card,
+            LocalDate transactionDate,
+            String transactionTime,
+            String merchantName,
+            String categoryName,
+            Long transactionAmount,
+            String transactionType,
+            String approvalNo,
+            String description,
+            Long userId) {
         this.card = card;
         this.transactionDate = transactionDate;
         this.transactionTime = transactionTime;
@@ -80,6 +79,5 @@ public class CardTransaction extends BaseEntity {
         this.approvalNo = approvalNo;
         this.description = description;
         this.userId = userId;
-
     }
 }

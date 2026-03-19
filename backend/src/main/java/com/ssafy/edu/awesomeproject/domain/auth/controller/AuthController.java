@@ -51,8 +51,7 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "409", description = "이미 존재하는 이메일")
     })
-    public CommonResponse<Void> signup(
-            @Valid @RequestBody SignupRequestDto signupRequestDto) {
+    public CommonResponse<Void> signup(@Valid @RequestBody SignupRequestDto signupRequestDto) {
         signupService.signup(
                 signupRequestDto.email(),
                 signupRequestDto.password(),

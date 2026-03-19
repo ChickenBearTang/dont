@@ -44,8 +44,7 @@ public class AccountController {
     @Operation(summary = "계좌 상세 조회", description = "특정 계좌의 상세 정보를 조회합니다.")
     @GetMapping("/{accountId}")
     public ResponseEntity<AccountResponse> getAccountDetail(
-            @CurrentUserId Long userId,
-            @PathVariable Long accountId) {
+            @CurrentUserId Long userId, @PathVariable Long accountId) {
 
         AccountResponse response = accountService.getAccount(userId, accountId);
 
@@ -55,8 +54,7 @@ public class AccountController {
     @Operation(summary = "세이브 박스 개설", description = "신규 '세이브 박스' 계좌를 개설합니다. (DB 저장 없음)")
     @PostMapping("/save-box")
     public ResponseEntity<AccountCreateResponse> createSaveBox(
-            @CurrentUserId Long userId,
-            @Valid @RequestBody SaveBoxCreateRequest request) {
+            @CurrentUserId Long userId, @Valid @RequestBody SaveBoxCreateRequest request) {
 
         AccountCreateResponse response = accountService.createSaveBox(userId, request);
 
@@ -75,8 +73,7 @@ public class AccountController {
     @Operation(summary = "주 계좌 설정", description = "특정 계좌를 사용자의 '주 계좌'로 설정합니다.")
     @PatchMapping("/{accountId}/primary")
     public ResponseEntity<AccountResponse> setPrimaryAccount(
-            @CurrentUserId Long userId,
-            @PathVariable Long accountId) {
+            @CurrentUserId Long userId, @PathVariable Long accountId) {
 
         AccountResponse response = accountService.setPrimaryAccount(userId, accountId);
 
@@ -88,10 +85,15 @@ public class AccountController {
     public ResponseEntity<AccountTransactionResponse> getAccountTransactions(
             @CurrentUserId Long userId,
             @PathVariable Long accountId,
-            @Parameter(description = "조회 시작일 (YYYYMMDD)", example = "20240101") @RequestParam(defaultValue = "20240101") String startDate,
-            @Parameter(description = "조회 종료일 (YYYYMMDD)", example = "20241231") @RequestParam(defaultValue = "20241231") String endDate) {
+            @Parameter(description = "조회 시작일 (YYYYMMDD)", example = "20240101")
+                    @RequestParam(defaultValue = "20240101")
+                    String startDate,
+            @Parameter(description = "조회 종료일 (YYYYMMDD)", example = "20241231")
+                    @RequestParam(defaultValue = "20241231")
+                    String endDate) {
 
-        AccountTransactionResponse response = accountService.getAccountTransactions(userId, accountId, startDate, endDate);
+        AccountTransactionResponse response =
+                accountService.getAccountTransactions(userId, accountId, startDate, endDate);
 
         return ResponseEntity.ok(response);
     }
@@ -106,17 +108,16 @@ public class AccountController {
     @Operation(summary = "저축 설정 생성/수정", description = "자동 저축 규칙을 설정합니다. (키워드 매칭 시 자동 이체)")
     @PostMapping("/savings-settings")
     public ResponseEntity<SavingsSettingResponse> saveSavingsSetting(
-            @CurrentUserId Long userId,
-            @Valid @RequestBody SavingsSettingRequest request) {
-        SavingsSettingResponse response = accountService.createOrUpdateSavingsSetting(userId, request);
+            @CurrentUserId Long userId, @Valid @RequestBody SavingsSettingRequest request) {
+        SavingsSettingResponse response =
+                accountService.createOrUpdateSavingsSetting(userId, request);
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "수동 저축 실행", description = "설정된 주계좌에서 세이브박스로 직접 금액을 이체합니다.")
     @PostMapping("/manual-savings")
     public ResponseEntity<Void> manualSavings(
-            @CurrentUserId Long userId,
-            @RequestParam java.math.BigDecimal amount) {
+            @CurrentUserId Long userId, @RequestParam java.math.BigDecimal amount) {
         accountService.manualSavings(userId, amount);
         return ResponseEntity.ok().build();
     }

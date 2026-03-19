@@ -15,4 +15,3 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 
     Page<Report> findAllByOrderByIdDesc(Pageable pageable);
 }
-

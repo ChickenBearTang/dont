@@ -9,18 +9,18 @@ import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrCreateRequest
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrVoteSubmitRequestDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrCloseResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrCreateResponseDto;
-import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrDetailResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrDetailEventDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrDetailPermissionsDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrDetailResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrDetailReviewDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrVoteSubmitResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Board;
 import com.ssafy.edu.awesomeproject.domain.community.entity.BoardCategory;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Post;
-import com.ssafy.edu.awesomeproject.domain.community.entity.PrEvent;
-import com.ssafy.edu.awesomeproject.domain.community.entity.PrEventType;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PrCloseReason;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PrCloseTargetStatus;
+import com.ssafy.edu.awesomeproject.domain.community.entity.PrEvent;
+import com.ssafy.edu.awesomeproject.domain.community.entity.PrEventType;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PrPost;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PrReview;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PrReviewDecision;
@@ -119,10 +119,7 @@ public class PrPostService {
         PrVote savedVote =
                 prVoteRepository.save(
                         new PrVote(
-                                postId,
-                                userId,
-                                voteValue,
-                                prVoteSubmitRequestDto.opinionText()));
+                                postId, userId, voteValue, prVoteSubmitRequestDto.opinionText()));
         prReviewRepository.save(
                 new PrReview(
                         postId,
@@ -171,7 +168,8 @@ public class PrPostService {
                                         "closeReason", PrCloseReason.USER_ACTION.name()))));
 
         long agreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.AGREE);
-        long disagreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.DISAGREE);
+        long disagreeCount =
+                prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.DISAGREE);
         long totalVoteCount = prVoteRepository.countByPostId(postId);
 
         return new PrCloseResponseDto(
@@ -188,13 +186,18 @@ public class PrPostService {
         PrPost prPost = getPurchaseRequestOrThrow(postId);
 
         long agreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.AGREE);
-        long disagreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.DISAGREE);
+        long disagreeCount =
+                prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.DISAGREE);
         long totalVoteCount = prVoteRepository.countByPostId(postId);
-        List<PrReview> reviewEntities = prReviewRepository.findAllByPostIdOrderByCreatedAtAsc(postId);
-        Set<Long> reviewUserIds = reviewEntities.stream().map(PrReview::getUserId).collect(Collectors.toSet());
+        List<PrReview> reviewEntities =
+                prReviewRepository.findAllByPostIdOrderByCreatedAtAsc(postId);
+        Set<Long> reviewUserIds =
+                reviewEntities.stream().map(PrReview::getUserId).collect(Collectors.toSet());
         Map<Long, User> reviewUserById = new HashMap<>();
         if (!reviewUserIds.isEmpty()) {
-            userRepository.findAllById(reviewUserIds).forEach(user -> reviewUserById.put(user.getId(), user));
+            userRepository
+                    .findAllById(reviewUserIds)
+                    .forEach(user -> reviewUserById.put(user.getId(), user));
         }
 
         List<PrDetailReviewDto> reviews =
@@ -206,14 +209,15 @@ public class PrPostService {
                                             review.getId(),
                                             review.getUserId(),
                                             reviewUser == null ? null : reviewUser.getNickname(),
-                                            reviewUser == null ? null : reviewUser.getProfileImageUrl(),
+                                            reviewUser == null
+                                                    ? null
+                                                    : reviewUser.getProfileImageUrl(),
                                             review.getDecision().name(),
                                             review.getContent(),
                                             review.getCreatedAt());
                                 })
                         .toList();
-        List<PrDetailEventDto> events =
-                buildEventDtos(postId);
+        List<PrDetailEventDto> events = buildEventDtos(postId);
 
         boolean deadlineExpired = isDeadlineExpired(prPost.getDeadlineAt());
         boolean isOpen = prPost.getResultStatusEnum() == PrStatus.OPEN && !deadlineExpired;
@@ -262,23 +266,26 @@ public class PrPostService {
         }
 
         return prEvents.stream()
-                        .map(
-                                event -> {
-                                    User actor = event.getActorUserId() == null ? null : actorById.get(event.getActorUserId());
-                                    return
-                                        new PrDetailEventDto(
-                                                event.getId(),
-                                                event.getEventType().name(),
-                                                event.getActorUserId(),
-                                                actor == null ? null : actor.getNickname(),
-                                                actor == null ? null : actor.getProfileImageUrl(),
-                                                event.getPayload(),
-                                                event.getCreatedAt());
-                                })
-                        .toList();
+                .map(
+                        event -> {
+                            User actor =
+                                    event.getActorUserId() == null
+                                            ? null
+                                            : actorById.get(event.getActorUserId());
+                            return new PrDetailEventDto(
+                                    event.getId(),
+                                    event.getEventType().name(),
+                                    event.getActorUserId(),
+                                    actor == null ? null : actor.getNickname(),
+                                    actor == null ? null : actor.getProfileImageUrl(),
+                                    event.getPayload(),
+                                    event.getCreatedAt());
+                        })
+                .toList();
     }
 
-    private String resolveVoteDisabledReason(boolean isOpen, boolean isAuthor, boolean alreadyVoted) {
+    private String resolveVoteDisabledReason(
+            boolean isOpen, boolean isAuthor, boolean alreadyVoted) {
         if (!isOpen) return "종료된 PR은 투표할 수 없습니다.";
         if (isAuthor) return "작성자는 자신의 PR에 투표할 수 없습니다.";
         if (alreadyVoted) return "이미 투표한 PR입니다.";
@@ -290,6 +297,7 @@ public class PrPostService {
         if (!isAuthor) return "작성자만 PR을 종료할 수 있습니다.";
         return null;
     }
+
     private User getUserOrThrow(Long userId) {
         return userRepository
                 .findById(userId)
@@ -305,7 +313,10 @@ public class PrPostService {
     private PrPost getPurchaseRequestOrThrow(Long postId) {
         return prPostRepository
                 .findByPost_Id(postId)
-                .orElseThrow(() -> new CommunityException(CommunityErrorCode.PURCHASE_REQUEST_NOT_FOUND));
+                .orElseThrow(
+                        () ->
+                                new CommunityException(
+                                        CommunityErrorCode.PURCHASE_REQUEST_NOT_FOUND));
     }
 
     private void validatePurchaseRequestOwner(PrPost prPost, Long userId) {

@@ -8,4 +8,3 @@ public enum ReportReasonCode {
     PRIVACY,
     OTHER
 }
-

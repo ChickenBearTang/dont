@@ -34,7 +34,8 @@ public class PollPostController {
     @ApiCommonResponses
     @Operation(summary = "토론 생성 API", description = "토론 글을 생성합니다.")
     public CommonResponse<PollCreateResponseDto> create(
-            @CurrentUserId Long userId, @Valid @RequestBody PollCreateRequestDto pollCreateRequestDto) {
+            @CurrentUserId Long userId,
+            @Valid @RequestBody PollCreateRequestDto pollCreateRequestDto) {
         return CommonResponse.success(pollPostService.create(userId, pollCreateRequestDto));
     }
 
@@ -62,7 +63,7 @@ public class PollPostController {
             @PathVariable Long postId,
             @CurrentUserId Long userId,
             @Valid @RequestBody PollVoteSubmitRequestDto pollVoteSubmitRequestDto) {
-        return CommonResponse.success(pollPostService.vote(postId, userId, pollVoteSubmitRequestDto));
+        return CommonResponse.success(
+                pollPostService.vote(postId, userId, pollVoteSubmitRequestDto));
     }
 }
-
