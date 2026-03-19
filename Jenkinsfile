@@ -135,13 +135,63 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
+                    api_path="$(awk -F= '
+                      /^[[:space:]]*#/ { next }
+                      /^[[:space:]]*$/ { next }
+                      {
+                        line=$0
+                        sub(/\r$/, "", line)
+                        pos=index(line, "=")
+                        if (pos == 0) next
+                        key=substr(line, 1, pos - 1)
+                        gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+                        if (key == "API_PATH") {
+                          value=substr(line, pos + 1)
+                          gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+                          gsub(/^"|"$/, "", value)
+                          gsub(/^'\''|'\''$/, "", value)
+                          print value
+                          found=1
+                          exit
+                        }
+                      }
+                      END {
+                        if (!found) print ""
+                      }
+                    ' "${ENV_FILE}")"
+
+                    if [ -n "${api_path}" ] && [ "${api_path#'/'}" = "${api_path}" ]; then
+                      api_path="/${api_path}"
+                    fi
+
+                    if [ "${api_path}" != "/" ]; then
+                      api_path="${api_path%/}"
+                    fi
+
                     for i in $(seq 1 20); do
                       if docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T frontend \
                            wget -q --spider http://127.0.0.1/ >/dev/null 2>&1; then
-                        readiness_body="$(docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T frontend \
-                          wget -q -O - http://backend:8080/actuator/health/readiness || true)"
+                        readiness_ok=0
 
-                        if printf '%s' "${readiness_body}" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+                        if [ -n "${api_path}" ]; then
+                          readiness_body="$(docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T frontend \
+                            wget -q -O - "http://backend:8080${api_path}/actuator/health/readiness" || true)"
+
+                          if printf '%s' "${readiness_body}" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+                            readiness_ok=1
+                          fi
+                        fi
+
+                        if [ "${readiness_ok}" -ne 1 ]; then
+                          readiness_body="$(docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T frontend \
+                            wget -q -O - "http://backend:8080/actuator/health/readiness" || true)"
+
+                          if printf '%s' "${readiness_body}" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+                            readiness_ok=1
+                          fi
+                        fi
+
+                        if [ "${readiness_ok}" -eq 1 ]; then
                           echo "Smoke test passed"
                           exit 0
                         fi
