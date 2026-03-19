@@ -4,4 +4,3 @@ public enum ReportTargetType {
     POST,
     COMMENT
 }
-

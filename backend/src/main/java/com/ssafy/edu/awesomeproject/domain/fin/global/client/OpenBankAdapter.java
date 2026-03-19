@@ -133,7 +133,8 @@ public class OpenBankAdapter {
                                         .apiName("inquireTransactionHistoryList")
                                         .transmissionDate(
                                                 now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
-                                        .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
+                                        .transmissionTime(
+                                                now.format(DateTimeFormatter.ofPattern("HHmmss")))
                                         .institutionCode("00100")
                                         .fintechAppNo("001")
                                         .apiServiceCode("inquireTransactionHistoryList")
@@ -166,7 +167,8 @@ public class OpenBankAdapter {
                                         .apiName("updateDemandDepositAccountTransfer")
                                         .transmissionDate(
                                                 now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
-                                        .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
+                                        .transmissionTime(
+                                                now.format(DateTimeFormatter.ofPattern("HHmmss")))
                                         .institutionCode("00100")
                                         .fintechAppNo("001")
                                         .apiServiceCode("updateDemandDepositAccountTransfer")

@@ -5,4 +5,3 @@ import java.util.Map;
 
 public record PresignedUrlResponse(
         String url, String method, Map<String, String> headers, String key, Instant expiresAt) {}
-

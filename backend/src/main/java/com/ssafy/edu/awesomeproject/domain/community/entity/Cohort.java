@@ -2,11 +2,10 @@ package com.ssafy.edu.awesomeproject.domain.community.entity;
 
 import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
 
 @Entity
 @Table(name = "cohorts")

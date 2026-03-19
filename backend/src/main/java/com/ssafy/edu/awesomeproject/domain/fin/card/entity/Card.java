@@ -15,8 +15,6 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.time.LocalDate;
-
 
 @Getter
 @Entity
@@ -70,19 +68,19 @@ public class Card extends BaseEntity {
 
     @Builder
     public Card(
-        User user,
-        String cardNo,
-        String cvc,
-        String cardUniqueNo,
-        String cardIssuerCode,
-        String cardIssuerName,
-        String cardName,
-        String cardDescription,
-        Long baselinePerformance,
-        Long maxBenefitLimit,
-        String cardExpiryDate,
-        String withdrawalAccountNo,
-        String withdrawalDate) {
+            User user,
+            String cardNo,
+            String cvc,
+            String cardUniqueNo,
+            String cardIssuerCode,
+            String cardIssuerName,
+            String cardName,
+            String cardDescription,
+            Long baselinePerformance,
+            Long maxBenefitLimit,
+            String cardExpiryDate,
+            String withdrawalAccountNo,
+            String withdrawalDate) {
         this.user = user;
         this.cardNo = cardNo;
         this.cvc = cvc;
@@ -98,20 +96,19 @@ public class Card extends BaseEntity {
         this.withdrawalDate = withdrawalDate;
     }
 
-    //업데이트용 메소드(setter 대용)
+    // 업데이트용 메소드(setter 대용)
     public void updateFromExternal(
-        String cardNo,
-        String cvc,
-        String cardIssuerCode,
-        String cardIssuerName,
-        String cardName,
-        String cardDescription,
-        Long baselinePerformance,
-        Long maxBenefitLimit,
-        String cardExpiryDate,
-        String withdrawalAccountNo,
-        String withdrawalDate
-    ) {
+            String cardNo,
+            String cvc,
+            String cardIssuerCode,
+            String cardIssuerName,
+            String cardName,
+            String cardDescription,
+            Long baselinePerformance,
+            Long maxBenefitLimit,
+            String cardExpiryDate,
+            String withdrawalAccountNo,
+            String withdrawalDate) {
         this.cardNo = cardNo;
         this.cvc = cvc;
         this.cardIssuerCode = cardIssuerCode;
