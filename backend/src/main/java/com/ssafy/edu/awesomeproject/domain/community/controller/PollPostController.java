@@ -41,8 +41,9 @@ public class PollPostController {
     @GetMapping("/{postId}")
     @ApiCommonResponses
     @Operation(summary = "토론 상세 조회 API", description = "토론 글과 현재 투표 집계를 조회합니다.")
-    public CommonResponse<PollDetailResponseDto> detail(@PathVariable Long postId) {
-        return CommonResponse.success(pollPostService.detail(postId));
+    public CommonResponse<PollDetailResponseDto> detail(
+            @CurrentUserId Long userId, @PathVariable Long postId) {
+        return CommonResponse.success(pollPostService.detail(postId, userId));
     }
 
     @PatchMapping("/{postId}")
@@ -65,4 +66,3 @@ public class PollPostController {
         return CommonResponse.success(pollPostService.vote(postId, userId, pollVoteSubmitRequestDto));
     }
 }
-

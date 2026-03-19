@@ -86,6 +86,13 @@ export const router = createBrowserRouter([
             },
           },
           {
+            path: 'poll',
+            async lazy() {
+              const { PollPage } = await import('@/features/community/poll');
+              return { Component: PollPage };
+            },
+          },
+          {
             path: ':postId',
             async lazy() {
               const { PostDetailPage } = await import('@/features/community/pages/PostDetailPage');

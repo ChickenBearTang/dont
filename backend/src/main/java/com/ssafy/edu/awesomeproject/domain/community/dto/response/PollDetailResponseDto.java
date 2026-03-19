@@ -15,5 +15,6 @@ public record PollDetailResponseDto(
         Long optionACount,
         Long optionBCount,
         Long totalVoteCount,
+        String myVoteOption,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {}
