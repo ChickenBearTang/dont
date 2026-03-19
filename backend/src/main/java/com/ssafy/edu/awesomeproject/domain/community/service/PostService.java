@@ -185,14 +185,14 @@ public class PostService {
                                 postPage = postRepository.findByBoard_IdInAndStatus(
                                                 visibleBoardIds, PostStatus.ACTIVE, pageRequest);
                         }
-                } else if (category == BoardCategory.COHORT) {
-                        validateUserCohort(user, resolvedGenerationNo);
-
-                        postPage = postRepository.findByBoard_CategoryAndBoard_Cohort_GenerationNoAndStatus(
-                                        category, resolvedGenerationNo, PostStatus.ACTIVE, pageRequest);
                 } else {
-                        postPage = postRepository.findByBoard_CategoryAndStatus(
-                                        category, PostStatus.ACTIVE, pageRequest);
+                        if (category == BoardCategory.COHORT) {
+                                validateUserCohort(user, resolvedGenerationNo);
+                        }
+
+                        Board board = resolveBoard(category, resolvedGenerationNo);
+                        postPage = postRepository.findByBoard_IdAndStatus(
+                                        board.getId(), PostStatus.ACTIVE, pageRequest);
                 }
 
                 Map<Long, PrPost> prByPostId = getPrByPostId(postPage.getContent(), category);
