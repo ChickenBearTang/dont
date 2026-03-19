@@ -30,8 +30,10 @@ const getCategoryLabel = (cat: BoardCategory | undefined) => {
 
 const toDatetimeLocalValue = (value?: string | null) => {
   if (!value) return '';
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
+
   const timezoneOffsetMs = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
 };
@@ -51,6 +53,7 @@ export const EditPostPage = () => {
   const [optionA, setOptionA] = useState('');
   const [optionB, setOptionB] = useState('');
   const [deadlineAt, setDeadlineAt] = useState('');
+  const [pollTotalVoteCount, setPollTotalVoteCount] = useState(0);
 
   const [productName, setProductName] = useState('');
   const [storeName, setStoreName] = useState('');
@@ -61,6 +64,7 @@ export const EditPostPage = () => {
   const [expiredAt, setExpiredAt] = useState('');
 
   const categoryLabel = useMemo(() => getCategoryLabel(category), [category]);
+  const isPollLocked = category === 'POLL' && pollTotalVoteCount > 0;
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -85,17 +89,20 @@ export const EditPostPage = () => {
         if (post.category === 'POLL') {
           const pollRes = await getPollDetail(Number(postId));
           const poll = pollRes.data;
+
           if (poll) {
             setPollQuestion(poll.question ?? '');
             setOptionA(poll.optionA ?? '');
             setOptionB(poll.optionB ?? '');
             setDeadlineAt(toDatetimeLocalValue(poll.deadlineAt));
+            setPollTotalVoteCount(poll.totalVoteCount ?? 0);
           }
         }
 
         if (post.category === 'HOTDEAL') {
           const hotdealRes = await getHotdealDetail(Number(postId));
           const hotdeal = hotdealRes.data;
+
           if (hotdeal) {
             setProductName(hotdeal.productName ?? '');
             setStoreName(hotdeal.storeName ?? '');
@@ -149,6 +156,11 @@ export const EditPostPage = () => {
 
     try {
       if (category === 'POLL') {
+        if (isPollLocked) {
+          setErrorMessage('이미 투표가 시작되어 수정할 수 없습니다.');
+          return;
+        }
+
         const question = pollQuestion.trim();
         const a = optionA.trim();
         const b = optionB.trim();
@@ -265,6 +277,11 @@ export const EditPostPage = () => {
 
         {category === 'POLL' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+            {isPollLocked && (
+              <div className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] font-semibold text-amber-700">
+                투표가 시작되어 질문/선택지/마감일시는 수정할 수 없습니다.
+              </div>
+            )}
             <div className="md:col-span-2 flex flex-col gap-2">
               <label className="text-[13px] font-semibold text-gray-700">투표 질문</label>
               <input
@@ -273,7 +290,8 @@ export const EditPostPage = () => {
                 value={pollQuestion}
                 onChange={(event) => setPollQuestion(event.target.value)}
                 placeholder="선택지에 대한 질문을 입력해 주세요"
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                disabled={isPollLocked}
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue disabled:bg-gray-100 disabled:text-gray-400"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -284,7 +302,8 @@ export const EditPostPage = () => {
                 value={optionA}
                 onChange={(event) => setOptionA(event.target.value)}
                 placeholder="선택지 A"
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                disabled={isPollLocked}
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue disabled:bg-gray-100 disabled:text-gray-400"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -295,7 +314,8 @@ export const EditPostPage = () => {
                 value={optionB}
                 onChange={(event) => setOptionB(event.target.value)}
                 placeholder="선택지 B"
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                disabled={isPollLocked}
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue disabled:bg-gray-100 disabled:text-gray-400"
               />
             </div>
             <div className="md:col-span-2 flex flex-col gap-2">
@@ -304,7 +324,8 @@ export const EditPostPage = () => {
                 type="datetime-local"
                 value={deadlineAt}
                 onChange={(event) => setDeadlineAt(event.target.value)}
-                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                disabled={isPollLocked}
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue disabled:bg-gray-100 disabled:text-gray-400"
               />
             </div>
           </div>
@@ -425,7 +446,7 @@ export const EditPostPage = () => {
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isPollLocked}
             className="inline-flex h-11 items-center justify-center rounded-xl border border-blue-600 bg-blue-600 px-5 text-[14px] font-bold text-white shadow-sm transition hover:border-blue-700 hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-300"
           >
             {isSubmitting ? '수정 중..' : '수정완료'}
