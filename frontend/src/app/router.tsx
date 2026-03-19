@@ -130,6 +130,13 @@ export const router = createBrowserRouter([
           return { Component: AccountDetailPage };
         },
       },
+      {
+        path: '/finance/report',
+        async lazy() {
+          const { MonthlyReportPage } = await import('@/features/finance/report');
+          return { Component: MonthlyReportPage };
+        },
+      },
     ],
   },
 ]);
