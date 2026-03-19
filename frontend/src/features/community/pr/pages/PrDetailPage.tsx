@@ -87,7 +87,9 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
             payload.before && payload.after
               ? `${payload.before} -> ${payload.after}`
               : `현재 상태: ${detail.status}`,
-          content: payload.closeReason ? `종료 사유: ${payload.closeReason}` : '요청 상태가 변경되었습니다.',
+          content: payload.closeReason
+            ? `종료 사유: ${payload.closeReason}`
+            : '요청 상태가 변경되었습니다.',
           timeLabel: formatRelativeTime(event.createdAt),
           actorLabel: event.actorNickname ?? null,
         };
@@ -232,8 +234,14 @@ export const PrDetailPage = () => {
     return (
       <Card className="flex flex-col items-center gap-4 text-center py-12">
         <h2 className="text-xl font-black text-gray-800">PR 상세 오류</h2>
-        <p className="text-gray-500 font-medium">{errorMessage ?? '예상치 못한 오류가 발생했습니다.'}</p>
-        <Button type="button" className="!w-auto px-6 py-2.5 text-sm" onClick={() => void loadDetail()}>
+        <p className="text-gray-500 font-medium">
+          {errorMessage ?? '예상치 못한 오류가 발생했습니다.'}
+        </p>
+        <Button
+          type="button"
+          className="!w-auto px-6 py-2.5 text-sm"
+          onClick={() => void loadDetail()}
+        >
           다시 시도
         </Button>
       </Card>
@@ -245,7 +253,8 @@ export const PrDetailPage = () => {
   const canClose = detail.permissions?.canClose ?? isOpen;
   const voteDisabledReason = detail.permissions?.voteDisabledReason ?? '투표할 수 없습니다.';
   const closeDisabledReason = detail.permissions?.closeDisabledReason ?? 'PR을 종료할 수 없습니다.';
-  const agreeRatio = detail.totalVoteCount > 0 ? (detail.agreeCount / detail.totalVoteCount) * 100 : 0;
+  const agreeRatio =
+    detail.totalVoteCount > 0 ? (detail.agreeCount / detail.totalVoteCount) * 100 : 0;
   const timelineEvents = buildTimelineEvents(detail);
   const latestEventTime =
     detail.events && detail.events.length > 0
@@ -257,8 +266,12 @@ export const PrDetailPage = () => {
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-[38px] font-black text-gray-900 leading-none">Purchase Request #{detail.postId}</h1>
-            <span className={`px-3.5 py-1 rounded-full border text-sm font-bold ${getStatusBadgeClass(detail.status)}`}>
+            <h1 className="text-[38px] font-black text-gray-900 leading-none">
+              Purchase Request #{detail.postId}
+            </h1>
+            <span
+              className={`px-3.5 py-1 rounded-full border text-sm font-bold ${getStatusBadgeClass(detail.status)}`}
+            >
               {detail.status}
             </span>
           </div>
@@ -287,21 +300,31 @@ export const PrDetailPage = () => {
           <div className="px-7 py-5 border-b border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-3 bg-gradient-to-r from-slate-50 to-blue-50/40">
             <div className="rounded-2xl bg-slate-100/80 px-4 py-3.5">
               <p className="text-xs font-bold text-gray-500">요청 금액</p>
-              <p className="text-[28px] font-black text-gray-900 mt-1 leading-none">{formatCurrency(detail.priceAmount)}</p>
+              <p className="text-[28px] font-black text-gray-900 mt-1 leading-none">
+                {formatCurrency(detail.priceAmount)}
+              </p>
             </div>
             <div className="rounded-2xl bg-emerald-50 px-4 py-3.5">
               <p className="text-xs font-bold text-gray-500">현재 찬성</p>
-              <p className="text-[28px] font-black text-emerald-700 mt-1 leading-none">{detail.agreeCount}표</p>
+              <p className="text-[28px] font-black text-emerald-700 mt-1 leading-none">
+                {detail.agreeCount}표
+              </p>
             </div>
             <div className="rounded-2xl bg-violet-50 px-4 py-3.5">
               <p className="text-xs font-bold text-gray-500">전체 투표</p>
-              <p className="text-[28px] font-black text-violet-700 mt-1 leading-none">{detail.totalVoteCount}표</p>
+              <p className="text-[28px] font-black text-violet-700 mt-1 leading-none">
+                {detail.totalVoteCount}표
+              </p>
             </div>
           </div>
 
           <div className="px-7 py-6 space-y-3">
-            <p className="text-[17px] leading-relaxed text-gray-800 whitespace-pre-wrap">{detail.content}</p>
-            <p className="text-sm font-semibold text-gray-600">카테고리: {detail.category ?? '-'}</p>
+            <p className="text-[17px] leading-relaxed text-gray-800 whitespace-pre-wrap">
+              {detail.content}
+            </p>
+            <p className="text-sm font-semibold text-gray-600">
+              카테고리: {detail.category ?? '-'}
+            </p>
           </div>
         </Card>
 
@@ -316,13 +339,21 @@ export const PrDetailPage = () => {
                 <div className="px-5 py-3.5 border-b border-gray-200 bg-gray-50/70 flex items-center justify-between gap-3">
                   <p className="text-base font-black text-gray-900">
                     {event.title}
-                    {event.actorLabel ? <span className="ml-2 text-xs font-semibold text-gray-500">{event.actorLabel}</span> : null}
+                    {event.actorLabel ? (
+                      <span className="ml-2 text-xs font-semibold text-gray-500">
+                        {event.actorLabel}
+                      </span>
+                    ) : null}
                   </p>
-                  <span className="text-xs font-semibold text-gray-500 shrink-0">{event.timeLabel}</span>
+                  <span className="text-xs font-semibold text-gray-500 shrink-0">
+                    {event.timeLabel}
+                  </span>
                 </div>
                 <div className="px-5 py-4 space-y-2.5">
                   <p className="text-sm font-bold text-gray-600">{event.subTitle}</p>
-                  <p className="text-[15px] leading-relaxed text-gray-800 whitespace-pre-wrap">{event.content}</p>
+                  <p className="text-[15px] leading-relaxed text-gray-800 whitespace-pre-wrap">
+                    {event.content}
+                  </p>
                 </div>
               </Card>
             </div>
@@ -354,7 +385,9 @@ export const PrDetailPage = () => {
                   </div>
                   <p className="text-xs text-gray-500">{formatRelativeTime(review.createdAt)}</p>
                   <p className="text-sm text-gray-700">
-                    {review.content && review.content.trim().length > 0 ? review.content : '의견 없이 결정만 등록했습니다.'}
+                    {review.content && review.content.trim().length > 0
+                      ? review.content
+                      : '의견 없이 결정만 등록했습니다.'}
                   </p>
                 </div>
               ))}
@@ -364,8 +397,12 @@ export const PrDetailPage = () => {
 
         {!isOpen && (
           <Card className="text-center py-10 hover:!translate-y-0 bg-slate-50 border border-slate-200">
-            <h3 className="text-[32px] font-black text-gray-900 leading-none">이 구매 요청은 {detail.status} 되었습니다.</h3>
-            <p className="text-gray-500 font-medium mt-3">결정이 완료되어 더 이상 리뷰를 남길 수 없습니다.</p>
+            <h3 className="text-[32px] font-black text-gray-900 leading-none">
+              이 구매 요청은 {detail.status} 되었습니다.
+            </h3>
+            <p className="text-gray-500 font-medium mt-3">
+              결정이 완료되어 더 이상 리뷰를 남길 수 없습니다.
+            </p>
           </Card>
         )}
       </section>
@@ -388,7 +425,9 @@ export const PrDetailPage = () => {
               </div>
             )}
             <p className="font-black text-[22px] text-gray-900 leading-snug">{detail.itemName}</p>
-            <p className="text-[42px] font-black text-gray-900 tracking-tight leading-none">{formatCurrency(detail.priceAmount)}</p>
+            <p className="text-[42px] font-black text-gray-900 tracking-tight leading-none">
+              {formatCurrency(detail.priceAmount)}
+            </p>
             {detail.purchaseUrl ? (
               <a
                 href={detail.purchaseUrl}
@@ -461,7 +500,9 @@ export const PrDetailPage = () => {
             <h3 className="text-[30px] font-black text-gray-900 leading-none">PR 종료</h3>
           </div>
           <div className="p-5 space-y-3.5">
-            <p className="text-xs text-gray-500 font-medium">작성자만 PR을 종료할 수 있으며, 권한은 서버에서 검증됩니다.</p>
+            <p className="text-xs text-gray-500 font-medium">
+              작성자만 PR을 종료할 수 있으며, 권한은 서버에서 검증됩니다.
+            </p>
             {canClose ? (
               <div className="grid grid-cols-2 gap-2.5">
                 <Button
