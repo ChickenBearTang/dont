@@ -43,8 +43,12 @@ def run_crawl(
 
     result = subprocess.run(command, capture_output=True, text=True)
     parsed_output: dict[str, object] | None = None
+    parse_error: str | None = None
     if result.stdout.strip():
-        parsed_output = json.loads(result.stdout)
+        try:
+            parsed_output = json.loads(result.stdout)
+        except json.JSONDecodeError as exc:
+            parse_error = str(exc)
 
     return {
         "command": " ".join(command),
@@ -52,12 +56,15 @@ def run_crawl(
         "stdout": result.stdout,
         "stderr": result.stderr,
         "parsed_output": parsed_output,
+        "parse_error": parse_error,
     }
 
 
 def read_samples(db_path: str, sample_limit: int) -> dict[str, object]:
     with sqlite3.connect(db_path) as connection:
-        total_count = connection.execute("SELECT COUNT(*) FROM crawl_items").fetchone()[0]
+        total_count = connection.execute("SELECT COUNT(*) FROM crawl_items").fetchone()[
+            0
+        ]
         rows = connection.execute(
             """
             SELECT post_id, title, price, url
