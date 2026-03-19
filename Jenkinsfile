@@ -10,7 +10,7 @@ pipeline {
     environment {
         COMPOSE_FILE = 'docker-compose.yml'
         ENV_FILE = '.env'
-        APP_SERVICES = 'redis backend frontend edge-nginx'
+        APP_SERVICES = 'redis backend frontend'
     }
 
     stages {
@@ -136,11 +136,17 @@ pipeline {
             steps {
                 sh '''
                     for i in $(seq 1 20); do
-                      if curl -fsS http://127.0.0.1/ >/dev/null && \
-                         curl -fsS http://127.0.0.1/actuator/health/readiness >/dev/null; then
-                        echo "Smoke test passed"
-                        exit 0
+                      if docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T frontend \
+                           wget -q --spider http://127.0.0.1/ >/dev/null 2>&1; then
+                        readiness_body="$(docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T frontend \
+                          wget -q -O - http://backend:8080/actuator/health/readiness || true)"
+
+                        if printf '%s' "${readiness_body}" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+                          echo "Smoke test passed"
+                          exit 0
+                        fi
                       fi
+
                       sleep 5
                     done
 
