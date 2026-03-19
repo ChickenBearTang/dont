@@ -16,7 +16,10 @@ import lombok.NoArgsConstructor;
 
 @Table(
         name = "poll_votes",
-        uniqueConstraints = @UniqueConstraint(name = "uk_poll_votes_post_user", columnNames = {"post_id", "user_id"}))
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_poll_votes_post_user",
+                        columnNames = {"post_id", "user_id"}))
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -45,4 +48,3 @@ public class PollVote extends BaseEntity {
         this.voteOption = voteOption;
     }
 }
-

@@ -13,10 +13,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Table(name = "posts")
 @Getter
@@ -79,9 +78,8 @@ public class Post extends BaseEntity {
         this.deletedAt = LocalDateTime.now();
     }
 
-    //사용자가 맞는지 확인
+    // 사용자가 맞는지 확인
     public boolean isAuthor(Long userId) {
         return this.user.getId().equals(userId);
     }
-
 }

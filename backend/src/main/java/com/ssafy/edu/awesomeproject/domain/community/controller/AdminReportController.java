@@ -67,4 +67,3 @@ public class AdminReportController {
         return CommonResponse.success(reportService.reject(reportId, adminUserId, requestDto));
     }
 }
-

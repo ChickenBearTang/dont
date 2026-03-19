@@ -19,12 +19,12 @@ import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CommentRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.ReportRepository;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -61,7 +61,8 @@ public class ReportService {
                                 requestDto.reasonCode(),
                                 requestDto.detailText()));
 
-        return new ReportCreateResponseDto(report.getId(), report.getReportStatus().name(), report.getCreatedAt());
+        return new ReportCreateResponseDto(
+                report.getId(), report.getReportStatus().name(), report.getCreatedAt());
     }
 
     private void validateOtherReasonDetail(ReportReasonCode reasonCode, String detailText) {
@@ -70,8 +71,10 @@ public class ReportService {
         }
     }
 
-    private void validateDuplicateReport(Long reporterUserId, ReportTargetType targetType, Long targetId) {
-        if (reportRepository.existsByReporterUserIdAndTargetTypeAndTargetId(reporterUserId, targetType, targetId)) {
+    private void validateDuplicateReport(
+            Long reporterUserId, ReportTargetType targetType, Long targetId) {
+        if (reportRepository.existsByReporterUserIdAndTargetTypeAndTargetId(
+                reporterUserId, targetType, targetId)) {
             throw new CommunityException(CommunityErrorCode.REPORT_ALREADY_EXISTS);
         }
     }
@@ -81,22 +84,30 @@ public class ReportService {
             Post post =
                     postRepository
                             .findByIdAndStatus(targetId, PostStatus.ACTIVE)
-                            .orElseThrow(() -> new CommunityException(CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+                            .orElseThrow(
+                                    () ->
+                                            new CommunityException(
+                                                    CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
             return post.getUser().getId();
         }
 
         Comment comment =
                 commentRepository
                         .findByIdAndStatus(targetId, CommentStatus.ACTIVE)
-                        .orElseThrow(() -> new CommunityException(CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+                        .orElseThrow(
+                                () ->
+                                        new CommunityException(
+                                                CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
         return comment.getUser().getId();
     }
 
-    public AdminReportListResponseDto getReportsForAdmin(ReportStatus status, Integer page, Integer size) {
+    public AdminReportListResponseDto getReportsForAdmin(
+            ReportStatus status, Integer page, Integer size) {
         int pageNumber = (page == null || page < 0) ? 0 : page;
         int pageSize = (size == null || size <= 0) ? 20 : size;
 
-        PageRequest pageRequest = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "id"));
+        PageRequest pageRequest =
+                PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "id"));
         Page<Report> reportPage =
                 status == null
                         ? reportRepository.findAllByOrderByIdDesc(pageRequest)
@@ -144,7 +155,8 @@ public class ReportService {
     }
 
     @Transactional
-    public ReportProcessResponseDto blind(Long reportId, Long adminUserId, ReportProcessRequestDto requestDto) {
+    public ReportProcessResponseDto blind(
+            Long reportId, Long adminUserId, ReportProcessRequestDto requestDto) {
         Report report = getReport(reportId);
         validateNotProcessed(report);
         report.blind(adminUserId, requestDto.processNote());
@@ -152,7 +164,8 @@ public class ReportService {
     }
 
     @Transactional
-    public ReportProcessResponseDto reject(Long reportId, Long adminUserId, ReportProcessRequestDto requestDto) {
+    public ReportProcessResponseDto reject(
+            Long reportId, Long adminUserId, ReportProcessRequestDto requestDto) {
         Report report = getReport(reportId);
         validateNotProcessed(report);
         report.reject(adminUserId, requestDto.processNote());

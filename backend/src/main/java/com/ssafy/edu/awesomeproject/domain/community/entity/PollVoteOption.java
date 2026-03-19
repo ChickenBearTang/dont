@@ -4,4 +4,3 @@ public enum PollVoteOption {
     OPTION_A,
     OPTION_B
 }
-
