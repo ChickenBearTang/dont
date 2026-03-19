@@ -132,16 +132,16 @@ class AIConsumptionEngine:
                 if target_type in stats:
                     savings += stats[target_type]['total_amount'] * rate
             
-            # 할인/적립 예상 금액이 0보다 큰 카드만 후보에 올림 
-            # (소비패턴과 결이 맞지 않아 아예 0원 혜택인 카드는 제외)
-            if savings > 0:
-                simulation_results.append({
-                    "card_id": card.get('card_id'),
-                    "name": card.get('name'),
-                    "estimated_savings": int(savings),
-                    "picking_rate": round((savings / total_spend) * 100, 2) if total_spend > 0 else 0,
-                    "comment": card.get('recommend_comment')
-                })
+            benefits = card.get('benefits', {})
+            simulation_results.append({
+                "card_id": card.get('card_id'),
+                "name": card.get('name'),
+                "main_text": benefits.get('main_text', ''),
+                "sub_text": benefits.get('sub_text', []),
+                "estimated_savings": int(savings),
+                "picking_rate": round((savings / total_spend) * 100, 2) if total_spend > 0 else 0,
+                "comment": card.get('recommend_comment')
+            })
 
         simulation_results.sort(key=lambda x: x['estimated_savings'], reverse=True)
         return simulation_results
@@ -152,9 +152,11 @@ class AIConsumptionEngine:
         total_spend = df['amount'].sum()
         user_persona, stats = self.get_persona_score(df)
         recommendations = self.simulate_benefits(stats, total_spend)
+        best_card = recommendations[0] if recommendations and recommendations[0]['estimated_savings'] > 0 else None
         
         return {
             "user_persona": user_persona,
-            "best_card": recommendations[0] if recommendations else None,
+            "best_card": best_card,
+            "all_cards": recommendations,
             "total_spend": int(total_spend)
         }

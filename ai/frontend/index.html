@@ -1,574 +1,700 @@
 <!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI 소비 리포트 대시보드</title>
-    <link rel="icon" href="data:," />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-      :root {
-        --bg: #0f1218;
-        --panel: #171b23;
-        --panel-strong: #10141c;
-        --line: rgba(255, 255, 255, 0.1);
-        --text: #f4f6fb;
-        --muted: #97a0b4;
-        --yellow: #ffd400;
-        --gray: #727785;
-        --blue: #5caeff;
-        --red: #ff6c6c;
-        --shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
-      }
 
-      * { box-sizing: border-box; }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 소비 리포트 대시보드</title>
+  <link rel="icon" href="data:," />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0f1218;
+      --panel: #171b23;
+      --panel-strong: #10141c;
+      --line: rgba(255, 255, 255, 0.1);
+      --text: #f4f6fb;
+      --muted: #97a0b4;
+      --yellow: #ffd400;
+      --gray: #727785;
+      --blue: #5caeff;
+      --red: #ff6c6c;
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+    }
 
-      body {
-        margin: 0;
-        font-family: "Noto Sans KR", system-ui, sans-serif;
-        background: radial-gradient(circle at top, rgba(92, 174, 255, 0.08), transparent 20%), var(--bg);
-        color: var(--text);
-        min-height: 100vh;
-      }
+    * {
+      box-sizing: border-box;
+    }
 
-      .app {
-        max-width: 440px;
-        margin: 0 auto;
-        padding: 20px 14px 48px;
-      }
+    body {
+      margin: 0;
+      font-family: "Noto Sans KR", system-ui, sans-serif;
+      background: radial-gradient(circle at top, rgba(92, 174, 255, 0.08), transparent 20%), var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
 
-      .topbar, .panel {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 22px;
-        box-shadow: var(--shadow);
-      }
+    .app {
+      max-width: 440px;
+      margin: 0 auto;
+      padding: 20px 14px 48px;
+    }
 
-      .topbar {
-        padding: 16px;
-        margin-bottom: 14px;
-      }
+    .topbar,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
 
-      .controls {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-bottom: 12px;
-      }
+    .topbar {
+      padding: 16px;
+      margin-bottom: 14px;
+    }
 
-      label {
-        display: block;
-        font-size: 12px;
-        color: var(--muted);
-        margin-bottom: 6px;
-      }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
 
-      select, input, button {
-        width: 100%;
-        background: var(--panel-strong);
-        color: var(--text);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 12px 14px;
-        font-size: 14px;
-      }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
 
-      button {
-        background: var(--yellow);
-        color: #111;
-        border: 0;
-        font-weight: 700;
-        cursor: pointer;
-      }
+    select,
+    input,
+    button {
+      width: 100%;
+      background: var(--panel-strong);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 14px;
+    }
 
-      .status {
-        color: var(--muted);
-        font-size: 13px;
-      }
+    button {
+      background: var(--yellow);
+      color: #111;
+      border: 0;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
-      .panel {
-        padding: 18px 16px;
-        margin-bottom: 14px;
-      }
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+    }
 
-      .headline {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 6px;
-      }
+    .panel {
+      padding: 18px 16px;
+      margin-bottom: 14px;
+    }
 
-      .headline h2, .panel h2 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 700;
-      }
+    .headline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
 
-      .summary-amount {
-        font-size: 40px;
-        font-weight: 800;
-        margin: 10px 0 8px;
-      }
+    .headline h2,
+    .panel h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
 
-      .compare-banner {
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--muted);
-        border-radius: 10px;
-        padding: 10px 12px;
-        font-size: 14px;
-      }
+    .summary-amount {
+      font-size: 40px;
+      font-weight: 800;
+      margin: 10px 0 8px;
+    }
 
-      .compare-banner strong {
-        color: var(--blue);
-      }
+    .compare-banner {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+    }
 
-      .chart-wrap {
-        height: 220px;
-        margin-top: 14px;
-      }
+    .compare-banner strong {
+      color: var(--blue);
+    }
 
-      .legend-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 14px;
-        font-size: 14px;
-      }
+    .chart-wrap {
+      height: 220px;
+      margin-top: 14px;
+    }
 
-      .legend-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--muted);
-      }
+    .legend-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      font-size: 14px;
+    }
 
-      .dot {
-        width: 11px;
-        height: 11px;
-        border-radius: 50%;
-        display: inline-block;
-      }
+    .legend-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+    }
 
-      .avg-note {
-        display: inline-block;
-        margin-top: 8px;
-        background: rgba(255, 255, 255, 0.08);
-        color: var(--text);
-        padding: 8px 12px;
-        border-radius: 10px;
-        font-size: 13px;
-      }
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      display: inline-block;
+    }
 
-      .category-bar {
-        display: flex;
-        overflow: hidden;
-        border-radius: 10px;
-        height: 16px;
-        background: rgba(255, 255, 255, 0.05);
-        margin-top: 12px;
-      }
+    .avg-note {
+      display: inline-block;
+      margin-top: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+    }
 
-      .category-list {
-        margin-top: 16px;
-        display: grid;
-        gap: 14px;
-      }
+    .category-bar {
+      display: flex;
+      overflow: hidden;
+      border-radius: 10px;
+      height: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      margin-top: 12px;
+    }
 
-      .ai-panel {
-        display: grid;
-        gap: 12px;
-      }
+    .category-list {
+      margin-top: 16px;
+      display: grid;
+      gap: 14px;
+    }
 
-      .ai-status {
-        color: var(--muted);
-        font-size: 13px;
-        margin-top: 6px;
-      }
+    .ai-panel {
+      display: grid;
+      gap: 12px;
+    }
 
-      .ai-card {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 14px;
-      }
+    .ai-status {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+    }
 
-      .ai-card h3 {
-        margin: 0 0 10px;
-        font-size: 15px;
-      }
+    .ai-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+    }
 
-      .ai-list {
-        margin: 0;
-        padding-left: 18px;
-        color: var(--muted);
-        line-height: 1.7;
-        font-size: 14px;
-      }
+    .ai-card h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+    }
 
-      .category-item {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px;
-        align-items: start;
-      }
+    .ai-list {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+    }
 
-      .category-name {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        font-size: 14px;
-      }
+    .category-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: start;
+    }
 
-      .category-name .muted {
-        color: var(--muted);
-      }
+    .category-name {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 14px;
+    }
 
-      .category-amount {
-        text-align: right;
-      }
+    .category-name .muted {
+      color: var(--muted);
+    }
 
-      .category-amount strong {
-        display: block;
-        font-size: 28px;
-        line-height: 1;
-      }
+    .category-amount {
+      text-align: right;
+    }
 
-      .delta {
-        font-size: 13px;
-        margin-top: 4px;
-      }
+    .category-amount strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+    }
 
-      .delta.increase { color: var(--red); }
-      .delta.decrease { color: var(--blue); }
-      .delta.flat { color: var(--muted); }
+    .delta {
+      font-size: 13px;
+      margin-top: 4px;
+    }
 
-      /* AI Chatbot Overlay */
-      .chat-fab {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 120px;
-        height: 48px;
-        border-radius: 24px;
-        background: var(--yellow);
-        color: #111;
-        font-weight: 800;
-        box-shadow: 0 4px 12px rgba(255, 212, 0, 0.4);
-        border: none;
-        cursor: pointer;
-        z-index: 100;
-        font-size: 15px;
-      }
+    .delta.increase {
+      color: var(--red);
+    }
 
-      .chat-overlay {
-        display: none;
-        position: fixed;
-        left: 50%;
-        bottom: 0;
-        transform: translateX(-50%);
-        width: 100%;
-        max-width: 440px;
-        height: 60vh;
-        max-height: 500px;
-        background: var(--panel);
-        border-top-left-radius: 20px;
-        border-top-right-radius: 20px;
-        box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
-        z-index: 200;
-        flex-direction: column;
-        border: 1px solid var(--line);
-        border-bottom: none;
-      }
+    .delta.decrease {
+      color: var(--blue);
+    }
 
-      .chat-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px;
-        border-bottom: 1px solid var(--line);
-        background: rgba(255,255,255,0.02);
-      }
+    .delta.flat {
+      color: var(--muted);
+    }
 
-      .chat-messages {
-        flex: 1;
-        padding: 16px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
+    /* AI Chatbot Overlay */
+    .chat-fab {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 120px;
+      height: 48px;
+      border-radius: 24px;
+      background: var(--yellow);
+      color: #111;
+      font-weight: 800;
+      box-shadow: 0 4px 12px rgba(255, 212, 0, 0.4);
+      border: none;
+      cursor: pointer;
+      z-index: 100;
+      font-size: 15px;
+    }
 
-      .msg {
-        max-width: 85%;
-        padding: 10px 14px;
-        border-radius: 14px;
-        font-size: 14px;
-        line-height: 1.5;
-        word-break: break-word;
-      }
+    .chat-overlay {
+      display: none;
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 440px;
+      height: 60vh;
+      max-height: 500px;
+      background: var(--panel);
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-bottom: none;
+    }
 
-      .msg.user {
-        align-self: flex-end;
-        background: var(--yellow);
-        color: #111;
-        border-bottom-right-radius: 4px;
-      }
+    .chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+    }
 
-      .msg.ai {
-        align-self: flex-start;
-        background: var(--panel-strong);
-        border: 1px solid var(--line);
-        border-bottom-left-radius: 4px;
-      }
+    .chat-messages {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
 
-      .chat-input-area {
-        display: flex;
-        padding: 12px;
-        gap: 8px;
-        border-top: 1px solid var(--line);
-        background: var(--panel);
-      }
-      
-      .chat-input-area input {
-        flex: 1;
-        margin: 0;
-      }
-      
-      .chat-input-area button {
-        width: 60px;
-        margin: 0;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="app">
-      <section class="topbar">
-        <div class="controls">
-          <div>
-            <label for="user-select">회원</label>
-            <select id="user-select"></select>
+    .msg {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: var(--yellow);
+      color: #111;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg.ai {
+      align-self: flex-start;
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-input-area {
+      display: flex;
+      padding: 12px;
+      gap: 8px;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .chat-input-area input {
+      flex: 1;
+      margin: 0;
+    }
+
+    .chat-input-area button {
+      width: 60px;
+      margin: 0;
+    }
+
+    /* Ranking Overlay */
+    .ranking-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      z-index: 300;
+      overflow-y: auto;
+    }
+
+    .ranking-header {
+      position: sticky;
+      top: 0;
+      background: rgba(15, 18, 24, 0.9);
+      backdrop-filter: blur(8px);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      z-index: 301;
+    }
+
+    .ranking-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .ranking-back {
+      background: transparent;
+      border: 0;
+      color: #fff;
+      font-size: 24px;
+      padding: 0;
+      cursor: pointer;
+      width: auto;
+    }
+
+    .ranking-list {
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+
+    .ranking-item {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .ranking-rank {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--muted);
+      width: 32px;
+      text-align: center;
+    }
+
+    .ranking-item.top3 .ranking-rank {
+      color: var(--yellow);
+    }
+
+    .ranking-details {
+      flex: 1;
+    }
+
+    .ranking-name {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #fff;
+    }
+
+    .ranking-savings {
+      color: var(--blue);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .ranking-rate {
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <section class="topbar">
+      <div class="controls">
+        <div>
+          <label for="user-select">회원</label>
+          <select id="user-select"></select>
+        </div>
+        <div>
+          <label for="month-select">대상 월</label>
+          <input id="month-select" type="month" value="2026-02" />
+        </div>
+      </div>
+      <button id="load-button" type="button">통계 불러오기</button>
+      <div id="status" class="status">월간 소비 통계를 불러올 준비가 되었습니다.</div>
+    </section>
+
+    <section class="panel">
+      <div class="headline">
+        <h2 id="summary-month">2월</h2>
+      </div>
+      <div id="summary-amount" class="summary-amount">-</div>
+      <div id="summary-banner" class="compare-banner">전월 비교 정보를 불러오는 중입니다.</div>
+      <div class="chart-wrap">
+        <canvas id="daily-chart"></canvas>
+      </div>
+      <div class="legend-row">
+        <div class="legend-label"><span class="dot" style="background: var(--yellow);"></span><span
+            id="current-range">-</span></div>
+        <strong id="current-total">-</strong>
+      </div>
+      <div class="legend-row">
+        <div class="legend-label"><span class="dot" style="background: #d7dce5;"></span><span
+            id="previous-range">-</span></div>
+        <strong id="previous-total">-</strong>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>6개월 평균 소비</h2>
+      <div id="avg-text" style="margin-top: 6px; font-size: 26px; font-weight: 700;">-</div>
+      <div class="chart-wrap">
+        <canvas id="trend-chart"></canvas>
+      </div>
+      <div id="avg-note" class="avg-note">최근 6개월 평균 소비 금액을 계산합니다.</div>
+    </section>
+
+    <section class="panel">
+      <h2>카테고리별 소비</h2>
+      <div id="category-bar" class="category-bar"></div>
+      <div id="category-list" class="category-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>💳 AI 맞춤 카드 추천</h2>
+      <div id="ai-card-status" class="status" style="margin-top: 6px;">추천 엔진을 구동하는 중입니다...</div>
+      <div class="ai-panel" id="recommendation-content" style="display: none; margin-top: 12px;">
+        <article class="ai-card" style="border-left: 4px solid var(--yellow);">
+          <div style="font-size:12px; color:var(--yellow); font-weight:bold; margin-bottom:4px">당신의 소비 페르소나</div>
+          <h3 id="persona-nickname" style="font-size:18px; color:#fff">페르소나명</h3>
+          <p id="persona-desc" style="color:var(--muted); font-size:13px; margin:0 0 10px; line-height:1.4"></p>
+        </article>
+        <article class="ai-card" style="border-left: 4px solid var(--blue);">
+          <div style="font-size:12px; color:var(--blue); font-weight:bold; margin-bottom:4px">1위 추천 카드</div>
+          <h3 id="rec-card-name" style="font-size:18px; color:#fff">카드명</h3>
+          <p id="rec-card-comment" style="color:var(--muted); font-size:13px; margin:0 0 10px; line-height:1.4"></p>
+          <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-top: 10px;">
+            <div style="font-size: 13px; color: var(--muted);">예상 월 혜택</div>
+            <strong id="rec-card-savings"
+              style="font-size: 20px; color: var(--blue); display:block; margin-top:4px;">0원</strong>
           </div>
-          <div>
-            <label for="month-select">대상 월</label>
-            <input id="month-select" type="month" value="2026-02" />
-          </div>
-        </div>
-        <button id="load-button" type="button">통계 불러오기</button>
-        <div id="status" class="status">월간 소비 통계를 불러올 준비가 되었습니다.</div>
-      </section>
+          <button onclick="openRankingView()"
+            style="margin-top: 12px; background: rgba(255,255,255,0.08); color: #fff;">전체 순위 보기</button>
+        </article>
+      </div>
+    </section>
 
-      <section class="panel">
-        <div class="headline">
-          <h2 id="summary-month">2월</h2>
-        </div>
-        <div id="summary-amount" class="summary-amount">-</div>
-        <div id="summary-banner" class="compare-banner">전월 비교 정보를 불러오는 중입니다.</div>
-        <div class="chart-wrap">
-          <canvas id="daily-chart"></canvas>
-        </div>
-        <div class="legend-row">
-          <div class="legend-label"><span class="dot" style="background: var(--yellow);"></span><span id="current-range">-</span></div>
-          <strong id="current-total">-</strong>
-        </div>
-        <div class="legend-row">
-          <div class="legend-label"><span class="dot" style="background: #d7dce5;"></span><span id="previous-range">-</span></div>
-          <strong id="previous-total">-</strong>
-        </div>
-      </section>
+    <section class="panel">
+      <h2>AI 분석</h2>
+      <div id="ai-status" class="ai-status">AI 분석을 불러오는 중입니다.</div>
+      <div class="ai-panel" style="margin-top: 12px;">
+        <article class="ai-card">
+          <h3>소비 패턴</h3>
+          <ul id="ai-patterns" class="ai-list"></ul>
+        </article>
+        <article class="ai-card">
+          <h3>이상 거래 설명</h3>
+          <ul id="ai-anomalies" class="ai-list"></ul>
+        </article>
+        <article class="ai-card">
+          <h3>절약 및 관리 제안</h3>
+          <ul id="ai-solutions" class="ai-list"></ul>
+        </article>
+      </div>
+    </section>
+  </div>
 
-      <section class="panel">
-        <h2>6개월 평균 소비</h2>
-        <div id="avg-text" style="margin-top: 6px; font-size: 26px; font-weight: 700;">-</div>
-        <div class="chart-wrap">
-          <canvas id="trend-chart"></canvas>
-        </div>
-        <div id="avg-note" class="avg-note">최근 6개월 평균 소비 금액을 계산합니다.</div>
-      </section>
-
-      <section class="panel">
-        <h2>카테고리별 소비</h2>
-        <div id="category-bar" class="category-bar"></div>
-        <div id="category-list" class="category-list"></div>
-      </section>
-
-      <section class="panel">
-        <h2>💳 AI 맞춤 카드 추천</h2>
-        <div id="ai-card-status" class="status" style="margin-top: 6px;">추천 엔진을 구동하는 중입니다...</div>
-        <div class="ai-panel" id="recommendation-content" style="display: none; margin-top: 12px;">
-          <article class="ai-card" style="border-left: 4px solid var(--yellow);">
-            <div style="font-size:12px; color:var(--yellow); font-weight:bold; margin-bottom:4px">당신의 소비 페르소나</div>
-            <h3 id="persona-nickname" style="font-size:18px; color:#fff">페르소나명</h3>
-            <p id="persona-desc" style="color:var(--muted); font-size:13px; margin:0 0 10px; line-height:1.4"></p>
-          </article>
-          <article class="ai-card" style="border-left: 4px solid var(--blue);">
-            <div style="font-size:12px; color:var(--blue); font-weight:bold; margin-bottom:4px">1위 추천 카드</div>
-            <h3 id="rec-card-name" style="font-size:18px; color:#fff">카드명</h3>
-            <p id="rec-card-comment" style="color:var(--muted); font-size:13px; margin:0 0 10px; line-height:1.4"></p>
-            <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-top: 10px;">
-              <div style="font-size: 13px; color: var(--muted);">예상 월 혜택</div>
-              <strong id="rec-card-savings" style="font-size: 20px; color: var(--blue); display:block; margin-top:4px;">0원</strong>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>AI 분석</h2>
-        <div id="ai-status" class="ai-status">AI 분석을 불러오는 중입니다.</div>
-        <div class="ai-panel" style="margin-top: 12px;">
-          <article class="ai-card">
-            <h3>소비 패턴</h3>
-            <ul id="ai-patterns" class="ai-list"></ul>
-          </article>
-          <article class="ai-card">
-            <h3>이상 거래 설명</h3>
-            <ul id="ai-anomalies" class="ai-list"></ul>
-          </article>
-          <article class="ai-card">
-            <h3>절약 및 관리 제안</h3>
-            <ul id="ai-solutions" class="ai-list"></ul>
-          </article>
-        </div>
-      </section>
+  <!-- AI Chatbot UI -->
+  <div id="chat-overlay" class="chat-overlay">
+    <div class="chat-header">
+      <h3 style="margin:0;font-size:16px;">💬 AI 소비 코치에게 해명하기</h3>
+      <button onclick="document.getElementById('chat-overlay').style.display='none'"
+        style="width:auto;padding:4px 8px;background:transparent;color:#f4f6fb;font-size:16px;line-height:1;">✕</button>
     </div>
-
-    <!-- AI Chatbot UI -->
-    <div id="chat-overlay" class="chat-overlay">
-      <div class="chat-header">
-        <h3 style="margin:0;font-size:16px;">💬 AI 소비 코치에게 해명하기</h3>
-        <button onclick="document.getElementById('chat-overlay').style.display='none'" style="width:auto;padding:4px 8px;background:transparent;color:#f4f6fb;font-size:16px;line-height:1;">✕</button>
-      </div>
-      <div id="chat-messages" class="chat-messages">
-        <div class="msg ai">무엇이든 변명해보세요! 억울한 지출이나 큰 돈을 쓴 이유가 타당하다면 리포트에 스티커를 붙여드릴게요. 😉</div>
-      </div>
-      <div class="chat-input-area">
-        <input id="chat-input" type="text" placeholder="예: 친구들 몫도 대신 긁은 거야!" onkeypress="handleChatKey(event)" />
-        <button id="chat-send" onclick="sendChatMessage()">전송</button>
-      </div>
+    <div id="chat-messages" class="chat-messages">
+      <div class="msg ai">무엇이든 변명해보세요! 억울한 지출이나 큰 돈을 쓴 이유가 타당하다면 리포트에 스티커를 붙여드릴게요. 😉</div>
     </div>
-    
-    <button class="chat-fab" onclick="document.getElementById('chat-overlay').style.display='flex'">💬 해명하기</button>
+    <div class="chat-input-area">
+      <input id="chat-input" type="text" placeholder="예: 친구들 몫도 대신 긁은 거야!" onkeypress="handleChatKey(event)" />
+      <button id="chat-send" onclick="sendChatMessage()">전송</button>
+    </div>
+  </div>
 
-    <script>
-      const state = { users: [], charts: {} };
-      const palette = ["#7187ff", "#ffd400", "#ffab19", "#c6df4d", "#34d7cf", "#d0d4dd", "#9ea6b7", "#7c8799", "#5f697a", "#474f5f"];
+  <button class="chat-fab" onclick="document.getElementById('chat-overlay').style.display='flex'">💬 해명하기</button>
 
-      function formatCurrency(value) {
-        return new Intl.NumberFormat("ko-KR").format(value || 0) + "원";
-      }
+  <!-- Ranking Overlay -->
+  <div id="ranking-overlay" class="ranking-overlay">
+    <div class="ranking-header">
+      <button class="ranking-back" onclick="closeRankingView()">←</button>
+      <h2>카드 혜택 랭킹 전체보기</h2>
+    </div>
+    <div id="ranking-list" class="ranking-list">
+      <!-- Ranks generated here -->
+    </div>
+  </div>
 
-      function formatMonthLabel(month) {
-        const [year, value] = month.split("-");
-        return `${Number(value)}월`;
-      }
+  <script>
+    const state = { users: [], charts: {} };
+    const palette = ["#7187ff", "#ffd400", "#ffab19", "#c6df4d", "#34d7cf", "#d0d4dd", "#9ea6b7", "#7c8799", "#5f697a", "#474f5f"];
 
-      function setStatus(message) {
-        document.getElementById("status").textContent = message;
-      }
+    function formatCurrency(value) {
+      return new Intl.NumberFormat("ko-KR").format(value || 0) + "원";
+    }
 
-      function monthOffset(month, offset) {
-        const [yearText, monthText] = month.split("-");
-        const base = new Date(Number(yearText), Number(monthText) - 1, 1);
-        base.setMonth(base.getMonth() + offset);
-        return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}`;
-      }
+    function formatMonthLabel(month) {
+      const [year, value] = month.split("-");
+      return `${Number(value)}월`;
+    }
 
-      function renderBulletList(targetId, items, emptyText) {
-        const root = document.getElementById(targetId);
-        root.innerHTML = "";
-        const values = items && items.length ? items : [emptyText];
-        values.forEach((item) => {
-          const li = document.createElement("li");
-          li.textContent = item;
-          root.appendChild(li);
-        });
-      }
+    function setStatus(message) {
+      document.getElementById("status").textContent = message;
+    }
 
-      function upsertChart(key, canvasId, type, data, options) {
-        const ctx = document.getElementById(canvasId);
-        if (state.charts[key]) state.charts[key].destroy();
-        state.charts[key] = new Chart(ctx, { type, data, options });
-      }
+    function monthOffset(month, offset) {
+      const [yearText, monthText] = month.split("-");
+      const base = new Date(Number(yearText), Number(monthText) - 1, 1);
+      base.setMonth(base.getMonth() + offset);
+      return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}`;
+    }
 
-      function renderDailyChart(daily) {
-        upsertChart("daily", "daily-chart", "line", {
-          labels: daily.map((row) => row.day),
-          datasets: [
-            {
-              label: "이번 달",
-              data: daily.map((row) => row.current_cumulative_amount),
-              borderColor: "#ffd400",
-              backgroundColor: "#ffd400",
-              tension: 0.32,
-              pointRadius: 0
-            },
-            {
-              label: "전월",
-              data: daily.map((row) => row.previous_cumulative_amount),
-              borderColor: "#727785",
-              backgroundColor: "#727785",
-              tension: 0.32,
-              pointRadius: 0
-            }
-          ]
-        }, {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: "#97a0b4" }, grid: { display: false } },
-            y: { ticks: { color: "#97a0b4" }, grid: { color: "rgba(255,255,255,0.08)" } }
+    function renderBulletList(targetId, items, emptyText) {
+      const root = document.getElementById(targetId);
+      root.innerHTML = "";
+      const values = items && items.length ? items : [emptyText];
+      values.forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        root.appendChild(li);
+      });
+    }
+
+    function upsertChart(key, canvasId, type, data, options) {
+      const ctx = document.getElementById(canvasId);
+      if (state.charts[key]) state.charts[key].destroy();
+      state.charts[key] = new Chart(ctx, { type, data, options });
+    }
+
+    function renderDailyChart(daily) {
+      upsertChart("daily", "daily-chart", "line", {
+        labels: daily.map((row) => row.day),
+        datasets: [
+          {
+            label: "이번 달",
+            data: daily.map((row) => row.current_cumulative_amount),
+            borderColor: "#ffd400",
+            backgroundColor: "#ffd400",
+            tension: 0.32,
+            pointRadius: 0
+          },
+          {
+            label: "전월",
+            data: daily.map((row) => row.previous_cumulative_amount),
+            borderColor: "#727785",
+            backgroundColor: "#727785",
+            tension: 0.32,
+            pointRadius: 0
           }
-        });
-      }
+        ]
+      }, {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#97a0b4" }, grid: { display: false } },
+          y: { ticks: { color: "#97a0b4" }, grid: { color: "rgba(255,255,255,0.08)" } }
+        }
+      });
+    }
 
-      function renderTrendChart(trend, average) {
-        upsertChart("trend", "trend-chart", "bar", {
-          labels: trend.map((row) => formatMonthLabel(row.month)),
-          datasets: [
-            {
-              label: "월간 소비",
-              data: trend.map((row) => row.total_card_spend),
-              backgroundColor: trend.map((row) => row.is_selected_month ? "#ff3b30" : "#5e636f"),
-              borderRadius: 8
-            }
-          ]
-        }, {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: "#97a0b4" }, grid: { display: false } },
-            y: {
-              ticks: { color: "#97a0b4" },
-              grid: { color: "rgba(255,255,255,0.08)" }
-            }
+    function renderTrendChart(trend, average) {
+      upsertChart("trend", "trend-chart", "bar", {
+        labels: trend.map((row) => formatMonthLabel(row.month)),
+        datasets: [
+          {
+            label: "월간 소비",
+            data: trend.map((row) => row.total_card_spend),
+            backgroundColor: trend.map((row) => row.is_selected_month ? "#ff3b30" : "#5e636f"),
+            borderRadius: 8
           }
-        });
-        document.getElementById("avg-note").textContent = `6개월 평균 소비 금액은 ${formatCurrency(average)} 입니다.`;
-      }
-
-      function renderCategoryBreakdown(rows) {
-        const bar = document.getElementById("category-bar");
-        const list = document.getElementById("category-list");
-        bar.innerHTML = "";
-        list.innerHTML = "";
-
-        rows.forEach((row, index) => {
-          if (row.amount > 0) {
-            const segment = document.createElement("div");
-            segment.style.width = `${row.share_percent}%`;
-            segment.style.background = palette[index % palette.length];
-            bar.appendChild(segment);
+        ]
+      }, {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#97a0b4" }, grid: { display: false } },
+          y: {
+            ticks: { color: "#97a0b4" },
+            grid: { color: "rgba(255,255,255,0.08)" }
           }
+        }
+      });
+      document.getElementById("avg-note").textContent = `6개월 평균 소비 금액은 ${formatCurrency(average)} 입니다.`;
+    }
 
-          const item = document.createElement("div");
-          item.className = "category-item";
-          const deltaClass = row.delta_amount > 0 ? "increase" : row.delta_amount < 0 ? "decrease" : "flat";
-          const deltaText = row.delta_amount > 0 ? `지난달보다 +${formatCurrency(row.delta_amount)}` :
-            row.delta_amount < 0 ? `지난달보다 -${formatCurrency(Math.abs(row.delta_amount))}` :
+    function renderCategoryBreakdown(rows) {
+      const bar = document.getElementById("category-bar");
+      const list = document.getElementById("category-list");
+      bar.innerHTML = "";
+      list.innerHTML = "";
+
+      rows.forEach((row, index) => {
+        if (row.amount > 0) {
+          const segment = document.createElement("div");
+          segment.style.width = `${row.share_percent}%`;
+          segment.style.background = palette[index % palette.length];
+          bar.appendChild(segment);
+        }
+
+        const item = document.createElement("div");
+        item.className = "category-item";
+        const deltaClass = row.delta_amount > 0 ? "increase" : row.delta_amount < 0 ? "decrease" : "flat";
+        const deltaText = row.delta_amount > 0 ? `지난달보다 +${formatCurrency(row.delta_amount)}` :
+          row.delta_amount < 0 ? `지난달보다 -${formatCurrency(Math.abs(row.delta_amount))}` :
             "지난달과 동일";
-          item.innerHTML = `
+        item.innerHTML = `
             <div>
               <div class="category-name">
                 <span class="dot" style="background:${palette[index % palette.length]}"></span>
@@ -581,193 +707,243 @@
               <div class="delta ${deltaClass}">${deltaText}</div>
             </div>
           `;
-          list.appendChild(item);
-        });
+        list.appendChild(item);
+      });
+    }
+
+    function renderSummary(payload) {
+      const summary = payload.period_summary;
+      const daily = payload.daily_cumulative;
+      const trend = payload.six_month_trend;
+      const categories = payload.category_breakdown;
+
+      document.getElementById("summary-month").textContent = formatMonthLabel(summary.selected_month);
+      document.getElementById("summary-amount").textContent = formatCurrency(summary.current_total_spend);
+      document.getElementById("summary-banner").innerHTML = summary.difference_text.replace(/([0-9,]+원)/, "<strong>$1</strong>");
+      document.getElementById("current-range").textContent = `${summary.selected_month} 누적`;
+      document.getElementById("previous-range").textContent = `${summary.previous_month} 누적`;
+      document.getElementById("current-total").textContent = formatCurrency(summary.current_total_spend);
+      document.getElementById("previous-total").textContent = formatCurrency(summary.previous_total_spend);
+      document.getElementById("avg-text").textContent = `약 ${Math.round(trend.average_amount / 10000)}만원`;
+
+      renderDailyChart(daily);
+      renderTrendChart(trend.months, trend.average_amount);
+      renderCategoryBreakdown(categories);
+    }
+
+    function renderAiAnalysis(payload) {
+      const analysis = payload.ai_analysis || {};
+      const llmStatus = payload.meta?.llm_status || "unknown";
+      document.getElementById("ai-status").textContent = `분석 범위: ${payload.meta.period.start} ~ ${payload.meta.period.end} · LLM 상태: ${llmStatus}`;
+      renderBulletList("ai-patterns", analysis.consumption_patterns, "요약된 소비 패턴이 없습니다.");
+      renderBulletList("ai-anomalies", analysis.anomaly_explanations, "설명할 이상 거래가 없습니다.");
+      renderBulletList("ai-solutions", analysis.actionable_solutions, "제안할 관리 팁이 없습니다.");
+    }
+
+    let currentAllCards = [];
+
+    function renderRecommendation(payload) {
+      if (payload.error || !payload.user_persona) {
+        document.getElementById("ai-card-status").textContent = payload.error || "추천 엔진을 사용할 수 없습니다.";
+        document.getElementById("ai-card-status").style.display = "block";
+        document.getElementById("recommendation-content").style.display = "none";
+        return;
       }
+      document.getElementById("ai-card-status").style.display = "none";
+      document.getElementById("recommendation-content").style.display = "grid";
 
-      function renderSummary(payload) {
-        const summary = payload.period_summary;
-        const daily = payload.daily_cumulative;
-        const trend = payload.six_month_trend;
-        const categories = payload.category_breakdown;
+      currentAllCards = payload.all_cards || [];
 
-        document.getElementById("summary-month").textContent = formatMonthLabel(summary.selected_month);
-        document.getElementById("summary-amount").textContent = formatCurrency(summary.current_total_spend);
-        document.getElementById("summary-banner").innerHTML = summary.difference_text.replace(/([0-9,]+원)/, "<strong>$1</strong>");
-        document.getElementById("current-range").textContent = `${summary.selected_month} 누적`;
-        document.getElementById("previous-range").textContent = `${summary.previous_month} 누적`;
-        document.getElementById("current-total").textContent = formatCurrency(summary.current_total_spend);
-        document.getElementById("previous-total").textContent = formatCurrency(summary.previous_total_spend);
-        document.getElementById("avg-text").textContent = `약 ${Math.round(trend.average_amount / 10000)}만원`;
+      document.getElementById("persona-nickname").textContent = payload.user_persona.nickname;
+      document.getElementById("persona-desc").textContent = payload.user_persona.description;
 
-        renderDailyChart(daily);
-        renderTrendChart(trend.months, trend.average_amount);
-        renderCategoryBreakdown(categories);
-      }
-
-      function renderAiAnalysis(payload) {
-        const analysis = payload.ai_analysis || {};
-        const llmStatus = payload.meta?.llm_status || "unknown";
-        document.getElementById("ai-status").textContent = `분석 범위: ${payload.meta.period.start} ~ ${payload.meta.period.end} · LLM 상태: ${llmStatus}`;
-        renderBulletList("ai-patterns", analysis.consumption_patterns, "요약된 소비 패턴이 없습니다.");
-        renderBulletList("ai-anomalies", analysis.anomaly_explanations, "설명할 이상 거래가 없습니다.");
-        renderBulletList("ai-solutions", analysis.actionable_solutions, "제안할 관리 팁이 없습니다.");
-      }
-
-      function renderRecommendation(payload) {
-        if (payload.error || !payload.user_persona || !payload.best_card) {
-          document.getElementById("ai-card-status").textContent = payload.error || "추천 카드가 없습니다.";
-          document.getElementById("ai-card-status").style.display = "block";
-          document.getElementById("recommendation-content").style.display = "none";
-          return;
-        }
-        document.getElementById("ai-card-status").style.display = "none";
-        document.getElementById("recommendation-content").style.display = "grid";
-        
-        document.getElementById("persona-nickname").textContent = payload.user_persona.nickname;
-        document.getElementById("persona-desc").textContent = payload.user_persona.description;
-        
+      if (!payload.best_card) {
+        document.getElementById("rec-card-name").textContent = "최적의 카드를 찾지 못했어요";
+        document.getElementById("rec-card-comment").textContent = "현재 소비 패턴으로 혜택을 받을 수 있는 카드가 없습니다.";
+        document.getElementById("rec-card-savings").textContent = "0원";
+      } else {
         document.getElementById("rec-card-name").textContent = payload.best_card.name;
         document.getElementById("rec-card-comment").textContent = payload.best_card.comment;
-        document.getElementById("rec-card-savings").textContent = formatCurrency(payload.best_card.estimated_savings) + ` (피킹률: ${payload.best_card.picking_rate}%)`;
+        document.getElementById("rec-card-savings").textContent = formatCurrency(payload.best_card.estimated_savings);
       }
+    }
 
-      async function loadUsers() {
-        const response = await fetch("/api/v1/users");
-        const payload = await response.json();
-        state.users = payload.users || [];
-        const select = document.getElementById("user-select");
-        select.innerHTML = "";
-        state.users.forEach((user) => {
-          const option = document.createElement("option");
-          option.value = user.name;
-          option.textContent = `${user.name} (${user.user_id})`;
-          select.appendChild(option);
+    function openRankingView() {
+      const list = document.getElementById("ranking-list");
+      list.innerHTML = "";
+
+      currentAllCards.forEach((card, idx) => {
+        const rank = idx + 1;
+        const topClass = rank <= 3 ? "top3" : "";
+        const el = document.createElement("div");
+        el.className = `ranking-item ${topClass}`;
+
+        const subTextHtml = card.sub_text && card.sub_text.length ?
+          `<ul style="margin: 4px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.5;">` +
+          card.sub_text.map(t => `<li>${t}</li>`).join('') +
+          `</ul>` : '';
+
+        el.innerHTML = `
+            <div class="ranking-rank" style="align-self: flex-start; padding-top: 4px;">${rank}</div>
+            <div class="ranking-details">
+              <div class="ranking-name">${card.name}</div>
+              <div style="font-size: 14px; margin-bottom: 6px; color: #fff; line-height: 1.4;">${card.main_text || ''}</div>
+              ${subTextHtml}
+              <div style="margin-top: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                <span class="ranking-savings" style="display:block; margin-bottom: 6px;">예상 할인액: ${formatCurrency(card.estimated_savings)}</span>
+                <span style="font-size: 13px; color: var(--yellow); line-height: 1.4; display: block;">💡 ${card.comment}</span>
+              </div>
+            </div>
+          `;
+        list.appendChild(el);
+      });
+
+      document.getElementById("ranking-overlay").style.display = "block";
+      document.body.style.overflow = "hidden"; // 배경 스크롤 방지
+    }
+
+    function closeRankingView() {
+      document.getElementById("ranking-overlay").style.display = "none";
+      document.body.style.overflow = "auto";
+    }
+
+    async function loadUsers() {
+      const response = await fetch("/api/v1/users");
+      const payload = await response.json();
+      state.users = payload.users || [];
+      const select = document.getElementById("user-select");
+      select.innerHTML = "";
+      state.users.forEach((user) => {
+        const option = document.createElement("option");
+        option.value = user.name;
+        option.textContent = `${user.name} (${user.user_id})`;
+        select.appendChild(option);
+      });
+    }
+
+    async function loadMockStats() {
+      const userName = document.getElementById("user-select").value;
+      const month = document.getElementById("month-select").value;
+      setStatus("통계를 불러오는 중입니다...");
+
+      try {
+        const statsParams = new URLSearchParams({ user_name: userName, month });
+        const aiParams = new URLSearchParams({
+          user_name: userName,
+          start: month,
+          end: month,
+          include_ai: "true"
         });
+
+        const [statsResponse, aiResponse, recResponse] = await Promise.all([
+          fetch(`/api/v1/mock-consumption-stats?${statsParams.toString()}`),
+          fetch(`/api/v1/consumption-report?${aiParams.toString()}`),
+          fetch(`/api/v1/recommendation?${statsParams.toString()}`)
+        ]);
+
+        if (!statsResponse.ok) {
+          const payload = await statsResponse.json();
+          throw new Error(payload.detail || "통계를 불러오지 못했습니다.");
+        }
+        if (!aiResponse.ok) {
+          const payload = await aiResponse.json();
+          throw new Error(payload.detail || "AI 분석을 불러오지 못했습니다.");
+        }
+
+        const [statsPayload, aiPayload, recPayload] = await Promise.all([statsResponse.json(), aiResponse.json(), recResponse.json()]);
+        renderSummary(statsPayload);
+        renderAiAnalysis(aiPayload);
+        renderRecommendation(recPayload);
+        setStatus(`${statsPayload.meta.user_name} · ${formatMonthLabel(statsPayload.meta.selected_month)} 통계를 불러왔습니다.`);
+      } catch (error) {
+        setStatus(error.message);
+        document.getElementById("ai-status").textContent = "AI 분석을 불러오지 못했습니다.";
       }
+    }
 
-      async function loadMockStats() {
-        const userName = document.getElementById("user-select").value;
-        const month = document.getElementById("month-select").value;
-        setStatus("통계를 불러오는 중입니다...");
+    document.getElementById("load-button").addEventListener("click", loadMockStats);
 
-        try {
-          const statsParams = new URLSearchParams({ user_name: userName, month });
+    loadUsers().then(loadMockStats).catch((error) => setStatus(error.message));
+
+    /* --- Chatbot Logic --- */
+    let chatHistory = [];
+
+    function appendChatMessage(text, sender) {
+      const msg = document.createElement("div");
+      msg.className = `msg ${sender}`;
+      msg.textContent = text;
+      const msgContainer = document.getElementById("chat-messages");
+      msgContainer.appendChild(msg);
+      msgContainer.scrollTop = msgContainer.scrollHeight;
+    }
+
+    function handleChatKey(e) {
+      if (e.key === "Enter") sendChatMessage();
+    }
+
+    async function sendChatMessage() {
+      const input = document.getElementById("chat-input");
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = "";
+      appendChatMessage(text, "user");
+
+      chatHistory.push({ role: "user", text: text });
+
+      const userName = document.getElementById("user-select").value;
+      const month = document.getElementById("month-select").value;
+
+      try {
+        // Disable input temporarily while waiting
+        input.placeholder = "AI 코치가 생각 중입니다...";
+        input.disabled = true;
+
+        const response = await fetch("/api/v1/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_name: userName,
+            month: month,
+            message: text,
+            history: chatHistory.map(h => ({ role: h.role, text: h.text }))
+          })
+        });
+
+        if (!response.ok) throw new Error("챗봇 응답 오류");
+
+        const result = await response.json();
+        appendChatMessage(result.response, "ai");
+        chatHistory.push({ role: "model", text: result.response });
+
+        // If valid justification, refresh the AI Analysis part!
+        if (result.is_valid) {
+          appendChatMessage("✨ 해명 접수 완료! 분석 리포트를 다시 갱신할게요.", "ai");
+          setStatus("새로운 해명을 바탕으로 리포트를 재생성합니다...");
+
           const aiParams = new URLSearchParams({
             user_name: userName,
             start: month,
             end: month,
             include_ai: "true"
           });
-
-          const [statsResponse, aiResponse, recResponse] = await Promise.all([
-            fetch(`/api/v1/mock-consumption-stats?${statsParams.toString()}`),
-            fetch(`/api/v1/consumption-report?${aiParams.toString()}`),
-            fetch(`/api/v1/recommendation?${statsParams.toString()}`)
-          ]);
-
-          if (!statsResponse.ok) {
-            const payload = await statsResponse.json();
-            throw new Error(payload.detail || "통계를 불러오지 못했습니다.");
+          const aiResponse = await fetch(`/api/v1/consumption-report?${aiParams.toString()}`);
+          if (aiResponse.ok) {
+            const aiPayload = await aiResponse.json();
+            renderAiAnalysis(aiPayload);
+            setStatus(`${userName} · ${formatMonthLabel(month)} 통계 및 해명 기반 새 분석을 불러왔습니다.`);
           }
-          if (!aiResponse.ok) {
-            const payload = await aiResponse.json();
-            throw new Error(payload.detail || "AI 분석을 불러오지 못했습니다.");
-          }
-
-          const [statsPayload, aiPayload, recPayload] = await Promise.all([statsResponse.json(), aiResponse.json(), recResponse.json()]);
-          renderSummary(statsPayload);
-          renderAiAnalysis(aiPayload);
-          renderRecommendation(recPayload);
-          setStatus(`${statsPayload.meta.user_name} · ${formatMonthLabel(statsPayload.meta.selected_month)} 통계를 불러왔습니다.`);
-        } catch (error) {
-          setStatus(error.message);
-          document.getElementById("ai-status").textContent = "AI 분석을 불러오지 못했습니다.";
         }
+
+      } catch (error) {
+        appendChatMessage("앗, 코치팀과 연결이 끊어졌어요. 다시 시도해주세요.", "ai");
+      } finally {
+        input.placeholder = "예: 친구들 몫도 대신 긁은 거야!";
+        input.disabled = false;
+        input.focus();
       }
+    }
+  </script>
+</body>
 
-      document.getElementById("load-button").addEventListener("click", loadMockStats);
-
-      loadUsers().then(loadMockStats).catch((error) => setStatus(error.message));
-
-      /* --- Chatbot Logic --- */
-      let chatHistory = [];
-
-      function appendChatMessage(text, sender) {
-        const msg = document.createElement("div");
-        msg.className = `msg ${sender}`;
-        msg.textContent = text;
-        const msgContainer = document.getElementById("chat-messages");
-        msgContainer.appendChild(msg);
-        msgContainer.scrollTop = msgContainer.scrollHeight;
-      }
-
-      function handleChatKey(e) {
-        if (e.key === "Enter") sendChatMessage();
-      }
-
-      async function sendChatMessage() {
-        const input = document.getElementById("chat-input");
-        const text = input.value.trim();
-        if (!text) return;
-
-        input.value = "";
-        appendChatMessage(text, "user");
-        
-        chatHistory.push({ role: "user", text: text });
-
-        const userName = document.getElementById("user-select").value;
-        const month = document.getElementById("month-select").value;
-
-        try {
-          // Disable input temporarily while waiting
-          input.placeholder = "AI 코치가 생각 중입니다...";
-          input.disabled = true;
-
-          const response = await fetch("/api/v1/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_name: userName,
-              month: month,
-              message: text,
-              history: chatHistory.map(h => ({ role: h.role, text: h.text }))
-            })
-          });
-
-          if (!response.ok) throw new Error("챗봇 응답 오류");
-          
-          const result = await response.json();
-          appendChatMessage(result.response, "ai");
-          chatHistory.push({ role: "model", text: result.response });
-
-          // If valid justification, refresh the AI Analysis part!
-          if (result.is_valid) {
-            appendChatMessage("✨ 해명 접수 완료! 분석 리포트를 다시 갱신할게요.", "ai");
-            setStatus("새로운 해명을 바탕으로 리포트를 재생성합니다...");
-            
-            const aiParams = new URLSearchParams({
-              user_name: userName,
-              start: month,
-              end: month,
-              include_ai: "true"
-            });
-            const aiResponse = await fetch(`/api/v1/consumption-report?${aiParams.toString()}`);
-            if (aiResponse.ok) {
-              const aiPayload = await aiResponse.json();
-              renderAiAnalysis(aiPayload);
-              setStatus(`${userName} · ${formatMonthLabel(month)} 통계 및 해명 기반 새 분석을 불러왔습니다.`);
-            }
-          }
-
-        } catch (error) {
-          appendChatMessage("앗, 코치팀과 연결이 끊어졌어요. 다시 시도해주세요.", "ai");
-        } finally {
-          input.placeholder = "예: 친구들 몫도 대신 긁은 거야!";
-          input.disabled = false;
-          input.focus();
-        }
-      }
-    </script>
-  </body>
 </html>
