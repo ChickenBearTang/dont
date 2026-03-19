@@ -48,7 +48,7 @@ pipeline {
                     }
 
                     set -a
-                    . "${ENV_FILE}"
+                    . "./${ENV_FILE}"
                     set +a
 
                     REQUIRED_VARS="DB_URL DB_USERNAME DB_PASSWORD AUTH_JWT_SECRET API_PATH VITE_API_BASE_URL REDIS_HOST REDIS_PORT"
