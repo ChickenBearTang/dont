@@ -62,13 +62,14 @@ class AIConsumptionEngine:
         
         # 0. 핵심: 소비리포트(category)와의 일맥상통을 위한 1차 매핑
         sub_to_p = {
-            'delivery': 'P01', 'convenience_store': 'P02',
+            'delivery': 'P01', 'convenience_store': 'P02', 'fastfood': 'P01',
             'ott': 'P04', 'music': 'P04', 'taxi': 'P05',
             'health_beauty': 'P06', 'cafe': 'P07',
             'fashion': 'P08', 'ecommerce': 'P08',
             'book': 'P09', 'course': 'P09', 'academy': 'P09',
-            'groceries': 'P10',
+            'groceries': 'P10', 'home': 'P10', 'living': 'P06',
             'flight': 'P11', 'hotel': 'P11', 'package': 'P11',
+            'luxury': 'P12', 'department_store': 'P12',
             'movie': 'P13', 'hobby': 'P13', 'gaming': 'P13'
         }
         if subcategory in sub_to_p:
