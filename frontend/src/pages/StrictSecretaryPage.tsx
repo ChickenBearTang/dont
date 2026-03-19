@@ -118,10 +118,6 @@ export default function StrictSecretaryPage() {
 
   return (
     <div className="ss-page-container">
-      <header className="ss-header">
-        <h1>엄격한 비서 (Strict Secretary)</h1>
-        <p>당신의 충동구매를 막아드립니다. 아래 버튼을 눌러 구매 기안을 작성하세요.</p>
-      </header>
 
       <main className="ss-main">
         {(pageState === 'IDLE' || pageState === 'FORM_OPEN') && (
