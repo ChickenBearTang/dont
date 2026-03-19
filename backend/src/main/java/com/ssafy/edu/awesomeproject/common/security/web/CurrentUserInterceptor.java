@@ -21,7 +21,8 @@ public class CurrentUserInterceptor implements HandlerInterceptor {
     }
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+    public boolean preHandle(
+            HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (!(handler instanceof HandlerMethod handlerMethod)) {
             return true;
         }
@@ -30,7 +31,8 @@ public class CurrentUserInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        CurrentUserExtractor.CurrentUserAuth auth = currentUserExtractor.extractAuthFromRequestHeader(request);
+        CurrentUserExtractor.CurrentUserAuth auth =
+                currentUserExtractor.extractAuthFromRequestHeader(request);
         request.setAttribute(CURRENT_USER_ID_ATTR, auth.userId());
         request.setAttribute(CURRENT_USER_ROLE_ATTR, auth.role());
         return true;

@@ -1,8 +1,8 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.dto.response;
 
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankResponse;
-import lombok.Builder;
 import java.util.List;
+import lombok.Builder;
 
 public record AccountListResponse(List<AccountDetail> accounts) {
 
@@ -10,15 +10,13 @@ public record AccountListResponse(List<AccountDetail> accounts) {
         if (apiResponse.rec() == null) {
             return new AccountListResponse(List.of());
         }
-        List<AccountDetail> details =
-                apiResponse.rec().stream()
-                        .map(AccountDetail::from)
-                        .toList();
+        List<AccountDetail> details = apiResponse.rec().stream().map(AccountDetail::from).toList();
         return new AccountListResponse(details);
     }
 
     @Builder
     public record AccountDetail(
+            Long id,
             String bankCode,
             String bankName,
             String userName,

@@ -19,14 +19,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReactionController {
     private final ReactionService reactionService;
 
-    public  ReactionController(ReactionService reactionService) {
+    public ReactionController(ReactionService reactionService) {
         this.reactionService = reactionService;
     }
 
     @PostMapping
     @Operation(
-        summary = "반응 등록 또는 취소 API",
-        description = "게시글 또는 댓글에 대해 좋아요/싫어요 반응을 등록하거나 취소하는 API 입니다.")
+            summary = "반응 등록 또는 취소 API",
+            description = "게시글 또는 댓글에 대해 좋아요/싫어요 반응을 등록하거나 취소하는 API 입니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "정상 응답"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -39,21 +39,21 @@ public class ReactionController {
             @CurrentUserId Long userId,
             @Valid @RequestBody ToggleReactionRequestDto toggleReactionRequestDto) {
 
-       ReactionService.ToggleReactionResult result =
+        ReactionService.ToggleReactionResult result =
                 reactionService.toggleReaction(
-                    userId,
-                    toggleReactionRequestDto.targetType(),  //POST, COMMENT
-                    toggleReactionRequestDto.targetId(),    // postId
-                    toggleReactionRequestDto.reactionType(),  //LIKE, DISLIKE
-                    toggleReactionRequestDto.active());       //true, false (등록, 취소)
+                        userId,
+                        toggleReactionRequestDto.targetType(), // POST, COMMENT
+                        toggleReactionRequestDto.targetId(), // postId
+                        toggleReactionRequestDto.reactionType(), // LIKE, DISLIKE
+                        toggleReactionRequestDto.active()); // true, false (등록, 취소)
 
-       return CommonResponse.success(
+        return CommonResponse.success(
                 new ToggleReactionResponseDto(
-                    result.targetType(),
-                    result.targetId(),
-                    result.reactionType(),
-                    result.active(),
-                    result.likeCount(),
-                    result.dislikeCount()));
+                        result.targetType(),
+                        result.targetId(),
+                        result.reactionType(),
+                        result.active(),
+                        result.likeCount(),
+                        result.dislikeCount()));
     }
 }

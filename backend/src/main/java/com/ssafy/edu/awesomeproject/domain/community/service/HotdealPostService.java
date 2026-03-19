@@ -39,15 +39,18 @@ public class HotdealPostService {
     }
 
     @Transactional
-    public HotdealCreateResponseDto create(Long userId, HotdealCreateRequestDto hotdealCreateRequestDto) {
+    public HotdealCreateResponseDto create(
+            Long userId, HotdealCreateRequestDto hotdealCreateRequestDto) {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(() -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
         Board hotdealBoard =
                 boardRepository
                         .findByCategory(BoardCategory.HOTDEAL)
-                        .orElseThrow(() -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
 
         Post savedPost =
                 postRepository.save(
@@ -66,7 +69,8 @@ public class HotdealPostService {
         HotdealPost hotdealPost =
                 hotdealPostRepository
                         .findByPost_Id(postId)
-                        .orElseThrow(() -> new CommunityException(CommunityErrorCode.HOTDEAL_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.HOTDEAL_NOT_FOUND));
 
         Post post = hotdealPost.getPost();
         return new HotdealDetailResponseDto(
@@ -86,11 +90,13 @@ public class HotdealPostService {
     }
 
     @Transactional
-    public HotdealUpdateResponseDto update(Long postId, Long userId, HotdealUpdateRequestDto hotdealUpdateRequestDto) {
+    public HotdealUpdateResponseDto update(
+            Long postId, Long userId, HotdealUpdateRequestDto hotdealUpdateRequestDto) {
         HotdealPost hotdealPost =
                 hotdealPostRepository
                         .findByPost_Id(postId)
-                        .orElseThrow(() -> new CommunityException(CommunityErrorCode.HOTDEAL_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.HOTDEAL_NOT_FOUND));
 
         Post post = hotdealPost.getPost();
         if (!post.isAuthor(userId)) {

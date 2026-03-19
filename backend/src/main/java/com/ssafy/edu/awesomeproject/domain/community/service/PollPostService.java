@@ -53,11 +53,13 @@ public class PollPostService {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(() -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
         Board pollBoard =
                 boardRepository
                         .findByCategory(BoardCategory.POLL)
-                        .orElseThrow(() -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.BOARD_NOT_FOUND));
 
         Post savedPost =
                 postRepository.save(
@@ -82,7 +84,8 @@ public class PollPostService {
         PollPost pollPost =
                 pollPostRepository
                         .findByPost_Id(postId)
-                        .orElseThrow(() -> new CommunityException(CommunityErrorCode.POLL_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.POLL_NOT_FOUND));
 
         Post post = pollPost.getPost();
         long optionACount =
@@ -110,11 +113,13 @@ public class PollPostService {
     }
 
     @Transactional
-    public PollUpdateResponseDto update(Long postId, Long userId, PollUpdateRequestDto pollUpdateRequestDto) {
+    public PollUpdateResponseDto update(
+            Long postId, Long userId, PollUpdateRequestDto pollUpdateRequestDto) {
         PollPost pollPost =
                 pollPostRepository
                         .findByPost_Id(postId)
-                        .orElseThrow(() -> new CommunityException(CommunityErrorCode.POLL_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.POLL_NOT_FOUND));
 
         Post post = pollPost.getPost();
         if (!post.isAuthor(userId)) {
@@ -134,8 +139,11 @@ public class PollPostService {
     @Transactional
     public PollVoteSubmitResponseDto vote(
             Long postId, Long userId, PollVoteSubmitRequestDto pollVoteSubmitRequestDto) {
-        PollPost pollPost = pollPostRepository.findByPost_Id(postId)
-                .orElseThrow(() -> new CommunityException(CommunityErrorCode.POLL_NOT_FOUND));
+        PollPost pollPost =
+                pollPostRepository
+                        .findByPost_Id(postId)
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.POLL_NOT_FOUND));
         validatePollOpen(pollPost);
 
         PollVoteOption voteOption = parseVoteOption(pollVoteSubmitRequestDto.voteOption());

@@ -14,7 +14,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AdminAuthorizationInterceptor implements HandlerInterceptor {
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+    public boolean preHandle(
+            HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (!(handler instanceof HandlerMethod handlerMethod)) {
             return true;
         }
@@ -36,4 +37,3 @@ public class AdminAuthorizationInterceptor implements HandlerInterceptor {
                 || handlerMethod.getBeanType().isAnnotationPresent(AdminOnly.class);
     }
 }
-

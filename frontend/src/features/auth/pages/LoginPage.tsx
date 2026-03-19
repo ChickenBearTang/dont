@@ -10,7 +10,8 @@ export const LoginPage = () => {
       <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
         <div className="space-y-2">
           <h2 className="text-4xl font-black text-gray-900 tracking-tight leading-tight">
-            돈이 보이는 습관,<br />
+            돈이 보이는 습관,
+            <br />
             <span className="text-primary-blue">돈트</span>와 함께 시작하세요
           </h2>
           <p className="text-lg text-gray-500 font-medium italic">
@@ -48,4 +49,3 @@ export const LoginPage = () => {
     </div>
   );
 };
-

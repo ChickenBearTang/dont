@@ -5,9 +5,7 @@ import lombok.Builder;
 
 @Builder
 public record AccountTransactionResponse(
-        String accountNo,
-        String accountName,
-        List<TransactionItem> transactions) {
+        String accountNo, String accountName, List<TransactionItem> transactions) {
 
     @Builder
     public record TransactionItem(

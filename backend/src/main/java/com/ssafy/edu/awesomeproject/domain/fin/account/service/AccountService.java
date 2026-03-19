@@ -5,7 +5,6 @@ import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransactionHistoryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransferResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response.OpenBankDetailAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SavingsSettingRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountCreateResponse;
@@ -18,12 +17,13 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountRole;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountStatus;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountTransaction;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.SavingsSetting;
+import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountErrorCode;
+import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountException;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSettingRepository;
-import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountErrorCode;
-import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountException;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankAdapter;
+import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response.OpenBankDetailAccountResponse;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -54,9 +54,7 @@ public class AccountService {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(
-                                () ->
-                                        new AccountException(AccountErrorCode.USER_NOT_FOUND));
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
 
         String userKey = user.getSsafyFinanceUserKey();
         if (userKey == null || userKey.isBlank()) {
@@ -66,42 +64,52 @@ public class AccountService {
         OpenBankCreateAccountResponse apiResponse =
                 openBankAdapter.createDemandDepositAccount(userKey, request.accountTypeUniqueNo());
 
-        if (apiResponse == null || apiResponse.getHeader() == null || apiResponse.getRec() == null) {
+        if (apiResponse == null
+                || apiResponse.getHeader() == null
+                || apiResponse.getRec() == null) {
             throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR);
         }
 
         String responseCode = apiResponse.getHeader().getResponseCode();
         if (!"201".equals(responseCode) && !"H0000".equals(responseCode)) {
-            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR, apiResponse.getHeader().getResponseMessage());
+            throw new AccountException(
+                    AccountErrorCode.API_RESPONSE_ERROR,
+                    apiResponse.getHeader().getResponseMessage());
         }
 
         OpenBankCreateAccountResponse.Rec rec = apiResponse.getRec();
 
         // [Bug Fix] 개설 성공 직후 상세 조회를 통해 우리 DB에 즉시 저장 (SAVE_BOX 역할 부여)
         try {
-            OpenBankDetailAccountResponse detailResponse = openBankAdapter.fetchAccountDetail(userKey, rec.getAccountNo());
+            OpenBankDetailAccountResponse detailResponse =
+                    openBankAdapter.fetchAccountDetail(userKey, rec.getAccountNo());
             if (detailResponse != null && detailResponse.rec() != null) {
                 OpenBankDetailAccountResponse.Rec detail = detailResponse.rec();
-                Account newAccount = Account.builder()
-                        .userId(userId)
-                        .accountNo(detail.accountNo())
-                        .bankName(detail.bankName())
-                        .bankCode(detail.bankCode())
-                        .accountName(detail.accountName())
-                        .currencyCode(detail.currency() != null ? detail.currency().currency() : "KRW")
-                        .balance(parseBigDecimal(detail.accountBalance()))
-                        .status(AccountStatus.ACTIVE)
-                        .isPrimary(false)
-                        .accountRole(AccountRole.SAVE_BOX) // 명시적으로 SAVE_BOX 지정
-                        .userName(detail.userName())
-                        .accountTypeCode(detail.accountTypeCode())
-                        .accountTypeName(detail.accountTypeName())
-                        .accountCreatedDate(parseLocalDate(detail.accountCreatedDate()))
-                        .accountExpiryDate(parseLocalDate(detail.accountExpiryDate()))
-                        .dailyTransferLimit(parseBigDecimal(detail.dailyTransferLimit()))
-                        .oneTimeTransferLimit(parseBigDecimal(detail.oneTimeTransferLimit()))
-                        .lastTransactionDate(parseLocalDate(detail.lastTransactionDate()))
-                        .build();
+                Account newAccount =
+                        Account.builder()
+                                .userId(userId)
+                                .accountNo(detail.accountNo())
+                                .bankName(detail.bankName())
+                                .bankCode(detail.bankCode())
+                                .accountName(detail.accountName())
+                                .currencyCode(
+                                        detail.currency() != null
+                                                ? detail.currency().currency()
+                                                : "KRW")
+                                .balance(parseBigDecimal(detail.accountBalance()))
+                                .status(AccountStatus.ACTIVE)
+                                .isPrimary(false)
+                                .accountRole(AccountRole.SAVE_BOX) // 명시적으로 SAVE_BOX 지정
+                                .userName(detail.userName())
+                                .accountTypeCode(detail.accountTypeCode())
+                                .accountTypeName(detail.accountTypeName())
+                                .accountCreatedDate(parseLocalDate(detail.accountCreatedDate()))
+                                .accountExpiryDate(parseLocalDate(detail.accountExpiryDate()))
+                                .dailyTransferLimit(parseBigDecimal(detail.dailyTransferLimit()))
+                                .oneTimeTransferLimit(
+                                        parseBigDecimal(detail.oneTimeTransferLimit()))
+                                .lastTransactionDate(parseLocalDate(detail.lastTransactionDate()))
+                                .build();
                 accountRepository.save(newAccount);
                 log.info("세이브박스 DB 저장 완료: {}", rec.getAccountNo());
             }
@@ -131,10 +139,12 @@ public class AccountService {
 
     @Transactional(readOnly = true)
     public AccountResponse getAccount(Long userId, Long accountId) {
-        Account account = accountRepository
-                .findById(accountId)
-                .filter(a -> a.getUserId().equals(userId))
-                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
+        Account account =
+                accountRepository
+                        .findById(accountId)
+                        .filter(a -> a.getUserId().equals(userId))
+                        .orElseThrow(
+                                () -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
         return AccountResponse.from(account);
     }
@@ -148,6 +158,7 @@ public class AccountService {
                         .map(
                                 account ->
                                         new AccountListResponse.AccountDetail(
+                                                account.getId(),
                                                 account.getBankCode(),
                                                 account.getBankName(),
                                                 account.getUserName(),
@@ -155,12 +166,27 @@ public class AccountService {
                                                 account.getAccountName(),
                                                 account.getAccountTypeCode(),
                                                 account.getAccountTypeName(),
-                                                account.getAccountCreatedDate() != null ? account.getAccountCreatedDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
-                                                account.getAccountExpiryDate() != null ? account.getAccountExpiryDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
+                                                account.getAccountCreatedDate() != null
+                                                        ? account.getAccountCreatedDate()
+                                                                .format(
+                                                                        DateTimeFormatter.ofPattern(
+                                                                                "yyyyMMdd"))
+                                                        : null,
+                                                account.getAccountExpiryDate() != null
+                                                        ? account.getAccountExpiryDate()
+                                                                .format(
+                                                                        DateTimeFormatter.ofPattern(
+                                                                                "yyyyMMdd"))
+                                                        : null,
                                                 String.valueOf(account.getDailyTransferLimit()),
                                                 String.valueOf(account.getOneTimeTransferLimit()),
                                                 String.valueOf(account.getBalance()),
-                                                account.getLastTransactionDate() != null ? account.getLastTransactionDate().format(DateTimeFormatter.ofPattern("yyyyMMdd")) : null,
+                                                account.getLastTransactionDate() != null
+                                                        ? account.getLastTransactionDate()
+                                                                .format(
+                                                                        DateTimeFormatter.ofPattern(
+                                                                                "yyyyMMdd"))
+                                                        : null,
                                                 account.getCurrencyCode()))
                         .collect(Collectors.toList());
 
@@ -178,7 +204,8 @@ public class AccountService {
                 accountRepository
                         .findById(accountId)
                         .filter(a -> a.getUserId().equals(userId))
-                        .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
+                        .orElseThrow(
+                                () -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
         // 1. 거래 내역 동기화 (간편하게 조회 시마다 최신화 시도)
         syncTransactions(userId, account, startDate, endDate);
@@ -189,12 +216,15 @@ public class AccountService {
 
         List<AccountTransaction> transactions;
         if (start != null && end != null) {
-            transactions = accountTransactionRepository
-                    .findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
-                            accountId, start, end);
+            transactions =
+                    accountTransactionRepository
+                            .findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+                                    accountId, start, end);
         } else {
-            transactions = accountTransactionRepository
-                    .findAllByAccountIdOrderByTransactionDateDescTransactionTimeDesc(accountId);
+            transactions =
+                    accountTransactionRepository
+                            .findAllByAccountIdOrderByTransactionDateDescTransactionTimeDesc(
+                                    accountId);
         }
 
         return AccountTransactionResponse.builder()
@@ -205,7 +235,8 @@ public class AccountService {
                                 .map(
                                         t ->
                                                 AccountTransactionResponse.TransactionItem.builder()
-                                                        .transactionUniqueNo(t.getTransactionUniqueNo())
+                                                        .transactionUniqueNo(
+                                                                t.getTransactionUniqueNo())
                                                         .transactionDate(
                                                                 t.getTransactionDate()
                                                                         .format(
@@ -214,11 +245,15 @@ public class AccountService {
                                                                                                 "yyyyMMdd")))
                                                         .transactionTime(t.getTransactionTime())
                                                         .transactionType(t.getTransactionType())
-                                                        .transactionTypeName(t.getTransactionTypeName())
+                                                        .transactionTypeName(
+                                                                t.getTransactionTypeName())
                                                         .transactionAmount(
-                                                                String.valueOf(t.getTransactionAmount()))
-                                                        .afterBalance(String.valueOf(t.getAfterBalance()))
-                                                        .transactionSummary(t.getTransactionSummary())
+                                                                String.valueOf(
+                                                                        t.getTransactionAmount()))
+                                                        .afterBalance(
+                                                                String.valueOf(t.getAfterBalance()))
+                                                        .transactionSummary(
+                                                                t.getTransactionSummary())
                                                         .transactionMemo(t.getTransactionMemo())
                                                         .build())
                                 .collect(Collectors.toList()))
@@ -240,14 +275,19 @@ public class AccountService {
                         "A", // 전체
                         "DESC"); // 최신순
 
-        if (apiResponse == null || apiResponse.getRec() == null || apiResponse.getRec().getList() == null) {
+        if (apiResponse == null
+                || apiResponse.getRec() == null
+                || apiResponse.getRec().getList() == null) {
             return;
         }
 
         List<AccountTransaction> newTransactions = new ArrayList<>();
 
-        for (OpenBankTransactionHistoryResponse.TransactionItem item : apiResponse.getRec().getList()) {
-            if (accountTransactionRepository.findByTransactionUniqueNo(item.getTransactionUniqueNo()).isEmpty()) {
+        for (OpenBankTransactionHistoryResponse.TransactionItem item :
+                apiResponse.getRec().getList()) {
+            if (accountTransactionRepository
+                    .findByTransactionUniqueNo(item.getTransactionUniqueNo())
+                    .isEmpty()) {
                 AccountTransaction transaction =
                         AccountTransaction.builder()
                                 .account(account)
@@ -257,7 +297,10 @@ public class AccountService {
                                 .transactionType(item.getTransactionType())
                                 .transactionTypeName(item.getTransactionTypeName())
                                 .transactionAccountNo(item.getTransactionAccountNo())
-                                .transactionAmount(parseBigDecimal(item.getTransactionBalance())) // API 필드명이 Balance지만 실제론 거래금액임
+                                .transactionAmount(
+                                        parseBigDecimal(item.getTransactionBalance())) // API 필드명이
+                                // Balance지만 실제론
+                                // 거래금액임
                                 .afterBalance(parseBigDecimal(item.getTransactionAfterBalance()))
                                 .transactionSummary(item.getTransactionSummary())
                                 .transactionMemo(item.getTransactionMemo())
@@ -273,11 +316,13 @@ public class AccountService {
         }
     }
 
-    private void processAutoSavings(Long userId, Account primaryAccount, List<AccountTransaction> transactions) {
+    private void processAutoSavings(
+            Long userId, Account primaryAccount, List<AccountTransaction> transactions) {
         // 주계좌인 경우에만 감지
         if (!primaryAccount.isPrimary()) return;
 
-        Optional<SavingsSetting> settingOpt = savingsSettingRepository.findByUserIdAndIsActiveTrue(userId);
+        Optional<SavingsSetting> settingOpt =
+                savingsSettingRepository.findByUserIdAndIsActiveTrue(userId);
         if (settingOpt.isEmpty()) return;
 
         SavingsSetting setting = settingOpt.get();
@@ -285,34 +330,38 @@ public class AccountService {
 
         for (AccountTransaction t : transactions) {
             // 입금('1') 이고, 적요나 메모에 키워드가 포함된 경우
-            if ("1".equals(t.getTransactionType()) && 
-                ((t.getTransactionSummary() != null && t.getTransactionSummary().contains(keyword)) || 
-                 (t.getTransactionMemo() != null && t.getTransactionMemo().contains(keyword)))) {
-                
+            if ("1".equals(t.getTransactionType())
+                    && ((t.getTransactionSummary() != null
+                                    && t.getTransactionSummary().contains(keyword))
+                            || (t.getTransactionMemo() != null
+                                    && t.getTransactionMemo().contains(keyword)))) {
+
                 executeSavingsTransfer(userId, setting);
             }
         }
     }
 
     private void executeSavingsTransfer(Long userId, SavingsSetting setting) {
-        Account primaryAccount = accountRepository.findById(setting.getPrimaryAccountId()).orElse(null);
-        Account saveboxAccount = accountRepository.findById(setting.getSaveboxAccountId()).orElse(null);
-        
+        Account primaryAccount =
+                accountRepository.findById(setting.getPrimaryAccountId()).orElse(null);
+        Account saveboxAccount =
+                accountRepository.findById(setting.getSaveboxAccountId()).orElse(null);
+
         if (primaryAccount == null || saveboxAccount == null) return;
 
         com.ssafy.edu.awesomeproject.domain.auth.entity.User user =
                 userRepository.findById(userId).orElse(null);
         if (user == null) return;
 
-        OpenBankTransferResponse apiResponse = openBankAdapter.fetchAccountTransfer(
-                user.getSsafyFinanceUserKey(),
-                saveboxAccount.getAccountNo(),
-                "(자동저축) 입금",
-                setting.getSavingsAmount().setScale(0, RoundingMode.DOWN).toString(),
-                primaryAccount.getAccountNo(),
-                "(자동저축) 출금"
-        );
-        
+        OpenBankTransferResponse apiResponse =
+                openBankAdapter.fetchAccountTransfer(
+                        user.getSsafyFinanceUserKey(),
+                        saveboxAccount.getAccountNo(),
+                        "(자동저축) 입금",
+                        setting.getSavingsAmount().setScale(0, RoundingMode.DOWN).toString(),
+                        primaryAccount.getAccountNo(),
+                        "(자동저축) 출금");
+
         if (apiResponse != null && apiResponse.getHeader() != null) {
             String responseCode = apiResponse.getHeader().getResponseCode();
             if (!"H0000".equals(responseCode)) {
@@ -321,30 +370,36 @@ public class AccountService {
                 return; // 실패 시 이후 동기화 생략
             }
         }
-        
+
         // 이체 성공 후 로컬 잔액 강제 갱신
         syncAccounts(userId);
     }
 
-    public SavingsSettingResponse createOrUpdateSavingsSetting(Long userId, SavingsSettingRequest request) {
+    public SavingsSettingResponse createOrUpdateSavingsSetting(
+            Long userId, SavingsSettingRequest request) {
         // 본인 소유 계좌인지 검증 (BOLA 방어)
-        accountRepository.findById(request.primaryAccountId())
+        accountRepository
+                .findById(request.primaryAccountId())
                 .filter(a -> a.getUserId().equals(userId))
                 .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
-        accountRepository.findById(request.saveboxAccountId())
+        accountRepository
+                .findById(request.saveboxAccountId())
                 .filter(a -> a.getUserId().equals(userId))
                 .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
-        SavingsSetting setting = savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)
-                .orElse(SavingsSetting.builder()
-                        .userId(userId)
-                        .primaryAccountId(request.primaryAccountId())
-                        .saveboxAccountId(request.saveboxAccountId())
-                        .keyword(request.keyword())
-                        .savingsAmount(request.savingsAmount())
-                        .isActive(request.isActive())
-                        .build());
+        SavingsSetting setting =
+                savingsSettingRepository
+                        .findByUserIdAndIsActiveTrue(userId)
+                        .orElse(
+                                SavingsSetting.builder()
+                                        .userId(userId)
+                                        .primaryAccountId(request.primaryAccountId())
+                                        .saveboxAccountId(request.saveboxAccountId())
+                                        .keyword(request.keyword())
+                                        .savingsAmount(request.savingsAmount())
+                                        .isActive(request.isActive())
+                                        .build());
 
         if (setting.getId() != null) {
             setting.update(request.keyword(), request.savingsAmount(), request.isActive());
@@ -363,45 +418,74 @@ public class AccountService {
 
     @Transactional(readOnly = true)
     public SavingsSettingResponse getSavingsSetting(Long userId) {
-        return savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)
-                .map(s -> SavingsSettingResponse.builder()
-                        .id(s.getId())
-                        .primaryAccountId(s.getPrimaryAccountId())
-                        .saveboxAccountId(s.getSaveboxAccountId())
-                        .keyword(s.getKeyword())
-                        .savingsAmount(s.getSavingsAmount())
-                        .isActive(s.isActive())
-                        .build())
+        return savingsSettingRepository
+                .findByUserIdAndIsActiveTrue(userId)
+                .map(
+                        s ->
+                                SavingsSettingResponse.builder()
+                                        .id(s.getId())
+                                        .primaryAccountId(s.getPrimaryAccountId())
+                                        .saveboxAccountId(s.getSaveboxAccountId())
+                                        .keyword(s.getKeyword())
+                                        .savingsAmount(s.getSavingsAmount())
+                                        .isActive(s.isActive())
+                                        .build())
                 .orElse(null);
     }
 
     public void manualSavings(Long userId, BigDecimal amount) {
-        SavingsSetting setting = savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)
-                .orElseThrow(() -> new AccountException(AccountErrorCode.SAVINGS_SETTING_NOT_FOUND));
-        
-        Account primaryAccount = accountRepository.findById(setting.getPrimaryAccountId())
-                .filter(a -> a.getUserId().equals(userId)) // 소유권 재검증
-                .orElseThrow(() -> new AccountException(AccountErrorCode.PRIMARY_ACCOUNT_NOT_FOUND));
+        SavingsSetting setting =
+                savingsSettingRepository
+                        .findByUserIdAndIsActiveTrue(userId)
+                        .orElseThrow(
+                                () ->
+                                        new AccountException(
+                                                AccountErrorCode.SAVINGS_SETTING_NOT_FOUND));
 
-        Account saveboxAccount = accountRepository.findById(setting.getSaveboxAccountId())
-                .filter(a -> a.getUserId().equals(userId)) // 소유권 재검증
-                .orElseThrow(() -> new AccountException(AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
+        Account primaryAccount =
+                accountRepository
+                        .findById(setting.getPrimaryAccountId())
+                        .filter(a -> a.getUserId().equals(userId)) // 소유권 재검증
+                        .orElseThrow(
+                                () ->
+                                        new AccountException(
+                                                AccountErrorCode.PRIMARY_ACCOUNT_NOT_FOUND));
 
-        User user = userRepository.findById(userId).orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
+        Account saveboxAccount =
+                accountRepository
+                        .findById(setting.getSaveboxAccountId())
+                        .filter(a -> a.getUserId().equals(userId)) // 소유권 재검증
+                        .orElseThrow(
+                                () ->
+                                        new AccountException(
+                                                AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
+
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
 
         log.info("수동 저축 실행 시도 - 사용자: {}", userId);
-        log.info("출금 계좌 (주계좌): {} (ID: {}, 잔액: {})", primaryAccount.getAccountNo(), primaryAccount.getId(), primaryAccount.getBalance());
-        log.info("입금 계좌 (세이브박스): {} (ID: {}, 잔액: {})", saveboxAccount.getAccountNo(), saveboxAccount.getId(), saveboxAccount.getBalance());
+        log.info(
+                "출금 계좌 (주계좌): {} (ID: {}, 잔액: {})",
+                primaryAccount.getAccountNo(),
+                primaryAccount.getId(),
+                primaryAccount.getBalance());
+        log.info(
+                "입금 계좌 (세이브박스): {} (ID: {}, 잔액: {})",
+                saveboxAccount.getAccountNo(),
+                saveboxAccount.getId(),
+                saveboxAccount.getBalance());
         log.info("이체 금액: {}", amount);
 
-        OpenBankTransferResponse apiResponse = openBankAdapter.fetchAccountTransfer(
-                user.getSsafyFinanceUserKey(),
-                saveboxAccount.getAccountNo(),
-                "(수동저축) 입금",
-                amount.setScale(0, RoundingMode.DOWN).toString(),
-                primaryAccount.getAccountNo(),
-                "(수동저축) 출금"
-        );
+        OpenBankTransferResponse apiResponse =
+                openBankAdapter.fetchAccountTransfer(
+                        user.getSsafyFinanceUserKey(),
+                        saveboxAccount.getAccountNo(),
+                        "(수동저축) 입금",
+                        amount.setScale(0, RoundingMode.DOWN).toString(),
+                        primaryAccount.getAccountNo(),
+                        "(수동저축) 출금");
 
         if (apiResponse == null || apiResponse.getHeader() == null) {
             throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR);
@@ -409,7 +493,9 @@ public class AccountService {
 
         String responseCode = apiResponse.getHeader().getResponseCode();
         if (!"H0000".equals(responseCode)) {
-            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR, apiResponse.getHeader().getResponseMessage());
+            throw new AccountException(
+                    AccountErrorCode.API_RESPONSE_ERROR,
+                    apiResponse.getHeader().getResponseMessage());
         }
 
         syncAccounts(userId);
@@ -428,7 +514,7 @@ public class AccountService {
 
         // 1. 전체 계좌 목록 조회
         AccountListResponse listResponse = openBankAdapter.fetchDemandDepositAccounts(userKey);
-        
+
         if (listResponse == null || listResponse.accounts() == null) return;
 
         // 2. 응답 데이터를 DB에 반영 (Upsert)
@@ -440,7 +526,8 @@ public class AccountService {
 
             if (accountOpt.isPresent()) {
                 Account existingAccount = accountOpt.get();
-                existingAccount.updateDynamicInfo(detail.accountName(), balance, AccountStatus.ACTIVE);
+                existingAccount.updateDynamicInfo(
+                        detail.accountName(), balance, AccountStatus.ACTIVE);
             } else {
                 Account newAccount =
                         Account.builder()
@@ -460,7 +547,8 @@ public class AccountService {
                                 .accountCreatedDate(parseLocalDate(detail.accountCreatedDate()))
                                 .accountExpiryDate(parseLocalDate(detail.accountExpiryDate()))
                                 .dailyTransferLimit(parseBigDecimal(detail.dailyTransferLimit()))
-                                .oneTimeTransferLimit(parseBigDecimal(detail.oneTimeTransferLimit()))
+                                .oneTimeTransferLimit(
+                                        parseBigDecimal(detail.oneTimeTransferLimit()))
                                 .lastTransactionDate(parseLocalDate(detail.lastTransactionDate()))
                                 .build();
 
@@ -474,31 +562,34 @@ public class AccountService {
             return null;
         }
         try {
-            return LocalDate.parse(
-                    dateStr, DateTimeFormatter.ofPattern("yyyyMMdd"));
+            return LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("yyyyMMdd"));
         } catch (Exception e) {
             return null;
         }
     }
 
     public AccountResponse setPrimaryAccount(Long userId, Long accountId) {
-        List<Account> primaryAccounts = accountRepository.findAllByUserId(userId).stream()
-                .filter(Account::isPrimary)
-                .toList();
+        List<Account> primaryAccounts =
+                accountRepository.findAllByUserId(userId).stream()
+                        .filter(Account::isPrimary)
+                        .toList();
 
         for (Account a : primaryAccounts) {
             a.unsetPrimary();
         }
 
-        Account account = accountRepository
-                .findById(accountId)
-                .filter(a -> a.getUserId().equals(userId))
-                .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
+        Account account =
+                accountRepository
+                        .findById(accountId)
+                        .filter(a -> a.getUserId().equals(userId))
+                        .orElseThrow(
+                                () -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
         account.setAsPrimary();
 
         // 저축 설정이 있다면 주계좌 정보를 동기화해줍니다.
-        savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)
+        savingsSettingRepository
+                .findByUserIdAndIsActiveTrue(userId)
                 .ifPresent(setting -> setting.updatePrimaryAccount(accountId));
 
         return AccountResponse.from(account);

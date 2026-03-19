@@ -5,8 +5,7 @@ import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankResHead
 import java.util.List;
 
 public record OpenBankResponse(
-        @JsonProperty("Header") OpenBankResHeader header, 
-        @JsonProperty("REC") List<Rec> rec) {
+        @JsonProperty("Header") OpenBankResHeader header, @JsonProperty("REC") List<Rec> rec) {
 
     public record Rec(
             String bankCode,

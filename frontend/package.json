@@ -11,6 +11,8 @@
     "prepare": "cd .. && husky frontend/.husky"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.91.0",
+    "@tanstack/react-query-devtools": "^5.91.3",
     "axios": "^1.13.6",
     "clsx": "^2.1.1",
     "react": "^19.2.0",

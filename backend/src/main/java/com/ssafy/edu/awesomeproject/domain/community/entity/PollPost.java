@@ -40,7 +40,8 @@ public class PollPost {
     @Column(name = "deadline_at")
     private LocalDateTime deadlineAt;
 
-    public PollPost(Post post, String question, String optionA, String optionB, LocalDateTime deadlineAt) {
+    public PollPost(
+            Post post, String question, String optionA, String optionB, LocalDateTime deadlineAt) {
         this.post = post;
         this.question = question;
         this.optionA = optionA;
