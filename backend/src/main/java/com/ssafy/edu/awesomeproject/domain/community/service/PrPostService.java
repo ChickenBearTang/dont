@@ -150,11 +150,20 @@ public class PrPostService {
 
     @Transactional
     public PrCloseResponseDto close(Long postId, Long userId, PrCloseRequestDto prCloseRequestDto) {
+        PrStatus targetStatus = mapCloseTargetStatus(prCloseRequestDto.resultStatus());
+        return closeInternal(postId, userId, targetStatus);
+    }
+
+    @Transactional
+    public PrCloseResponseDto merge(Long postId, Long userId) {
+        return closeInternal(postId, userId, PrStatus.MERGED);
+    }
+
+    private PrCloseResponseDto closeInternal(Long postId, Long userId, PrStatus targetStatus) {
         PrPost prPost = getPurchaseRequestOrThrow(postId);
         validatePurchaseRequestOwner(prPost, userId);
         validatePurchaseRequestOpen(prPost, true);
 
-        PrStatus targetStatus = mapCloseTargetStatus(prCloseRequestDto.resultStatus());
         prPost.close(targetStatus, PrCloseReason.USER_ACTION);
         prEventRepository.save(
                 new PrEvent(

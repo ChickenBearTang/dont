@@ -64,4 +64,13 @@ public class PrPostController {
             @Valid @RequestBody PrCloseRequestDto prCloseRequestDto) {
         return CommonResponse.success(prPostService.close(postId, userId, prCloseRequestDto));
     }
+
+    @PostMapping("/{postId}/merge")
+    @ApiCommonResponses
+    @Operation(summary = "PR merge API", description = "작성자가 PR을 MERGED 상태로 종료합니다.")
+    public CommonResponse<PrCloseResponseDto> mergePurchaseRequest(
+            @PathVariable Long postId,
+            @CurrentUserId Long userId) {
+        return CommonResponse.success(prPostService.merge(postId, userId));
+    }
 }

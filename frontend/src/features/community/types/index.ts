@@ -16,6 +16,22 @@ export interface HotdealSummaryDto {
   isExpired: boolean;
 }
 
+export interface HotdealDetailResponseDto {
+  postId: number;
+  title: string;
+  content: string;
+  authorNickname: string;
+  productName: string;
+  storeName: string;
+  dealPriceAmount: number;
+  originalPriceAmount: number;
+  dealUrl: string;
+  shippingInfo: string;
+  expiredAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PollSummaryDto {
   question: string;
   optionA: string;
@@ -25,6 +41,38 @@ export interface PollSummaryDto {
   optionACount: number;
   optionBCount: number;
   totalVoteCount: number;
+}
+
+export interface PollDetailResponseDto {
+  postId: number;
+  title: string;
+  content: string;
+  authorNickname: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  deadlineAt: string;
+  isClosed: boolean;
+  optionACount: number;
+  optionBCount: number;
+  totalVoteCount: number;
+  myVoteOption?: 'OPTION_A' | 'OPTION_B' | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PollVoteSubmitRequestDto {
+  voteOption: 'OPTION_A' | 'OPTION_B';
+}
+
+export interface PollVoteSubmitResponseDto {
+  postId: number;
+  userId: number;
+  voteOption: 'OPTION_A' | 'OPTION_B';
+  optionACount: number;
+  optionBCount: number;
+  totalVoteCount: number;
+  updatedAt: string;
 }
 
 export interface PostExtraSummaryDto {
@@ -63,6 +111,27 @@ export interface CreatePostRequestDto {
   generationNo?: number;
 }
 
+export interface CreatePollPostRequestDto {
+  title: string;
+  content: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  deadlineAt: string;
+}
+
+export interface CreateHotdealPostRequestDto {
+  title: string;
+  content: string;
+  productName: string;
+  storeName?: string;
+  dealPriceAmount: number;
+  originalPriceAmount?: number;
+  dealUrl?: string;
+  shippingInfo?: string;
+  expiredAt?: string;
+}
+
 export interface CreatePostResponseDto {
   postId: number;
   category: BoardCategory;
@@ -84,6 +153,7 @@ export interface GetPostResponseDto {
   commentCount: number;
   createdAt: string;
   updatedAt: string;
+  extraSummary?: PostExtraSummaryDto | null;
 }
 
 export interface CommentSummaryDto {
@@ -124,6 +194,27 @@ export interface UpdatePostRequestDto {
 export interface UpdatePostResponseDto {
   postId: number;
   updatedAt: string;
+}
+
+export interface UpdatePollPostRequestDto {
+  title: string;
+  content: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  deadlineAt: string;
+}
+
+export interface UpdateHotdealPostRequestDto {
+  title: string;
+  content: string;
+  productName: string;
+  storeName?: string;
+  dealPriceAmount: number;
+  originalPriceAmount?: number;
+  dealUrl?: string;
+  shippingInfo?: string;
+  expiredAt?: string;
 }
 
 export interface UpdateCommentRequestDto {
