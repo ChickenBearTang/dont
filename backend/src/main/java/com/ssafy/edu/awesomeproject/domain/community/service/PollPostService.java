@@ -127,6 +127,11 @@ public class PollPostService {
             throw new CommunityException(CommunityErrorCode.POST_FORBIDDEN);
         }
 
+        long totalVoteCount = pollVoteRepository.countByPostId(postId);
+        if (totalVoteCount > 0) {
+            throw new CommunityException(CommunityErrorCode.POLL_NOT_OPEN);
+        }
+
         post.update(pollUpdateRequestDto.title(), pollUpdateRequestDto.content());
         pollPost.update(
                 pollUpdateRequestDto.question(),
