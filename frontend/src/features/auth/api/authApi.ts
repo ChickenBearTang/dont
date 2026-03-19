@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import axiosInstance from '@/shared/api/axiosInstance';
 import type {
   LoginRequestPayload,
@@ -24,7 +24,7 @@ export const mapUserProfileFromLogin = (data: LoginResponseData): UserProfile =>
   userId: data.userId,
   email: data.email,
   role: data.userRole,
-  // Until a dedicated profile API exists, keep optional fields undefined.
+  cohortId: data.cohortId,
   nickname: undefined,
   onboardingCompleted: undefined,
 });

@@ -4,6 +4,7 @@ import { LoginPage } from '@/features/auth';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { logout as logoutApi } from '@/features/auth/api/authApi';
+import { PrCreatePage, PrDetailPage } from '@/features/community/pr';
 
 export const HomeRoute = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -31,4 +32,14 @@ export const AuthenticatedLayoutRoute = () => {
 export const DashboardRoute = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return isAuthenticated ? <DashboardPage /> : <Navigate to="/" replace />;
+};
+
+export const PrDetailRoute = () => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return isAuthenticated ? <PrDetailPage /> : <Navigate to="/" replace />;
+};
+
+export const PrCreateRoute = () => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return isAuthenticated ? <PrCreatePage /> : <Navigate to="/" replace />;
 };

@@ -58,7 +58,6 @@ public class HotdealPost {
             String dealUrl,
             String shippingInfo,
             LocalDateTime expiredAt) {
-        this.postId = post.getId();
         this.post = post;
         this.productName = productName;
         this.storeName = storeName;
