@@ -16,6 +16,7 @@ public record AccountListResponse(List<AccountDetail> accounts) {
 
     @Builder
     public record AccountDetail(
+            Long id,
             String bankCode,
             String bankName,
             String userName,

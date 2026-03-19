@@ -47,6 +47,11 @@ local.properties
 # PyDev specific (Python IDE for Eclipse)
 *.pydevproject
 
+# Python cache files
+__pycache__/
+*.pyc
+ai/data/*.db
+
 # CDT-specific (C/C++ Development Tooling)
 .cproject
 
