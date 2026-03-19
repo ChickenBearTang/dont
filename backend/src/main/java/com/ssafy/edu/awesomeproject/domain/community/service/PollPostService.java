@@ -78,7 +78,7 @@ public class PollPostService {
         return new PollCreateResponseDto(savedPost.getId(), savedPost.getCreatedAt());
     }
 
-    public PollDetailResponseDto detail(Long postId) {
+    public PollDetailResponseDto detail(Long postId, Long userId) {
         PollPost pollPost =
                 pollPostRepository
                         .findByPost_Id(postId)
@@ -91,6 +91,11 @@ public class PollPostService {
                 pollVoteRepository.countByPostIdAndVoteOption(postId, PollVoteOption.OPTION_B);
         long totalVoteCount = pollVoteRepository.countByPostId(postId);
         boolean isClosed = pollPost.isClosed(LocalDateTime.now());
+        String myVoteOption =
+                pollVoteRepository
+                        .findByPostIdAndUserId(postId, userId)
+                        .map(v -> v.getVoteOption().name())
+                        .orElse(null);
 
         return new PollDetailResponseDto(
                 post.getId(),
@@ -105,6 +110,7 @@ public class PollPostService {
                 optionACount,
                 optionBCount,
                 totalVoteCount,
+                myVoteOption,
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }

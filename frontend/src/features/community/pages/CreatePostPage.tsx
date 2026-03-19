@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { createPost } from '../api/communityApi';
+import { createHotdealPost, createPollPost, createPost } from '../api/communityApi';
 import type { BoardCategory } from '../types';
 
 const CATEGORY_OPTIONS: Array<{ value: BoardCategory; label: string }> = [
@@ -15,15 +15,15 @@ const CATEGORY_OPTIONS: Array<{ value: BoardCategory; label: string }> = [
 const getCategoryDescription = (category: BoardCategory) => {
   switch (category) {
     case 'FREE':
-      return '자유롭게 생각과 정보를 공유해 보세요.';
+      return '자유롭게 의견과 정보를 공유하는 게시판입니다.';
     case 'COHORT':
-      return '내 기수 게시판에 자동으로 글이 등록됩니다.';
+      return '내 기수 게시판에 자동으로 등록됩니다.';
     case 'PR':
-      return '의견을 묻고 추천을 받는 게시판이에요.';
+      return 'PR 관련 글을 공유하는 게시판입니다.';
     case 'POLL':
-      return '찬반 의견과 토론 주제를 올릴 수 있어요.';
+      return '질문과 선택지를 등록해 투표를 받을 수 있습니다.';
     case 'HOTDEAL':
-      return '좋은 할인 정보와 특가 소식을 공유해 보세요.';
+      return '가격 정보와 마감 정보를 함께 등록하는 게시판입니다.';
     default:
       return '';
   }
@@ -41,7 +41,17 @@ export const CreatePostPage = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const isCohortCategory = category === 'COHORT';
+  const [optionA, setOptionA] = useState<string>('');
+  const [optionB, setOptionB] = useState<string>('');
+  const [deadlineAt, setDeadlineAt] = useState<string>('');
+
+  const [productName, setProductName] = useState<string>('');
+  const [storeName, setStoreName] = useState<string>('');
+  const [dealPriceAmount, setDealPriceAmount] = useState<string>('');
+  const [originalPriceAmount, setOriginalPriceAmount] = useState<string>('');
+  const [dealUrl, setDealUrl] = useState<string>('');
+  const [shippingInfo, setShippingInfo] = useState<string>('');
+  const [expiredAt, setExpiredAt] = useState<string>('');
 
   const selectedCategoryLabel = useMemo(
     () => CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? '게시판',
@@ -53,51 +63,103 @@ export const CreatePostPage = () => {
     navigate(target);
   };
 
+  const handleCategoryChange = (nextCategory: BoardCategory) => {
+    setCategory(nextCategory);
+    setErrorMessage('');
+  };
+
+  const validateCommon = (trimmedTitle: string, trimmedContent: string): boolean => {
+    if (!trimmedTitle) {
+      setErrorMessage('제목을 입력해 주세요.');
+      return false;
+    }
+
+    if (!trimmedContent) {
+      setErrorMessage('내용을 입력해 주세요.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const submitByCategory = async (trimmedTitle: string, trimmedContent: string) => {
+    if (category === 'POLL') {
+      const a = optionA.trim();
+      const b = optionB.trim();
+
+      if (!a || !b || !deadlineAt) {
+        setErrorMessage('토론 선택지/마감일을 모두 입력해 주세요.');
+        return;
+      }
+
+      await createPollPost({
+        title: trimmedTitle,
+        content: trimmedContent,
+        question: trimmedContent,
+        optionA: a,
+        optionB: b,
+        deadlineAt,
+      });
+      return;
+    }
+
+    if (category === 'HOTDEAL') {
+      const product = productName.trim();
+      const dealPrice = Number(dealPriceAmount);
+      const originalPrice = originalPriceAmount ? Number(originalPriceAmount) : undefined;
+
+      if (!product || !Number.isFinite(dealPrice) || dealPrice <= 0) {
+        setErrorMessage('상품명과 할인가(1원 이상)는 필수입니다.');
+        return;
+      }
+
+      await createHotdealPost({
+        title: trimmedTitle,
+        content: trimmedContent,
+        productName: product,
+        storeName: storeName.trim() || undefined,
+        dealPriceAmount: dealPrice,
+        originalPriceAmount:
+          originalPrice && Number.isFinite(originalPrice) && originalPrice > 0
+            ? originalPrice
+            : undefined,
+        dealUrl: dealUrl.trim() || undefined,
+        shippingInfo: shippingInfo.trim() || undefined,
+        expiredAt: expiredAt || undefined,
+      });
+      return;
+    }
+
+    await createPost({
+      category,
+      title: trimmedTitle,
+      content: trimmedContent,
+    });
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
-
-    if (!trimmedTitle) {
-      setErrorMessage('제목을 입력해 주세요.');
-      return;
-    }
-
-    if (!trimmedContent) {
-      setErrorMessage('내용을 입력해 주세요.');
-      return;
-    }
+    if (!validateCommon(trimmedTitle, trimmedContent)) return;
 
     setErrorMessage('');
     setIsSubmitting(true);
 
     try {
-      await createPost({
-        category,
-        title: trimmedTitle,
-        content: trimmedContent,
-      });
-
-      navigate(
-        category === 'COHORT' ? '/community?category=COHORT' : `/community?category=${category}`
-      );
+      await submitByCategory(trimmedTitle, trimmedContent);
+      navigate(category === 'COHORT' ? '/community?category=COHORT' : `/community?category=${category}`);
     } catch (error: unknown) {
       console.error('Failed to create post:', error);
 
       let serverMessage = '게시글 작성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
-
       if (axios.isAxiosError(error)) {
         const responseData = error.response?.data as
           | { message?: string; data?: { message?: string } }
           | undefined;
-
-        serverMessage =
-          responseData?.message ??
-          responseData?.data?.message ??
-          '게시글 작성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+        serverMessage = responseData?.message ?? responseData?.data?.message ?? serverMessage;
       }
-
       setErrorMessage(serverMessage);
     } finally {
       setIsSubmitting(false);
@@ -111,7 +173,7 @@ export const CreatePostPage = () => {
           <div>
             <h1 className="text-[22px] font-bold text-gray-900 tracking-[-0.02em]">게시글 작성</h1>
             <p className="text-gray-400 mt-1 text-[13px] font-medium tracking-[-0.01em]">
-              게시판을 선택하고 제목과 내용을 입력해 새 글을 등록해 주세요.
+              게시판을 선택하면 필요한 입력 항목이 자동으로 바뀝니다.
             </p>
           </div>
           <button
@@ -132,7 +194,7 @@ export const CreatePostPage = () => {
           <select
             id="category"
             value={category}
-            onChange={(event) => setCategory(event.target.value as BoardCategory)}
+            onChange={(event) => handleCategoryChange(event.target.value as BoardCategory)}
             className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
           >
             {CATEGORY_OPTIONS.map((option) => (
@@ -142,12 +204,6 @@ export const CreatePostPage = () => {
             ))}
           </select>
           <p className="text-[12px] text-gray-400">{getCategoryDescription(category)}</p>
-
-          {isCohortCategory && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-[13px] font-medium text-blue-700">
-              내 기수 게시판에 자동으로 등록됩니다.
-            </div>
-          )}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -158,7 +214,7 @@ export const CreatePostPage = () => {
             id="title"
             type="text"
             maxLength={200}
-            placeholder="제목을 입력해 주세요"
+            placeholder="제목을 입력해 주세요."
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
@@ -166,16 +222,142 @@ export const CreatePostPage = () => {
           <div className="text-right text-[12px] text-gray-300">{title.length}/200</div>
         </div>
 
+        {category === 'POLL' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">선택지 A</label>
+              <input
+                type="text"
+                maxLength={255}
+                value={optionA}
+                onChange={(event) => setOptionA(event.target.value)}
+                placeholder="선택지 A"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">선택지 B</label>
+              <input
+                type="text"
+                maxLength={255}
+                value={optionB}
+                onChange={(event) => setOptionB(event.target.value)}
+                placeholder="선택지 B"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+            <div className="md:col-span-2 flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">마감일시</label>
+              <input
+                type="datetime-local"
+                value={deadlineAt}
+                onChange={(event) => setDeadlineAt(event.target.value)}
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+          </div>
+        )}
+
+        {category === 'HOTDEAL' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+            <div className="md:col-span-2 flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">상품명</label>
+              <input
+                type="text"
+                maxLength={200}
+                value={productName}
+                onChange={(event) => setProductName(event.target.value)}
+                placeholder="예: 디지로카 카드 1년 무료"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">스토어명</label>
+              <input
+                type="text"
+                maxLength={100}
+                value={storeName}
+                onChange={(event) => setStoreName(event.target.value)}
+                placeholder="예: 쿠팡"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">배송 정보</label>
+              <input
+                type="text"
+                maxLength={255}
+                value={shippingInfo}
+                onChange={(event) => setShippingInfo(event.target.value)}
+                placeholder="예: 무료배송"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">할인가(원)</label>
+              <input
+                type="number"
+                min={1}
+                value={dealPriceAmount}
+                onChange={(event) => setDealPriceAmount(event.target.value)}
+                placeholder="필수"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">원가(원)</label>
+              <input
+                type="number"
+                min={1}
+                value={originalPriceAmount}
+                onChange={(event) => setOriginalPriceAmount(event.target.value)}
+                placeholder="선택"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+
+            <div className="md:col-span-2 flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">딜 URL</label>
+              <input
+                type="url"
+                maxLength={2000}
+                value={dealUrl}
+                onChange={(event) => setDealUrl(event.target.value)}
+                placeholder="https://"
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+
+            <div className="md:col-span-2 flex flex-col gap-2">
+              <label className="text-[13px] font-semibold text-gray-700">마감일시</label>
+              <input
+                type="datetime-local"
+                value={expiredAt}
+                onChange={(event) => setExpiredAt(event.target.value)}
+                className="h-11 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+              />
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-2">
           <label htmlFor="content" className="text-[13px] font-semibold text-gray-700">
             내용
           </label>
           <textarea
             id="content"
-            placeholder={`${selectedCategoryLabel}에 등록할 내용을 입력해 주세요.`}
+            placeholder={
+              category === 'POLL'
+                ? '토론 질문/설명을 입력해 주세요. (질문으로도 사용됩니다)'
+                : `${selectedCategoryLabel}에 등록할 내용을 입력해 주세요.`
+            }
             value={content}
             onChange={(event) => setContent(event.target.value)}
-            className="min-h-[320px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
+            className="min-h-[260px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
           />
         </div>
 
@@ -198,7 +380,7 @@ export const CreatePostPage = () => {
             disabled={isSubmitting}
             className="inline-flex h-11 items-center justify-center rounded-xl border border-blue-600 bg-blue-600 px-5 text-[14px] font-bold text-white shadow-sm transition hover:border-blue-700 hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-300"
           >
-            {isSubmitting ? '등록 중...' : '작성완료'}
+            {isSubmitting ? '등록 중...' : '작성 완료'}
           </button>
         </div>
       </form>

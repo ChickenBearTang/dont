@@ -6,11 +6,21 @@ import {
   deleteComment,
   deletePost,
   getComments,
+  getHotdealDetail,
+  getPollDetail,
   getPost,
+  submitPollVote,
   toggleReaction,
   updateComment,
 } from '../api/communityApi';
-import type { BoardCategory, CommentSummaryDto, GetPostResponseDto, ReactionType } from '../types';
+import type {
+  BoardCategory,
+  CommentSummaryDto,
+  GetPostResponseDto,
+  HotdealDetailResponseDto,
+  PollDetailResponseDto,
+  ReactionType,
+} from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 
 export const PostDetailPage = () => {
@@ -24,8 +34,11 @@ export const PostDetailPage = () => {
 
   const [commentInput, setCommentInput] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [submittingPollVote, setSubmittingPollVote] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [pollDetail, setPollDetail] = useState<PollDetailResponseDto | null>(null);
+  const [hotdealDetail, setHotdealDetail] = useState<HotdealDetailResponseDto | null>(null);
 
   // 추가: 현재 내가 누른 반응 상태 (localStorage로 유지)
   const reactionStorageKey = `post_reaction_${postId}`;
@@ -52,6 +65,18 @@ export const PostDetailPage = () => {
 
         if (postRes.data) {
           setPost(postRes.data);
+          if (postRes.data.category === 'POLL') {
+            const pollRes = await getPollDetail(Number(postId));
+            setPollDetail(pollRes.data ?? null);
+            setHotdealDetail(null);
+          } else if (postRes.data.category === 'HOTDEAL') {
+            const hotdealRes = await getHotdealDetail(Number(postId));
+            setHotdealDetail(hotdealRes.data ?? null);
+            setPollDetail(null);
+          } else {
+            setPollDetail(null);
+            setHotdealDetail(null);
+          }
           setComments(commentsRes.data?.content || []);
           setHasMoreComments(commentsRes.data?.hasNext || false);
           setCommentPage(0);
@@ -72,6 +97,37 @@ export const PostDetailPage = () => {
 
     fetchPostDetail();
   }, [postId]);
+
+  const handlePollVote = async (voteOption: 'OPTION_A' | 'OPTION_B') => {
+    if (!postId || !pollDetail || pollDetail.isClosed || submittingPollVote) return;
+
+    setSubmittingPollVote(true);
+    try {
+      const voteRes = await submitPollVote(Number(postId), { voteOption });
+      if (voteRes.data) {
+        setPollDetail((prev) =>
+          prev
+            ? {
+                ...prev,
+                myVoteOption: voteRes.data.voteOption,
+                optionACount: voteRes.data.optionACount,
+                optionBCount: voteRes.data.optionBCount,
+                totalVoteCount: voteRes.data.totalVoteCount,
+                updatedAt: voteRes.data.updatedAt,
+              }
+            : prev
+        );
+      } else {
+        const refreshed = await getPollDetail(Number(postId));
+        setPollDetail(refreshed.data ?? null);
+      }
+    } catch (voteError) {
+      console.error('Failed to submit poll vote:', voteError);
+      alert('투표 처리에 실패했습니다.');
+    } finally {
+      setSubmittingPollVote(false);
+    }
+  };
 
   const refreshCommentsFirstPage = async () => {
     if (!postId) return;
@@ -294,6 +350,43 @@ export const PostDetailPage = () => {
     });
   };
 
+  const toPercent = (value: number) => `${Math.round(value)}%`;
+  const toWon = (value: number) =>
+    new Intl.NumberFormat('ko-KR', {
+      style: 'currency',
+      currency: 'KRW',
+      maximumFractionDigits: 0,
+    }).format(value);
+
+  const pollSummary = pollDetail ?? post?.extraSummary?.poll;
+  const pollOptionACount = pollSummary?.optionACount ?? 0;
+  const pollOptionBCount = pollSummary?.optionBCount ?? 0;
+  const pollTotal = Math.max(1, pollOptionACount + pollOptionBCount);
+  const pollOptionARate = (pollOptionACount / pollTotal) * 100;
+  const pollOptionBRate = (pollOptionBCount / pollTotal) * 100;
+  const myVoteOption =
+    pollDetail && 'myVoteOption' in pollDetail ? pollDetail.myVoteOption ?? null : null;
+  const votedA = myVoteOption === 'OPTION_A';
+  const votedB = myVoteOption === 'OPTION_B';
+  const hotdealSummary = hotdealDetail ?? post?.extraSummary?.hotdeal;
+  const hotdealIsExpired = hotdealSummary
+    ? 'isExpired' in hotdealSummary
+      ? hotdealSummary.isExpired
+      : Boolean(hotdealSummary.expiredAt) &&
+        new Date(hotdealSummary.expiredAt).getTime() <= Date.now()
+    : false;
+  const hotdealDiscountRate =
+    hotdealSummary?.originalPriceAmount && hotdealSummary.originalPriceAmount > 0
+      ? Math.max(
+          0,
+          Math.round(
+            ((hotdealSummary.originalPriceAmount - (hotdealSummary.dealPriceAmount ?? 0)) /
+              hotdealSummary.originalPriceAmount) *
+              100
+          )
+        )
+      : 0;
+
   const isCommentAuthor = (comment: CommentSummaryDto) =>
     comment.isMine ?? currentUser?.userId === comment.authorId;
 
@@ -438,6 +531,148 @@ export const PostDetailPage = () => {
           <div className="mt-4 text-[16px] text-gray-800 leading-[1.65] font-medium whitespace-pre-wrap word-break-all">
             {post.content}
           </div>
+
+          {post.category === 'POLL' && (
+            <section className="mt-5 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    pollSummary?.isClosed
+                      ? 'bg-slate-200 text-slate-600'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}
+                >
+                  {pollSummary?.isClosed ? '투표 종료' : '투표 진행 중'}
+                </span>
+                <span className="text-[12px] font-semibold text-slate-500">
+                  총 {pollSummary?.totalVoteCount ?? pollOptionACount + pollOptionBCount}표
+                </span>
+              </div>
+
+              <p className="text-[15px] font-bold text-slate-900 leading-snug">
+                {pollSummary?.question ?? '토론 질문이 등록된 게시글입니다.'}
+              </p>
+
+              <div className="mt-4 space-y-3">
+                <div className="rounded-xl border border-emerald-100 bg-white px-3 py-2.5">
+                  <div className="mb-1.5 flex items-center justify-between text-[12px] font-semibold text-slate-700">
+                    <span>{pollSummary?.optionA ?? '선택지 A'}</span>
+                    <span>{toPercent(pollOptionARate)}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div
+                      className="h-2 rounded-full bg-emerald-500 transition-all"
+                      style={{ width: `${pollOptionARate}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-cyan-100 bg-white px-3 py-2.5">
+                  <div className="mb-1.5 flex items-center justify-between text-[12px] font-semibold text-slate-700">
+                    <span>{pollSummary?.optionB ?? '선택지 B'}</span>
+                    <span>{toPercent(pollOptionBRate)}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100">
+                    <div
+                      className="h-2 rounded-full bg-cyan-500 transition-all"
+                      style={{ width: `${pollOptionBRate}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 text-[11px] font-medium text-slate-500">
+                마감: {pollSummary?.deadlineAt ? formatDate(pollSummary.deadlineAt) : '-'}
+              </div>
+
+              {myVoteOption && (
+                <div className="mt-2 text-[12px] font-semibold text-emerald-700">
+                  내 투표: {votedA ? '선택지 A' : '선택지 B'}
+                </div>
+              )}
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={Boolean(pollSummary?.isClosed) || submittingPollVote}
+                  onClick={() => handlePollVote('OPTION_A')}
+                  className={`rounded-xl px-3 py-2 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50 ${
+                    votedA
+                      ? 'border border-emerald-600 bg-emerald-600 text-white'
+                      : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  {votedA ? 'A 선택됨' : 'A 투표'}
+                </button>
+                <button
+                  type="button"
+                  disabled={Boolean(pollSummary?.isClosed) || submittingPollVote}
+                  onClick={() => handlePollVote('OPTION_B')}
+                  className={`rounded-xl px-3 py-2 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50 ${
+                    votedB
+                      ? 'border border-cyan-600 bg-cyan-600 text-white'
+                      : 'border border-cyan-200 bg-cyan-50 text-cyan-700'
+                  }`}
+                >
+                  {votedB ? 'B 선택됨' : 'B 투표'}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {post.category === 'HOTDEAL' && (
+            <section className="mt-5 rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50 via-white to-orange-50 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    hotdealIsExpired
+                      ? 'bg-slate-200 text-slate-600'
+                      : 'bg-rose-100 text-rose-700'
+                  }`}
+                >
+                  {hotdealIsExpired ? '마감됨' : '진행중'}
+                </span>
+                <span className="text-[12px] font-semibold text-rose-700">{hotdealDiscountRate}% 할인</span>
+              </div>
+
+              <p className="text-[15px] font-bold text-slate-900 leading-snug">
+                {hotdealDetail?.productName ?? post.title}
+              </p>
+
+              <div className="mt-3 flex items-end gap-2">
+                <strong className="text-[20px] font-bold text-slate-900">
+                  {toWon(hotdealSummary?.dealPriceAmount ?? 0)}
+                </strong>
+                {(hotdealSummary?.originalPriceAmount ?? 0) > 0 && (
+                  <span className="text-[13px] font-medium text-slate-400 line-through">
+                    {toWon(hotdealSummary?.originalPriceAmount ?? 0)}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-1.5 text-[12px] text-slate-600">
+                <div>스토어: {hotdealDetail?.storeName || hotdealSummary?.storeName || '-'}</div>
+                <div>배송: {hotdealDetail?.shippingInfo || '-'}</div>
+                <div>
+                  마감:{' '}
+                  {hotdealSummary?.expiredAt ? formatDate(hotdealSummary.expiredAt) : '-'}
+                </div>
+              </div>
+
+              {hotdealDetail?.dealUrl && (
+                <div className="mt-3">
+                  <a
+                    href={hotdealDetail.dealUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-700 hover:bg-rose-100"
+                  >
+                    상품 링크 이동
+                  </a>
+                </div>
+              )}
+            </section>
+          )}
         </div>
 
         <div className="mt-8 px-5 flex items-center gap-2">

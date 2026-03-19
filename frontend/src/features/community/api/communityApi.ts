@@ -5,6 +5,8 @@ import type {
   BoardCategory,
   CreatePostRequestDto,
   CreatePostResponseDto,
+  CreatePollPostRequestDto,
+  CreateHotdealPostRequestDto,
   GetPostResponseDto,
   GetCommentListResponseDto,
   CreateCommentRequestDto,
@@ -15,6 +17,10 @@ import type {
   UpdateCommentResponseDto,
   ToggleReactionRequestDto,
   ToggleReactionResponseDto,
+  PollDetailResponseDto,
+  PollVoteSubmitRequestDto,
+  PollVoteSubmitResponseDto,
+  HotdealDetailResponseDto,
 } from '../types';
 
 export const getPosts = async (
@@ -39,8 +45,39 @@ export const createPost = async (
   return await axiosInstance.post('/community/posts', data);
 };
 
+export const createPollPost = async (
+  data: CreatePollPostRequestDto
+): Promise<ApiResponse<CreatePostResponseDto>> => {
+  return await axiosInstance.post('/community/polls', data);
+};
+
+export const createHotdealPost = async (
+  data: CreateHotdealPostRequestDto
+): Promise<ApiResponse<CreatePostResponseDto>> => {
+  return await axiosInstance.post('/community/hotdeals', data);
+};
+
 export const getPost = async (postId: number): Promise<ApiResponse<GetPostResponseDto>> => {
   return await axiosInstance.get(`/community/posts/${postId}`);
+};
+
+export const getPollDetail = async (
+  postId: number
+): Promise<ApiResponse<PollDetailResponseDto>> => {
+  return await axiosInstance.get(`/community/polls/${postId}`);
+};
+
+export const submitPollVote = async (
+  postId: number,
+  data: PollVoteSubmitRequestDto
+): Promise<ApiResponse<PollVoteSubmitResponseDto>> => {
+  return await axiosInstance.post(`/community/polls/${postId}/votes`, data);
+};
+
+export const getHotdealDetail = async (
+  postId: number
+): Promise<ApiResponse<HotdealDetailResponseDto>> => {
+  return await axiosInstance.get(`/community/hotdeals/${postId}`);
 };
 
 export const updatePost = async (
