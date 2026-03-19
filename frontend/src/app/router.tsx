@@ -115,6 +115,13 @@ export const router = createBrowserRouter([
           return { Component: CardDetailPage };
         },
       },
+      {
+        path: '/finance/report',
+        async lazy() {
+          const { MonthlyReportPage } = await import('@/features/finance/report');
+          return { Component: MonthlyReportPage };
+        },
+      },
     ],
   },
 ]);
