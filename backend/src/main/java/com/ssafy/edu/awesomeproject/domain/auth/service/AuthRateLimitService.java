@@ -3,11 +3,14 @@ package com.ssafy.edu.awesomeproject.domain.auth.service;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.Locale;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +34,7 @@ public class AuthRateLimitService {
     private final int reissueMaxAttemptsPerIp;
     private final Duration reissueWindow;
     private final Set<String> trustedProxyAddresses;
+    private final List<CidrRange> trustedProxyCidrs;
 
     public AuthRateLimitService(
             StringRedisTemplate stringRedisTemplate,
@@ -46,7 +50,9 @@ public class AuthRateLimitService {
         this.loginWindow = Duration.ofSeconds(loginWindowSeconds);
         this.reissueMaxAttemptsPerIp = reissueMaxAttemptsPerIp;
         this.reissueWindow = Duration.ofSeconds(reissueWindowSeconds);
-        this.trustedProxyAddresses = parseTrustedProxies(trustedProxies);
+        TrustedProxyConfig trustedProxyConfig = parseTrustedProxies(trustedProxies);
+        this.trustedProxyAddresses = trustedProxyConfig.addresses();
+        this.trustedProxyCidrs = trustedProxyConfig.cidrs();
     }
 
     public String resolveClientIp(HttpServletRequest request) {
@@ -130,18 +136,54 @@ public class AuthRateLimitService {
     }
 
     private boolean isTrustedProxy(String ipAddress) {
-        return trustedProxyAddresses.contains(normalize(ipAddress));
-    }
-
-    private Set<String> parseTrustedProxies(String trustedProxies) {
-        if (trustedProxies == null || trustedProxies.isBlank()) {
-            return Set.of();
+        String normalizedIp = normalize(ipAddress);
+        if (trustedProxyAddresses.contains(normalizedIp)) {
+            return true;
         }
 
-        return Arrays.stream(trustedProxies.split(","))
-                .map(this::normalize)
-                .filter(value -> !"unknown".equals(value))
-                .collect(Collectors.toUnmodifiableSet());
+        if ("unknown".equals(normalizedIp)) {
+            return false;
+        }
+
+        for (CidrRange cidrRange : trustedProxyCidrs) {
+            if (cidrRange.contains(normalizedIp)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private TrustedProxyConfig parseTrustedProxies(String trustedProxies) {
+        if (trustedProxies == null || trustedProxies.isBlank()) {
+            return new TrustedProxyConfig(Set.of(), List.of());
+        }
+
+        Set<String> exactAddresses = new java.util.HashSet<>();
+        List<CidrRange> cidrRanges = new ArrayList<>();
+
+        for (String entry : trustedProxies.split(",")) {
+            String normalizedEntry = normalize(entry);
+            if ("unknown".equals(normalizedEntry)) {
+                continue;
+            }
+
+            if (normalizedEntry.contains("/")) {
+                CidrRange.parse(normalizedEntry)
+                        .ifPresentOrElse(
+                                cidrRanges::add,
+                                () ->
+                                        log.warn(
+                                                "auth.ratelimit.invalid_trusted_proxy_cidr value={}"
+                                                        + " - ignoring entry",
+                                                normalizedEntry));
+                continue;
+            }
+
+            exactAddresses.add(normalizedEntry);
+        }
+
+        return new TrustedProxyConfig(Set.copyOf(exactAddresses), List.copyOf(cidrRanges));
     }
 
     private String normalizeIp(String ipAddress) {
@@ -162,5 +204,75 @@ public class AuthRateLimitService {
         }
 
         return "unknown";
+    }
+
+    private record TrustedProxyConfig(Set<String> addresses, List<CidrRange> cidrs) {}
+
+    private static final class CidrRange {
+        private final byte[] networkBytes;
+        private final int prefixLength;
+
+        private CidrRange(byte[] networkBytes, int prefixLength) {
+            this.networkBytes = networkBytes;
+            this.prefixLength = prefixLength;
+        }
+
+        private static java.util.Optional<CidrRange> parse(String rawValue) {
+            String[] parts = rawValue.split("/");
+            if (parts.length != 2) {
+                return java.util.Optional.empty();
+            }
+
+            try {
+                InetAddress networkAddress = InetAddress.getByName(parts[0]);
+                int prefixLength = Integer.parseInt(parts[1]);
+                byte[] addressBytes = networkAddress.getAddress();
+                int maxPrefixLength = addressBytes.length * 8;
+                if (prefixLength < 0 || prefixLength > maxPrefixLength) {
+                    return java.util.Optional.empty();
+                }
+
+                return java.util.Optional.of(
+                        new CidrRange(applyMask(addressBytes, prefixLength), prefixLength));
+            } catch (UnknownHostException | NumberFormatException exception) {
+                return java.util.Optional.empty();
+            }
+        }
+
+        private boolean contains(String ipAddress) {
+            try {
+                byte[] candidateBytes = InetAddress.getByName(ipAddress).getAddress();
+                if (candidateBytes.length != networkBytes.length) {
+                    return false;
+                }
+
+                byte[] candidateNetwork = applyMask(candidateBytes, prefixLength);
+                return Arrays.equals(networkBytes, candidateNetwork);
+            } catch (UnknownHostException exception) {
+                return false;
+            }
+        }
+
+        private static byte[] applyMask(byte[] source, int prefixLength) {
+            byte[] masked = Arrays.copyOf(source, source.length);
+
+            int fullBytes = prefixLength / 8;
+            int remainderBits = prefixLength % 8;
+
+            if (fullBytes < masked.length) {
+                if (remainderBits == 0) {
+                    masked[fullBytes] = 0;
+                } else {
+                    int mask = (0xFF << (8 - remainderBits)) & 0xFF;
+                    masked[fullBytes] = (byte) (masked[fullBytes] & mask);
+                }
+
+                for (int index = fullBytes + 1; index < masked.length; index++) {
+                    masked[index] = 0;
+                }
+            }
+
+            return masked;
+        }
     }
 }

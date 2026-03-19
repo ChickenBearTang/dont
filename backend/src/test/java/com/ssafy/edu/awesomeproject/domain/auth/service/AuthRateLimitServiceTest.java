@@ -97,4 +97,25 @@ class AuthRateLimitServiceTest {
 
         org.assertj.core.api.Assertions.assertThat(clientIp).isEqualTo("203.0.113.5");
     }
+
+    @Test
+    void resolveClientIpUsesForwardedHeaderWhenRemoteAddrMatchesTrustedProxyCidr() {
+        AuthRateLimitService cidrAwareService =
+                new AuthRateLimitService(
+                        stringRedisTemplate,
+                        2,
+                        2,
+                        900L,
+                        3,
+                        60L,
+                        "127.0.0.1,::1,172.18.0.0/16");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Forwarded-For", "198.51.100.10, 172.18.0.4");
+        request.setRemoteAddr("172.18.0.4");
+
+        String clientIp = cidrAwareService.resolveClientIp(request);
+
+        org.assertj.core.api.Assertions.assertThat(clientIp).isEqualTo("198.51.100.10");
+    }
 }
