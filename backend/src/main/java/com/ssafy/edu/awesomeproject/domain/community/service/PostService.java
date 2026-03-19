@@ -176,9 +176,15 @@ public class PostService {
                 Page<Post> postPage;
                 if (category == null) {
                         Integer userGenerationNo = getUserGenerationNo(user);
+                        List<Long> visibleBoardIds =
+                                        boardRepository.findVisibleBoardIdsForUser(BoardCategory.COHORT, userGenerationNo);
 
-                        postPage = postRepository.findVisiblePostsForUser(
-                                        PostStatus.ACTIVE, BoardCategory.COHORT, userGenerationNo, pageRequest);
+                        if (visibleBoardIds.isEmpty()) {
+                                postPage = Page.empty(pageRequest);
+                        } else {
+                                postPage = postRepository.findByBoard_IdInAndStatus(
+                                                visibleBoardIds, PostStatus.ACTIVE, pageRequest);
+                        }
                 } else if (category == BoardCategory.COHORT) {
                         validateUserCohort(user, resolvedGenerationNo);
 
@@ -196,6 +202,8 @@ public class PostService {
                 Map<Long, PollPost> pollByPostId = getPollByPostId(postPage.getContent(), category);
                 Map<Long, PollVoteSummary> pollVoteSummaryByPostId = getPollVoteSummaryByPostId(postPage.getContent(),
                                 category);
+                Map<Long, Long> postLikeCountByPostId = getPostLikeCountByPostId(postPage.getContent());
+                Map<Long, Long> commentCountByPostId = getCommentCountByPostId(postPage.getContent());
 
                 List<PostSummary> content = postPage.getContent().stream()
                                 .map(
@@ -226,15 +234,12 @@ public class PostService {
                                                         post.getUser().getId(),
                                                         post.getUser().getNickname(),
                                                         post.isAuthor(userId),
-                                                        Math.toIntExact(
-                                                            reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
-                                                                ReactionTargetType.POST,
-                                                                post.getId(),
-                                                                ReactionType.LIKE)),
-                                                        Math.toIntExact(
-                                                            commentRepository.countByPost_IdAndStatus(
-                                                                post.getId(),
-                                                                CommentStatus.ACTIVE)),
+                                                        postLikeCountByPostId.containsKey(post.getId())
+                                                                ? Math.toIntExact(postLikeCountByPostId.get(post.getId()))
+                                                                : 0,
+                                                        commentCountByPostId.containsKey(post.getId())
+                                                                ? Math.toIntExact(commentCountByPostId.get(post.getId()))
+                                                                : 0,
                                                         post.getCreatedAt(),
                                                         extraSummary);
                                                 })
@@ -329,6 +334,39 @@ public class PostService {
 
         private Integer extractGenerationNo(Board board) {
                 return board.getCohort() != null ? board.getCohort().getGenerationNo() : null;
+        }
+
+        private Map<Long, Long> getPostLikeCountByPostId(List<Post> posts) {
+                if (posts.isEmpty()) {
+                        return Map.of();
+                }
+
+                Set<Long> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
+                return reactionRepository
+                                .aggregateByTargetTypeAndReactionTypeAndTargetIdIn(
+                                                ReactionTargetType.POST,
+                                                ReactionType.LIKE,
+                                                postIds)
+                                .stream()
+                                .collect(
+                                                Collectors.toMap(
+                                                                ReactionRepository.ReactionCountProjection::getTargetId,
+                                                                ReactionRepository.ReactionCountProjection::getReactionCount));
+        }
+
+        private Map<Long, Long> getCommentCountByPostId(List<Post> posts) {
+                if (posts.isEmpty()) {
+                        return Map.of();
+                }
+
+                Set<Long> postIds = posts.stream().map(Post::getId).collect(Collectors.toSet());
+                return commentRepository
+                                .aggregateCountByPostIdsAndStatus(postIds, CommentStatus.ACTIVE)
+                                .stream()
+                                .collect(
+                                                Collectors.toMap(
+                                                                CommentRepository.PostCommentCountProjection::getPostId,
+                                                                CommentRepository.PostCommentCountProjection::getCommentCount));
         }
 
         private Map<Long, PrPost> getPrByPostId(List<Post> posts, BoardCategory category) {
