@@ -11,6 +11,7 @@ export type AccountStatus = 'ACTIVE' | 'INACTIVE' | 'CLOSED';
  * 계좌 상세 정보 (목록 조회 시 각 항목)
  */
 export interface AccountDetail {
+  id: number;
   bankCode: string;
   bankName: string;
   userName: string;

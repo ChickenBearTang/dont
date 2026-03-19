@@ -19,7 +19,6 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenB
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SavingsSettingRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountListResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.Account;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.SavingsSetting;
@@ -214,7 +213,7 @@ class AccountServiceTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
 
         AccountListResponse.AccountDetail detail = new AccountListResponse.AccountDetail(
-                "bank-code", "bank-name", "user-name", "123-456", "account-name", "type-code", "type-name",
+                1L, "bank-code", "bank-name", "user-name", "123-456", "account-name", "type-code", "type-name",
                 "20240101", "20250101", "1000", "1000", "5000", "20240101", "KRW"
         );
         AccountListResponse apiResponse = new AccountListResponse(java.util.List.of(detail));
