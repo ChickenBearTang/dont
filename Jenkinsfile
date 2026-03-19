@@ -75,17 +75,7 @@ pipeline {
 
                     strip_outer_quotes() {
                       value="$1"
-                      case "$value" in
-                        \"*\")
-                          value="${value#\"}"
-                          value="${value%\"}"
-                          ;;
-                        \'*\')
-                          value="${value#\'}"
-                          value="${value%\'}"
-                          ;;
-                      esac
-                      printf '%s' "$value"
+                      printf '%s' "$value" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
                     }
 
                     REQUIRED_VARS="DB_URL DB_USERNAME DB_PASSWORD AUTH_JWT_SECRET API_PATH VITE_API_BASE_URL REDIS_HOST REDIS_PORT"
