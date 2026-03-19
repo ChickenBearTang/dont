@@ -92,10 +92,15 @@ public class AccountController {
     public ResponseEntity<AccountApiResponse<AccountTransactionResponse>> getAccountTransactions(
             @CurrentUserId Long userId,
             @PathVariable Long accountId,
-            @Parameter(description = "조회 시작일 (YYYYMMDD)", example = "20240101") @RequestParam(defaultValue = "20240101") String startDate,
-            @Parameter(description = "조회 종료일 (YYYYMMDD)", example = "20241231") @RequestParam(defaultValue = "20241231") String endDate) {
+            @Parameter(description = "조회 시작일 (YYYYMMDD)", example = "20240101")
+                    @RequestParam(defaultValue = "20240101")
+                    String startDate,
+            @Parameter(description = "조회 종료일 (YYYYMMDD)", example = "20241231")
+                    @RequestParam(defaultValue = "20241231")
+                    String endDate) {
 
-        AccountTransactionResponse response = accountService.getAccountTransactions(userId, accountId, startDate, endDate);
+        AccountTransactionResponse response =
+                accountService.getAccountTransactions(userId, accountId, startDate, endDate);
 
         return ResponseEntity.ok(AccountApiResponse.success("ACC_200_5", "거래 내역을 조회했습니다.", response));
     }

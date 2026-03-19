@@ -1,13 +1,13 @@
 package com.ssafy.edu.awesomeproject.common.s3.service;
 
+import com.ssafy.edu.awesomeproject.common.config.S3Properties;
 import com.ssafy.edu.awesomeproject.common.error.CommonErrorCode;
 import com.ssafy.edu.awesomeproject.common.error.CommonException;
-import com.ssafy.edu.awesomeproject.common.config.S3Properties;
-import com.ssafy.edu.awesomeproject.common.s3.model.FileVisibility;
 import com.ssafy.edu.awesomeproject.common.s3.dto.request.CreateDownloadPresignedUrlRequest;
 import com.ssafy.edu.awesomeproject.common.s3.dto.request.CreateUploadPresignedUrlRequest;
 import com.ssafy.edu.awesomeproject.common.s3.dto.request.CreateUploadPresignedUrlsRequest;
 import com.ssafy.edu.awesomeproject.common.s3.dto.response.PresignedUrlResponse;
+import com.ssafy.edu.awesomeproject.common.s3.model.FileVisibility;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,7 +37,8 @@ public class DefaultS3PresignService implements S3PresignService {
     private final S3Properties s3Properties;
     private final Clock clock;
 
-    public DefaultS3PresignService(S3Presigner s3Presigner, S3Properties s3Properties, Clock clock) {
+    public DefaultS3PresignService(
+            S3Presigner s3Presigner, S3Properties s3Properties, Clock clock) {
         this.s3Presigner = s3Presigner;
         this.s3Properties = s3Properties;
         this.clock = clock;
@@ -92,8 +93,7 @@ public class DefaultS3PresignService implements S3PresignService {
         int maxFileCount = s3Properties.getUploadLimit().getMaxFileCount();
         if (request.files().size() > maxFileCount) {
             throw new CommonException(
-                    CommonErrorCode.INVALID_INPUT,
-                    "files 개수는 " + maxFileCount + " 이하여야 합니다.");
+                    CommonErrorCode.INVALID_INPUT, "files 개수는 " + maxFileCount + " 이하여야 합니다.");
         }
 
         long maxTotalBytes = s3Properties.getUploadLimit().getMaxTotalBytes();
@@ -101,9 +101,11 @@ public class DefaultS3PresignService implements S3PresignService {
 
         for (CreateUploadPresignedUrlRequest fileRequest : request.files()) {
             if (fileRequest == null) {
-                throw new CommonException(CommonErrorCode.INVALID_INPUT, "file 요청 값은 null일 수 없습니다.");
+                throw new CommonException(
+                        CommonErrorCode.INVALID_INPUT, "file 요청 값은 null일 수 없습니다.");
             }
-            totalBytes = safeAdd(totalBytes, validateSingleContentLength(fileRequest.contentLength()));
+            totalBytes =
+                    safeAdd(totalBytes, validateSingleContentLength(fileRequest.contentLength()));
             if (totalBytes > maxTotalBytes) {
                 throw new CommonException(
                         CommonErrorCode.INVALID_INPUT,
@@ -145,7 +147,9 @@ public class DefaultS3PresignService implements S3PresignService {
 
         if (isNotBlank(request.downloadFileName())) {
             getObjectRequestBuilder.responseContentDisposition(
-                    "attachment; filename=\"" + sanitizeFileName(request.downloadFileName()) + "\"");
+                    "attachment; filename=\""
+                            + sanitizeFileName(request.downloadFileName())
+                            + "\"");
         }
 
         GetObjectPresignRequest presignRequest =
@@ -193,8 +197,7 @@ public class DefaultS3PresignService implements S3PresignService {
     private long validateSingleContentLength(Long contentLength) {
         if (contentLength == null || contentLength <= 0) {
             throw new CommonException(
-                    CommonErrorCode.INVALID_INPUT,
-                    "contentLength는 필수이며 0보다 커야 합니다.");
+                    CommonErrorCode.INVALID_INPUT, "contentLength는 필수이며 0보다 커야 합니다.");
         }
 
         long maxSingleBytes = s3Properties.getUploadLimit().getMaxSingleBytes();
@@ -215,7 +218,8 @@ public class DefaultS3PresignService implements S3PresignService {
         try {
             return Math.addExact(left, right);
         } catch (ArithmeticException ex) {
-            throw new CommonException(CommonErrorCode.INVALID_INPUT, "contentLength 합산 중 오버플로우가 발생했습니다.");
+            throw new CommonException(
+                    CommonErrorCode.INVALID_INPUT, "contentLength 합산 중 오버플로우가 발생했습니다.");
         }
     }
 

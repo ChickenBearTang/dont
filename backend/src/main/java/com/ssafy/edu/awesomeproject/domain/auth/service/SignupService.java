@@ -5,13 +5,12 @@ import com.ssafy.edu.awesomeproject.domain.auth.entity.UserRole;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Locale;
-
 import com.ssafy.edu.awesomeproject.domain.community.entity.Cohort;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CohortRepository;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Locale;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
@@ -21,9 +20,10 @@ public class SignupService {
     private final PasswordHashService passwordHashService;
     private final CohortRepository cohortRepository;
 
-    public SignupService(UserRepository userRepository,
-                         PasswordHashService passwordHashService,
-                         CohortRepository cohortRepository) {
+    public SignupService(
+            UserRepository userRepository,
+            PasswordHashService passwordHashService,
+            CohortRepository cohortRepository) {
         this.userRepository = userRepository;
         this.passwordHashService = passwordHashService;
         this.cohortRepository = cohortRepository;
@@ -44,8 +44,10 @@ public class SignupService {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        Cohort cohort = cohortRepository.findById(cohortId)
-            .orElseThrow(() -> new AuthException(CommunityErrorCode.COHORT_NOT_FOUND));
+        Cohort cohort =
+                cohortRepository
+                        .findById(cohortId)
+                        .orElseThrow(() -> new AuthException(CommunityErrorCode.COHORT_NOT_FOUND));
 
         String encodedPassword = passwordHashService.encode(rawPassword);
         LocalDateTime termsAgreedAt = termsAgreed ? LocalDateTime.now() : null;

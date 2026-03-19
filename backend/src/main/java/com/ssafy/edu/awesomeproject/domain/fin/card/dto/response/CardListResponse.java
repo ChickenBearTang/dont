@@ -16,10 +16,12 @@ public class CardListResponse {
     @Getter
     @Builder
     public static class CardItem {
+
+        private Long id;
         private String cardIssuerName;
         private String cardName;
 
-        //해당달 총 지출금액
+        // 해당달 총 지출금액
         private long monthlyCardExpense;
     }
 }

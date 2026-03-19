@@ -15,4 +15,3 @@ public record AdminReportDetailResponseDto(
         LocalDateTime processedAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {}
-

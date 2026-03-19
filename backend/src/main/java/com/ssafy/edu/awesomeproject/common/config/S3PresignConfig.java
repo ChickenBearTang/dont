@@ -13,4 +13,3 @@ public class S3PresignConfig {
         return S3Presigner.builder().region(Region.of(s3Properties.getRegion())).build();
     }
 }
-

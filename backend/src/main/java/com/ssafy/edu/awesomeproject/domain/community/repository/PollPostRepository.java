@@ -11,4 +11,3 @@ public interface PollPostRepository extends JpaRepository<PollPost, Long> {
 
     List<PollPost> findByPostIdIn(Collection<Long> postIds);
 }
-

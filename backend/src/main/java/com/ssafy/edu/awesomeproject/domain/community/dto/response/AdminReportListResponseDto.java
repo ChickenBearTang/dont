@@ -20,4 +20,3 @@ public record AdminReportListResponseDto(
             LocalDateTime createdAt,
             LocalDateTime processedAt) {}
 }
-

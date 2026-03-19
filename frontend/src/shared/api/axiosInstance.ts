@@ -1,8 +1,4 @@
-﻿import axios, {
-  AxiosError,
-  type AxiosResponse,
-  type InternalAxiosRequestConfig,
-} from 'axios';
+﻿import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import type { ApiResponse } from '@/shared/types';
 import type { TokenReissueResponseData } from '@/features/auth/types';
@@ -43,7 +39,10 @@ const isAuthEndpoint = (url?: string): boolean => {
 };
 
 const requestTokenReissue = async (): Promise<string> => {
-  const response = await refreshClient.post<ApiResponse<TokenReissueResponseData>>('/auth/reissue', {});
+  const response = await refreshClient.post<ApiResponse<TokenReissueResponseData>>(
+    '/auth/reissue',
+    {}
+  );
   const accessToken = response.data?.data?.accessToken;
 
   if (!accessToken) {
@@ -63,7 +62,7 @@ axiosInstance.interceptors.request.use(
 
     return config;
   },
-  (error: AxiosError) => Promise.reject(error),
+  (error: AxiosError) => Promise.reject(error)
 );
 
 let isRefreshing = false;
@@ -96,7 +95,12 @@ axiosInstance.interceptors.response.use(
     const originalRequest = error.config as RetriableRequestConfig | undefined;
     const status = error.response?.status;
 
-    if (!originalRequest || status !== 401 || originalRequest._retry || isAuthEndpoint(originalRequest.url)) {
+    if (
+      !originalRequest ||
+      status !== 401 ||
+      originalRequest._retry ||
+      isAuthEndpoint(originalRequest.url)
+    ) {
       return Promise.reject(error);
     }
 
@@ -134,8 +138,7 @@ axiosInstance.interceptors.response.use(
     } finally {
       isRefreshing = false;
     }
-  },
+  }
 );
 
 export default axiosInstance;
-

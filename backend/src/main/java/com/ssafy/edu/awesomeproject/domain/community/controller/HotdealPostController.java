@@ -62,7 +62,8 @@ public class HotdealPostController {
             @RequestHeader("Authorization") String authorizationHeader,
             @Valid @RequestBody HotdealUpdateRequestDto hotdealUpdateRequestDto) {
         Long userId = extractUserIdFromAuthorizationHeader(authorizationHeader);
-        return CommonResponse.success(hotdealPostService.update(postId, userId, hotdealUpdateRequestDto));
+        return CommonResponse.success(
+                hotdealPostService.update(postId, userId, hotdealUpdateRequestDto));
     }
 
     private Long extractUserIdFromAuthorizationHeader(String authorizationHeader) {
