@@ -158,6 +158,7 @@ public class AccountService {
                         .map(
                                 account ->
                                         new AccountListResponse.AccountDetail(
+                                                account.getId(),
                                                 account.getBankCode(),
                                                 account.getBankName(),
                                                 account.getUserName(),
