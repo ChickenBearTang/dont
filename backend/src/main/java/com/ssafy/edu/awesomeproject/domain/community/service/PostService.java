@@ -405,14 +405,25 @@ public class PostService {
 
                 PrVoteSummary summary = voteSummaryByPostId.get(postId);
                 Long totalVoteCount = summary != null ? summary.totalVoteCount() : null;
+                boolean deadlineExpired = isDeadlineExpired(prPost.getDeadlineAt());
+                String status =
+                                prPost.getResultStatusEnum() == PrStatus.OPEN && deadlineExpired
+                                                ? PrStatus.CLOSED.name()
+                                                : prPost.getResultStatusEnum().name();
 
                 return new PrSummary(
-                                prPost.getResultStatusEnum() == PrStatus.OPEN
-                                                ? PrStatus.OPEN.name()
-                                                : PrStatus.CLOSED.name(),
+                                status,
                                 prPost.getResultStatus(),
                                 totalVoteCount,
                                 prPost.getDeadlineAt());
+        }
+
+        private boolean isDeadlineExpired(LocalDateTime deadlineAt) {
+                if (deadlineAt == null) {
+                        return false;
+                }
+
+                return !deadlineAt.isAfter(LocalDateTime.now());
         }
 
         private Map<Long, HotdealPost> getHotdealByPostId(List<Post> posts, BoardCategory category) {
