@@ -8,6 +8,7 @@ public enum AuthErrorCode implements ErrorCode {
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "AUTH_409_1", "이미 사용 중인 이메일입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AUTH_401_1", "인증이 필요합니다."),
     BAD_CREDENTIALS(HttpStatus.UNAUTHORIZED, "AUTH_401_2", "잘못된 자격 증명입니다."),
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "AUTH_429_1", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
     REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_401_3", "리프레시 토큰이 만료되었습니다."),
     REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "AUTH_401_4", "리프레시 토큰이 유효하지 않습니다."),
     AUTHENTICATION_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_401_5", "인증에 실패했습니다."),

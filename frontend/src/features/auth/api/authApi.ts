@@ -42,7 +42,7 @@ export const refreshAccessToken = async (): Promise<ApiResponse<TokenReissueResp
 };
 
 export const logout = async (): Promise<void> => {
-  await authClient.post('/auth/logout', {});
+  await axiosInstance.post('/auth/logout', {});
 };
 
 export const signup = async (

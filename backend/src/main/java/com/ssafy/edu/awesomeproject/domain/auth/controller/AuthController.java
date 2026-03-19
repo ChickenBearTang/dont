@@ -3,13 +3,14 @@ package com.ssafy.edu.awesomeproject.domain.auth.controller;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
 import com.ssafy.edu.awesomeproject.domain.auth.cookie.RefreshTokenCookieService;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LoginRequestDto;
-import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LogoutRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.SignupRequestDto;
-import com.ssafy.edu.awesomeproject.domain.auth.dto.request.TokenReissueRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LoginResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LogoutResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.TokenReissueResponseDto;
+import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
+import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.service.AuthTokenService;
+import com.ssafy.edu.awesomeproject.domain.auth.service.AuthRateLimitService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.LoginService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.SignupService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,16 +32,19 @@ public class AuthController {
     private final LoginService loginService;
     private final SignupService signupService;
     private final AuthTokenService authTokenService;
+    private final AuthRateLimitService authRateLimitService;
     private final RefreshTokenCookieService refreshTokenCookieService;
 
     public AuthController(
             LoginService loginService,
             SignupService signupService,
             AuthTokenService authTokenService,
+            AuthRateLimitService authRateLimitService,
             RefreshTokenCookieService refreshTokenCookieService) {
         this.loginService = loginService;
         this.signupService = signupService;
         this.authTokenService = authTokenService;
+        this.authRateLimitService = authRateLimitService;
         this.refreshTokenCookieService = refreshTokenCookieService;
     }
 
@@ -74,9 +78,22 @@ public class AuthController {
         @ApiResponse(responseCode = "401", description = "인증 실패")
     })
     public CommonResponse<LoginResponseDto> login(
-            @Valid @RequestBody LoginRequestDto loginRequestDto, HttpServletResponse response) {
-        LoginService.LoginResult result =
-                loginService.login(loginRequestDto.email(), loginRequestDto.password());
+            @Valid @RequestBody LoginRequestDto loginRequestDto,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        String clientIp = authRateLimitService.resolveClientIp(request);
+        authRateLimitService.validateLoginAllowed(loginRequestDto.email(), clientIp);
+
+        LoginService.LoginResult result;
+        try {
+            result = loginService.login(loginRequestDto.email(), loginRequestDto.password());
+            authRateLimitService.resetLoginFailures(loginRequestDto.email());
+        } catch (AuthException exception) {
+            if (exception.getErrorCode() == AuthErrorCode.BAD_CREDENTIALS) {
+                authRateLimitService.recordLoginFailure(loginRequestDto.email(), clientIp);
+            }
+            throw exception;
+        }
 
         refreshTokenCookieService.setRefreshToken(
                 response,
@@ -101,17 +118,16 @@ public class AuthController {
         @ApiResponse(responseCode = "401", description = "인증 실패")
     })
     public CommonResponse<TokenReissueResponseDto> reissue(
-            @RequestBody(required = false) TokenReissueRequestDto tokenReissueRequestDto,
             HttpServletRequest request,
             HttpServletResponse response) {
+        String clientIp = authRateLimitService.resolveClientIp(request);
+        authRateLimitService.validateReissueAllowed(clientIp);
+        authRateLimitService.recordReissueAttempt(clientIp);
+
         String refreshToken =
                 refreshTokenCookieService
                         .resolveRefreshToken(request)
-                        .orElseGet(
-                                () ->
-                                        tokenReissueRequestDto == null
-                                                ? null
-                                                : tokenReissueRequestDto.refreshToken());
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID));
 
         AuthTokenService.ReissueTokenResult result = authTokenService.reissue(refreshToken);
 
@@ -132,18 +148,13 @@ public class AuthController {
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
     })
     public CommonResponse<LogoutResponseDto> logout(
-            @RequestBody(required = false) LogoutRequestDto logoutRequestDto,
             HttpServletRequest request,
             HttpServletResponse response,
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
         String refreshToken =
                 refreshTokenCookieService
                         .resolveRefreshToken(request)
-                        .orElseGet(
-                                () ->
-                                        logoutRequestDto == null
-                                                ? null
-                                                : logoutRequestDto.refreshToken());
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID));
 
         authTokenService.logout(refreshToken, authorizationHeader);
         refreshTokenCookieService.clearRefreshToken(response);
