@@ -533,7 +533,7 @@ export const PostDetailPage = () => {
           </div>
 
           {post.category === 'POLL' && (
-            <section className="mt-5 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4">
+            <section className="mt-5 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <span
                   className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
@@ -554,7 +554,16 @@ export const PostDetailPage = () => {
               </p>
 
               <div className="mt-4 space-y-3">
-                <div className="rounded-xl border border-emerald-100 bg-white px-3 py-2.5">
+                <button
+                  type="button"
+                  disabled={Boolean(pollSummary?.isClosed) || submittingPollVote}
+                  onClick={() => handlePollVote('OPTION_A')}
+                  className={`w-full rounded-xl border px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                    votedA
+                      ? 'border-emerald-500 bg-emerald-50'
+                      : 'border-emerald-100 bg-white hover:bg-emerald-50/40'
+                  }`}
+                >
                   <div className="mb-1.5 flex items-center justify-between text-[12px] font-semibold text-slate-700">
                     <span>{pollSummary?.optionA ?? '선택지 A'}</span>
                     <span>{toPercent(pollOptionARate)}</span>
@@ -565,9 +574,18 @@ export const PostDetailPage = () => {
                       style={{ width: `${pollOptionARate}%` }}
                     />
                   </div>
-                </div>
+                </button>
 
-                <div className="rounded-xl border border-cyan-100 bg-white px-3 py-2.5">
+                <button
+                  type="button"
+                  disabled={Boolean(pollSummary?.isClosed) || submittingPollVote}
+                  onClick={() => handlePollVote('OPTION_B')}
+                  className={`w-full rounded-xl border px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                    votedB
+                      ? 'border-cyan-500 bg-cyan-50'
+                      : 'border-cyan-100 bg-white hover:bg-cyan-50/40'
+                  }`}
+                >
                   <div className="mb-1.5 flex items-center justify-between text-[12px] font-semibold text-slate-700">
                     <span>{pollSummary?.optionB ?? '선택지 B'}</span>
                     <span>{toPercent(pollOptionBRate)}</span>
@@ -578,50 +596,18 @@ export const PostDetailPage = () => {
                       style={{ width: `${pollOptionBRate}%` }}
                     />
                   </div>
-                </div>
+                </button>
               </div>
 
               <div className="mt-3 text-[11px] font-medium text-slate-500">
                 마감: {pollSummary?.deadlineAt ? formatDate(pollSummary.deadlineAt) : '-'}
               </div>
 
-              {myVoteOption && (
-                <div className="mt-2 text-[12px] font-semibold text-emerald-700">
-                  내 투표: {votedA ? '선택지 A' : '선택지 B'}
-                </div>
-              )}
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  disabled={Boolean(pollSummary?.isClosed) || submittingPollVote}
-                  onClick={() => handlePollVote('OPTION_A')}
-                  className={`rounded-xl px-3 py-2 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50 ${
-                    votedA
-                      ? 'border border-emerald-600 bg-emerald-600 text-white'
-                      : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                  }`}
-                >
-                  {votedA ? 'A 선택됨' : 'A 투표'}
-                </button>
-                <button
-                  type="button"
-                  disabled={Boolean(pollSummary?.isClosed) || submittingPollVote}
-                  onClick={() => handlePollVote('OPTION_B')}
-                  className={`rounded-xl px-3 py-2 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50 ${
-                    votedB
-                      ? 'border border-cyan-600 bg-cyan-600 text-white'
-                      : 'border border-cyan-200 bg-cyan-50 text-cyan-700'
-                  }`}
-                >
-                  {votedB ? 'B 선택됨' : 'B 투표'}
-                </button>
-              </div>
             </section>
           )}
 
           {post.category === 'HOTDEAL' && (
-            <section className="mt-5 rounded-2xl border border-rose-100 bg-gradient-to-br from-rose-50 via-white to-orange-50 p-4">
+            <section className="mt-5 rounded-2xl border border-rose-100 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <span
                   className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
