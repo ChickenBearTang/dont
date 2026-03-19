@@ -20,6 +20,23 @@ pipeline {
             }
         }
 
+        stage('Prepare Runtime Config') {
+            steps {
+                script {
+                    if (!fileExists(env.ENV_FILE)) {
+                        withCredentials([file(credentialsId: 'MY_ENV_FILE', variable: 'ENV_SOURCE_FILE')]) {
+                            sh '''
+                                set -eu
+                                install -m 600 "${ENV_SOURCE_FILE}" "${ENV_FILE}"
+                            '''
+                        }
+
+                        echo "Created ${env.ENV_FILE} from Jenkins credential: MY_ENV_FILE"
+                    }
+                }
+            }
+        }
+
         stage('Validate Runtime Config') {
             steps {
                 sh '''
@@ -100,10 +117,22 @@ pipeline {
 
     post {
         always {
-            sh 'docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" ps || true'
+            script {
+                if (fileExists(env.ENV_FILE)) {
+                    sh 'docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" ps || true'
+                } else {
+                    echo "Skipping compose ps in post: ${env.ENV_FILE} not found"
+                }
+            }
         }
         failure {
-            sh 'docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" logs --tail=100 || true'
+            script {
+                if (fileExists(env.ENV_FILE)) {
+                    sh 'docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" logs --tail=100 || true'
+                } else {
+                    echo "Skipping compose logs in post failure: ${env.ENV_FILE} not found"
+                }
+            }
         }
     }
 }
