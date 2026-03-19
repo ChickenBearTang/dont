@@ -74,7 +74,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
               ? payload.opinionText
               : `리뷰어 #${event.actorUserId ?? '-'}가 의견을 남겼습니다.`,
           timeLabel: formatRelativeTime(event.createdAt),
-          actorLabel: event.actorNickname ?? null,
+          actorLabel: event.actorNickname ?? undefined,
         };
       }
 
@@ -89,7 +89,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
               : `현재 상태: ${detail.status}`,
           content: payload.closeReason ? `종료 사유: ${payload.closeReason}` : '요청 상태가 변경되었습니다.',
           timeLabel: formatRelativeTime(event.createdAt),
-          actorLabel: event.actorNickname ?? null,
+          actorLabel: event.actorNickname ?? undefined,
         };
       }
 
@@ -103,7 +103,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
             ? `${payload.title} / ${payload.itemName}`
             : detail.content,
         timeLabel: formatRelativeTime(event.createdAt),
-        actorLabel: event.actorNickname ?? null,
+        actorLabel: event.actorNickname ?? undefined,
       };
     });
   }
