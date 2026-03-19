@@ -8,8 +8,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
@@ -19,15 +19,14 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenB
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SavingsSettingRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountListResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.Account;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.SavingsSetting;
+import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountErrorCode;
+import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountException;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSettingRepository;
-import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountErrorCode;
-import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountException;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankAdapter;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankResHeader;
 import java.math.BigDecimal;
@@ -42,23 +41,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class AccountServiceTest {
 
-    @Mock
-    private OpenBankAdapter openBankAdapter;
+    @Mock private OpenBankAdapter openBankAdapter;
 
-    @Mock
-    private AccountRepository accountRepository;
+    @Mock private AccountRepository accountRepository;
 
-    @Mock
-    private AccountTransactionRepository accountTransactionRepository;
+    @Mock private AccountTransactionRepository accountTransactionRepository;
 
-    @Mock
-    private SavingsSettingRepository savingsSettingRepository;
+    @Mock private SavingsSettingRepository savingsSettingRepository;
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @InjectMocks
-    private AccountService accountService;
+    @InjectMocks private AccountService accountService;
 
     @Test
     @DisplayName("[시나리오 A] getAccount - 타인 계좌 조회 시 BOLA 방어 (AccountException 발생)")
@@ -68,14 +61,17 @@ class AccountServiceTest {
         Long otherUserId = 999L;
         Long accountId = 100L;
         Account otherAccount = mock(Account.class);
-        
+
         given(otherAccount.getUserId()).willReturn(otherUserId);
         given(accountRepository.findById(accountId)).willReturn(Optional.of(otherAccount));
 
         // when & then
-        AccountException exception = assertThrows(AccountException.class, () -> {
-            accountService.getAccount(requesterId, accountId);
-        });
+        AccountException exception =
+                assertThrows(
+                        AccountException.class,
+                        () -> {
+                            accountService.getAccount(requesterId, accountId);
+                        });
 
         assertEquals(AccountErrorCode.ACCOUNT_NOT_FOUND, exception.getErrorCode());
     }
@@ -86,11 +82,12 @@ class AccountServiceTest {
         // given
         Long userId = 1L;
         BigDecimal amount = new BigDecimal("10000");
-        
+
         SavingsSetting setting = mock(SavingsSetting.class);
         given(setting.getPrimaryAccountId()).willReturn(10L);
         given(setting.getSaveboxAccountId()).willReturn(20L);
-        given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)).willReturn(Optional.of(setting));
+        given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId))
+                .willReturn(Optional.of(setting));
 
         Account primaryAccount = mock(Account.class);
         Account saveboxAccount = mock(Account.class);
@@ -98,7 +95,7 @@ class AccountServiceTest {
         given(primaryAccount.getAccountNo()).willReturn("111-222");
         given(saveboxAccount.getUserId()).willReturn(userId);
         given(saveboxAccount.getAccountNo()).willReturn("333-444");
-        
+
         given(accountRepository.findById(10L)).willReturn(Optional.of(primaryAccount));
         given(accountRepository.findById(20L)).willReturn(Optional.of(saveboxAccount));
 
@@ -111,21 +108,28 @@ class AccountServiceTest {
         given(header.getResponseCode()).willReturn("H0000");
         given(apiResponse.getHeader()).willReturn(header);
 
-        given(openBankAdapter.fetchAccountTransfer(anyString(), anyString(), anyString(), anyString(), anyString(), anyString()))
+        given(
+                        openBankAdapter.fetchAccountTransfer(
+                                anyString(),
+                                anyString(),
+                                anyString(),
+                                anyString(),
+                                anyString(),
+                                anyString()))
                 .willReturn(apiResponse);
 
         // when
         accountService.manualSavings(userId, amount);
 
         // then
-        verify(openBankAdapter, times(1)).fetchAccountTransfer(
-                eq("user-key"),
-                eq("333-444"),
-                anyString(),
-                anyString(),
-                eq("111-222"),
-                anyString()
-        );
+        verify(openBankAdapter, times(1))
+                .fetchAccountTransfer(
+                        eq("user-key"),
+                        eq("333-444"),
+                        anyString(),
+                        anyString(),
+                        eq("111-222"),
+                        anyString());
     }
 
     @Test
@@ -134,7 +138,7 @@ class AccountServiceTest {
         // given
         Long userId = 1L;
         SaveBoxCreateRequest request = new SaveBoxCreateRequest("unique-no");
-        
+
         User user = mock(User.class);
         given(user.getSsafyFinanceUserKey()).willReturn("user-key");
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
@@ -145,12 +149,16 @@ class AccountServiceTest {
         given(apiResponse.getHeader()).willReturn(header);
         given(apiResponse.getRec()).willReturn(mock(OpenBankCreateAccountResponse.Rec.class));
 
-        given(openBankAdapter.createDemandDepositAccount(anyString(), anyString())).willReturn(apiResponse);
+        given(openBankAdapter.createDemandDepositAccount(anyString(), anyString()))
+                .willReturn(apiResponse);
 
         // when & then
-        AccountException exception = assertThrows(AccountException.class, () -> {
-            accountService.createSaveBox(userId, request);
-        });
+        AccountException exception =
+                assertThrows(
+                        AccountException.class,
+                        () -> {
+                            accountService.createSaveBox(userId, request);
+                        });
 
         assertEquals(AccountErrorCode.API_RESPONSE_ERROR, exception.getErrorCode());
     }
@@ -162,7 +170,8 @@ class AccountServiceTest {
         Long userId = 1L;
         Account account1 = mock(Account.class);
         Account account2 = mock(Account.class);
-        given(accountRepository.findAllByUserId(userId)).willReturn(java.util.List.of(account1, account2));
+        given(accountRepository.findAllByUserId(userId))
+                .willReturn(java.util.List.of(account1, account2));
 
         // when
         AccountListResponse response = accountService.getAccountList(userId);
@@ -177,7 +186,8 @@ class AccountServiceTest {
     void getAccountList_Success_Empty() {
         // given
         Long userId = 1L;
-        given(accountRepository.findAllByUserId(userId)).willReturn(java.util.Collections.emptyList());
+        given(accountRepository.findAllByUserId(userId))
+                .willReturn(java.util.Collections.emptyList());
 
         // when
         AccountListResponse response = accountService.getAccountList(userId);
@@ -213,10 +223,22 @@ class AccountServiceTest {
         given(user.getSsafyFinanceUserKey()).willReturn("user-key");
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
 
-        AccountListResponse.AccountDetail detail = new AccountListResponse.AccountDetail(
-                "bank-code", "bank-name", "user-name", "123-456", "account-name", "type-code", "type-name",
-                "20240101", "20250101", "1000", "1000", "5000", "20240101", "KRW"
-        );
+        AccountListResponse.AccountDetail detail =
+                new AccountListResponse.AccountDetail(
+                        "bank-code",
+                        "bank-name",
+                        "user-name",
+                        "123-456",
+                        "account-name",
+                        "type-code",
+                        "type-name",
+                        "20240101",
+                        "20250101",
+                        "1000",
+                        "1000",
+                        "5000",
+                        "20240101",
+                        "KRW");
         AccountListResponse apiResponse = new AccountListResponse(java.util.List.of(detail));
         given(openBankAdapter.fetchDemandDepositAccounts("user-key")).willReturn(apiResponse);
         given(accountRepository.findByAccountNo("123-456")).willReturn(Optional.empty());
@@ -245,7 +267,8 @@ class AccountServiceTest {
         given(accountRepository.findById(accountId)).willReturn(Optional.of(newPrimary));
 
         SavingsSetting setting = mock(SavingsSetting.class);
-        given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)).willReturn(Optional.of(setting));
+        given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId))
+                .willReturn(Optional.of(setting));
 
         // when
         accountService.setPrimaryAccount(userId, accountId);
@@ -271,12 +294,21 @@ class AccountServiceTest {
         given(user.getSsafyFinanceUserKey()).willReturn("user-key");
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
 
-        OpenBankTransactionHistoryResponse apiResponse = mock(OpenBankTransactionHistoryResponse.class);
-        given(openBankAdapter.fetchTransactionHistory(eq("user-key"), eq("123-456"), anyString(), anyString(), anyString(), anyString()))
+        OpenBankTransactionHistoryResponse apiResponse =
+                mock(OpenBankTransactionHistoryResponse.class);
+        given(
+                        openBankAdapter.fetchTransactionHistory(
+                                eq("user-key"),
+                                eq("123-456"),
+                                anyString(),
+                                anyString(),
+                                anyString(),
+                                anyString()))
                 .willReturn(apiResponse);
 
         // syncTransactions 내부의 null 체크 통과를 위해
-        OpenBankTransactionHistoryResponse.Rec rec = mock(OpenBankTransactionHistoryResponse.Rec.class);
+        OpenBankTransactionHistoryResponse.Rec rec =
+                mock(OpenBankTransactionHistoryResponse.Rec.class);
         given(apiResponse.getRec()).willReturn(rec);
         given(rec.getList()).willReturn(java.util.Collections.emptyList());
 
@@ -284,8 +316,17 @@ class AccountServiceTest {
         accountService.getAccountTransactions(userId, accountId, "20240101", "20240131");
 
         // then
-        verify(openBankAdapter, times(1)).fetchTransactionHistory(eq("user-key"), eq("123-456"), anyString(), anyString(), anyString(), anyString());
-        verify(accountTransactionRepository, times(1)).findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(eq(accountId), any(), any());
+        verify(openBankAdapter, times(1))
+                .fetchTransactionHistory(
+                        eq("user-key"),
+                        eq("123-456"),
+                        anyString(),
+                        anyString(),
+                        anyString(),
+                        anyString());
+        verify(accountTransactionRepository, times(1))
+                .findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+                        eq(accountId), any(), any());
     }
 
     @Test
@@ -302,14 +343,25 @@ class AccountServiceTest {
         given(user.getSsafyFinanceUserKey()).willReturn("user-key");
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
 
-        given(openBankAdapter.fetchTransactionHistory(anyString(), nullable(String.class), anyString(), anyString(), anyString(), anyString()))
+        given(
+                        openBankAdapter.fetchTransactionHistory(
+                                anyString(),
+                                nullable(String.class),
+                                anyString(),
+                                anyString(),
+                                anyString(),
+                                anyString()))
                 .willReturn(null); // API 결과가 없는 상황 가정
 
-        given(accountTransactionRepository.findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(eq(accountId), any(), any()))
+        given(
+                        accountTransactionRepository
+                                .findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+                                        eq(accountId), any(), any()))
                 .willReturn(java.util.Collections.emptyList());
 
         // when
-        AccountTransactionResponse response = accountService.getAccountTransactions(userId, accountId, "20240101", "20240131");
+        AccountTransactionResponse response =
+                accountService.getAccountTransactions(userId, accountId, "20240101", "20240131");
 
         // then
         assertEquals(0, response.transactions().size());
@@ -321,7 +373,8 @@ class AccountServiceTest {
         // given
         Long userId = 1L;
         SavingsSetting setting = mock(SavingsSetting.class);
-        given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)).willReturn(Optional.of(setting));
+        given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId))
+                .willReturn(Optional.of(setting));
 
         // when
         accountService.getSavingsSetting(userId);
@@ -335,7 +388,8 @@ class AccountServiceTest {
     void createOrUpdateSavingsSetting_Success() {
         // given
         Long userId = 1L;
-        SavingsSettingRequest request = new SavingsSettingRequest(10L, 20L, "월급", new BigDecimal("10000"), true);
+        SavingsSettingRequest request =
+                new SavingsSettingRequest(10L, 20L, "월급", new BigDecimal("10000"), true);
 
         Account primary = mock(Account.class);
         Account savebox = mock(Account.class);
@@ -344,8 +398,10 @@ class AccountServiceTest {
         given(accountRepository.findById(10L)).willReturn(Optional.of(primary));
         given(accountRepository.findById(20L)).willReturn(Optional.of(savebox));
 
-        given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId)).willReturn(Optional.empty());
-        given(savingsSettingRepository.save(any(SavingsSetting.class))).willAnswer(i -> i.getArgument(0));
+        given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId))
+                .willReturn(Optional.empty());
+        given(savingsSettingRepository.save(any(SavingsSetting.class)))
+                .willAnswer(i -> i.getArgument(0));
 
         // when
         accountService.createOrUpdateSavingsSetting(userId, request);
