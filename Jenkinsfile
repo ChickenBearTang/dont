@@ -23,16 +23,14 @@ pipeline {
         stage('Prepare Runtime Config') {
             steps {
                 script {
-                    if (!fileExists(env.ENV_FILE)) {
-                        withCredentials([file(credentialsId: 'MY_ENV_FILE', variable: 'ENV_SOURCE_FILE')]) {
-                            sh '''
-                                set -eu
-                                install -m 600 "${ENV_SOURCE_FILE}" "${ENV_FILE}"
-                            '''
-                        }
-
-                        echo "Created ${env.ENV_FILE} from Jenkins credential: MY_ENV_FILE"
+                    withCredentials([file(credentialsId: 'MY_ENV_FILE', variable: 'ENV_SOURCE_FILE')]) {
+                        sh '''
+                            set -eu
+                            install -m 600 "${ENV_SOURCE_FILE}" "${ENV_FILE}"
+                        '''
                     }
+
+                    echo "Refreshed ${env.ENV_FILE} from Jenkins credential: MY_ENV_FILE"
                 }
             }
         }
