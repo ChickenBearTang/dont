@@ -34,17 +34,19 @@ export const login = async (data: LoginRequestPayload): Promise<ApiResponse<Logi
 };
 
 export const refreshAccessToken = async (): Promise<ApiResponse<TokenReissueResponseData>> => {
-  const response = await authClient.post<ApiResponse<TokenReissueResponseData>>('/auth/reissue', {});
+  const response = await authClient.post<ApiResponse<TokenReissueResponseData>>(
+    '/auth/reissue',
+    {}
+  );
   return response.data;
 };
 
 export const logout = async (): Promise<void> => {
-  await authClient.post('/auth/logout', {});
+  await axiosInstance.post('/auth/logout', {});
 };
 
 export const signup = async (
-  data: SignUpRequestPayload,
+  data: SignUpRequestPayload
 ): Promise<ApiResponse<SignUpResponseData>> => {
   return await axiosInstance.post('/auth/signup', data);
 };
-
