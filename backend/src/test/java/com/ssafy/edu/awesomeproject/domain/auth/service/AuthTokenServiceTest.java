@@ -20,6 +20,8 @@ import com.ssafy.edu.awesomeproject.domain.auth.token.RefreshTokenStore;
 import com.ssafy.edu.awesomeproject.domain.auth.token.ReissueLockStore;
 import com.ssafy.edu.awesomeproject.domain.auth.token.StoredRefreshToken;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -379,8 +381,11 @@ class AuthTokenServiceTest {
                         "test@example.com",
                         "encoded-password",
                         "Tester",
+                        LocalDate.of(1990, 1, 1),
                         "tester",
                         null,
+                        true,
+                        LocalDateTime.now(),
                         UserRole.USER,
                         null);
         ReflectionTestUtils.setField(user, "id", id);
