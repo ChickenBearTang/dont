@@ -9,8 +9,15 @@ import {
   toggleReaction,
   updateComment,
 } from '../api/communityApi';
-import type { BoardCategory, CommentSummaryDto, GetPostResponseDto, ReactionType } from '../types';
+import type {
+  BoardCategory,
+  CommentSummaryDto,
+  GetPostResponseDto,
+  ReactionType,
+  ReportTargetType,
+} from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { ReportModal } from '../components/ReportModal';
 
 interface CommentNode extends CommentSummaryDto {
   children: CommentNode[];
@@ -26,6 +33,7 @@ interface CommentItemProps {
   refreshComments: () => Promise<void>;
   setPost: React.Dispatch<React.SetStateAction<GetPostResponseDto | null>>;
   formatDate: (dateStr: string) => string;
+  onReport: (type: ReportTargetType, id: number) => void;
 }
 
 const CommentItem = ({
@@ -37,6 +45,7 @@ const CommentItem = ({
   refreshComments,
   setPost,
   formatDate,
+  onReport,
 }: CommentItemProps) => {
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
@@ -163,6 +172,15 @@ const CommentItem = ({
                   삭제
                 </button>
               </div>
+            )}
+            {!node.isVirtual && !isCommentAuthor && (
+              <button
+                type="button"
+                onClick={() => onReport('COMMENT', node.commentId)}
+                className="text-[12px] font-medium text-gray-300 hover:text-rose-400 transition-colors"
+              >
+                신고
+              </button>
             )}
           </div>
 
@@ -297,6 +315,7 @@ const CommentItem = ({
             refreshComments={refreshComments}
             setPost={setPost}
             formatDate={formatDate}
+            onReport={onReport}
           />
         ))}
     </div>
@@ -322,6 +341,24 @@ export const PostDetailPage = () => {
     const saved = localStorage.getItem(reactionStorageKey);
     return saved === 'LIKE' || saved === 'DISLIKE' ? (saved as ReactionType) : null;
   });
+
+  const [reportModalState, setReportModalState] = useState<{
+    isOpen: boolean;
+    targetType: ReportTargetType;
+    targetId: number;
+  }>({
+    isOpen: false,
+    targetType: 'POST',
+    targetId: 0,
+  });
+
+  const onReport = (type: ReportTargetType, id: number) => {
+    setReportModalState({
+      isOpen: true,
+      targetType: type,
+      targetId: id,
+    });
+  };
 
   const currentUser = useAuthStore((state) => state.user);
 
@@ -638,7 +675,31 @@ export const PostDetailPage = () => {
               </div>
             </div>
           ) : (
-            <div className="w-5" />
+            <button
+              type="button"
+              onClick={() => onReport('POST', Number(postId))}
+              className="p-2 -mr-2 text-gray-400 hover:text-rose-500 transition-colors"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2.2"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 18v-6a5 5 0 1 1 10 0v6" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 12h1M12 2v1m-6.5 1.5L4 3M18.5 4.5 20 3M2 12h1"
+                />
+              </svg>
+            </button>
           )}
         </div>
       </div>
@@ -738,6 +799,7 @@ export const PostDetailPage = () => {
                   refreshComments={refreshComments}
                   setPost={setPost}
                   formatDate={formatDate}
+                  onReport={onReport}
                 />
               ))
             )}
@@ -774,6 +836,13 @@ export const PostDetailPage = () => {
           </button>
         </div>
       </form>
+
+      <ReportModal
+        isOpen={reportModalState.isOpen}
+        onClose={() => setReportModalState((prev) => ({ ...prev, isOpen: false }))}
+        targetType={reportModalState.targetType}
+        targetId={reportModalState.targetId}
+      />
     </div>
   );
 };

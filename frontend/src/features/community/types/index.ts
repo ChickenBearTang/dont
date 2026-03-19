@@ -157,3 +157,20 @@ export interface ToggleReactionResponseDto {
   likeCount: number;
   dislikeCount: number;
 }
+
+export type ReportTargetType = 'POST' | 'COMMENT';
+
+export type ReportReasonCode = 'SPAM' | 'ABUSE' | 'INAPPROPRIATE' | 'SCAM' | 'PRIVACY' | 'OTHER';
+
+export interface ReportCreateRequestDto {
+  targetType: ReportTargetType;
+  targetId: number;
+  reasonCode: ReportReasonCode;
+  detailText?: string;
+}
+
+export interface ReportCreateResponseDto {
+  reportId: number;
+  reportStatus: string;
+  createdAt: string;
+}
