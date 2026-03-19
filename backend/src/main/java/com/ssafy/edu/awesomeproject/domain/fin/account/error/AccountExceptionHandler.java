@@ -18,7 +18,7 @@ public class AccountExceptionHandler {
     public ResponseEntity<AccountApiResponse<Void>> handleAccountException(AccountException e) {
         log.error("Account 도메인 예외 발생: [{}] {}", e.getErrorCode().code(), e.getMessage());
         return ResponseEntity
-                .status(e.getErrorCode().status().is5xxServerError() ? 500 : 400)
+                .status(e.getErrorCode().status())
                 .body(AccountApiResponse.error(e.getErrorCode().code(), e.getMessage()));
     }
 }
