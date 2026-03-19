@@ -59,14 +59,13 @@ export const CommunitySidebar = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const currentCategory = searchParams.get('category');
-  const inPollRoute = location.pathname === '/community/poll';
 
   const links: Array<{ label: string; category: string | null; to?: string }> = [
     { label: '전체 게시판', category: null },
     { label: '자유 게시판', category: 'FREE' },
     { label: 'PR 게시판', category: 'PR' },
     { label: '기수 게시판', category: 'COHORT' },
-    { label: '토론 게시판', category: 'POLL', to: '/community/poll' },
+    { label: '토론 게시판', category: 'POLL' },
     { label: '핫딜 게시판', category: 'HOTDEAL' },
   ];
 
@@ -78,11 +77,7 @@ export const CommunitySidebar = () => {
       </div>
 
       {links.map((link) => {
-        const isActive = link.to
-          ? link.to === '/community/poll'
-              ? inPollRoute
-              : false
-          : currentCategory === link.category || (!currentCategory && !link.category);
+        const isActive = currentCategory === link.category || (!currentCategory && !link.category);
         const to = link.to ?? (link.category ? `/community?category=${link.category}` : '/community');
 
         return (

@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { Navigate, createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
 import { SignUpPage, LoginPage } from '@/features/auth';
 import { OnboardingPage } from '@/features/user';
@@ -87,10 +87,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'poll',
-            async lazy() {
-              const { PollPage } = await import('@/features/community/poll');
-              return { Component: PollPage };
-            },
+            element: <Navigate to="/community?category=POLL" replace />,
           },
           {
             path: ':postId',
