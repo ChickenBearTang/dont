@@ -326,3 +326,7 @@ opencode.jsonc
 
 # Deployment packaging artifacts
 release_out/
+
+# Project specific ignores
+ai/data/
+ai/.env
