@@ -148,6 +148,22 @@ export const router = createBrowserRouter([
           return { Component: SaveboxSetupPage };
         },
       },
+      {
+        path: '/finance/savebox',
+        async lazy() {
+          const { SaveboxDetailPage } =
+            await import('@/features/finance/account/pages/SaveboxDetailPage');
+          return { Component: SaveboxDetailPage };
+        },
+      },
+      {
+        path: '/savings-rule-setup',
+        async lazy() {
+          const { SavingsRuleSetupPage } =
+            await import('@/features/finance/account/pages/SavingsRuleSetupPage');
+          return { Component: SavingsRuleSetupPage };
+        },
+      },
     ],
   },
 ]);
