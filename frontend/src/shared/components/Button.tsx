@@ -1,11 +1,15 @@
-import type { ButtonHTMLAttributes, Ref } from 'react';
+import type { ButtonHTMLAttributes } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'outline' | 'oauth';
-  ref?: Ref<HTMLButtonElement>;
 }
 
-export const Button = ({ children, variant = 'primary', className = '', ref, ...props }: ButtonProps) => {
+export const Button = ({
+  children,
+  variant = 'primary',
+  className = '',
+  ...props
+}: ButtonProps) => {
   const baseClass =
     variant === 'primary'
       ? 'w-full bg-primary-blue text-white py-4 rounded-xl font-bold text-[17px] border-none shadow-[0_4px_14px_rgba(10,101,255,0.3)] hover:bg-[#0052cc] hover:-translate-y-0.5 active:bg-[#0040a8] transition-all disabled:bg-[#c2d7fa] disabled:cursor-not-allowed'

@@ -19,8 +19,8 @@ export const AuthenticatedLayoutRoute = () => {
   const handleLogout = async () => {
     try {
       await logoutApi();
-    } catch {
-      // Keep local logout even if the server logout call fails.
+    } catch (error) {
+      void error;
     } finally {
       logout();
     }
