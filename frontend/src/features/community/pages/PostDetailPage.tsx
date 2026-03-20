@@ -210,9 +210,13 @@ const CommentItem = ({
             </form>
           ) : (
             <div
-              className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual ? 'text-gray-400 italic' : 'text-gray-800'}`}
+              className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual || node.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
             >
-              {node.isVirtual ? '삭제된 댓글입니다.' : node.content}
+              {node.status === 'BLINDED'
+                ? '신고 처리된 댓글입니다.'
+                : node.isVirtual
+                  ? '삭제된 댓글입니다.'
+                  : node.content}
             </div>
           )}
 
@@ -392,6 +396,7 @@ export const PostDetailPage = () => {
             dislikeCount: 0,
             createdAt: node.createdAt,
             updatedAt: node.createdAt,
+            status: 'DELETED',
             children: [],
             isVirtual: true,
           };
@@ -722,11 +727,15 @@ export const PostDetailPage = () => {
         </div>
 
         <div className="px-5 mt-5">
-          <h1 className="text-[20px] font-bold text-gray-900 leading-snug tracking-[-0.01em] whitespace-pre-wrap">
-            {post.title}
+          <h1
+            className={`text-[20px] font-bold leading-snug tracking-[-0.01em] whitespace-pre-wrap ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-900'}`}
+          >
+            {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
           </h1>
-          <div className="mt-4 text-[16px] text-gray-800 leading-[1.65] font-medium whitespace-pre-wrap word-break-all">
-            {post.content}
+          <div
+            className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
+          >
+            {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
           </div>
         </div>
 

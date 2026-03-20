@@ -31,6 +31,7 @@ export interface GetPostResponseDto {
   category: BoardCategory;
   generationNo: number | null;
   title: string;
+  status: 'ACTIVE' | 'DELETED' | 'BLINDED';
   content: string;
   authorId: number;
   authorNickname: string;
@@ -79,6 +80,7 @@ export interface PostSummaryDto {
   category: BoardCategory;
   generationNo: number | null;
   title: string;
+  status: 'ACTIVE' | 'DELETED' | 'BLINDED';
   authorId: number;
   authorNickname: string;
   isMine: boolean;
@@ -126,6 +128,7 @@ export interface CommentSummaryDto {
   authorId: number;
   authorNickname: string;
   content: string;
+  status: 'ACTIVE' | 'DELETED' | 'BLINDED';
   likeCount: number;
   dislikeCount: number;
   isMine: boolean;
@@ -173,4 +176,53 @@ export interface ReportCreateResponseDto {
   reportId: number;
   reportStatus: string;
   createdAt: string;
+}
+export interface AdminReportSummaryDto {
+  reportId: number;
+  reporterUserId: number;
+  targetType: 'POST' | 'COMMENT';
+  targetId: number;
+  reasonCode: string;
+  reportStatus: 'RECEIVED' | 'BLINDED' | 'REJECTED';
+  createdAt: string;
+  processedAt: string | null;
+}
+
+export interface AdminReportListResponseDto {
+  content: AdminReportSummaryDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface AdminReportDetailResponseDto {
+  reportId: number;
+  reporterUserId: number;
+  targetType: 'POST' | 'COMMENT';
+  targetId: number;
+  reasonCode: string;
+  detailText: string;
+  reportStatus: 'RECEIVED' | 'BLINDED' | 'REJECTED';
+  processedByUserId: number | null;
+  processNote: string | null;
+  processedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  targetAuthorNickname: string;
+  targetTitle: string | null;
+  targetContent: string;
+  targetStatus: string;
+  postId: number | null;
+}
+
+export interface ReportProcessRequestDto {
+  processNote: string;
+}
+
+export interface ReportProcessResponseDto {
+  reportId: number;
+  status: 'RECEIVED' | 'BLINDED' | 'REJECTED';
+  processedAt: string;
 }
