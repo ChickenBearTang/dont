@@ -93,9 +93,7 @@ public class AccountService {
                                 .bankCode(detail.bankCode())
                                 .accountName(detail.accountName())
                                 .currencyCode(
-                                        detail.currency() != null
-                                                ? detail.currency().currency()
-                                                : "KRW")
+                                        detail.currency() != null ? detail.currency() : "KRW")
                                 .balance(parseBigDecimal(detail.accountBalance()))
                                 .status(AccountStatus.ACTIVE)
                                 .isPrimary(false)
