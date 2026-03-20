@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useGetMyAccounts } from '../hooks/useAccountQueries';
 import { useSetPrimaryAccount, useCreateSaveBox } from '../hooks/useAccountMutations';
 import type { AccountDetail } from '../types';
@@ -50,7 +49,6 @@ const SelectableAccountCard: React.FC<{
  * 세이브박스 개설 및 주계좌 설정 온보딩 페이지
  */
 export const SaveboxSetupPage: React.FC = () => {
-  const navigate = useNavigate();
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
   // 데이터 조회
@@ -103,10 +101,7 @@ export const SaveboxSetupPage: React.FC = () => {
           이제 돈을 더 똑똑하게 모을 준비가 되었어요.
           <br />주 계좌와 연결되어 자동으로 저축이 시작됩니다.
         </p>
-        <button
-          className="w-full max-w-xs py-4 bg-primary-blue text-white rounded-2xl text-lg font-bold shadow-lg hover:shadow-primary-blue/30 transition-all hover:scale-[1.02]"
-        >
-        </button>
+        <button className="w-full max-w-xs py-4 bg-primary-blue text-white rounded-2xl text-lg font-bold shadow-lg hover:shadow-primary-blue/30 transition-all hover:scale-[1.02]"></button>
       </div>
     );
   }
