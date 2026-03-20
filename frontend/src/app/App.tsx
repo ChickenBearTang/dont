@@ -4,6 +4,7 @@ import { router } from '@/app/router';
 import { ToastContainer } from '@/shared/components/ToastContainer';
 import { refreshAccessToken } from '@/features/auth/api/authApi';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import StrictSecretaryModal from '@/components/StrictSecretaryModal';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import '@/styles/index.css';
@@ -58,6 +59,7 @@ const AppBootstrap = () => {
     <>
       <ToastContainer />
       <RouterProvider router={router} />
+      <StrictSecretaryModal />
     </>
   );
 };

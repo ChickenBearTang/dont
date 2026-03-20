@@ -101,7 +101,10 @@ export default function StrictSecretaryResult({
 
   if (status === 'RETRY' || !data) {
     return (
-      <div className="ss-result-container retry">
+      <div className="ss-result-container retry" style={{ position: 'relative' }}>
+        <button className="ss-close-btn" onClick={onReset} aria-label="닫기">
+          &times;
+        </button>
         <h2>AI 응답 지연</h2>
         <p>엄격한 비서가 아직 답변을 준비하지 못했어요.</p>
         <div className="ss-result-actions">
@@ -119,7 +122,10 @@ export default function StrictSecretaryResult({
   const { is_approved, fact_violence_comment, reasoning } = data;
 
   return (
-    <div className={`ss-result-container ${is_approved ? 'approved' : 'rejected'}`}>
+    <div className={`ss-result-container ${is_approved ? 'approved' : 'rejected'}`} style={{ position: 'relative' }}>
+      <button className="ss-close-btn" onClick={onReset} aria-label="닫기">
+        &times;
+      </button>
       <div className="ss-result-status">{is_approved ? '✅ 구매 승인' : '❌ 구매 기각'}</div>
 
       <div className="ss-character-speech">
