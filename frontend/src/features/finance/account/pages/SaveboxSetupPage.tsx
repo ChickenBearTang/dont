@@ -104,10 +104,10 @@ export const SaveboxSetupPage: React.FC = () => {
           <br />주 계좌와 연결되어 자동으로 저축이 시작됩니다.
         </p>
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/savings-rule-setup')}
           className="w-full max-w-xs py-4 bg-primary-blue text-white rounded-2xl text-lg font-bold shadow-lg hover:shadow-primary-blue/30 transition-all hover:scale-[1.02]"
         >
-          대시보드로 가기
+          자동 저축 규칙 설정하기
         </button>
       </div>
     );
