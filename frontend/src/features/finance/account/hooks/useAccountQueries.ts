@@ -9,7 +9,14 @@ export const useGetMyAccounts = () => {
   return useQuery({
     queryKey: accountKeys.lists(),
     queryFn: accountApi.getMyAccounts,
-    select: (response) => response.data.accounts,
+    select: (response) => {
+      const sortedAccounts = [...response.data.accounts].sort((a, b) => {
+        const balanceA = Number(a.accountBalance) || 0;
+        const balanceB = Number(b.accountBalance) || 0;
+        return balanceB - balanceA; // 내림차순 정렬
+      });
+      return sortedAccounts;
+    },
   });
 };
 
