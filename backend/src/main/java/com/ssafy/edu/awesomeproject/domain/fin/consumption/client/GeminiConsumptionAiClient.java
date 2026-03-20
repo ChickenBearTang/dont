@@ -33,7 +33,8 @@ public class GeminiConsumptionAiClient implements ConsumptionAiClient {
     @Override
     public AiReportAnalysis analyzeMonthlyReport(Map<String, Object> reportPayload) {
         if (apiKey == null || apiKey.isBlank()) {
-            log.warn("Gemini report analysis skipped: GEMINI_API_KEY is missing. Fallback analysis will be used.");
+            log.warn(
+                    "Gemini report analysis skipped: GEMINI_API_KEY is missing. Fallback analysis will be used.");
             return new AiReportAnalysis(defaultReportFeedback(), "degraded");
         }
 
@@ -119,9 +120,7 @@ public class GeminiConsumptionAiClient implements ConsumptionAiClient {
         RestClient client = RestClient.builder().baseUrl(baseUrl).build();
 
         Map<String, Object> body =
-                Map.of(
-                        "contents",
-                        List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
+                Map.of("contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
 
         JsonNode node =
                 client.post()
@@ -135,7 +134,8 @@ public class GeminiConsumptionAiClient implements ConsumptionAiClient {
             throw new IllegalStateException("Gemini response is null");
         }
 
-        JsonNode textNode = node.path("candidates").path(0).path("content").path("parts").path(0).path("text");
+        JsonNode textNode =
+                node.path("candidates").path(0).path("content").path("parts").path(0).path("text");
         String text = textNode.asText("");
         if (text.isBlank()) {
             throw new IllegalStateException("Gemini response text is empty");

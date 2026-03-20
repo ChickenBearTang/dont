@@ -1,5 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.fin.consumption.service;
 
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.analyzer.ConsumptionReportAnalyzer;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.client.ConsumptionAiClient;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.GenerateMonthlyReportRequest;
@@ -14,14 +16,14 @@ import com.ssafy.edu.awesomeproject.domain.fin.consumption.error.ConsumptionErro
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.error.ConsumptionException;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.repository.FinConsumptionJustificationRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.repository.FinConsumptionMonthlyReportRepository;
-import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,11 @@ public class ConsumptionReportService {
             GenerateMonthlyReportRequest request,
             MonthlyReportGenerationSource source) {
         LocalDate reportMonth = toMonthStart(request.reportMonth());
+        return generateMonthlyReport(userId, reportMonth, source);
+    }
+
+    private MonthlyReportResponse generateMonthlyReport(
+            Long userId, LocalDate reportMonth, MonthlyReportGenerationSource source) {
         FinConsumptionMonthlyReport latest =
                 monthlyReportRepository
                         .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, reportMonth)
@@ -63,13 +70,21 @@ public class ConsumptionReportService {
         CardSummaryResponse cardSummary = resolveCardSummary(userId, reportMonth);
         Map<String, Object> basePayload =
                 consumptionReportAnalyzer.buildBaseMonthlyPayload(userId, reportMonth, cardSummary);
+        List<Map<String, Object>> validJustifications =
+                loadValidJustificationsForReport(userId, reportMonth);
+        Map<String, Object> aiInputPayload =
+                Map.of("base", basePayload, "justifications", validJustifications);
         ConsumptionAiClient.AiReportAnalysis aiAnalysis =
-                consumptionAiClient.analyzeMonthlyReport(basePayload);
+                consumptionAiClient.analyzeMonthlyReport(aiInputPayload);
 
         Map<String, Object> reportPayload =
                 Map.of(
-                        "base", basePayload,
-                        "aiAnalysis", aiAnalysis.analysisPayload());
+                        "base",
+                        basePayload,
+                        "justifications",
+                        validJustifications,
+                        "aiAnalysis",
+                        aiAnalysis.analysisPayload());
 
         FinConsumptionMonthlyReport report =
                 FinConsumptionMonthlyReport.builder()
@@ -94,7 +109,10 @@ public class ConsumptionReportService {
         FinConsumptionMonthlyReport report =
                 monthlyReportRepository
                         .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, reportMonth)
-                        .orElseThrow(() -> new ConsumptionException(ConsumptionErrorCode.REPORT_NOT_FOUND));
+                        .orElseThrow(
+                                () ->
+                                        new ConsumptionException(
+                                                ConsumptionErrorCode.REPORT_NOT_FOUND));
         return toResponse(report);
     }
 
@@ -106,9 +124,13 @@ public class ConsumptionReportService {
                         .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, targetMonth)
                         .map(FinConsumptionMonthlyReport::getReportPayload)
                         .orElse(Map.of());
+        List<Map<String, String>> history =
+                toHistory(
+                        justificationRepository.findAllByUserIdAndTargetMonthOrderByCreatedAtDesc(
+                                userId, targetMonth));
 
         ConsumptionAiClient.JustificationEvaluation evaluation =
-                consumptionAiClient.evaluateJustification(message, context, List.of());
+                consumptionAiClient.evaluateJustification(message, context, history);
 
         FinConsumptionJustification saved =
                 justificationRepository.save(
@@ -121,13 +143,23 @@ public class ConsumptionReportService {
                                 .contextPayload(context)
                                 .build());
 
+        MonthlyReportResponse regeneratedReport = null;
+        boolean reportRegenerated = false;
+        if (evaluation.valid()) {
+            regeneratedReport =
+                    generateMonthlyReport(userId, targetMonth, MonthlyReportGenerationSource.RETRY);
+            reportRegenerated = true;
+        }
+
         return new JustificationEvaluationResponse(
                 saved.getId(),
                 saved.getTargetMonth().toString(),
                 saved.isValid(),
                 saved.getUserMessage(),
                 saved.getAiResponse(),
-                saved.getCreatedAt());
+                saved.getCreatedAt(),
+                reportRegenerated,
+                regeneratedReport);
     }
 
     private MonthlyReportResponse toResponse(FinConsumptionMonthlyReport saved) {
@@ -166,5 +198,36 @@ public class ConsumptionReportService {
         String startDate = monthStart.format(DateTimeFormatter.BASIC_ISO_DATE);
         String endDate = monthEnd.format(DateTimeFormatter.BASIC_ISO_DATE);
         return cardService.getCardSummary(userId, startDate, endDate);
+    }
+
+    private List<Map<String, String>> toHistory(List<FinConsumptionJustification> rows) {
+        return rows.stream()
+                .sorted(Comparator.comparing(FinConsumptionJustification::getCreatedAt))
+                .flatMap(
+                        row ->
+                                List.of(
+                                        Map.of("role", "user", "message", row.getUserMessage()),
+                                        Map.of("role", "assistant", "message", row.getAiResponse()))
+                                        .stream())
+                .toList();
+    }
+
+    private List<Map<String, Object>> loadValidJustificationsForReport(
+            Long userId, LocalDate targetMonth) {
+        return justificationRepository
+                .findAllByUserIdAndTargetMonthOrderByCreatedAtDesc(userId, targetMonth)
+                .stream()
+                .filter(FinConsumptionJustification::isValid)
+                .sorted(Comparator.comparing(FinConsumptionJustification::getCreatedAt))
+                .map(
+                        row -> {
+                            Map<String, Object> item = new LinkedHashMap<>();
+                            item.put("id", row.getId());
+                            item.put("message", row.getUserMessage());
+                            item.put("aiResponse", row.getAiResponse());
+                            item.put("createdAt", row.getCreatedAt());
+                            return item;
+                        })
+                .toList();
     }
 }

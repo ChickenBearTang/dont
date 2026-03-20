@@ -9,11 +9,7 @@ public interface ConsumptionAiClient {
     JustificationEvaluation evaluateJustification(
             String message, Map<String, Object> context, List<Map<String, String>> history);
 
-    record AiReportAnalysis(
-            Map<String, Object> analysisPayload,
-            String llmStatus) {}
+    record AiReportAnalysis(Map<String, Object> analysisPayload, String llmStatus) {}
 
-    record JustificationEvaluation(
-            boolean valid,
-            String response) {}
+    record JustificationEvaluation(boolean valid, String response) {}
 }
