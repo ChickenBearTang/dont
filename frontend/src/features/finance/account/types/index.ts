@@ -72,7 +72,7 @@ export interface SavingsSetting {
 /* --- API Requests --- */
 
 export interface SaveBoxCreateRequest {
-  accountName: string;
+  accountTypeUniqueNo: string;
 }
 
 export interface SavingsSettingRequest {
