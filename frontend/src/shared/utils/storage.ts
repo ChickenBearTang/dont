@@ -1,7 +1,3 @@
-/**
- * 로컬 스토리지 안전 접근 유틸리티
- */
-
 export const storage = {
   get: <T>(key: string): T | null => {
     try {

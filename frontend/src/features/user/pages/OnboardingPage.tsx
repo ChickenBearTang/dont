@@ -25,7 +25,7 @@ export const OnboardingPage = () => {
         { cohortId: 2, cohortCode: '15기' },
         { cohortId: 3, cohortCode: '16기' },
       ];
-      
+
       setTimeout(() => {
         setCohorts(mockCohorts);
         setIsLoading(false);
@@ -58,7 +58,6 @@ export const OnboardingPage = () => {
 
   return (
     <div className="w-full max-w-[800px] mx-auto py-12 px-6">
-      {/* 진행바 (마지막 단계 제외) */}
       {step < 3 && (
         <div className="mb-16">
           <div className="flex justify-between items-center mb-4">
@@ -69,24 +68,12 @@ export const OnboardingPage = () => {
         </div>
       )}
 
-      {/* 단계별 렌더링 */}
       <div className="min-h-[500px] flex flex-col justify-center">
         {step === 1 && (
-          <Step1_Cohort
-            cohorts={cohorts}
-            isLoading={isLoading}
-            onNext={handleStep1Next}
-          />
+          <Step1_Cohort cohorts={cohorts} isLoading={isLoading} onNext={handleStep1Next} />
         )}
-        {step === 2 && (
-          <Step2_Goal
-            onNext={handleStep2Next}
-            onBack={() => setStep(1)}
-          />
-        )}
-        {step === 3 && (
-          <Step3_Welcome />
-        )}
+        {step === 2 && <Step2_Goal onNext={handleStep2Next} onBack={() => setStep(1)} />}
+        {step === 3 && <Step3_Welcome />}
       </div>
     </div>
   );

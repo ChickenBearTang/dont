@@ -1,6 +1,3 @@
-/**
- * Account 도메인의 쿼리 키를 체계적으로 관리하기 위한 Factory 객체
- */
 export const accountKeys = {
   all: ['account'] as const,
   lists: () => [...accountKeys.all, 'list'] as const,

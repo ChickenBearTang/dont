@@ -2,9 +2,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { accountApi } from '../api/accountApi';
 import { accountKeys } from '../queries/accountKeys';
 
-/**
- * 신규 세이브박스 개설 mutation 훅
- */
 export const useCreateSaveBox = () => {
   const queryClient = useQueryClient();
 
@@ -17,9 +14,6 @@ export const useCreateSaveBox = () => {
   });
 };
 
-/**
- * 계좌 목록 새로고침(동기화) mutation 훅
- */
 export const useRefreshAccounts = () => {
   const queryClient = useQueryClient();
 
@@ -31,9 +25,6 @@ export const useRefreshAccounts = () => {
   });
 };
 
-/**
- * 주계좌 설정 mutation 훅
- */
 export const useSetPrimaryAccount = () => {
   const queryClient = useQueryClient();
 
@@ -46,9 +37,6 @@ export const useSetPrimaryAccount = () => {
   });
 };
 
-/**
- * 자동 저축 설정 저장 mutation 훅
- */
 export const useSaveSavingsSetting = () => {
   const queryClient = useQueryClient();
 
@@ -60,9 +48,6 @@ export const useSaveSavingsSetting = () => {
   });
 };
 
-/**
- * 수동 저축 실행 mutation 훅
- */
 export const useExecuteManualSavings = () => {
   const queryClient = useQueryClient();
 

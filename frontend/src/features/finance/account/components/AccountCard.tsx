@@ -6,9 +6,6 @@ interface AccountCardProps {
   account: AccountDetail;
 }
 
-/**
- * 개별 계좌 정보를 표시하는 카드 컴포넌트
- */
 export const AccountCard: React.FC<AccountCardProps> = ({ account }) => {
   const navigate = useNavigate();
   const { bankName, accountName, accountNo, accountBalance, currencyCode } = account;

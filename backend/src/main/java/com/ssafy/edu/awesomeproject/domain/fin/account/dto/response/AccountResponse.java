@@ -5,7 +5,6 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountStatus;
 import java.math.BigDecimal;
 import lombok.Builder;
 
-/** 계좌 상세 정보를 반환하기 위한 불변 DTO (record) */
 @Builder
 public record AccountResponse(
         Long id,

@@ -9,10 +9,6 @@ interface AppLayoutProps {
   isAuthenticated: boolean;
 }
 
-/**
- * 앱 내부 페이지 레이아웃 (헤더 포함)
- * 대시보드 및 이후 기능 서비스 전용
- */
 const AppLayout = ({ user, onLogout, isAuthenticated }: AppLayoutProps) => {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col relative w-full pt-[64px]">

@@ -28,7 +28,6 @@ public class OpenBankAdapter {
     @Value("${ssafy.api.key}")
     private String apiKey;
 
-    /** 수시입출금 계좌를 신규 개설합니다. */
     public OpenBankCreateAccountResponse createDemandDepositAccount(
             String userKey, String accountTypeUniqueNo) {
         OpenBankCreateAccountRequest request =

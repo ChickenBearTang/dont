@@ -2,9 +2,6 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGetAccountDetail, useGetAccountTransactions } from '../hooks/useAccountQueries';
 
-/**
- * 특정 계좌의 상세 정보 및 거래 내역을 조회하는 페이지
- */
 export const AccountDetailPage: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
@@ -43,7 +40,6 @@ export const AccountDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      {/* 뒤로가기 버튼 */}
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 mb-6 text-gray hover:text-eel transition-colors"
@@ -60,7 +56,6 @@ export const AccountDetailPage: React.FC = () => {
         <span>뒤로</span>
       </button>
 
-      {/* 계좌 요약 헤더 */}
       <header className="p-8 mb-8 bg-white border border-light-gray rounded-3xl shadow-sm">
         <div className="flex justify-between items-start mb-6">
           <div>
@@ -85,7 +80,6 @@ export const AccountDetailPage: React.FC = () => {
         </div>
       </header>
 
-      {/* 거래 내역 리스트 */}
       <section className="bg-white border border-light-gray rounded-3xl shadow-sm overflow-hidden">
         <div className="px-8 py-5 border-b border-light-gray flex justify-between items-center bg-gray/5">
           <h3 className="font-black text-eel">거래 내역</h3>

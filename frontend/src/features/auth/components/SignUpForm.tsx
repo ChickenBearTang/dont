@@ -6,9 +6,6 @@ import { mockDb } from '@/shared/api/mockDb';
 import type { SignUpRequestPayload } from '@/features/auth/types';
 import type { Cohort, SelectOption } from '@/shared/types';
 
-/**
- * 회원가입 결과 상태
- */
 interface FormState {
   success: boolean;
   message: string;
@@ -51,51 +48,45 @@ export const SignUpForm = () => {
     loadCohorts();
   }, []);
 
-  /**
-   * React 19 useActionState 핸들러
-   */
-  const [state, formAction, isPending] = useActionState(
-    async (_prevState: FormState, _fd: FormData): Promise<FormState> => {
-      const { email, password, realName, nickname, birthDate, cohortId, termsAgreed } = formData;
+  const [state, formAction, isPending] = useActionState(async (): Promise<FormState> => {
+    const { email, password, realName, nickname, birthDate, cohortId, termsAgreed } = formData;
 
-      const errors: Record<string, string> = {};
-      if (!email.includes('@')) errors.email = '올바른 이메일 형식을 입력해주세요.';
-      if (password.length < 8) errors.password = '비밀번호는 8자 이상이어야 합니다.';
-      if (!cohortId) errors.cohortId = '기수를 선택해주세요.';
-      if (!termsAgreed) errors.termsAgreed = '약관에 동의해야 합니다.';
+    const errors: Record<string, string> = {};
+    if (!email.includes('@')) errors.email = '올바른 이메일 형식을 입력해주세요.';
+    if (password.length < 8) errors.password = '비밀번호는 8자 이상이어야 합니다.';
+    if (!cohortId) errors.cohortId = '기수를 선택해주세요.';
+    if (!termsAgreed) errors.termsAgreed = '약관에 동의해야 합니다.';
 
-      if (Object.keys(errors).length > 0) {
-        return { success: false, message: '입력 정보를 확인해주세요.', errors };
-      }
+    if (Object.keys(errors).length > 0) {
+      return { success: false, message: '입력 정보를 확인해주세요.', errors };
+    }
 
-      try {
-        const payload: SignUpRequestPayload = {
-          email,
-          password,
-          realName,
-          nickname,
-          birthDate,
-          cohortId,
-          termsAgreed,
-        };
+    try {
+      const payload: SignUpRequestPayload = {
+        email,
+        password,
+        realName,
+        nickname,
+        birthDate,
+        cohortId,
+        termsAgreed,
+      };
 
-        // Prototyping: Mock DB 연동
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        mockDb.registerUser(payload);
-        console.log('User registered in Mock DB:', email);
+      // Prototyping: Mock DB 연동
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      mockDb.registerUser(payload);
+      console.log('User registered in Mock DB:', email);
 
-        return { success: true, message: '회원가입이 완료되었습니다!', errors: {} };
-      } catch (error: any) {
-        console.error('Signup error:', error);
-        return {
-          success: false,
-          message: '회원가입 중 에러가 발생했습니다.',
-          errors: {}
-        };
-      }
-    },
-    initialState
-  );
+      return { success: true, message: '회원가입이 완료되었습니다!', errors: {} };
+    } catch (error: unknown) {
+      console.error('Signup error:', error);
+      return {
+        success: false,
+        message: '회원가입 중 에러가 발생했습니다.',
+        errors: {},
+      };
+    }
+  }, initialState);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -135,7 +126,9 @@ export const SignUpForm = () => {
         onChange={handleInputChange}
         error={!!state.errors.email}
       />
-      {state.errors.email && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.email}</p>}
+      {state.errors.email && (
+        <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.email}</p>
+      )}
 
       <Input
         label="비밀번호"
@@ -147,7 +140,9 @@ export const SignUpForm = () => {
         onChange={handleInputChange}
         error={!!state.errors.password}
       />
-      {state.errors.password && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.password}</p>}
+      {state.errors.password && (
+        <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.password}</p>
+      )}
 
       <Input
         label="이름"
@@ -186,7 +181,9 @@ export const SignUpForm = () => {
         onChange={handleCohortChange}
         error={!!state.errors.cohortId}
       />
-      {state.errors.cohortId && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.cohortId}</p>}
+      {state.errors.cohortId && (
+        <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.cohortId}</p>
+      )}
 
       <Checkbox
         label="서비스 이용약관 및 개인정보 처리방침에 동의합니다."
@@ -195,7 +192,9 @@ export const SignUpForm = () => {
         checked={formData.termsAgreed}
         onChange={handleInputChange}
       />
-      {state.errors.termsAgreed && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.termsAgreed}</p>}
+      {state.errors.termsAgreed && (
+        <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.termsAgreed}</p>
+      )}
 
       <Button type="submit" className="mt-8" disabled={isPending}>
         {isPending ? '가입 중...' : '회원가입 완료'}

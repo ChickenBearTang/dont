@@ -26,7 +26,6 @@ import { Mascot } from '@/shared/components/Mascot';
 export const DashboardPage = () => {
   return (
     <div className="space-y-10">
-      {/* 상단 환영 영역 */}
       <section className="flex flex-col md:flex-row items-center justify-between gap-8 bg-white p-10 rounded-[40px] border border-gray-100 shadow-sm">
         <div className="space-y-4 text-center md:text-left">
           <h2 className="text-3xl font-black text-gray-900 leading-tight">
@@ -46,19 +45,15 @@ export const DashboardPage = () => {
         />
       </section>
 
-      {/* 메인 위젯 그리드 */}
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* 지출 카드 */}
         <div className="lg:col-span-1">
           <ExpenditureCard />
         </div>
 
-        {/* 목표 달성 위젯 */}
         <div className="lg:col-span-1">
           <GoalProgressWidget />
         </div>
 
-        {/* 최근 알림/활동 (Mock) */}
         <Card className="lg:col-span-1 p-8 flex flex-col hover:shadow-md transition-shadow">
           <h3 className="text-gray-900 font-black text-[20px] mb-6">최근 알림</h3>
           <div className="space-y-4">
@@ -103,7 +98,6 @@ export const DashboardPage = () => {
         </Card>
       </div>
 
-      {/* 하단 상세 차트 섹션 (Placeholder) */}
       <section className="bg-[#F1F5F9] p-10 rounded-[40px] border border-gray-200 border-dashed">
         <div className="text-center space-y-2">
           <h3 className="text-2xl font-black text-gray-400">카테고리별 상세 분석</h3>

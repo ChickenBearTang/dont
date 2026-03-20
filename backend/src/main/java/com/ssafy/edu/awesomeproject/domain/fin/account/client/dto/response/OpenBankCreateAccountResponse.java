@@ -8,7 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 외부 은행 API의 계좌 개설 응답을 받기 위한 DTO */
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

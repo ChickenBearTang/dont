@@ -146,7 +146,6 @@ export const CardDetailPage = () => {
       </div>
 
       <div className="px-7 py-6 flex-1 flex flex-col">
-        {/* 월 선택 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={handlePrevMonth}

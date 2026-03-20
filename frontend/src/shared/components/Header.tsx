@@ -7,9 +7,6 @@ interface HeaderProps {
   isAuthenticated: boolean;
 }
 
-/**
- * 전역 상단 네비게이션바 컴포넌트
- */
 const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();

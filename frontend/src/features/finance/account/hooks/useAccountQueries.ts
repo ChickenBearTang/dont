@@ -2,9 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { accountApi } from '../api/accountApi';
 import { accountKeys } from '../queries/accountKeys';
 
-/**
- * 사용자의 전체 계좌 목록 조회 훅
- */
 export const useGetMyAccounts = () => {
   return useQuery({
     queryKey: accountKeys.lists(),
@@ -13,9 +10,6 @@ export const useGetMyAccounts = () => {
   });
 };
 
-/**
- * 특정 계좌 상세 정보 조회 훅
- */
 export const useGetAccountDetail = (accountId: number) => {
   return useQuery({
     queryKey: accountKeys.detail(accountId),
@@ -25,9 +19,6 @@ export const useGetAccountDetail = (accountId: number) => {
   });
 };
 
-/**
- * 특정 계좌 거래 내역 조회 훅
- */
 export const useGetAccountTransactions = (
   accountId: number,
   params: { startDate: string; endDate: string }
@@ -40,9 +31,6 @@ export const useGetAccountTransactions = (
   });
 };
 
-/**
- * 현재 저축 설정 조회 훅
- */
 export const useGetSavingsSetting = () => {
   return useQuery({
     queryKey: accountKeys.savings(),

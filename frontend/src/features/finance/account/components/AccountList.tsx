@@ -2,9 +2,6 @@ import React from 'react';
 import { useGetMyAccounts } from '../hooks/useAccountQueries';
 import { AccountCard } from './AccountCard';
 
-/**
- * 로딩 중일 때 표시할 스켈레톤 UI
- */
 const AccountSkeleton = () => (
   <div className="w-full p-6 bg-white border border-light-gray rounded-2xl animate-pulse">
     <div className="flex justify-between mb-4">
@@ -21,9 +18,6 @@ const AccountSkeleton = () => (
   </div>
 );
 
-/**
- * 내 계좌 목록을 보여주는 컨테이너 컴포넌트
- */
 export const AccountList: React.FC = () => {
   const { data: accounts, isLoading, isError, refetch } = useGetMyAccounts();
 

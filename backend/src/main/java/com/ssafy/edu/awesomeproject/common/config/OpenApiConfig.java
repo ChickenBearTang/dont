@@ -8,11 +8,6 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * OpenAPI configuration for Swagger annotations. Use {@code @Tag}, {@code @Operation}, and
- * {@code @ApiResponses} on controllers and methods, and set {@code security = {}} to opt out of the
- * global bearerAuth requirement.
- */
 @Configuration
 public class OpenApiConfig {
 

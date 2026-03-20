@@ -123,7 +123,6 @@ export const MonthlyReportPage = () => {
       </div>
 
       <div className="flex-1 p-7 flex flex-col">
-        {/* 헤더 */}
         <div className="flex items-center justify-between mb-8 bg-white p-2.5 rounded-2xl shadow-sm border border-gray-100/80">
           <button
             onClick={handlePrevMonth}

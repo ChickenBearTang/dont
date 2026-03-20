@@ -1,9 +1,6 @@
 import type { Cohort } from '@/shared/types';
 import type { UserProfile, SignUpRequestPayload } from '@/features/auth/types';
 
-/**
- * 프론트엔드 프로토타이핑을 위한 인메모리 Mock DB
- */
 class MockDatabase {
   private users: (UserProfile & { email: string })[] = [
     {
@@ -12,7 +9,7 @@ class MockDatabase {
       onboardingCompleted: false,
       role: 'ROLE_USER',
       email: 'test@test.com',
-    }
+    },
   ];
 
   private cohorts: Cohort[] = [
@@ -21,12 +18,21 @@ class MockDatabase {
     { cohortId: 3, cohortCode: '16기' },
   ];
 
+  private toUserProfile(user: UserProfile & { email: string }): UserProfile {
+    return {
+      userId: user.userId,
+      nickname: user.nickname,
+      onboardingCompleted: user.onboardingCompleted,
+      role: user.role,
+      cohortId: user.cohortId,
+    };
+  }
+
   // 사용자 조회 (로그인 시뮬레이션)
   findUser(email: string): UserProfile | undefined {
-    const user = this.users.find(u => u.email === email);
+    const user = this.users.find((u) => u.email === email);
     if (user) {
-      const { email: _, ...profile } = user;
-      return profile;
+      return this.toUserProfile(user);
     }
     return undefined;
   }
@@ -41,9 +47,8 @@ class MockDatabase {
       email: payload.email,
     };
     this.users.push(newUser);
-    
-    const { email: _, ...profile } = newUser;
-    return profile;
+
+    return this.toUserProfile(newUser);
   }
 
   // 기수 목록 조회

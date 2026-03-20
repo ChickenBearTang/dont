@@ -5,7 +5,6 @@ import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankReqHead
 import lombok.Builder;
 import lombok.Getter;
 
-/** 외부 은행 API의 '계좌 상세 조회' 요청을 위한 DTO */
 @Getter
 @Builder
 public class OpenBankDetailAccountRequest {

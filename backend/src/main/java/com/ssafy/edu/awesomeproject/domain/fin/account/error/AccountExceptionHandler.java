@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/** Account 도메인 전용 예외 처리기 basePackages를 지정하여 타 도메인에 영향을 주지 않도록 격리함 */
 @Slf4j
 @RestControllerAdvice(basePackages = "com.ssafy.edu.awesomeproject.domain.fin.account.controller")
 public class AccountExceptionHandler {
