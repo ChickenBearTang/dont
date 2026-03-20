@@ -10,7 +10,7 @@ pipeline {
     environment {
         COMPOSE_FILE = 'docker-compose.yml'
         ENV_FILE = '.env'
-        APP_SERVICES = 'redis backend frontend'
+        APP_SERVICES = 'redis backend frontend edge-nginx'
     }
 
     stages {
@@ -90,6 +90,14 @@ pipeline {
                     ssl_enabled="$(strip_outer_quotes "${ssl_enabled}")"
                     ssl_enabled="$(printf '%s' "${ssl_enabled}" | tr '[:upper:]' '[:lower:]')"
 
+                    requires_edge_tls_files=false
+                    for service in ${APP_SERVICES}; do
+                      if [ "${service}" = "edge-nginx" ] || [ "${service}" = "nginx" ]; then
+                        requires_edge_tls_files=true
+                        break
+                      fi
+                    done
+
                     if [ "${ssl_enabled:-false}" = "true" ]; then
                       ssl_cert_path="$(get_env_value "SSL_CERT_PATH" || true)"
                       ssl_key_path="$(get_env_value "SSL_KEY_PATH" || true)"
@@ -101,15 +109,19 @@ pipeline {
                         exit 1
                       fi
 
-                      test -s "${ssl_cert_path}" || {
-                        echo "SSL certificate file is not readable or empty: ${ssl_cert_path}"
-                        exit 1
-                      }
-
-                      test -s "${ssl_key_path}" || {
-                        echo "SSL private key file is not readable or empty: ${ssl_key_path}"
-                        exit 1
-                      }
+                      if [ "${requires_edge_tls_files}" = "true" ]; then
+                        if docker run --rm -v "${ssl_cert_path}:/mnt/cert:ro" alpine:3.20 sh -c 'test -f /mnt/cert && test -s /mnt/cert' >/dev/null 2>&1 \
+                          && docker run --rm -v "${ssl_key_path}:/mnt/key:ro" alpine:3.20 sh -c 'test -f /mnt/key && test -s /mnt/key' >/dev/null 2>&1; then
+                          echo "TLS cert/key files are readable from Docker daemon host path."
+                        else
+                          echo "TLS cert/key files are not readable from Docker daemon host path."
+                          echo "When edge proxy is included in APP_SERVICES, deployment would fail without valid cert mounts."
+                          echo "Check SSL_CERT_PATH/SSL_KEY_PATH on the Docker daemon host."
+                          exit 1
+                        fi
+                      else
+                        echo "Skipping TLS file readability check: APP_SERVICES does not include edge proxy service."
+                      fi
                     fi
                 '''
             }
