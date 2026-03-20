@@ -11,7 +11,6 @@ export interface ToastMessage {
 interface UIState {
   toasts: ToastMessage[];
 
-  // Actions
   addToast: (message: string, type?: ToastType) => void;
   removeToast: (id: string) => void;
 }
@@ -25,7 +24,6 @@ export const useUIStore = create<UIState>((set) => ({
       toasts: [...state.toasts, { id, message, type }],
     }));
 
-    // 3초 뒤 자동 삭제
     setTimeout(() => {
       set((state) => ({
         toasts: state.toasts.filter((t) => t.id !== id),

@@ -1,4 +1,3 @@
-// Temporary Mock Components
 const ExpenditureCard = () => (
   <Card className="p-8 flex flex-col h-full hover:shadow-md transition-shadow">
     <h3 className="text-gray-900 font-black text-[20px] mb-4">이번 달 지출 현황</h3>

@@ -41,7 +41,7 @@ public class AccountTransaction extends BaseEntity {
     private String transactionTime;
 
     @Column(name = "transaction_type", nullable = false, length = 10)
-    private String transactionType; // 1: 입금, 2: 출금
+    private String transactionType;
 
     @Column(name = "transaction_type_name", length = 30)
     private String transactionTypeName;

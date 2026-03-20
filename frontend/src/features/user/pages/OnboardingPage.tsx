@@ -19,7 +19,6 @@ export const OnboardingPage = () => {
 
   useEffect(() => {
     const loadCohorts = async () => {
-      // Prototyping: Using Mock Data
       const mockCohorts: Cohort[] = [
         { cohortId: 1, cohortCode: '14기' },
         { cohortId: 2, cohortCode: '15기' },

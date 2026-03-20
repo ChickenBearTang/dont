@@ -1,4 +1,3 @@
-// Pages
 export * from './pages/OnboardingPage';
 
 // Types

@@ -28,7 +28,6 @@ class MockDatabase {
     };
   }
 
-  // 사용자 조회 (로그인 시뮬레이션)
   findUser(email: string): UserProfile | undefined {
     const user = this.users.find((u) => u.email === email);
     if (user) {
@@ -37,7 +36,6 @@ class MockDatabase {
     return undefined;
   }
 
-  // 사용자 등록 (회원가입 시뮬레이션)
   registerUser(payload: SignUpRequestPayload): UserProfile {
     const newUser = {
       userId: this.users.length + 1,
@@ -51,7 +49,6 @@ class MockDatabase {
     return this.toUserProfile(newUser);
   }
 
-  // 기수 목록 조회
   getCohorts(): Cohort[] {
     return this.cohorts;
   }
