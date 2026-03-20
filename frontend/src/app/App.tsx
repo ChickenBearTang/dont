@@ -5,7 +5,6 @@ import { ToastContainer } from '@/shared/components/ToastContainer';
 import { refreshAccessToken } from '@/features/auth/api/authApi';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import '@/styles/index.css';
 
 const queryClient = new QueryClient({
@@ -67,7 +66,7 @@ export function App() {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <AppBootstrap />
-        <ReactQueryDevtools initialIsOpen={false} />
+        {/* <ReactQueryDevtools initialIsOpen={false} /> */}
       </QueryClientProvider>
     </StrictMode>
   );
