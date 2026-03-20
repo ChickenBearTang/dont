@@ -39,10 +39,6 @@ export const router = createBrowserRouter([
         element: <div>LoadingScreen Placeholder</div>,
       },
       {
-        path: '/savebox-setup',
-        element: <div>SaveboxSetup Placeholder</div>,
-      },
-      {
         path: '/success',
         element: <div>SuccessScreen Placeholder</div>,
       },
@@ -135,6 +131,21 @@ export const router = createBrowserRouter([
         async lazy() {
           const { MonthlyReportPage } = await import('@/features/finance/report');
           return { Component: MonthlyReportPage };
+        },
+      },
+      {
+        path: '/finance',
+        async lazy() {
+          const { FinanceHomePage } = await import('@/features/finance/pages/FinanceHomePage');
+          return { Component: FinanceHomePage };
+        },
+      },
+      {
+        path: '/savebox-setup',
+        async lazy() {
+          const { SaveboxSetupPage } =
+            await import('@/features/finance/account/pages/SaveboxSetupPage');
+          return { Component: SaveboxSetupPage };
         },
       },
     ],
