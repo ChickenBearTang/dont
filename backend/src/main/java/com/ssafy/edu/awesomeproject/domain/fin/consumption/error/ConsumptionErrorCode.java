@@ -4,7 +4,8 @@ import com.ssafy.edu.awesomeproject.common.error.ErrorCode;
 import org.springframework.http.HttpStatus;
 
 public enum ConsumptionErrorCode implements ErrorCode {
-    INVALID_REPORT_MONTH(HttpStatus.BAD_REQUEST, "CONS_400_1", "reportMonth must be yyyy-MM format."),
+    INVALID_REPORT_MONTH(
+            HttpStatus.BAD_REQUEST, "CONS_400_1", "reportMonth must be yyyy-MM format."),
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "CONS_404_1", "Monthly consumption report not found."),
     INVALID_PAYLOAD(HttpStatus.BAD_REQUEST, "CONS_400_2", "Invalid consumption request payload.");
 
