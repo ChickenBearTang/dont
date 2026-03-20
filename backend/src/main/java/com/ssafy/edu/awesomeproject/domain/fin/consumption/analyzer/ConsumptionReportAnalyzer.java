@@ -22,19 +22,22 @@ public class ConsumptionReportAnalyzer {
                                                         "categoryName", row.getCategoryName(),
                                                         "amount", row.getAmount(),
                                                         "percentage", row.getPercentage()))
-                        .toList();
+                                .toList();
 
         Map<String, Object> topCategory =
                 categorySummary.stream()
                         .max(
                                 Comparator.comparing(
-                                        item -> ((Number) item.getOrDefault("amount", 0)).longValue()))
+                                        item ->
+                                                ((Number) item.getOrDefault("amount", 0))
+                                                        .longValue()))
                         .orElse(Map.of());
 
         return Map.of(
                 "userId", userId,
                 "reportMonth", reportMonth.toString(),
-                "totalAmount", cardSummary.getTotalAmount() == null ? 0L : cardSummary.getTotalAmount(),
+                "totalAmount",
+                        cardSummary.getTotalAmount() == null ? 0L : cardSummary.getTotalAmount(),
                 "topCategory", topCategory,
                 "categorySummary", categorySummary);
     }

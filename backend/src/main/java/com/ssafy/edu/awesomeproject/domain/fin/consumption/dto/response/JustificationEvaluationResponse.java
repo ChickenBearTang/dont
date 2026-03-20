@@ -8,4 +8,6 @@ public record JustificationEvaluationResponse(
         boolean valid,
         String userMessage,
         String aiResponse,
-        LocalDateTime createdAt) {}
+        LocalDateTime createdAt,
+        boolean reportRegenerated,
+        MonthlyReportResponse regeneratedReport) {}
