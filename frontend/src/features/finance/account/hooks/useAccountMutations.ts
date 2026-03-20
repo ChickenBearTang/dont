@@ -26,7 +26,8 @@ export const useRefreshAccounts = () => {
   return useMutation({
     mutationFn: accountApi.refreshAccounts,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: accountKeys.lists() });
+      // 모든 계좌 정보(목록, 상세, 설정 등)를 무효화하여 한 번에 정합성 확보
+      queryClient.invalidateQueries({ queryKey: accountKeys.all });
     },
   });
 };
