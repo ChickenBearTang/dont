@@ -49,7 +49,6 @@ public class AccountService {
     private final SavingsSettingRepository savingsSettingRepository;
     private final UserRepository userRepository;
 
-    /** '세이브 박스' 계좌를 신규 개설합니다. (Stateless) */
     public AccountCreateResponse createSaveBox(Long userId, SaveBoxCreateRequest request) {
         User user =
                 userRepository
@@ -79,7 +78,6 @@ public class AccountService {
 
         OpenBankCreateAccountResponse.Rec rec = apiResponse.getRec();
 
-        // [Bug Fix] 개설 성공 직후 상세 조회를 통해 우리 DB에 즉시 저장 (SAVE_BOX 역할 부여)
         try {
             OpenBankDetailAccountResponse detailResponse =
                     openBankAdapter.fetchAccountDetail(userKey, rec.getAccountNo());
@@ -99,7 +97,7 @@ public class AccountService {
                                 .balance(parseBigDecimal(detail.accountBalance()))
                                 .status(AccountStatus.ACTIVE)
                                 .isPrimary(false)
-                                .accountRole(AccountRole.SAVE_BOX) // 명시적으로 SAVE_BOX 지정
+                                .accountRole(AccountRole.SAVE_BOX)
                                 .userName(detail.userName())
                                 .accountTypeCode(detail.accountTypeCode())
                                 .accountTypeName(detail.accountTypeName())
@@ -115,7 +113,6 @@ public class AccountService {
             }
         } catch (Exception e) {
             log.error("세이브박스 DB 저장 중 오류 발생 (계좌는 생성됨): {}", e.getMessage());
-            // 비즈니스 정책에 따라 예외를 던질지, 로그만 남길지 결정 가능 (현재는 로그 후 진행)
         }
 
         return AccountCreateResponse.builder()
@@ -207,10 +204,8 @@ public class AccountService {
                         .orElseThrow(
                                 () -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
 
-        // 1. 거래 내역 동기화 (간편하게 조회 시마다 최신화 시도)
         syncTransactions(userId, account, startDate, endDate);
 
-        // 2. DB에서 거래 내역 조회 (날짜 필터 적용)
         LocalDate start = parseLocalDate(startDate);
         LocalDate end = parseLocalDate(endDate);
 
@@ -272,8 +267,8 @@ public class AccountService {
                         account.getAccountNo(),
                         startDate,
                         endDate,
-                        "A", // 전체
-                        "DESC"); // 최신순
+                        "A",
+                        "DESC");
 
         if (apiResponse == null
                 || apiResponse.getRec() == null
@@ -297,10 +292,7 @@ public class AccountService {
                                 .transactionType(item.getTransactionType())
                                 .transactionTypeName(item.getTransactionTypeName())
                                 .transactionAccountNo(item.getTransactionAccountNo())
-                                .transactionAmount(
-                                        parseBigDecimal(item.getTransactionBalance())) // API 필드명이
-                                // Balance지만 실제론
-                                // 거래금액임
+                                .transactionAmount(parseBigDecimal(item.getTransactionBalance()))
                                 .afterBalance(parseBigDecimal(item.getTransactionAfterBalance()))
                                 .transactionSummary(item.getTransactionSummary())
                                 .transactionMemo(item.getTransactionMemo())
@@ -310,7 +302,6 @@ public class AccountService {
             }
         }
 
-        // 새 거래 내역이 있다면 자동 저축 로직 검토
         if (!newTransactions.isEmpty()) {
             processAutoSavings(userId, account, newTransactions);
         }
@@ -318,7 +309,6 @@ public class AccountService {
 
     private void processAutoSavings(
             Long userId, Account primaryAccount, List<AccountTransaction> transactions) {
-        // 주계좌인 경우에만 감지
         if (!primaryAccount.isPrimary()) return;
 
         Optional<SavingsSetting> settingOpt =
@@ -329,7 +319,6 @@ public class AccountService {
         String keyword = setting.getKeyword();
 
         for (AccountTransaction t : transactions) {
-            // 입금('1') 이고, 적요나 메모에 키워드가 포함된 경우
             if ("1".equals(t.getTransactionType())
                     && ((t.getTransactionSummary() != null
                                     && t.getTransactionSummary().contains(keyword))
@@ -365,19 +354,16 @@ public class AccountService {
         if (apiResponse != null && apiResponse.getHeader() != null) {
             String responseCode = apiResponse.getHeader().getResponseCode();
             if (!"H0000".equals(responseCode)) {
-                // 자동 이체 실패 시 로깅하거나 무시할 수 있지만, 일단은 명시적으로 확인
                 log.error("자동 저축 이체 실패: {}", apiResponse.getHeader().getResponseMessage());
-                return; // 실패 시 이후 동기화 생략
+                return;
             }
         }
 
-        // 이체 성공 후 로컬 잔액 강제 갱신
         syncAccounts(userId);
     }
 
     public SavingsSettingResponse createOrUpdateSavingsSetting(
             Long userId, SavingsSettingRequest request) {
-        // 본인 소유 계좌인지 검증 (BOLA 방어)
         accountRepository
                 .findById(request.primaryAccountId())
                 .filter(a -> a.getUserId().equals(userId))
@@ -445,7 +431,7 @@ public class AccountService {
         Account primaryAccount =
                 accountRepository
                         .findById(setting.getPrimaryAccountId())
-                        .filter(a -> a.getUserId().equals(userId)) // 소유권 재검증
+                        .filter(a -> a.getUserId().equals(userId))
                         .orElseThrow(
                                 () ->
                                         new AccountException(
@@ -454,7 +440,7 @@ public class AccountService {
         Account saveboxAccount =
                 accountRepository
                         .findById(setting.getSaveboxAccountId())
-                        .filter(a -> a.getUserId().equals(userId)) // 소유권 재검증
+                        .filter(a -> a.getUserId().equals(userId))
                         .orElseThrow(
                                 () ->
                                         new AccountException(
@@ -512,12 +498,10 @@ public class AccountService {
             return;
         }
 
-        // 1. 전체 계좌 목록 조회
         AccountListResponse listResponse = openBankAdapter.fetchDemandDepositAccounts(userKey);
 
         if (listResponse == null || listResponse.accounts() == null) return;
 
-        // 2. 응답 데이터를 DB에 반영 (Upsert)
         for (AccountListResponse.AccountDetail detail : listResponse.accounts()) {
             String accountNo = detail.accountNo();
             Optional<Account> accountOpt = accountRepository.findByAccountNo(accountNo);
@@ -587,7 +571,6 @@ public class AccountService {
 
         account.setAsPrimary();
 
-        // 저축 설정이 있다면 주계좌 정보를 동기화해줍니다.
         savingsSettingRepository
                 .findByUserIdAndIsActiveTrue(userId)
                 .ifPresent(setting -> setting.updatePrimaryAccount(accountId));

@@ -15,8 +15,6 @@ import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-
-// 게시글 생성
 @RequestMapping("/community/posts")
 public class PostController {
     private final PostService postService;
@@ -53,7 +51,6 @@ public class PostController {
                         result.createdAt()));
     }
 
-    // 게시글 목록조회
     @GetMapping
     @Operation(
             summary = "게시글 목록 조회 API",
@@ -147,7 +144,6 @@ public class PostController {
                         result.hasNext()));
     }
 
-    // 게시글 상세조회
     @GetMapping("/{postId}")
     @Operation(summary = "게시글 상세 조회 API", description = "게시글 ID로 게시글 상세 정보를 조회하는 API입니다.")
     @ApiResponses({
@@ -176,7 +172,6 @@ public class PostController {
                         result.updatedAt()));
     }
 
-    // 게시글 수정
     @PatchMapping("/{postId}")
     @Operation(summary = "게시글 수정 API", description = "게시글 작성자가 제목과 본문을 수정하는 API입니다.")
     @ApiResponses({
@@ -199,7 +194,6 @@ public class PostController {
                 new UpdatePostResponseDto(result.postId(), result.updatedAt()));
     }
 
-    // 게시글 삭제
     @DeleteMapping("/{postId}")
     @Operation(summary = "게시글 삭제 API", description = "게시글 작성자가 게시글을 삭제하는 API입니다.")
     @ApiResponses({

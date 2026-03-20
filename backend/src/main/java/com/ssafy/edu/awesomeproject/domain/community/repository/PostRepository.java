@@ -10,7 +10,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-// 게시글 상세 내용
 public interface PostRepository extends JpaRepository<Post, Long> {
     Optional<Post> findByIdAndStatus(Long id, PostStatus status);
 
@@ -19,7 +18,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findByBoard_CategoryAndStatus(
             BoardCategory category, PostStatus status, Pageable pageable);
 
-    // 기수별 목록 조회용
     Page<Post> findByBoard_CategoryAndBoard_Cohort_GenerationNoAndStatus(
             BoardCategory category, Integer generationNo, PostStatus status, Pageable pageable);
 

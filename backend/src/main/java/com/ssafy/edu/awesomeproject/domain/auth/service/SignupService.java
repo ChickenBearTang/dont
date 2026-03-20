@@ -37,7 +37,6 @@ public class SignupService {
             String nickname,
             boolean termsAgreed,
             Long cohortId) {
-        // TODO : 회원가입시에는 소문자로 저장, 로그인시에는 대소문자 구분없이 저장, 이 부분 해결해야함.
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
 
         if (userRepository.existsByEmail(normalizedEmail)) {

@@ -11,7 +11,6 @@ public class CardSummaryResponse {
     private boolean success;
     private String code;
     private String message;
-    // 달 총 지출
     private Long totalAmount;
 
     private List<RankColum> RankColumList;

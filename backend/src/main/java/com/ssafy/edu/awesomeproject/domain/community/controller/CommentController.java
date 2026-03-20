@@ -33,7 +33,6 @@ public class CommentController {
         this.commentService = commentService;
     }
 
-    // 댓글 작성 -> 원하는 post의 postId로 들어가서 작성
     @PostMapping("/posts/{postId}/comments")
     @Operation(summary = "댓글 작성 API", description = "게시글에 댓글 또는 대댓글을 작성하는 API 입니다.")
     @ApiResponses({
@@ -59,7 +58,6 @@ public class CommentController {
                 new CreateCommentResponseDto(result.commentId(), result.createdAt()));
     }
 
-    // 댓글 목록 조회
     @GetMapping("/posts/{postId}/comments")
     @Operation(summary = "댓글 목록 조회 API", description = "게시글의 댓글 목록을 페이지 기반으로 조회하는 API 입니다.")
     @ApiResponses({
@@ -100,7 +98,6 @@ public class CommentController {
                         result.hasNext()));
     }
 
-    // 댓글 수정
     @PatchMapping("/comments/{commentId}")
     @Operation(summary = "댓글 수정 API", description = "댓글 작성자가 본인 댓글을 수정하는 API 입니다.")
     @ApiResponses({
@@ -121,7 +118,6 @@ public class CommentController {
                 new UpdateCommentResponseDto(result.commentId(), result.updatedAt()));
     }
 
-    // 댓글 삭제
     @DeleteMapping("/comments/{commentId}")
     @Operation(summary = "댓글 삭제 API", description = "댓글 작성자가 본인의 댓글을 삭제하는 API 입니다.")
     @ApiResponses({

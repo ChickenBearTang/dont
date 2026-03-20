@@ -53,9 +53,6 @@ public class ReactionService {
 
         validateTargetAccess(user, targetType, targetId);
 
-        // 반응 등록 or 취소
-        // ACTIVE = true (등록)
-        // ACTIVE = false (취소)
         if (Boolean.TRUE.equals(active)) {
             registerReaction(user, targetType, targetId, reactionType);
         } else {
@@ -81,7 +78,6 @@ public class ReactionService {
     private void registerReaction(
             User user, ReactionTargetType targetType, Long targetId, ReactionType reactionType) {
 
-        // 중복 방지 (ifPresent)
         reactionRepository
                 .findByUser_IdAndTargetTypeAndTargetIdAndReactionType(
                         user.getId(), targetType, targetId, reactionType)
@@ -104,7 +100,6 @@ public class ReactionService {
     }
 
     private void validateTargetAccess(User user, ReactionTargetType targetType, Long targetId) {
-        // POST에 반응 등록
         if (targetType == ReactionTargetType.POST) {
             Post post =
                     postRepository
@@ -132,7 +127,6 @@ public class ReactionService {
             return;
         }
 
-        // 해당하는 COHORT만 접근 가능
         if (user.getCohort() == null || board.getCategory() == null) {
             throw new CommunityException(
                     postTarget

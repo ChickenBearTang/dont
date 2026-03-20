@@ -42,18 +42,15 @@ public class CommentService {
         this.reactionRepository = reactionRepository;
     }
 
-    // 댓글 작성
     public CreateCommentResult createComment(
             Long userId, Long postId, Long parentCommentId, String content) {
 
-        // post 없을 때
         Post post =
                 postRepository
                         .findByIdAndStatus(postId, PostStatus.ACTIVE)
                         .orElseThrow(
                                 () -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
 
-        // user 없을 때
         User user =
                 userRepository
                         .findById(userId)
@@ -62,8 +59,6 @@ public class CommentService {
 
         validateUserCohortAccess(user, post.getBoard());
 
-        // 초기값 null
-        // parentComment (대댓글 작성할 상위 댓글) 없을 때
         Comment parentComment = null;
         if (parentCommentId != null) {
             parentComment =
@@ -74,7 +69,6 @@ public class CommentService {
                                             new CommunityException(
                                                     CommunityErrorCode.COMMENT_NOT_FOUND));
 
-            // parentComment 있지만 post와 매핑되지 않을 때
             if (!parentComment.getPost().getId().equals(postId)) {
                 throw new CommunityException(CommunityErrorCode.INVALID_PARENT_COMMENT);
             }
@@ -86,7 +80,6 @@ public class CommentService {
         return new CreateCommentResult(savedComment.getId(), savedComment.getCreatedAt());
     }
 
-    // 댓글 목록 조회
     @Transactional(readOnly = true)
     public GetCommentListResult getComments(Long userId, Long postId, Integer page, Integer size) {
         Post post =
@@ -104,7 +97,6 @@ public class CommentService {
         validateUserCohortAccess(user, post.getBoard());
 
         int pageNumber = (page == null || page < 0) ? 0 : page;
-        // 기본값 (1~10까지의 범위만 우선 보여줌)
         int pageSize = (size == null || size <= 0) ? 10 : size;
 
         PageRequest pageRequest =
@@ -144,15 +136,12 @@ public class CommentService {
                 commentPage.hasNext());
     }
 
-    // 댓글 수정
     public UpdateCommentResult updateComment(Long userId, Long commentId, String content) {
-        // 수정할 댓글이 없을 때
         Comment comment =
                 commentRepository
                         .findByIdAndStatus(commentId, CommentStatus.ACTIVE)
                         .orElseThrow(
                                 () -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
-        // 댓글 작성자가 아닌 사람이 수정하려 할 때
         if (!comment.isAuthor(userId)) {
             throw new CommunityException(CommunityErrorCode.COMMENT_FORBIDDEN);
         }
@@ -162,15 +151,12 @@ public class CommentService {
         return new UpdateCommentResult(comment.getId(), comment.getUpdatedAt());
     }
 
-    // 댓글 삭제
     public DeleteCommentResult deleteComment(Long userId, Long commentId) {
-        // 삭제할 댓글이 없을 때
         Comment comment =
                 commentRepository
                         .findByIdAndStatus(commentId, CommentStatus.ACTIVE)
                         .orElseThrow(
                                 () -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
-        // 댓글 작성자가 아닌 사람이 삭제하려 할 때
         if (!comment.isAuthor(userId)) {
             throw new CommunityException(CommunityErrorCode.COMMENT_FORBIDDEN);
         }

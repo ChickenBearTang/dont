@@ -19,8 +19,6 @@ public enum CommunityErrorCode implements ErrorCode {
     POST_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_1", "해당 글에 대한 권한이 없습니다."),
     COHORT_FORBIDDEN(HttpStatus.FORBIDDEN, "COMM_403_2", "해당 기수 게시판에 대한 권한이 없습니다."),
 
-    // ================================================================================================================
-
     POLL_NOT_FOUND(HttpStatus.NOT_FOUND, "POLL_404_1", "토론 게시글을 찾을 수 없습니다."),
     POLL_NOT_OPEN(HttpStatus.CONFLICT, "POLL_409_1", "종료된 토론은 투표할 수 없습니다."),
 

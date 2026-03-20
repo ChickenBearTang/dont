@@ -96,7 +96,6 @@ public class Card extends BaseEntity {
         this.withdrawalDate = withdrawalDate;
     }
 
-    // 업데이트용 메소드(setter 대용)
     public void updateFromExternal(
             String cardNo,
             String cvc,

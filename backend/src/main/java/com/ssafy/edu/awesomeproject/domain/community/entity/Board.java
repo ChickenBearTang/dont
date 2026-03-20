@@ -24,8 +24,6 @@ public class Board extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ENUM 교체
-    // cohort 여러 기수 존재할 수 있으므로 unique=true 제거
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 50)
     private BoardCategory category;
@@ -33,7 +31,6 @@ public class Board extends BaseEntity {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    // cohort entity 추가로 FK 조건 추가
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cohort_id")
     private Cohort cohort;

@@ -73,7 +73,6 @@ public class CardService {
                         .findByCardIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
                                 cardId, start, end);
 
-        // 유저의 결제금액 총합
         Long totalAmount =
                 transactions.stream().mapToLong(CardTransaction::getTransactionAmount).sum();
 
@@ -132,13 +131,11 @@ public class CardService {
             throw new IllegalArgumentException("startDate must be before or equal to endDate.");
         }
 
-        // 유저id + 날짜로 필터링(직전달 포함)
         List<CardTransaction> transactions =
                 cardTransactionRepository
                         .findByUserIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
                                 userId, start, end);
 
-        // 유저의 결제금액 총합
         Long totalAmount =
                 transactions.stream().mapToLong(CardTransaction::getTransactionAmount).sum();
 
@@ -146,8 +143,7 @@ public class CardService {
                 transactions.stream()
                         .collect(
                                 Collectors.groupingBy(
-                                        CardTransaction
-                                                ::getCategoryName, // 카테고리 꺼내는 getter 이름에 맞게 수정
+                                        CardTransaction::getCategoryName,
                                         Collectors.summingLong(
                                                 CardTransaction::getTransactionAmount)));
 
@@ -163,7 +159,7 @@ public class CardService {
                                     return CardSummaryResponse.RankColum.builder()
                                             .categoryName(entry.getKey())
                                             .percentage(percentage)
-                                            .amount((int) amount) // 가능하면 Long으로 바꾸는거 추천
+                                            .amount((int) amount)
                                             .build();
                                 })
                         .sorted(

@@ -25,7 +25,6 @@ public interface OpenBankClient {
     OpenBankDetailAccountResponse fetchAccountDetail(
             @RequestBody OpenBankDetailAccountRequest request);
 
-    // 카드목록 호출 url
     @PostExchange("/ssafy/api/v1/edu/creditCard/inquireSignUpCreditCardList")
     com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBankResponse
             fetchCreditCardList(

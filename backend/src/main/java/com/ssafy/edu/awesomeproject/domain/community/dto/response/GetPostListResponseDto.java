@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.LocalDateTime;
 import java.util.List;
 
-// 목록 조회
 public record GetPostListResponseDto(
         List<PostSummaryDto> content,
         int page,

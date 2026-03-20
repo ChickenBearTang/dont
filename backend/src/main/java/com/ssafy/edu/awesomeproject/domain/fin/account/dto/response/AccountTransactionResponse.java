@@ -12,7 +12,7 @@ public record AccountTransactionResponse(
             String transactionUniqueNo,
             String transactionDate,
             String transactionTime,
-            String transactionType, // 1: 입금, 2: 출금
+            String transactionType,
             String transactionTypeName,
             String transactionAmount,
             String afterBalance,

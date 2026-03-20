@@ -58,13 +58,10 @@ public class OpenBankAdapter {
     }
 
     public AccountListResponse fetchDemandDepositAccounts(String userKey) {
-        // 1. 외부 API용 요청 객체(Request) 생성
         OpenBankRequest request = createAccountListRequest(userKey);
 
-        // 2. 외부 API 호출
         OpenBankResponse response = openBankClient.fetchDemandDepositAccounts(request);
 
-        // 3. 외부 API 응답을 우리 서버용 DTO로 변환 (Mapping)
         return AccountListResponse.from(response);
     }
 
@@ -89,10 +86,8 @@ public class OpenBankAdapter {
     }
 
     public OpenBankDetailAccountResponse fetchAccountDetail(String userKey, String accountNo) {
-        // 1. 외부 API용 상세 조회 요청 객체 생성
         OpenBankDetailAccountRequest request = createAccountDetailRequest(userKey, accountNo);
 
-        // 2. 외부 API 호출
         return openBankClient.fetchAccountDetail(request);
     }
 
@@ -188,7 +183,7 @@ public class OpenBankAdapter {
 
     private String generateUniqueNo(LocalDateTime now) {
         String timestamp = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        int randomNo = ThreadLocalRandom.current().nextInt(100000, 1000000); // 6자리 랜덤수
+        int randomNo = ThreadLocalRandom.current().nextInt(100000, 1000000);
         return timestamp + randomNo;
     }
 }
