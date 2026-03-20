@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import {
   getAdminReports,
+  getAdminReportDetail,
   processReportBlind,
   processReportReject,
 } from '@/features/community/api/adminReportApi';
@@ -10,7 +11,7 @@ import type { AdminReportSummaryDto } from '@/features/community/types';
 
 const AdminReportPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, isAuthInitializing } = useAuthStore();
   const [reports, setReports] = useState<AdminReportSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
@@ -23,11 +24,12 @@ const AdminReportPage: React.FC = () => {
   const isAdmin = user?.role?.includes('ADMIN');
 
   useEffect(() => {
-    if (!user || !isAdmin) {
+    // Only redirect if auth is not initializing and user is not admin
+    if (!isAuthInitializing && (!user || !isAdmin)) {
       alert('관리자 권한이 없습니다.');
       navigate('/community');
     }
-  }, [user, isAdmin, navigate]);
+  }, [user, isAdmin, navigate, isAuthInitializing]);
 
   const fetchReports = async () => {
     setLoading(true);
@@ -50,18 +52,33 @@ const AdminReportPage: React.FC = () => {
     }
   }, [currentPage, filterStatus, isAdmin]);
 
+  const handleViewDetail = async (reportId: number) => {
+    try {
+      const res = await getAdminReportDetail(reportId);
+      if (res.data && res.data.postId) {
+        navigate(`/community/post/${res.data.postId}`);
+      } else {
+        alert('게시물 정보를 찾을 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to fetch report detail:', error);
+      alert('상세 정보를 불러오는 중 오류가 발생했습니다.');
+    }
+  };
+
   const handleProcess = async (reportId: number, type: 'blind' | 'reject') => {
-    const note = prompt('처리 사유를 입력하세요 (선택 사항):') || '';
+    const actionName = type === 'blind' ? '블라인드' : '기각';
+    const note = prompt(`${actionName} 처리 사유를 입력하세요 (선택 사항):`) || '';
     try {
       if (type === 'blind') {
         await processReportBlind(reportId, { processNote: note });
       } else {
         await processReportReject(reportId, { processNote: note });
       }
-      alert('처리가 완료되었습니다.');
+      alert(`${actionName} 처리가 완료되었습니다.`);
       fetchReports();
     } catch (error) {
-      console.error('Failed to process report:', error);
+      console.error(`Failed to ${type} report:`, error);
       alert('처리 중 오류가 발생했습니다.');
     }
   };
@@ -170,27 +187,24 @@ const AdminReportPage: React.FC = () => {
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => navigate(`/community/post/${report.targetId}`)}
-                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                        title="상세보기"
+                        onClick={() => handleViewDetail(report.reportId)}
+                        className="px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
                       >
-                        👁️
+                        상세보기
                       </button>
                       {report.reportStatus === 'RECEIVED' && (
                         <>
                           <button
                             onClick={() => handleProcess(report.reportId, 'blind')}
-                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                            title="블라인드 처리"
+                            className="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
                           >
-                            🚫
+                            블라인드
                           </button>
                           <button
                             onClick={() => handleProcess(report.reportId, 'reject')}
-                            className="p-2 text-gray-400 hover:text-green-600 transition-colors"
-                            title="기각 처리"
+                            className="px-3 py-1.5 text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
                           >
-                            ✅
+                            기각
                           </button>
                         </>
                       )}
