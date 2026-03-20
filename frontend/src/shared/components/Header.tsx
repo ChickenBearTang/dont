@@ -28,7 +28,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
           <nav className="hidden md:flex ml-12 flex-1 h-full font-bold gap-1">
             {[
               { label: '홈', path: '/dashboard' },
-              { label: '세이브박스', path: '/savebox-setup' },
+              { label: '금융', path: '/savebox-setup' },
               { label: '소비리포트', path: '/finance-connect' },
               { label: '랭킹', path: '/ranking' },
               { label: '커뮤니티', path: '/community' },
