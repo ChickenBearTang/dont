@@ -2,6 +2,7 @@ package com.ssafy.edu.awesomeproject.domain.community.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.edu.awesomeproject.common.s3.service.S3AssetUrlResolver;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrCloseRequestDto;
@@ -56,6 +57,7 @@ public class PrPostService {
     private final PrReviewRepository prReviewRepository;
     private final PrEventRepository prEventRepository;
     private final ObjectMapper objectMapper;
+    private final S3AssetUrlResolver s3AssetUrlResolver;
 
     public PrPostService(
             UserRepository userRepository,
@@ -65,7 +67,8 @@ public class PrPostService {
             PrVoteRepository prVoteRepository,
             PrReviewRepository prReviewRepository,
             PrEventRepository prEventRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            S3AssetUrlResolver s3AssetUrlResolver) {
         this.userRepository = userRepository;
         this.boardRepository = boardRepository;
         this.postRepository = postRepository;
@@ -74,6 +77,7 @@ public class PrPostService {
         this.prReviewRepository = prReviewRepository;
         this.prEventRepository = prEventRepository;
         this.objectMapper = objectMapper;
+        this.s3AssetUrlResolver = s3AssetUrlResolver;
     }
 
     @Transactional
@@ -211,7 +215,8 @@ public class PrPostService {
                                             reviewUser == null ? null : reviewUser.getNickname(),
                                             reviewUser == null
                                                     ? null
-                                                    : reviewUser.getProfileImageUrl(),
+                                                    : s3AssetUrlResolver.resolvePublicUrlOrNull(
+                                                            reviewUser.getProfileImageKey()),
                                             review.getDecision().name(),
                                             review.getContent(),
                                             review.getCreatedAt());
@@ -277,7 +282,10 @@ public class PrPostService {
                                     event.getEventType().name(),
                                     event.getActorUserId(),
                                     actor == null ? null : actor.getNickname(),
-                                    actor == null ? null : actor.getProfileImageUrl(),
+                                    actor == null
+                                            ? null
+                                            : s3AssetUrlResolver.resolvePublicUrlOrNull(
+                                                    actor.getProfileImageKey()),
                                     event.getPayload(),
                                     event.getCreatedAt());
                         })
