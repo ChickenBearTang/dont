@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { useAuthStore } from '@/features/auth/store/useAuthStore';
 
 const CategoryIcon = ({ type }: { type: string | null }) => {
   const base = 'w-[18px] h-[18px] flex items-center justify-center flex-shrink-0';
@@ -102,6 +103,7 @@ const CategoryIcon = ({ type }: { type: string | null }) => {
 
 export const CommunitySidebar = () => {
   const location = useLocation();
+  const { user } = useAuthStore();
   const searchParams = new URLSearchParams(location.search);
   const currentCategory = searchParams.get('category');
 
@@ -142,6 +144,24 @@ export const CommunitySidebar = () => {
           </NavLink>
         );
       })}
+
+      {user?.role?.includes('ADMIN') && (
+        <>
+          <div className="h-px bg-gray-100 my-2 mx-3" />
+          <NavLink
+            to="/community/admin/reports"
+            className={({ isActive }) =>
+              `px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-all duration-150 flex items-center gap-2.5 ${
+                isActive
+                  ? 'bg-red-50 text-red-600 font-bold'
+                  : 'text-red-500 hover:bg-red-50 transition-colors'
+              }`
+            }
+          >
+            🛡️ 신고 관리
+          </NavLink>
+        </>
+      )}
     </nav>
   );
 };
