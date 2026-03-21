@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankResHeader;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
