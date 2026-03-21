@@ -6,10 +6,15 @@ import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LoginRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LogoutRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.SignupRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.TokenReissueRequestDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.request.EmailVerificationConfirmRequestDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.request.EmailVerificationSendRequestDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailVerificationConfirmResponseDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailVerificationSendResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LoginResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LogoutResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.TokenReissueResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.service.AuthTokenService;
+import com.ssafy.edu.awesomeproject.domain.auth.service.EmailVerificationService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.LoginService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.SignupService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,18 +35,54 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
     private final LoginService loginService;
     private final SignupService signupService;
+    private final EmailVerificationService emailVerificationService;
     private final AuthTokenService authTokenService;
     private final RefreshTokenCookieService refreshTokenCookieService;
 
     public AuthController(
             LoginService loginService,
             SignupService signupService,
+            EmailVerificationService emailVerificationService,
             AuthTokenService authTokenService,
             RefreshTokenCookieService refreshTokenCookieService) {
         this.loginService = loginService;
         this.signupService = signupService;
+        this.emailVerificationService = emailVerificationService;
         this.authTokenService = authTokenService;
         this.refreshTokenCookieService = refreshTokenCookieService;
+    }
+
+    @PostMapping("/email-verification/send")
+    @Operation(summary = "이메일 인증 코드 발송 API", description = "회원가입용 이메일 인증 코드를 발송합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "409", description = "이미 존재하는 이메일"),
+        @ApiResponse(responseCode = "502", description = "메일 전송 실패")
+    })
+    public CommonResponse<EmailVerificationSendResponseDto> sendEmailVerificationCode(
+            @Valid @RequestBody EmailVerificationSendRequestDto requestDto) {
+        EmailVerificationService.SendResult result =
+                emailVerificationService.sendVerificationCode(requestDto.email());
+
+        return CommonResponse.success(
+                new EmailVerificationSendResponseDto(result.email(), result.expiresInSeconds()));
+    }
+
+    @PostMapping("/email-verification/confirm")
+    @Operation(summary = "이메일 인증 코드 검증 API", description = "이메일로 받은 인증 코드를 검증합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 또는 인증 코드 불일치/만료")
+    })
+    public CommonResponse<EmailVerificationConfirmResponseDto> confirmEmailVerificationCode(
+            @Valid @RequestBody EmailVerificationConfirmRequestDto requestDto) {
+        EmailVerificationService.VerifyResult result =
+                emailVerificationService.verifyCode(requestDto.email(), requestDto.code());
+
+        return CommonResponse.success(
+                new EmailVerificationConfirmResponseDto(
+                        result.email(), result.verified(), result.verifiedExpiresInSeconds()));
     }
 
     @PostMapping("/signup")
