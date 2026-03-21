@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.ranking.event;
 
 import com.ssafy.edu.awesomeproject.domain.ranking.service.RankingService;
+import com.ssafy.edu.awesomeproject.domain.ranking.sse.SseEmitters;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -14,6 +15,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class RankingEventListener {
 
     private final RankingService rankingService;
+    private final SseEmitters sseEmitters;
 
     /**
      * 저축 DB 커밋이 완벽히 완료된 이후에 비동기적으로 랭킹 업데이트 이벤트를 수신합니다.
@@ -27,6 +29,7 @@ public class RankingEventListener {
         // Redis ZSET에 업데이트 (전체 & 기수별)
         rankingService.updateSaveboxRanking(event.userId(), event.currentBalance(), event.cohort());
         
-        // TODO: [Task 4] SseEmitters를 주입받아 접속된 유저들에게 실시간 전파(send)하는 로직 추가 예정
+        // 인메모리에 붙어 있는 모든 유저 클라이언트들에게 랭킹 변동 알림(SSE) 브로드캐스트 직파!
+        sseEmitters.sendRankingUpdateNotification(event.userId());
     }
 }
