@@ -3,7 +3,7 @@ import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import type { ApiResponse } from '@/shared/types';
 import type { TokenReissueResponseData } from '@/features/auth/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT) || 10000;
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
