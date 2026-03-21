@@ -55,7 +55,13 @@ export const LoginForm = () => {
         accessToken: loginData.accessToken,
         user: mapUserProfileFromLogin(loginData),
       });
+    } catch {
+      addToast('로그인에 실패했습니다. 이메일/비밀번호를 확인해주세요.', 'error');
+      setIsPending(false);
+      return;
+    }
 
+    try {
       const onboardingStatusResponse = await fetchOnboardingStatus();
       const onboardingStatus = onboardingStatusResponse.data.onboardingStatus;
       const nextPath =
@@ -68,7 +74,11 @@ export const LoginForm = () => {
       addToast('로그인에 성공했습니다.', 'success');
       navigate(nextPath, { replace: true });
     } catch {
-      addToast('로그인에 실패했습니다. 이메일/비밀번호를 확인해주세요.', 'error');
+      addToast(
+        '로그인은 성공했지만 온보딩 상태를 확인하지 못했습니다. 온보딩으로 이동합니다.',
+        'error'
+      );
+      navigate('/onboarding', { replace: true });
     } finally {
       setIsPending(false);
     }
