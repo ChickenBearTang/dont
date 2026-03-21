@@ -38,6 +38,8 @@ public class UserOnboardingService {
         return userRepository
                 .findById(userId)
                 .orElseThrow(
-                        () -> new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "사용자를 찾을 수 없습니다."));
+                        () ->
+                                new CommonException(
+                                        CommonErrorCode.RESOURCE_NOT_FOUND, "사용자를 찾을 수 없습니다."));
     }
 }

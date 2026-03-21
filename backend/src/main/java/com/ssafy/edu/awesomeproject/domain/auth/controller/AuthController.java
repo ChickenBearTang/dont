@@ -2,12 +2,12 @@ package com.ssafy.edu.awesomeproject.domain.auth.controller;
 
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
 import com.ssafy.edu.awesomeproject.domain.auth.cookie.RefreshTokenCookieService;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.request.EmailVerificationConfirmRequestDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.request.EmailVerificationSendRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LoginRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LogoutRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.SignupRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.TokenReissueRequestDto;
-import com.ssafy.edu.awesomeproject.domain.auth.dto.request.EmailVerificationConfirmRequestDto;
-import com.ssafy.edu.awesomeproject.domain.auth.dto.request.EmailVerificationSendRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailVerificationConfirmResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailVerificationSendResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LoginResponseDto;

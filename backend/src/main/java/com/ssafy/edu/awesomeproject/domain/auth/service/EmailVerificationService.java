@@ -65,8 +65,7 @@ public class EmailVerificationService {
                         .orElseThrow(
                                 () ->
                                         new AuthException(
-                                                AuthErrorCode
-                                                        .EMAIL_VERIFICATION_CODE_EXPIRED));
+                                                AuthErrorCode.EMAIL_VERIFICATION_CODE_EXPIRED));
 
         if (!MessageDigest.isEqual(
                 savedCode.getBytes(StandardCharsets.UTF_8),
@@ -98,8 +97,7 @@ public class EmailVerificationService {
     private String generateCode() {
         int bound = (int) Math.pow(10, VERIFICATION_CODE_LENGTH);
         return String.format(
-                "%0" + VERIFICATION_CODE_LENGTH + "d",
-                ThreadLocalRandom.current().nextInt(bound));
+                "%0" + VERIFICATION_CODE_LENGTH + "d", ThreadLocalRandom.current().nextInt(bound));
     }
 
     public record SendResult(String email, long expiresInSeconds) {}
