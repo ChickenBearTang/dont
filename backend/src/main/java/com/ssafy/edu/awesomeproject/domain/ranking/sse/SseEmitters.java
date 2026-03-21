@@ -43,10 +43,13 @@ public class SseEmitters {
         // 단일 서버의 메모리에 맺혀있는 모든 Emitter들을 순회하며 푸시 이벤트 발송
         emitters.forEach((userId, emitter) -> {
             try {
+                // 프론트엔드의 RankingUpdatePayload 인터페이스 형태에 맞춘 JSON 직렬화 문자열 발송
+                String jsonPayload = String.format("{\"triggeredUserId\": %d}", triggeredUserId);
+
                 // "ranking-update" 라는 커스텀 이벤트 채널을 통해 트리거 발동
                 emitter.send(SseEmitter.event()
                         .name("ranking-update")
-                        .data("User " + triggeredUserId + " caused a ranking update. Please refresh cache!"));
+                        .data(jsonPayload)); // 프론트엔드 JSON.parse() 에러(Unexpected token U) 해결
             } catch (IOException e) {
                 // 클라이언트와의 연결이 물리적으로 끊어진 경우 소켓을 제거
                 log.info("SSE 발송 중 IO 예외 발생 (Client 연결 끊김) - 제거: User {}", userId);
