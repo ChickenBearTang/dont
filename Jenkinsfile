@@ -10,7 +10,7 @@ pipeline {
     environment {
         COMPOSE_FILE = 'docker-compose.yml'
         ENV_FILE = '.env'
-        APP_SERVICES = 'redis backend frontend'
+        APP_SERVICES = 'redis backend frontend edge-nginx'
     }
 
     stages {
@@ -100,16 +100,7 @@ pipeline {
                         echo "SSL_ENABLED=true but SSL_CERT_PATH/SSL_KEY_PATH are missing."
                         exit 1
                       fi
-
-                      test -s "${ssl_cert_path}" || {
-                        echo "SSL certificate file is not readable or empty: ${ssl_cert_path}"
-                        exit 1
-                      }
-
-                      test -s "${ssl_key_path}" || {
-                        echo "SSL private key file is not readable or empty: ${ssl_key_path}"
-                        exit 1
-                      }
+                      echo "SSL cert path precheck is skipped. edge-nginx runtime will validate mounted cert files."
                     fi
                 '''
             }
