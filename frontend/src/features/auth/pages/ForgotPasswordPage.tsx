@@ -1,8 +1,17 @@
-import { useState } from 'react';
+import axios from 'axios';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input } from '@/shared/components';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { confirmPasswordReset, requestPasswordReset } from '@/features/auth/api/authApi';
+import type { ApiResponse } from '@/shared/types';
+import { mapAuthErrorMessage } from '@/features/auth/utils/errorMessage';
+
+const formatRemainingTime = (seconds: number): string => {
+  const minutes = Math.floor(seconds / 60);
+  const remainSeconds = seconds % 60;
+  return `${minutes}:${String(remainSeconds).padStart(2, '0')}`;
+};
 
 export const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -22,6 +31,24 @@ export const ForgotPasswordPage = () => {
   const passwordMismatch =
     passwordConfirm.length > 0 && newPassword.length > 0 && newPassword !== passwordConfirm;
 
+  useEffect(() => {
+    if (!isCodeRequested || expiresIn <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setExpiresIn((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [isCodeRequested, expiresIn]);
+
   const handleRequestCode = async () => {
     if (isRequesting) {
       return;
@@ -37,9 +64,13 @@ export const ForgotPasswordPage = () => {
       const response = await requestPasswordReset({ email });
       setIsCodeRequested(true);
       setExpiresIn(response.data.expiresInSeconds);
+      setCode('');
       addToast(response.data.message, 'success');
-    } catch {
-      addToast('재설정 코드 요청에 실패했습니다.', 'error');
+    } catch (error) {
+      const code = axios.isAxiosError(error)
+        ? (error.response?.data as ApiResponse<unknown> | undefined)?.code
+        : undefined;
+      addToast(mapAuthErrorMessage(code, 'passwordResetRequest'), 'error');
     } finally {
       setIsRequesting(false);
     }
@@ -84,8 +115,11 @@ export const ForgotPasswordPage = () => {
       } else {
         addToast('비밀번호 재설정에 실패했습니다.', 'error');
       }
-    } catch {
-      addToast('코드가 올바르지 않거나 만료되었습니다.', 'error');
+    } catch (error) {
+      const code = axios.isAxiosError(error)
+        ? (error.response?.data as ApiResponse<unknown> | undefined)?.code
+        : undefined;
+      addToast(mapAuthErrorMessage(code, 'passwordResetConfirm'), 'error');
     } finally {
       setIsConfirming(false);
     }
@@ -116,7 +150,7 @@ export const ForgotPasswordPage = () => {
       {isCodeRequested && (
         <div className="mt-7 space-y-2">
           <p className="text-[12px] font-semibold text-text-subtle">
-            코드 유효시간: 약 {Math.max(1, Math.ceil(expiresIn / 60))}분
+            코드 유효시간: {formatRemainingTime(Math.max(0, expiresIn))}
           </p>
           <Input
             label="인증 코드"
@@ -124,6 +158,8 @@ export const ForgotPasswordPage = () => {
             onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, ''))}
             placeholder="6자리 코드"
             maxLength={6}
+            error={code.length > 0 && !/^\d{6}$/.test(code)}
+            errorMessage="인증 코드는 숫자 6자리여야 합니다."
           />
           <Input
             label="새 비밀번호"
@@ -145,7 +181,13 @@ export const ForgotPasswordPage = () => {
           />
           <Button
             onClick={handleConfirm}
-            disabled={isConfirming || passwordTooShort || passwordMismatch}
+            disabled={
+              isConfirming ||
+              expiresIn <= 0 ||
+              code.length !== 6 ||
+              passwordTooShort ||
+              passwordMismatch
+            }
           >
             {isConfirming ? '변경 중...' : '비밀번호 재설정'}
           </Button>
