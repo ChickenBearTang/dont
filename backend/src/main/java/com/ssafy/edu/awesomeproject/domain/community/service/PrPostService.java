@@ -216,7 +216,7 @@ public class PrPostService {
                                             reviewUser == null
                                                     ? null
                                                     : s3AssetUrlResolver.resolvePublicUrlOrNull(
-                                                            reviewUser.getProfileImageKey()),
+                                                            reviewUser.getProfileImageUrl()),
                                             review.getDecision().name(),
                                             review.getContent(),
                                             review.getCreatedAt());
@@ -285,7 +285,7 @@ public class PrPostService {
                                     actor == null
                                             ? null
                                             : s3AssetUrlResolver.resolvePublicUrlOrNull(
-                                                    actor.getProfileImageKey()),
+                                                    actor.getProfileImageUrl()),
                                     event.getPayload(),
                                     event.getCreatedAt());
                         })

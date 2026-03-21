@@ -32,8 +32,8 @@ public class User extends BaseEntity {
     @Column(name = "nickname", length = 60)
     private String nickname;
 
-    @Column(name = "profile_image_key")
-    private String profileImageKey;
+    @Column(name = "profile_image_url")
+    private String profileImageUrl;
 
     // 유저의 키를 받아오는용
     @Column(name = "ssafy_finance_user_key", length = 255)
@@ -62,8 +62,8 @@ public class User extends BaseEntity {
         return userRole.toString();
     }
 
-    public String getProfileImageKey() {
-        return profileImageKey;
+    public String getProfileImageUrl() {
+        return profileImageUrl;
     }
 
     public OnboardingStatus getOnboardingStatusOrDefault() {
@@ -80,7 +80,7 @@ public class User extends BaseEntity {
             String name,
             LocalDate birthDate,
             String nickname,
-            String profileImageKey,
+            String profileImageUrl,
             boolean termsAgreed,
             LocalDateTime termsAgreedAt,
             UserRole userRole,
@@ -90,7 +90,7 @@ public class User extends BaseEntity {
         this.name = name;
         this.birthDate = birthDate;
         this.nickname = nickname;
-        this.profileImageKey = profileImageKey;
+        this.profileImageUrl = profileImageUrl;
         this.termsAgreed = termsAgreed;
         this.termsAgreedAt = termsAgreedAt;
         this.onboardingStatus = OnboardingStatus.NOT_STARTED;
