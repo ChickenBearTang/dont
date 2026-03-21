@@ -17,6 +17,8 @@ import com.ssafy.edu.awesomeproject.domain.auth.service.AuthTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.EmailVerificationService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.LoginService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.SignupService;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.CohortResponseDto;
+import com.ssafy.edu.awesomeproject.domain.community.service.CohortQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -24,6 +26,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.time.Duration;
+import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -35,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
     private final LoginService loginService;
     private final SignupService signupService;
+    private final CohortQueryService cohortQueryService;
     private final EmailVerificationService emailVerificationService;
     private final AuthTokenService authTokenService;
     private final RefreshTokenCookieService refreshTokenCookieService;
@@ -42,14 +47,23 @@ public class AuthController {
     public AuthController(
             LoginService loginService,
             SignupService signupService,
+            CohortQueryService cohortQueryService,
             EmailVerificationService emailVerificationService,
             AuthTokenService authTokenService,
             RefreshTokenCookieService refreshTokenCookieService) {
         this.loginService = loginService;
         this.signupService = signupService;
+        this.cohortQueryService = cohortQueryService;
         this.emailVerificationService = emailVerificationService;
         this.authTokenService = authTokenService;
         this.refreshTokenCookieService = refreshTokenCookieService;
+    }
+
+    @GetMapping("/cohorts")
+    @Operation(summary = "기수 목록 조회 API", description = "회원가입 및 온보딩에 필요한 기수 목록을 조회합니다.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "정상 응답")})
+    public CommonResponse<List<CohortResponseDto>> getCohorts() {
+        return CommonResponse.success(cohortQueryService.getCohorts());
     }
 
     @PostMapping("/email-verification/send")

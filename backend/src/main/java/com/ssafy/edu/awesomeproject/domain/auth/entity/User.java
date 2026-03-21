@@ -46,6 +46,10 @@ public class User extends BaseEntity {
     private LocalDateTime termsAgreedAt;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "onboarding_status", length = 20)
+    private OnboardingStatus onboardingStatus = OnboardingStatus.NOT_STARTED;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "user_role", nullable = false, length = 32)
     private UserRole userRole;
 
@@ -56,6 +60,14 @@ public class User extends BaseEntity {
 
     public String getUserRole() {
         return userRole.toString();
+    }
+
+    public OnboardingStatus getOnboardingStatusOrDefault() {
+        return onboardingStatus != null ? onboardingStatus : OnboardingStatus.NOT_STARTED;
+    }
+
+    public void markOnboardingCompleted() {
+        this.onboardingStatus = OnboardingStatus.COMPLETED;
     }
 
     public User(
@@ -77,6 +89,7 @@ public class User extends BaseEntity {
         this.profileImageUrl = profileImageUrl;
         this.termsAgreed = termsAgreed;
         this.termsAgreedAt = termsAgreedAt;
+        this.onboardingStatus = OnboardingStatus.NOT_STARTED;
         this.userRole = userRole;
         this.cohort = cohort;
     }

@@ -10,23 +10,33 @@ import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CohortRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SignupService {
+    private static final List<String> DEFAULT_PROFILE_IMAGE_KEYS =
+            List.of(
+                    "public/profile/default/profile_penguin.png",
+                    "public/profile/default/profile_bear.png");
+
     private final UserRepository userRepository;
     private final PasswordHashService passwordHashService;
     private final CohortRepository cohortRepository;
+    private final EmailVerificationService emailVerificationService;
 
     public SignupService(
             UserRepository userRepository,
             PasswordHashService passwordHashService,
-            CohortRepository cohortRepository) {
+            CohortRepository cohortRepository,
+            EmailVerificationService emailVerificationService) {
         this.userRepository = userRepository;
         this.passwordHashService = passwordHashService;
         this.cohortRepository = cohortRepository;
+        this.emailVerificationService = emailVerificationService;
     }
 
     public void signup(
@@ -43,6 +53,7 @@ public class SignupService {
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
+        emailVerificationService.assertVerified(normalizedEmail);
 
         Cohort cohort =
                 cohortRepository
@@ -51,6 +62,7 @@ public class SignupService {
 
         String encodedPassword = passwordHashService.encode(rawPassword);
         LocalDateTime termsAgreedAt = termsAgreed ? LocalDateTime.now() : null;
+        String defaultProfileImageKey = pickDefaultProfileImageKey();
         User user =
                 new User(
                         normalizedEmail,
@@ -58,15 +70,21 @@ public class SignupService {
                         name,
                         birthDate,
                         nickname,
-                        null,
+                        defaultProfileImageKey,
                         termsAgreed,
                         termsAgreedAt,
                         UserRole.USER,
                         cohort);
         try {
             userRepository.save(user);
+            emailVerificationService.clearVerified(normalizedEmail);
         } catch (DataIntegrityViolationException ex) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
+    }
+
+    private String pickDefaultProfileImageKey() {
+        int index = ThreadLocalRandom.current().nextInt(DEFAULT_PROFILE_IMAGE_KEYS.size());
+        return DEFAULT_PROFILE_IMAGE_KEYS.get(index);
     }
 }
