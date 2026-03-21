@@ -4,6 +4,7 @@ import { router } from '@/app/router';
 import { ToastContainer } from '@/shared/components/ToastContainer';
 import { refreshAccessToken } from '@/features/auth/api/authApi';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { loadAuthUser } from '@/features/auth/utils/authStorage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@/styles/index.css';
 
@@ -22,7 +23,7 @@ const AppBootstrap = () => {
 
   const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const setAuthInitializing = useAuthStore((state) => state.setAuthInitializing);
-  const setAccessToken = useAuthStore((state) => state.setAccessToken);
+  const restoreSession = useAuthStore((state) => state.restoreSession);
   const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
@@ -38,7 +39,12 @@ const AppBootstrap = () => {
       try {
         const response = await refreshAccessToken();
         const nextToken = response.data.accessToken;
-        setAccessToken(nextToken);
+        const savedUser = loadAuthUser();
+
+        restoreSession({
+          accessToken: nextToken,
+          user: savedUser,
+        });
       } catch {
         logout();
       } finally {
@@ -47,7 +53,7 @@ const AppBootstrap = () => {
     };
 
     void bootstrapAuth();
-  }, [logout, setAccessToken, setAuthInitializing]);
+  }, [logout, restoreSession, setAuthInitializing]);
 
   if (isAuthInitializing) {
     return <div className="min-h-screen bg-[#F8FAFC]" />;

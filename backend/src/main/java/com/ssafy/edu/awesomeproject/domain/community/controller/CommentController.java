@@ -33,7 +33,6 @@ public class CommentController {
         this.commentService = commentService;
     }
 
-    // 댓글 작성 -> 원하는 post의 postId로 들어가서 작성
     @PostMapping("/posts/{postId}/comments")
     @Operation(summary = "댓글 작성 API", description = "게시글에 댓글 또는 대댓글을 작성하는 API 입니다.")
     @ApiResponses({
@@ -44,22 +43,21 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "게시글/댓글 없음")
     })
     public CommonResponse<CreateCommentResponseDto> createComment(
-            @CurrentUserId Long userId,
-            @PathVariable Long postId,
-            @Valid @RequestBody CreateCommentRequestDto createCommentRequestDto) {
+        @CurrentUserId Long userId,
+        @PathVariable Long postId,
+        @Valid @RequestBody CreateCommentRequestDto createCommentRequestDto) {
 
         CommentService.CreateCommentResult result =
-                commentService.createComment(
-                        userId,
-                        postId,
-                        createCommentRequestDto.parentCommentId(),
-                        createCommentRequestDto.content());
+            commentService.createComment(
+                userId,
+                postId,
+                createCommentRequestDto.parentCommentId(),
+                createCommentRequestDto.content());
 
         return CommonResponse.success(
-                new CreateCommentResponseDto(result.commentId(), result.createdAt()));
+            new CreateCommentResponseDto(result.commentId(), result.createdAt()));
     }
 
-    // 댓글 목록 조회
     @GetMapping("/posts/{postId}/comments")
     @Operation(summary = "댓글 목록 조회 API", description = "게시글의 댓글 목록을 페이지 기반으로 조회하는 API 입니다.")
     @ApiResponses({
@@ -67,40 +65,40 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "게시글 없음")
     })
     public CommonResponse<GetCommentListResponseDto> getComments(
-            @CurrentUserId Long userId,
-            @PathVariable Long postId,
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size) {
+        @CurrentUserId Long userId,
+        @PathVariable Long postId,
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size) {
 
         CommentService.GetCommentListResult result =
-                commentService.getComments(userId, postId, page, size);
+            commentService.getComments(userId, postId, page, size);
 
         List<GetCommentListResponseDto.CommentSummaryDto> content =
-                result.content().stream()
-                        .map(
-                                comment ->
-                                        new GetCommentListResponseDto.CommentSummaryDto(
-                                                comment.commentId(),
-                                                comment.parentCommentId(),
-                                                comment.content(),
-                                                comment.authorId(),
-                                                comment.authorNickname(),
-                                                comment.isMine(),
-                                                comment.likeCount(),
-                                                comment.createdAt()))
-                        .toList();
+            result.content().stream()
+                .map(
+                    comment ->
+                        new GetCommentListResponseDto.CommentSummaryDto(
+                            comment.commentId(),
+                            comment.parentCommentId(),
+                            comment.status(),
+                            comment.content(),
+                            comment.authorId(),
+                            comment.authorNickname(),
+                            comment.isMine(),
+                            comment.likeCount(),
+                            comment.createdAt()))
+                .toList();
 
         return CommonResponse.success(
-                new GetCommentListResponseDto(
-                        content,
-                        result.page(),
-                        result.size(),
-                        result.totalElements(),
-                        result.totalPages(),
-                        result.hasNext()));
+            new GetCommentListResponseDto(
+                content,
+                result.page(),
+                result.size(),
+                result.totalElements(),
+                result.totalPages(),
+                result.hasNext()));
     }
 
-    // 댓글 수정
     @PatchMapping("/comments/{commentId}")
     @Operation(summary = "댓글 수정 API", description = "댓글 작성자가 본인 댓글을 수정하는 API 입니다.")
     @ApiResponses({
@@ -110,18 +108,17 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "댓글 없음")
     })
     public CommonResponse<UpdateCommentResponseDto> updateComment(
-            @CurrentUserId Long userId,
-            @PathVariable Long commentId,
-            @Valid @RequestBody UpdateCommentRequestDto updateCommentRequestDto) {
+        @CurrentUserId Long userId,
+        @PathVariable Long commentId,
+        @Valid @RequestBody UpdateCommentRequestDto updateCommentRequestDto) {
 
         CommentService.UpdateCommentResult result =
-                commentService.updateComment(userId, commentId, updateCommentRequestDto.content());
+            commentService.updateComment(userId, commentId, updateCommentRequestDto.content());
 
         return CommonResponse.success(
-                new UpdateCommentResponseDto(result.commentId(), result.updatedAt()));
+            new UpdateCommentResponseDto(result.commentId(), result.updatedAt()));
     }
 
-    // 댓글 삭제
     @DeleteMapping("/comments/{commentId}")
     @Operation(summary = "댓글 삭제 API", description = "댓글 작성자가 본인의 댓글을 삭제하는 API 입니다.")
     @ApiResponses({
@@ -131,11 +128,11 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "댓글 없음")
     })
     public CommonResponse<DeleteCommentResponseDto> deleteComment(
-            @CurrentUserId Long userId, @PathVariable Long commentId) {
+        @CurrentUserId Long userId, @PathVariable Long commentId) {
 
         CommentService.DeleteCommentResult result = commentService.deleteComment(userId, commentId);
 
         return CommonResponse.success(
-                new DeleteCommentResponseDto(result.deleted(), result.deletedAt()));
+            new DeleteCommentResponseDto(result.deleted(), result.deletedAt()));
     }
 }
