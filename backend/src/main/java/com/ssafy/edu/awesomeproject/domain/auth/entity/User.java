@@ -86,6 +86,10 @@ public class User extends BaseEntity {
         this.monthlySavingGoalAmount = monthlySavingGoalAmount;
     }
 
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
+
     public User(
             String email,
             String password,
