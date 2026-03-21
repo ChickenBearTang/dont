@@ -8,6 +8,7 @@ import {
   HomeRoute,
   PrCreateRoute,
   PrDetailRoute,
+  RequireAuthRoute,
 } from '@/app/routeComponents';
 
 export const router = createBrowserRouter([
@@ -23,24 +24,29 @@ export const router = createBrowserRouter([
         element: <LoginPage />,
       },
       {
-        path: '/onboarding',
-        element: <OnboardingPage />,
-      },
-      {
         path: '/signup',
         element: <SignUpPage />,
       },
       {
-        path: '/finance-connect',
-        element: <div>FinanceConnect Placeholder</div>,
-      },
-      {
-        path: '/loading',
-        element: <div>LoadingScreen Placeholder</div>,
-      },
-      {
-        path: '/success',
-        element: <div>SuccessScreen Placeholder</div>,
+        element: <RequireAuthRoute />,
+        children: [
+          {
+            path: '/onboarding',
+            element: <OnboardingPage />,
+          },
+          {
+            path: '/finance-connect',
+            element: <div>FinanceConnect Placeholder</div>,
+          },
+          {
+            path: '/loading',
+            element: <div>LoadingScreen Placeholder</div>,
+          },
+          {
+            path: '/success',
+            element: <div>SuccessScreen Placeholder</div>,
+          },
+        ],
       },
     ],
   },

@@ -27,7 +27,8 @@ public class UserOnboardingService {
     }
 
     @Transactional
-    public OnboardingStatusResponseDto saveOnboardingCheckpoint(Long userId, Long recommendedAmount) {
+    public OnboardingStatusResponseDto saveOnboardingCheckpoint(
+            Long userId, Long recommendedAmount) {
         User user = getUser(userId);
         user.updateMonthlySavingGoalAmount(BigDecimal.valueOf(recommendedAmount));
         user.markOnboardingInProgress();
