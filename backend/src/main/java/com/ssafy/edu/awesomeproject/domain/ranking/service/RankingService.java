@@ -2,7 +2,14 @@ package com.ssafy.edu.awesomeproject.domain.ranking.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
 import org.springframework.stereotype.Service;
+
+import com.ssafy.edu.awesomeproject.domain.ranking.dto.response.RankingUserDto;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -39,5 +46,41 @@ public class RankingService {
             String cohortKey = COHORT_RANKING_PREFIX + cohort;
             redisTemplate.opsForZSet().add(cohortKey, String.valueOf(userId), score);
         }
+    }
+
+    /**
+     * Top 100 랭킹 리스트 조회 (cohort 인자가 null이면 전체 랭킹 조회)
+     */
+    public List<RankingUserDto> getTop100Ranking(Integer cohort) {
+        String key = (cohort != null && cohort > 0) ? COHORT_RANKING_PREFIX + cohort : TOTAL_RANKING_KEY;
+        Set<TypedTuple<String>> top100 = redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, 99);
+        
+        if (top100 == null || top100.isEmpty()) return List.of();
+        
+        long currentRank = 1;
+        List<RankingUserDto> result = new ArrayList<>();
+        for (TypedTuple<String> tuple : top100) {
+            Long id = Long.valueOf(tuple.getValue());
+            Long score = tuple.getScore() != null ? tuple.getScore().longValue() : 0L;
+            result.add(RankingUserDto.of(id, score, currentRank++));
+        }
+        return result;
+    }
+
+    /**
+     * 내 랭킹 조회 (존재하지 않으면 rank = -1 로 반환)
+     */
+    public RankingUserDto getMyRanking(Long userId, Integer cohort) {
+        String key = (cohort != null && cohort > 0) ? COHORT_RANKING_PREFIX + cohort : TOTAL_RANKING_KEY;
+        String userIdStr = String.valueOf(userId);
+        
+        Double scoreDouble = redisTemplate.opsForZSet().score(key, userIdStr);
+        Long rank = redisTemplate.opsForZSet().reverseRank(key, userIdStr);
+        
+        if (scoreDouble == null || rank == null) {
+            return RankingUserDto.of(userId, 0L, -1L);
+        }
+        
+        return RankingUserDto.of(userId, scoreDouble.longValue(), rank + 1); // Redis ZSET Rank는 0부터 시작하므로 +1
     }
 }
