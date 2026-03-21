@@ -29,7 +29,7 @@ public class User extends BaseEntity {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
-    @Column(name = "nickname", nullable = false, length = 60)
+    @Column(name = "nickname", length = 60)
     private String nickname;
 
     @Column(name = "profile_image_key")

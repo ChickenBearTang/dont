@@ -1,8 +1,17 @@
-import { useActionState, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input, Select, Checkbox, DatePicker, Button } from '@/shared/components';
 import { useUIStore } from '@/shared/store/useUIStore';
-import { mockDb } from '@/shared/api/mockDb';
+import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import {
+  checkEmailAvailability,
+  confirmEmailVerificationCode,
+  login,
+  mapUserProfileFromLogin,
+  sendEmailVerificationCode,
+  signup,
+} from '@/features/auth/api/authApi';
+import { fetchCohorts, fetchOnboardingStatus } from '@/features/user/api/userApi';
 import type { SignUpRequestPayload } from '@/features/auth/types';
 import type { Cohort, SelectOption } from '@/shared/types';
 
@@ -24,81 +33,238 @@ const initialState: FormState = {
 export const SignUpForm = () => {
   const navigate = useNavigate();
   const { addToast } = useUIStore();
+  const { loginSuccess } = useAuthStore();
   const [cohortOptions, setCohortOptions] = useState<SelectOption[]>([]);
   const [loadingCohorts, setLoadingCohorts] = useState(true);
+  const [state, setState] = useState<FormState>(initialState);
+  const [isPending, setIsPending] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
+  const [isConfirmingVerification, setIsConfirmingVerification] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isEmailAvailable, setIsEmailAvailable] = useState(false);
+  const [verificationExpiresIn, setVerificationExpiresIn] = useState(0);
 
   // --- Controlled Form State ---
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    realName: '',
-    nickname: '',
+    passwordConfirm: '',
+    name: '',
     birthDate: '',
-    cohortId: 0,
+    cohortId: '',
     termsAgreed: false,
   });
 
   // 기수 정보 불러오기
   useEffect(() => {
     const loadCohorts = async () => {
-      const options = mockDb.getCohorts().map((c: Cohort) => ({
-        value: c.cohortId,
-        label: c.cohortCode,
-      }));
-      setCohortOptions(options);
-      setLoadingCohorts(false);
+      try {
+        const response = await fetchCohorts();
+        const options = response.data.map((c: Cohort) => ({
+          value: c.cohortId,
+          label: `${c.generationNo}기`,
+        }));
+        setCohortOptions(options);
+      } catch {
+        addToast('기수 목록을 불러오지 못했습니다.', 'error');
+      } finally {
+        setLoadingCohorts(false);
+      }
     };
     loadCohorts();
-  }, []);
+  }, [addToast]);
 
-  /**
-   * React 19 useActionState 핸들러
-   */
-  const [state, formAction, isPending] = useActionState(
-    async (_prevState: FormState, _fd: FormData): Promise<FormState> => {
-      const { email, password, realName, nickname, birthDate, cohortId, termsAgreed } = formData;
+  useEffect(() => {
+    if (!verificationSent || isEmailVerified || verificationExpiresIn <= 0) {
+      return;
+    }
 
-      const errors: Record<string, string> = {};
-      if (!email.includes('@')) errors.email = '올바른 이메일 형식을 입력해주세요.';
-      if (password.length < 8) errors.password = '비밀번호는 8자 이상이어야 합니다.';
-      if (!cohortId) errors.cohortId = '기수를 선택해주세요.';
-      if (!termsAgreed) errors.termsAgreed = '약관에 동의해야 합니다.';
+    const timer = window.setInterval(() => {
+      setVerificationExpiresIn((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-      if (Object.keys(errors).length > 0) {
-        return { success: false, message: '입력 정보를 확인해주세요.', errors };
+    return () => window.clearInterval(timer);
+  }, [verificationSent, isEmailVerified, verificationExpiresIn]);
+
+  const validate = (): FormState => {
+    const { email, password, passwordConfirm, name, birthDate, cohortId, termsAgreed } = formData;
+    const errors: Record<string, string> = {};
+    if (!email.includes('@')) errors.email = '올바른 이메일 형식을 입력해주세요.';
+    if (password.length < 8) errors.password = '비밀번호는 8자 이상이어야 합니다.';
+    if (!passwordConfirm) errors.passwordConfirm = '비밀번호 확인을 입력해주세요.';
+    if (passwordConfirm && password !== passwordConfirm) {
+      errors.passwordConfirm = '비밀번호가 일치하지 않습니다.';
+    }
+    if (!name.trim()) errors.name = '이름을 입력해주세요.';
+    if (!birthDate) errors.birthDate = '생년월일을 입력해주세요.';
+    if (!cohortId) errors.cohortId = '기수를 선택해주세요.';
+    if (!termsAgreed) errors.termsAgreed = '약관에 동의해야 합니다.';
+    if (!isEmailAvailable) errors.email = '이메일 중복 확인을 완료해주세요.';
+    if (!verificationSent) errors.emailVerification = '이메일 인증 코드를 먼저 발송해주세요.';
+    if (!isEmailVerified) errors.emailVerification = '이메일 인증을 완료해주세요.';
+
+    return {
+      success: false,
+      message: Object.keys(errors).length > 0 ? '입력 정보를 확인해주세요.' : '',
+      errors,
+    };
+  };
+
+  const resetEmailVerificationState = () => {
+    setIsEmailAvailable(false);
+    setVerificationSent(false);
+    setIsEmailVerified(false);
+    setVerificationCode('');
+    setVerificationExpiresIn(0);
+  };
+
+  const handleCheckEmail = async () => {
+    if (!formData.email.includes('@')) {
+      setState((prev) => ({
+        ...prev,
+        errors: { ...prev.errors, email: '올바른 이메일 형식을 입력해주세요.' },
+      }));
+      return;
+    }
+
+    setIsCheckingEmail(true);
+    try {
+      const response = await checkEmailAvailability(formData.email);
+      if (response.data.available) {
+        setIsEmailAvailable(true);
+        setState((prev) => ({
+          ...prev,
+          errors: { ...prev.errors, email: '' },
+        }));
+        addToast('사용 가능한 이메일입니다.', 'success');
+      } else {
+        setIsEmailAvailable(false);
+        addToast('이미 사용 중인 이메일입니다.', 'error');
       }
+    } catch {
+      setIsEmailAvailable(false);
+      addToast('이메일 중복 확인에 실패했습니다.', 'error');
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
 
-      try {
-        const payload: SignUpRequestPayload = {
-          email,
-          password,
-          realName,
-          nickname,
-          birthDate,
-          cohortId,
-          termsAgreed,
-        };
+  const handleSendVerification = async () => {
+    if (!isEmailAvailable) {
+      addToast('이메일 중복 확인을 먼저 진행해주세요.', 'error');
+      return;
+    }
 
-        // Prototyping: Mock DB 연동
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        mockDb.registerUser(payload);
-        console.log('User registered in Mock DB:', email);
+    if (!formData.email.includes('@')) {
+      setState((prev) => ({
+        ...prev,
+        errors: { ...prev.errors, email: '올바른 이메일 형식을 입력해주세요.' },
+      }));
+      return;
+    }
 
-        return { success: true, message: '회원가입이 완료되었습니다!', errors: {} };
-      } catch (error: any) {
-        console.error('Signup error:', error);
-        return {
-          success: false,
-          message: '회원가입 중 에러가 발생했습니다.',
-          errors: {}
-        };
-      }
-    },
-    initialState
-  );
+    setIsSendingVerification(true);
+    try {
+      const response = await sendEmailVerificationCode({ email: formData.email });
+      setVerificationSent(true);
+      setIsEmailVerified(false);
+      setVerificationExpiresIn(response.data.expiresInSeconds);
+      addToast('인증 코드를 이메일로 발송했습니다.', 'success');
+    } catch {
+      addToast('인증 코드 발송에 실패했습니다.', 'error');
+    } finally {
+      setIsSendingVerification(false);
+    }
+  };
+
+  const handleConfirmVerification = async () => {
+    if (!verificationCode.trim()) {
+      setState((prev) => ({
+        ...prev,
+        errors: { ...prev.errors, emailVerification: '인증 코드를 입력해주세요.' },
+      }));
+      return;
+    }
+
+    setIsConfirmingVerification(true);
+    try {
+      await confirmEmailVerificationCode({
+        email: formData.email,
+        code: verificationCode,
+      });
+      setIsEmailVerified(true);
+      setVerificationExpiresIn(0);
+      setState((prev) => ({
+        ...prev,
+        errors: { ...prev.errors, emailVerification: '' },
+      }));
+      addToast('이메일 인증이 완료되었습니다.', 'success');
+    } catch {
+      setIsEmailVerified(false);
+      addToast('이메일 인증 코드가 올바르지 않거나 만료되었습니다.', 'error');
+    } finally {
+      setIsConfirmingVerification(false);
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextState = validate();
+    setState(nextState);
+
+    if (Object.keys(nextState.errors).length > 0) {
+      return;
+    }
+
+    setIsPending(true);
+    try {
+      const payload: SignUpRequestPayload = {
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        birthDate: formData.birthDate,
+        cohortId: Number(formData.cohortId),
+        termsAgreed: formData.termsAgreed,
+      };
+
+      await signup(payload);
+      const loginResponse = await login({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      loginSuccess({
+        accessToken: loginResponse.data.accessToken,
+        user: mapUserProfileFromLogin(loginResponse.data),
+      });
+
+      const onboardingStatusResponse = await fetchOnboardingStatus();
+      addToast('회원가입이 완료되었습니다.', 'success');
+      navigate(
+        onboardingStatusResponse.data.onboardingCompleted ? '/finance-connect' : '/onboarding',
+        { replace: true }
+      );
+    } catch {
+      addToast('회원가입 중 에러가 발생했습니다.', 'error');
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
+    if (name === 'email') {
+      resetEmailVerificationState();
+    }
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -106,25 +272,21 @@ export const SignUpForm = () => {
   };
 
   const handleCohortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData((prev) => ({ ...prev, cohortId: Number(e.target.value) }));
+    setFormData((prev) => ({ ...prev, cohortId: e.target.value }));
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, birthDate: e.target.value }));
   };
 
-  // 성공 시 이동 및 토스트
-  useEffect(() => {
-    if (state.success) {
-      addToast(state.message, 'success');
-      navigate('/login');
-    } else if (state.message && !state.success) {
-      addToast(state.message, 'error');
-    }
-  }, [state, navigate, addToast]);
+  const formatRemainingTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainSeconds = seconds % 60;
+    return `${minutes}:${String(remainSeconds).padStart(2, '0')}`;
+  };
 
   return (
-    <form action={formAction} className="flex flex-col gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
       <Input
         label="이메일"
         name="email"
@@ -134,8 +296,77 @@ export const SignUpForm = () => {
         value={formData.email}
         onChange={handleInputChange}
         error={!!state.errors.email}
+        errorMessage={state.errors.email}
       />
-      {state.errors.email && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.email}</p>}
+      <div className="mt-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleCheckEmail}
+          disabled={isCheckingEmail}
+        >
+          {isCheckingEmail ? '확인 중...' : '이메일 중복 확인'}
+        </Button>
+      </div>
+      {isEmailAvailable && (
+        <p className="text-success text-[13px] ml-1 font-medium">사용 가능한 이메일입니다.</p>
+      )}
+      {isEmailAvailable && (
+        <div className="mt-2">
+          <Button type="button" onClick={handleSendVerification} disabled={isSendingVerification}>
+            {isSendingVerification
+              ? '발송 중...'
+              : verificationSent
+                ? '인증 코드 재발송'
+                : '인증 코드 발송'}
+          </Button>
+        </div>
+      )}
+      {verificationSent && (
+        <>
+          <div className="mt-2">
+            <Input
+              label="인증 코드"
+              name="verificationCode"
+              placeholder="6자리 인증 코드를 입력하세요"
+              value={verificationCode}
+              onChange={(event) =>
+                setVerificationCode(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))
+              }
+              error={!!state.errors.emailVerification}
+              errorMessage={state.errors.emailVerification}
+              className="mt-0"
+            />
+          </div>
+          {!isEmailVerified && verificationExpiresIn > 0 && (
+            <p className="text-[13px] ml-1 font-medium text-text-muted">
+              남은 시간 {formatRemainingTime(verificationExpiresIn)}
+            </p>
+          )}
+          {!isEmailVerified && verificationExpiresIn === 0 && (
+            <p className="text-danger text-[13px] ml-1 font-medium">
+              인증 시간이 만료되었습니다. 인증 코드를 다시 발송해주세요.
+            </p>
+          )}
+          <div className="mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleConfirmVerification}
+              disabled={isConfirmingVerification || verificationExpiresIn === 0}
+            >
+              {isConfirmingVerification
+                ? '확인 중...'
+                : isEmailVerified
+                  ? '인증 완료'
+                  : '인증 확인'}
+            </Button>
+          </div>
+        </>
+      )}
+      {isEmailVerified && (
+        <p className="text-success text-[13px] ml-1 font-medium">이메일 인증이 완료되었습니다.</p>
+      )}
 
       <Input
         label="비밀번호"
@@ -146,25 +377,30 @@ export const SignUpForm = () => {
         value={formData.password}
         onChange={handleInputChange}
         error={!!state.errors.password}
+        errorMessage={state.errors.password}
       />
-      {state.errors.password && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.password}</p>}
+
+      <Input
+        label="비밀번호 확인"
+        name="passwordConfirm"
+        type="password"
+        placeholder="비밀번호를 다시 입력해주세요"
+        required
+        value={formData.passwordConfirm}
+        onChange={handleInputChange}
+        error={!!state.errors.passwordConfirm}
+        errorMessage={state.errors.passwordConfirm}
+      />
 
       <Input
         label="이름"
-        name="realName"
+        name="name"
         placeholder="실명을 입력하세요"
         required
-        value={formData.realName}
+        value={formData.name}
         onChange={handleInputChange}
-      />
-
-      <Input
-        label="닉네임"
-        name="nickname"
-        placeholder="사용할 닉네임을 입력하세요"
-        required
-        value={formData.nickname}
-        onChange={handleInputChange}
+        error={!!state.errors.name}
+        errorMessage={state.errors.name}
       />
 
       <DatePicker
@@ -173,6 +409,8 @@ export const SignUpForm = () => {
         required
         value={formData.birthDate}
         onChange={handleDateChange}
+        error={!!state.errors.birthDate}
+        errorMessage={state.errors.birthDate}
       />
 
       <Select
@@ -185,8 +423,8 @@ export const SignUpForm = () => {
         value={formData.cohortId}
         onChange={handleCohortChange}
         error={!!state.errors.cohortId}
+        errorMessage={state.errors.cohortId}
       />
-      {state.errors.cohortId && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.cohortId}</p>}
 
       <Checkbox
         label="서비스 이용약관 및 개인정보 처리방침에 동의합니다."
@@ -194,8 +432,9 @@ export const SignUpForm = () => {
         className="mt-6"
         checked={formData.termsAgreed}
         onChange={handleInputChange}
+        error={!!state.errors.termsAgreed}
+        errorMessage={state.errors.termsAgreed}
       />
-      {state.errors.termsAgreed && <p className="text-error-red text-[13px] ml-1 font-medium">{state.errors.termsAgreed}</p>}
 
       <Button type="submit" className="mt-8" disabled={isPending}>
         {isPending ? '가입 중...' : '회원가입 완료'}

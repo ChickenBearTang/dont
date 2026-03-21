@@ -1,42 +1,38 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ProgressBar } from '@/shared/components';
-import { Step1_Cohort } from '../components/Steps/Step1_Cohort';
 import { Step2_Goal } from '../components/Steps/Step2_Goal';
 import { Step3_Welcome } from '../components/Steps/Step3_Welcome';
-import { submitOnboarding } from '../api/userApi';
-import type { Cohort } from '@/shared/types';
+import { fetchOnboardingStatus, submitOnboarding } from '../api/userApi';
 import { useToast } from '@/shared/hooks';
 
 export const OnboardingPage = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingData, setOnboardingData] = useState({
-    cohortId: 0,
     goalAmount: 0,
   });
   const toast = useToast();
 
   useEffect(() => {
-    const loadCohorts = async () => {
-      const mockCohorts: Cohort[] = [
-        { cohortId: 1, cohortCode: '14기' },
-        { cohortId: 2, cohortCode: '15기' },
-        { cohortId: 3, cohortCode: '16기' },
-      ];
+    const loadOnboardingStatus = async () => {
+      try {
+        const statusResponse = await fetchOnboardingStatus();
 
-      setTimeout(() => {
-        setCohorts(mockCohorts);
+        if (statusResponse.data.onboardingCompleted) {
+          navigate('/finance-connect', { replace: true });
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to load onboarding data:', error);
+        toast.error('온보딩 정보를 불러오지 못했습니다.');
+      } finally {
         setIsLoading(false);
-      }, 500); // Simulate network delay
+      }
     };
-    loadCohorts();
-  }, []);
-
-  const handleStep1Next = (cohortId: number) => {
-    setOnboardingData((prev) => ({ ...prev, cohortId }));
-    setStep(2);
-  };
+    loadOnboardingStatus();
+  }, [navigate, toast]);
 
   const handleStep2Next = async (goalAmount: number) => {
     try {
@@ -44,7 +40,7 @@ export const OnboardingPage = () => {
       setOnboardingData(finalData);
 
       const response = await submitOnboarding(finalData);
-      if (response.success) {
+      if (response.success && response.data.onboardingCompleted) {
         setStep(3);
       }
     } catch (error) {
@@ -53,26 +49,35 @@ export const OnboardingPage = () => {
     }
   };
 
-  const progress = (step / 3) * 100;
+  const progress = (step / 2) * 100;
+
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-[800px] mx-auto py-12 px-6">
+        <div className="min-h-[500px] flex items-center justify-center text-gray-400 font-semibold">
+          온보딩 정보를 불러오는 중입니다...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-[800px] mx-auto py-12 px-6">
-      {step < 3 && (
+      {step < 2 && (
         <div className="mb-16">
           <div className="flex justify-between items-center mb-4">
             <span className="text-[14px] font-bold text-primary-blue">STEP {step}</span>
-            <span className="text-[14px] font-bold text-gray-400">33% 완료</span>
+            <span className="text-[14px] font-bold text-gray-400">
+              {Math.round(progress)}% 완료
+            </span>
           </div>
           <ProgressBar progress={progress} className="h-3 rounded-full" />
         </div>
       )}
 
       <div className="min-h-[500px] flex flex-col justify-center">
-        {step === 1 && (
-          <Step1_Cohort cohorts={cohorts} isLoading={isLoading} onNext={handleStep1Next} />
-        )}
-        {step === 2 && <Step2_Goal onNext={handleStep2Next} onBack={() => setStep(1)} />}
-        {step === 3 && <Step3_Welcome />}
+        {step === 1 && <Step2_Goal onNext={handleStep2Next} onBack={() => navigate(-1)} />}
+        {step === 2 && <Step3_Welcome />}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { Input, Button } from '@/shared/components';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { login, mapUserProfileFromLogin } from '@/features/auth/api/authApi';
+import { fetchOnboardingStatus } from '@/features/user/api/userApi';
 
 interface FormErrors {
   email?: string;
@@ -55,8 +56,13 @@ export const LoginForm = () => {
         user: mapUserProfileFromLogin(loginData),
       });
 
+      const onboardingStatusResponse = await fetchOnboardingStatus();
+      const nextPath = onboardingStatusResponse.data.onboardingCompleted
+        ? '/dashboard'
+        : '/onboarding';
+
       addToast('로그인에 성공했습니다.', 'success');
-      navigate('/dashboard', { replace: true });
+      navigate(nextPath, { replace: true });
     } catch {
       addToast('로그인에 실패했습니다. 이메일/비밀번호를 확인해주세요.', 'error');
     } finally {
@@ -75,10 +81,8 @@ export const LoginForm = () => {
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         error={!!errors.email}
+        errorMessage={errors.email}
       />
-      {errors.email && (
-        <p className="text-error-red text-[13px] ml-1 font-medium">{errors.email}</p>
-      )}
 
       <Input
         label="비밀번호"
@@ -89,10 +93,8 @@ export const LoginForm = () => {
         value={password}
         onChange={(event) => setPassword(event.target.value)}
         error={!!errors.password}
+        errorMessage={errors.password}
       />
-      {errors.password && (
-        <p className="text-error-red text-[13px] ml-1 font-medium">{errors.password}</p>
-      )}
 
       <Button type="submit" className="mt-8" disabled={isPending}>
         {isPending ? '로그인 중...' : '로그인'}

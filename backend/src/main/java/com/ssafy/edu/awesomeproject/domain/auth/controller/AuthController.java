@@ -8,11 +8,13 @@ import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LoginRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LogoutRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.SignupRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.TokenReissueRequestDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailAvailabilityResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailVerificationConfirmResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailVerificationSendResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LoginResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LogoutResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.TokenReissueResponseDto;
+import com.ssafy.edu.awesomeproject.domain.auth.service.AccountValidationService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.AuthTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.EmailVerificationService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.LoginService;
@@ -32,6 +34,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -39,6 +42,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
     private final LoginService loginService;
     private final SignupService signupService;
+    private final AccountValidationService accountValidationService;
     private final CohortQueryService cohortQueryService;
     private final EmailVerificationService emailVerificationService;
     private final AuthTokenService authTokenService;
@@ -47,12 +51,14 @@ public class AuthController {
     public AuthController(
             LoginService loginService,
             SignupService signupService,
+            AccountValidationService accountValidationService,
             CohortQueryService cohortQueryService,
             EmailVerificationService emailVerificationService,
             AuthTokenService authTokenService,
             RefreshTokenCookieService refreshTokenCookieService) {
         this.loginService = loginService;
         this.signupService = signupService;
+        this.accountValidationService = accountValidationService;
         this.cohortQueryService = cohortQueryService;
         this.emailVerificationService = emailVerificationService;
         this.authTokenService = authTokenService;
@@ -64,6 +70,16 @@ public class AuthController {
     @ApiResponses({@ApiResponse(responseCode = "200", description = "정상 응답")})
     public CommonResponse<List<CohortResponseDto>> getCohorts() {
         return CommonResponse.success(cohortQueryService.getCohorts());
+    }
+
+    @GetMapping("/check-email")
+    @Operation(summary = "이메일 중복 확인 API", description = "회원가입 전 이메일 사용 가능 여부를 확인합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청")
+    })
+    public CommonResponse<EmailAvailabilityResponseDto> checkEmail(@RequestParam String email) {
+        return CommonResponse.success(accountValidationService.checkEmailAvailability(email));
     }
 
     @PostMapping("/email-verification/send")
@@ -112,7 +128,6 @@ public class AuthController {
                 signupRequestDto.password(),
                 signupRequestDto.name(),
                 signupRequestDto.birthDate(),
-                signupRequestDto.nickname(),
                 signupRequestDto.termsAgreed(),
                 signupRequestDto.cohortId());
 

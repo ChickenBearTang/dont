@@ -1,44 +1,94 @@
-import type { SelectHTMLAttributes, Ref } from 'react';
+import { forwardRef, useId, type SelectHTMLAttributes } from 'react';
 import type { SelectOption } from '@/shared/types';
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   options: SelectOption[];
   placeholder?: string;
+  hint?: string;
   error?: boolean;
-  ref?: Ref<HTMLSelectElement>;
+  errorMessage?: string;
+  inputClassName?: string;
 }
 
-export const Select = ({ label, options, placeholder, error, className = '', ref, ...props }: SelectProps) => (
-  <div className={`mt-4 ${className}`}>
-    {label && (
-      <label className="font-extrabold text-[15px] text-eel block mb-2">{label}</label>
-    )}
-    <div className="relative">
-      <select
-        className={`w-full bg-[#f4f7fa] border border-transparent rounded-[14px] px-5 py-4 text-[16px] text-eel font-semibold appearance-none transition-colors focus:outline-none focus:border-primary-blue focus:bg-white focus:shadow-[0_0_0_4px_var(--blue-bg)] disabled:opacity-60 disabled:cursor-not-allowed ${
-          error ? '!border-error-red !bg-[#ffeeee]' : ''
-        }`}
-        {...props}
-      >
-        {placeholder && (
-          <option value="" disabled className="text-[#a0aabf]">
-            {placeholder}
-          </option>
+const baseSelectClassName =
+  'w-full appearance-none rounded-[18px] border bg-surface-base px-5 py-[15px] pr-14 text-[15px] font-semibold shadow-[0_1px_0_rgba(255,255,255,0.65)_inset] transition-all duration-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-surface-soft';
+
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
+  (
+    {
+      label,
+      options,
+      placeholder,
+      hint,
+      error,
+      errorMessage,
+      className = '',
+      inputClassName = '',
+      id,
+      value,
+      ...props
+    },
+    ref
+  ) => {
+    const generatedId = useId();
+    const selectId = id ?? generatedId;
+    const isEmpty = value === '' || value === undefined || value === null;
+    const message = error ? errorMessage : hint;
+
+    return (
+      <div className={`mt-4 ${className}`}>
+        {label && (
+          <label
+            htmlFor={selectId}
+            className="mb-2 block text-[14px] font-extrabold tracking-[-0.01em] text-text-strong"
+          >
+            {label}
+          </label>
         )}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      
-      {/* 화살표 아이콘 (커스텀) */}
-      <div className="absolute inset-y-0 right-0 flex items-center px-5 pointer-events-none text-[#a0aabf]">
-        <svg className="w-5 h-5 fill-current" viewBox="0 0 20 20">
-          <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-        </svg>
+        <div className="relative">
+          <select
+            ref={ref}
+            id={selectId}
+            value={value}
+            aria-invalid={error ? 'true' : 'false'}
+            className={`${baseSelectClassName} ${
+              error
+                ? 'border-danger-strong bg-surface-danger text-text-strong focus:border-danger-strong focus:ring-4 focus:ring-danger-soft'
+                : 'border-line-soft focus:border-accent focus:ring-4 focus:ring-accent-soft'
+            } ${isEmpty ? 'text-text-subtle' : 'text-text-strong'} ${inputClassName}`}
+            {...props}
+          >
+            {placeholder && (
+              <option value="" disabled hidden>
+                {placeholder}
+              </option>
+            )}
+            {options.map((option) => (
+              <option key={option.value} value={option.value} className="text-text-strong">
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-text-subtle">
+            <svg className="h-5 w-5 fill-current" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+            </svg>
+          </div>
+        </div>
+        {message && (
+          <p
+            className={`mt-2 text-[12px] font-semibold ${
+              error ? 'text-danger' : 'text-text-muted'
+            }`}
+          >
+            {message}
+          </p>
+        )}
       </div>
-    </div>
-  </div>
+    );
+  }
 );
+
+Select.displayName = 'Select';
