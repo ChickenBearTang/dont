@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Input, Select, Checkbox, DatePicker, Button } from '@/shared/components';
+import { Input, Select, Checkbox, BirthDateField, Button } from '@/shared/components';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import {
@@ -46,6 +46,7 @@ export const SignUpForm = () => {
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [isEmailAvailable, setIsEmailAvailable] = useState(false);
   const [verificationExpiresIn, setVerificationExpiresIn] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
 
   // --- Controlled Form State ---
   const [formData, setFormData] = useState({
@@ -271,12 +272,12 @@ export const SignUpForm = () => {
     }));
   };
 
-  const handleCohortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData((prev) => ({ ...prev, cohortId: e.target.value }));
+  const handleCohortChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, cohortId: value }));
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, birthDate: e.target.value }));
+  const handleDateChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, birthDate: value }));
   };
 
   const formatRemainingTime = (seconds: number) => {
@@ -285,8 +286,76 @@ export const SignUpForm = () => {
     return `${minutes}:${String(remainSeconds).padStart(2, '0')}`;
   };
 
+  const passwordHint =
+    formData.password.length === 0
+      ? undefined
+      : formData.password.length >= 8
+        ? '사용 가능한 비밀번호입니다.'
+        : '비밀번호는 8자 이상이어야 합니다.';
+
+  const passwordHintTone = formData.password.length >= 8 ? 'success' : 'default';
+  const passwordLiveError = formData.password.length > 0 && formData.password.length < 8;
+
+  const passwordConfirmHint =
+    formData.passwordConfirm.length === 0
+      ? undefined
+      : formData.password === formData.passwordConfirm
+        ? '비밀번호가 일치합니다.'
+        : '비밀번호가 일치하지 않습니다.';
+
+  const passwordConfirmHintTone =
+    formData.passwordConfirm.length > 0 && formData.password === formData.passwordConfirm
+      ? 'success'
+      : 'default';
+  const passwordConfirmLiveError =
+    formData.passwordConfirm.length > 0 && formData.password !== formData.passwordConfirm;
+
+  const eyeButtonClassName =
+    'flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-surface-soft';
+
+  const renderPasswordToggle = (visible: boolean, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={eyeButtonClassName}
+      aria-label={visible ? '비밀번호 숨기기' : '비밀번호 보기'}
+    >
+      {visible ? (
+        <svg
+          className="h-4.5 w-4.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M10.584 10.587A2 2 0 0013.413 13.416M9.88 5.09A9.953 9.953 0 0112 4.875c4.478 0 8.268 2.943 9.542 7.003a9.97 9.97 0 01-2.231 3.592M6.228 6.228A9.956 9.956 0 002.458 11.878a9.97 9.97 0 005.365 6.08A9.953 9.953 0 0012 19.125c1.41 0 2.751-.293 3.966-.82"
+          />
+        </svg>
+      ) : (
+        <svg
+          className="h-4.5 w-4.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+          />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+    </button>
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+    <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-2">
       <Input
         label="이메일"
         name="email"
@@ -371,25 +440,38 @@ export const SignUpForm = () => {
       <Input
         label="비밀번호"
         name="password"
-        type="password"
+        type={showPassword ? 'text' : 'password'}
         placeholder="8자 이상 입력해주세요"
         required
         value={formData.password}
         onChange={handleInputChange}
-        error={!!state.errors.password}
-        errorMessage={state.errors.password}
+        error={!!state.errors.password || passwordLiveError}
+        errorMessage={
+          state.errors.password ||
+          (passwordLiveError ? '비밀번호는 8자 이상이어야 합니다.' : undefined)
+        }
+        hint={state.errors.password || passwordLiveError ? undefined : passwordHint}
+        hintTone={passwordHintTone}
+        endAdornment={renderPasswordToggle(showPassword, () => setShowPassword((prev) => !prev))}
       />
 
       <Input
         label="비밀번호 확인"
         name="passwordConfirm"
-        type="password"
+        type={showPassword ? 'text' : 'password'}
         placeholder="비밀번호를 다시 입력해주세요"
         required
         value={formData.passwordConfirm}
         onChange={handleInputChange}
-        error={!!state.errors.passwordConfirm}
-        errorMessage={state.errors.passwordConfirm}
+        error={!!state.errors.passwordConfirm || passwordConfirmLiveError}
+        errorMessage={
+          state.errors.passwordConfirm ||
+          (passwordConfirmLiveError ? '비밀번호가 일치하지 않습니다.' : undefined)
+        }
+        hint={
+          state.errors.passwordConfirm || passwordConfirmLiveError ? undefined : passwordConfirmHint
+        }
+        hintTone={passwordConfirmHintTone}
       />
 
       <Input
@@ -403,11 +485,11 @@ export const SignUpForm = () => {
         errorMessage={state.errors.name}
       />
 
-      <DatePicker
+      <BirthDateField
         label="생년월일"
         name="birthDate"
-        required
         value={formData.birthDate}
+        max={new Date().toISOString().slice(0, 10)}
         onChange={handleDateChange}
         error={!!state.errors.birthDate}
         errorMessage={state.errors.birthDate}
@@ -418,6 +500,8 @@ export const SignUpForm = () => {
         name="cohortId"
         placeholder={loadingCohorts ? '기수 정보 로딩 중...' : '기수를 선택하세요'}
         options={cohortOptions}
+        searchable
+        searchPlaceholder="기수를 검색하세요"
         required
         disabled={loadingCohorts}
         value={formData.cohortId}

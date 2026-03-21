@@ -2,7 +2,7 @@ export * from './Button';
 export * from './Input';
 export * from './Select';
 export * from './Checkbox';
-export * from './DatePicker';
+export * from './BirthDateField';
 export * from './Card';
 export * from './Modal';
 export * from './Mascot';
