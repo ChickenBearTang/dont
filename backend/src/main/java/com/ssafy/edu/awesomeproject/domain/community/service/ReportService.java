@@ -27,7 +27,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional(readOnly = true)
 public class ReportService {
     private final ReportRepository reportRepository;
     private final PostRepository postRepository;
@@ -101,6 +100,7 @@ public class ReportService {
         return comment.getUser().getId();
     }
 
+    @Transactional(readOnly = true)
     public AdminReportListResponseDto getReportsForAdmin(
             ReportStatus status, Integer page, Integer size) {
         int pageNumber = (page == null || page < 0) ? 0 : page;
@@ -137,9 +137,19 @@ public class ReportService {
                 reportPage.hasNext());
     }
 
+    @Transactional(readOnly = true)
     public AdminReportDetailResponseDto getReportDetailForAdmin(Long reportId) {
         Report report = getReport(reportId);
-        return new AdminReportDetailResponseDto(
+        if (report.getTargetType() == ReportTargetType.POST) {
+            Post post =
+                postRepository
+                    .findById(report.getTargetId())
+                    .orElseThrow(
+                        () ->
+                            new CommunityException(
+                                CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+
+            return new AdminReportDetailResponseDto(
                 report.getId(),
                 report.getReporterUserId(),
                 report.getTargetType().name(),
@@ -151,7 +161,40 @@ public class ReportService {
                 report.getProcessNote(),
                 report.getProcessedAt(),
                 report.getCreatedAt(),
-                report.getUpdatedAt());
+                report.getUpdatedAt(),
+                post.getUser().getNickname(),
+                post.getTitle(),
+                post.getContent(),
+                post.getStatus().name(),
+                post.getId());
+        }
+
+        Comment comment =
+            commentRepository
+                .findById(report.getTargetId())
+                .orElseThrow(
+                    () ->
+                        new CommunityException(
+                            CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+
+        return new AdminReportDetailResponseDto(
+            report.getId(),
+            report.getReporterUserId(),
+            report.getTargetType().name(),
+            report.getTargetId(),
+            report.getReasonCode().name(),
+            report.getDetailText(),
+            report.getReportStatus().name(),
+            report.getProcessedByUserId(),
+            report.getProcessNote(),
+            report.getProcessedAt(),
+            report.getCreatedAt(),
+            report.getUpdatedAt(),
+            comment.getUser().getNickname(),
+            null,
+            comment.getContent(),
+            comment.getStatus().name(),
+            comment.getPost().getId());
     }
 
     @Transactional
@@ -159,7 +202,12 @@ public class ReportService {
             Long reportId, Long adminUserId, ReportProcessRequestDto requestDto) {
         Report report = getReport(reportId);
         validateNotProcessed(report);
+
+        blindTarget(report);
+
         report.blind(adminUserId, requestDto.processNote());
+        reportRepository.save(report);
+
         return toProcessResponse(report);
     }
 
@@ -168,9 +216,52 @@ public class ReportService {
             Long reportId, Long adminUserId, ReportProcessRequestDto requestDto) {
         Report report = getReport(reportId);
         validateNotProcessed(report);
+
         report.reject(adminUserId, requestDto.processNote());
+        reportRepository.save(report);
+
         return toProcessResponse(report);
     }
+
+    private void blindTarget(Report report) {
+        if (report.getTargetType() == ReportTargetType.POST) {
+            Post post =
+                postRepository
+                    .findById(report.getTargetId())
+                    .orElseThrow(() -> new CommunityException(CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+                validateBlindable(post);
+            post.blind();
+            postRepository.save(post);
+            return;
+        }
+
+        Comment comment =
+            commentRepository
+                .findById(report.getTargetId())
+                .orElseThrow(
+                    () ->
+                        new CommunityException(
+                            CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+
+        validateBlindable(comment);
+        comment.blind();
+        commentRepository.save(comment);
+    }
+
+    // 신고 대상이 이미 삭제되었거나 블라인드 처리되었을 경우
+    private void validateBlindable(Post post) {
+        if (post.getStatus() == PostStatus.DELETED || post.getStatus() == PostStatus.BLINDED) {
+            throw new CommunityException(CommunityErrorCode.REPORT_ALREADY_PROCESSED);
+        }
+    }
+
+    private void validateBlindable(Comment comment) {
+        if (comment.getStatus() == CommentStatus.DELETED
+            || comment.getStatus() == CommentStatus.BLINDED) {
+            throw new CommunityException(CommunityErrorCode.REPORT_ALREADY_PROCESSED);
+        }
+    }
+
 
     private Report getReport(Long reportId) {
         return reportRepository
