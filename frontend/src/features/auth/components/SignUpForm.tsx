@@ -227,17 +227,24 @@ export const SignUpForm = () => {
     }
 
     setIsPending(true);
-    try {
-      const payload: SignUpRequestPayload = {
-        email: formData.email,
-        password: formData.password,
-        name: formData.name,
-        birthDate: formData.birthDate,
-        cohortId: Number(formData.cohortId),
-        termsAgreed: formData.termsAgreed,
-      };
+    const payload: SignUpRequestPayload = {
+      email: formData.email,
+      password: formData.password,
+      name: formData.name,
+      birthDate: formData.birthDate,
+      cohortId: Number(formData.cohortId),
+      termsAgreed: formData.termsAgreed,
+    };
 
+    try {
       await signup(payload);
+    } catch {
+      addToast('회원가입 중 에러가 발생했습니다.', 'error');
+      setIsPending(false);
+      return;
+    }
+
+    try {
       const loginResponse = await login({
         email: formData.email,
         password: formData.password,
@@ -247,20 +254,33 @@ export const SignUpForm = () => {
         accessToken: loginResponse.data.accessToken,
         user: mapUserProfileFromLogin(loginResponse.data),
       });
+    } catch {
+      addToast(
+        '회원가입은 완료되었지만 자동 로그인에 실패했습니다. 로그인 후 진행해주세요.',
+        'error'
+      );
+      navigate('/login', { replace: true });
+      setIsPending(false);
+      return;
+    }
 
+    try {
       const onboardingStatusResponse = await fetchOnboardingStatus();
       const onboardingStatus = onboardingStatusResponse.data.onboardingStatus;
-      addToast('회원가입이 완료되었습니다.', 'success');
-      navigate(
+      const nextPath =
         onboardingStatus === 'NOT_STARTED'
           ? '/onboarding'
           : onboardingStatus === 'COMPLETED'
             ? '/dashboard'
-            : '/finance-connect',
-        { replace: true }
-      );
+            : '/finance-connect';
+      addToast('회원가입이 완료되었습니다.', 'success');
+      navigate(nextPath, { replace: true });
     } catch {
-      addToast('회원가입 중 에러가 발생했습니다.', 'error');
+      addToast(
+        '회원가입/로그인은 완료되었지만 온보딩 상태 조회에 실패했습니다. 온보딩으로 이동합니다.',
+        'error'
+      );
+      navigate('/onboarding', { replace: true });
     } finally {
       setIsPending(false);
     }
