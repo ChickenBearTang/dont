@@ -322,6 +322,7 @@ opencode.jsonc
 .opencode/oh-my-opencode.jsonc
 
 .env
+.env2
 .env.local
 
 # Deployment packaging artifacts
