@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import {
@@ -8,6 +8,7 @@ import {
   processReportReject,
 } from '@/features/community/api/adminReportApi';
 import type { AdminReportSummaryDto } from '@/features/community/types';
+import { ReportProcessModal } from '@/features/community/components/ReportProcessModal';
 
 const AdminReportPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,16 +20,34 @@ const AdminReportPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<'RECEIVED' | 'BLINDED' | 'REJECTED' | undefined>(
     undefined
   );
+  const [processModal, setProcessModal] = useState<{
+    isOpen: boolean;
+    type: 'blind' | 'reject';
+    reportId: number;
+    reasonLabel?: string;
+    detailText?: string;
+  }>({
+    isOpen: false,
+    type: 'blind',
+    reportId: 0,
+  });
 
   // Robust admin check
   const isAdmin = user?.role?.includes('ADMIN');
+  const prevUserRef = useRef(user);
 
   useEffect(() => {
     // Only redirect if auth is not initializing and user is not admin
     if (!isAuthInitializing && (!user || !isAdmin)) {
-      alert('관리자 권한이 없습니다.');
+      // If the user was an admin and now they are null, it's a logout -> no alert
+      // If the user was never an admin or was null, it's an unauthorized access attempt -> alert
+      const wasAdmin = prevUserRef.current?.role?.includes('ADMIN');
+      if (!wasAdmin) {
+        alert('관리자 권한이 없습니다.');
+      }
       navigate('/community');
     }
+    prevUserRef.current = user;
   }, [user, isAdmin, navigate, isAuthInitializing]);
 
   const fetchReports = async () => {
@@ -56,7 +75,11 @@ const AdminReportPage: React.FC = () => {
     try {
       const res = await getAdminReportDetail(reportId);
       if (res.data && res.data.postId) {
-        navigate(`/community/post/${res.data.postId}`);
+        let url = `/community/${res.data.postId}`;
+        if (res.data.targetType === 'COMMENT' && res.data.targetId) {
+          url += `?commentId=${res.data.targetId}`;
+        }
+        navigate(url);
       } else {
         alert('게시물 정보를 찾을 수 없습니다.');
       }
@@ -67,8 +90,36 @@ const AdminReportPage: React.FC = () => {
   };
 
   const handleProcess = async (reportId: number, type: 'blind' | 'reject') => {
+    try {
+      const res = await getAdminReportDetail(reportId);
+      const detail = res.data;
+
+      // Map reasonCode to label
+      const reasonLabels: Record<string, string> = {
+        SPAM: '스팸/홍보',
+        ABUSE: '욕설/비하',
+        INAPPROPRIATE: '부적절한 콘텐츠',
+        SCAM: '사기/거짓 정보',
+        PRIVACY: '개인정보 노출',
+        OTHER: '기타',
+      };
+
+      setProcessModal({
+        isOpen: true,
+        type,
+        reportId,
+        reasonLabel: reasonLabels[detail?.reasonCode || ''] || detail?.reasonCode,
+        detailText: detail?.detailText,
+      });
+    } catch (error) {
+      console.error('Failed to fetch report detail for processing:', error);
+      alert('상세 정보를 불러오는 데 실패했습니다.');
+    }
+  };
+
+  const handleModalSubmit = async (note: string) => {
+    const { type, reportId } = processModal;
     const actionName = type === 'blind' ? '블라인드' : '기각';
-    const note = prompt(`${actionName} 처리 사유를 입력하세요 (선택 사항):`) || '';
     try {
       if (type === 'blind') {
         await processReportBlind(reportId, { processNote: note });
@@ -80,6 +131,7 @@ const AdminReportPage: React.FC = () => {
     } catch (error) {
       console.error(`Failed to ${type} report:`, error);
       alert('처리 중 오류가 발생했습니다.');
+      throw error; // Let the modal handle the loading state
     }
   };
 
@@ -240,6 +292,15 @@ const AdminReportPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <ReportProcessModal
+        isOpen={processModal.isOpen}
+        onClose={() => setProcessModal((prev) => ({ ...prev, isOpen: false }))}
+        onSubmit={handleModalSubmit}
+        type={processModal.type}
+        reasonLabel={processModal.reasonLabel}
+        detailText={processModal.detailText}
+      />
     </div>
   );
 };

@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   createComment,
   deleteComment,
@@ -34,6 +34,7 @@ interface CommentItemProps {
   setPost: React.Dispatch<React.SetStateAction<GetPostResponseDto | null>>;
   formatDate: (dateStr: string) => string;
   onReport: (type: ReportTargetType, id: number) => void;
+  highlightedCommentId: number | null;
 }
 
 const CommentItem = ({
@@ -46,7 +47,18 @@ const CommentItem = ({
   setPost,
   formatDate,
   onReport,
+  highlightedCommentId,
 }: CommentItemProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isHighlighted = node.commentId === highlightedCommentId;
+
+  useEffect(() => {
+    if (isHighlighted && containerRef.current) {
+      setTimeout(() => {
+        containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500); // Give some time for the comments to render/load
+    }
+  }, [isHighlighted]);
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
@@ -130,7 +142,10 @@ const CommentItem = ({
 
   return (
     <div
-      className={`flex flex-col ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
+      ref={containerRef}
+      className={`flex flex-col transition-all duration-1000 ${
+        isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
+      } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
     >
       <div className="flex gap-3">
         <div className="w-[34px] h-[34px] bg-gray-100 rounded-full shrink-0 flex justify-center items-center font-bold text-gray-400 text-[14px] overflow-hidden">
@@ -320,6 +335,7 @@ const CommentItem = ({
             setPost={setPost}
             formatDate={formatDate}
             onReport={onReport}
+            highlightedCommentId={highlightedCommentId}
           />
         ))}
     </div>
@@ -328,6 +344,10 @@ const CommentItem = ({
 
 export const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
+  const [searchParams] = useSearchParams();
+  const highlightedCommentId = searchParams.get('commentId')
+    ? Number(searchParams.get('commentId'))
+    : null;
   const navigate = useNavigate();
 
   const [post, setPost] = useState<GetPostResponseDto | null>(null);
@@ -809,6 +829,7 @@ export const PostDetailPage = () => {
                   setPost={setPost}
                   formatDate={formatDate}
                   onReport={onReport}
+                  highlightedCommentId={highlightedCommentId}
                 />
               ))
             )}
