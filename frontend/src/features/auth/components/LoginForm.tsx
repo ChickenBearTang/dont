@@ -100,6 +100,16 @@ export const LoginForm = () => {
         errorMessage={errors.password}
       />
 
+      <div className="-mt-1 text-right">
+        <button
+          type="button"
+          className="text-[13px] font-bold text-accent hover:underline"
+          onClick={() => navigate('/forgot-password')}
+        >
+          비밀번호 찾기
+        </button>
+      </div>
+
       <Button type="submit" className="mt-8" disabled={isPending}>
         {isPending ? '로그인 중...' : '로그인'}
       </Button>

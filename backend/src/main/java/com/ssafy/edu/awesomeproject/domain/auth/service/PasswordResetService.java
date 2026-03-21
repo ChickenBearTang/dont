@@ -46,8 +46,7 @@ public class PasswordResetService {
                 .ifPresent(
                         user -> {
                             String code = generateCode();
-                            passwordResetTokenStore.saveCode(
-                                    normalizedEmail, code, RESET_CODE_TTL);
+                            passwordResetTokenStore.saveCode(normalizedEmail, code, RESET_CODE_TTL);
                             try {
                                 passwordResetEmailSender.sendResetCode(
                                         normalizedEmail, code, RESET_CODE_TTL);
@@ -58,8 +57,7 @@ public class PasswordResetService {
                         });
 
         // 계정 존재 여부를 노출하지 않기 위해 동일 응답을 반환한다.
-        return new RequestResult(
-                "입력한 이메일로 비밀번호 재설정 안내를 전송했습니다.", RESET_CODE_TTL.getSeconds());
+        return new RequestResult("입력한 이메일로 비밀번호 재설정 안내를 전송했습니다.", RESET_CODE_TTL.getSeconds());
     }
 
     @Transactional
