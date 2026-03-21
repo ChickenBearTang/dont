@@ -22,8 +22,14 @@ public class UserOnboardingService {
     public OnboardingStatusResponseDto getOnboardingStatus(Long userId) {
         User user = getUser(userId);
         OnboardingStatus onboardingStatus = user.getOnboardingStatusOrDefault();
+        Long recommendedAmount =
+                user.getMonthlySavingGoalAmount() == null
+                        ? null
+                        : user.getMonthlySavingGoalAmount().longValue();
         return new OnboardingStatusResponseDto(
-                onboardingStatus.name(), onboardingStatus == OnboardingStatus.COMPLETED);
+                onboardingStatus.name(),
+                onboardingStatus == OnboardingStatus.COMPLETED,
+                recommendedAmount);
     }
 
     @Transactional
@@ -33,8 +39,29 @@ public class UserOnboardingService {
         user.updateMonthlySavingGoalAmount(BigDecimal.valueOf(recommendedAmount));
         user.markOnboardingInProgress();
         OnboardingStatus onboardingStatus = user.getOnboardingStatusOrDefault();
+        Long savedRecommendedAmount =
+                user.getMonthlySavingGoalAmount() == null
+                        ? null
+                        : user.getMonthlySavingGoalAmount().longValue();
         return new OnboardingStatusResponseDto(
-                onboardingStatus.name(), onboardingStatus == OnboardingStatus.COMPLETED);
+                onboardingStatus.name(),
+                onboardingStatus == OnboardingStatus.COMPLETED,
+                savedRecommendedAmount);
+    }
+
+    @Transactional
+    public OnboardingStatusResponseDto completeOnboarding(Long userId) {
+        User user = getUser(userId);
+        user.markOnboardingCompleted();
+        OnboardingStatus onboardingStatus = user.getOnboardingStatusOrDefault();
+        Long recommendedAmount =
+                user.getMonthlySavingGoalAmount() == null
+                        ? null
+                        : user.getMonthlySavingGoalAmount().longValue();
+        return new OnboardingStatusResponseDto(
+                onboardingStatus.name(),
+                onboardingStatus == OnboardingStatus.COMPLETED,
+                recommendedAmount);
     }
 
     private User getUser(Long userId) {

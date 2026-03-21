@@ -45,11 +45,23 @@ public class UserOnboardingController {
         @ApiResponse(responseCode = "401", description = "인증 실패"),
         @ApiResponse(responseCode = "404", description = "사용자 없음")
     })
-    public CommonResponse<OnboardingStatusResponseDto> completeOnboarding(
+    public CommonResponse<OnboardingStatusResponseDto> saveOnboardingCheckpoint(
             @CurrentUserId Long userId,
             @Valid @RequestBody OnboardingCheckpointRequestDto request) {
         return CommonResponse.success(
                 userOnboardingService.saveOnboardingCheckpoint(
                         userId, request.recommendedAmount()));
+    }
+
+    @PostMapping("/complete")
+    @Operation(summary = "온보딩 완료 처리 API", description = "현재 로그인한 사용자의 온보딩 상태를 COMPLETED로 변경합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "404", description = "사용자 없음")
+    })
+    public CommonResponse<OnboardingStatusResponseDto> completeOnboarding(
+            @CurrentUserId Long userId) {
+        return CommonResponse.success(userOnboardingService.completeOnboarding(userId));
     }
 }

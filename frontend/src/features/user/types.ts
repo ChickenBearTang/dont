@@ -20,4 +20,5 @@ export interface OnboardingPayload {
 export interface OnboardingResponse {
   onboardingStatus: string;
   onboardingCompleted: boolean;
+  recommendedAmount: number | null;
 }

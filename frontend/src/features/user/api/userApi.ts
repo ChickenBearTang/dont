@@ -23,3 +23,7 @@ export const submitOnboarding = async (
 export const fetchOnboardingStatus = async (): Promise<ApiResponse<OnboardingResponse>> => {
   return await axiosInstance.get('/users/onboarding/status');
 };
+
+export const completeOnboarding = async (): Promise<ApiResponse<OnboardingResponse>> => {
+  return await axiosInstance.post('/users/onboarding/complete');
+};

@@ -1,7 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
 import { SignUpPage, LoginPage } from '@/features/auth';
-import { OnboardingPage } from '@/features/user';
+import { FinanceConnectPage, OnboardingPage } from '@/features/user';
 import {
   AuthenticatedLayoutRoute,
   DashboardRoute,
@@ -36,7 +36,7 @@ export const router = createBrowserRouter([
           },
           {
             path: '/finance-connect',
-            element: <div>FinanceConnect Placeholder</div>,
+            element: <FinanceConnectPage />,
           },
           {
             path: '/loading',

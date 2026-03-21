@@ -31,7 +31,7 @@ export const OnboardingPage = () => {
         const onboardingStatus = statusResponse.data.onboardingStatus;
 
         if (onboardingStatus === 'COMPLETED') {
-          navigate('/finance-connect', { replace: true });
+          navigate('/dashboard', { replace: true });
           return;
         }
 
