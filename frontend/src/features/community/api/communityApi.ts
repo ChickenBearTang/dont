@@ -15,6 +15,8 @@ import type {
   UpdateCommentResponseDto,
   ToggleReactionRequestDto,
   ToggleReactionResponseDto,
+  ReportCreateRequestDto,
+  ReportCreateResponseDto,
 } from '../types';
 
 export const getPosts = async (
@@ -89,4 +91,10 @@ export const toggleReaction = async (
   data: ToggleReactionRequestDto
 ): Promise<ApiResponse<ToggleReactionResponseDto>> => {
   return await axiosInstance.post(`/community/reactions`, data);
+};
+
+export const createReport = async (
+  data: ReportCreateRequestDto
+): Promise<ApiResponse<ReportCreateResponseDto>> => {
+  return await axiosInstance.post('/community/reports', data);
 };
