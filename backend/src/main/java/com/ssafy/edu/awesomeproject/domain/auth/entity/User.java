@@ -3,6 +3,7 @@ package com.ssafy.edu.awesomeproject.domain.auth.entity;
 import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Cohort;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.Getter;
@@ -45,6 +46,9 @@ public class User extends BaseEntity {
     @Column(name = "terms_agreed_at")
     private LocalDateTime termsAgreedAt;
 
+    @Column(name = "monthly_saving_goal_amount", precision = 15, scale = 2)
+    private BigDecimal monthlySavingGoalAmount;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "onboarding_status", length = 20)
     private OnboardingStatus onboardingStatus = OnboardingStatus.NOT_STARTED;
@@ -72,6 +76,14 @@ public class User extends BaseEntity {
 
     public void markOnboardingCompleted() {
         this.onboardingStatus = OnboardingStatus.COMPLETED;
+    }
+
+    public void markOnboardingInProgress() {
+        this.onboardingStatus = OnboardingStatus.IN_PROGRESS;
+    }
+
+    public void updateMonthlySavingGoalAmount(BigDecimal monthlySavingGoalAmount) {
+        this.monthlySavingGoalAmount = monthlySavingGoalAmount;
     }
 
     public User(

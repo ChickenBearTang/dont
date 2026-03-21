@@ -11,7 +11,7 @@ export interface UserData {
  * 온보딩 요청 데이터
  */
 export interface OnboardingPayload {
-  goalAmount?: number;
+  recommendedAmount: number;
 }
 
 /**

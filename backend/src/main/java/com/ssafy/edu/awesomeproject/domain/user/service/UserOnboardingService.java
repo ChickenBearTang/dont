@@ -6,6 +6,7 @@ import com.ssafy.edu.awesomeproject.domain.auth.entity.OnboardingStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.OnboardingStatusResponseDto;
+import java.math.BigDecimal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,9 +27,10 @@ public class UserOnboardingService {
     }
 
     @Transactional
-    public OnboardingStatusResponseDto completeOnboarding(Long userId) {
+    public OnboardingStatusResponseDto saveOnboardingCheckpoint(Long userId, Long recommendedAmount) {
         User user = getUser(userId);
-        user.markOnboardingCompleted();
+        user.updateMonthlySavingGoalAmount(BigDecimal.valueOf(recommendedAmount));
+        user.markOnboardingInProgress();
         OnboardingStatus onboardingStatus = user.getOnboardingStatusOrDefault();
         return new OnboardingStatusResponseDto(
                 onboardingStatus.name(), onboardingStatus == OnboardingStatus.COMPLETED);

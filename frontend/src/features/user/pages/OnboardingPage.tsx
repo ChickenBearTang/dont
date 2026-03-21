@@ -1,28 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ProgressBar } from '@/shared/components';
-import { Step2_Goal } from '../components/Steps/Step2_Goal';
-import { Step3_Welcome } from '../components/Steps/Step3_Welcome';
+import { Button } from '@/shared/components';
+import { Mascot } from '@/shared/components/Mascot';
 import { fetchOnboardingStatus, submitOnboarding } from '../api/userApi';
 import { useToast } from '@/shared/hooks';
+import { formatNumber } from '@/shared/utils';
+
+const KDT_MONTHLY_INCOME = 1_300_000;
+const DEFAULT_MONTHLY_INCOME = 1_000_000;
+const RECOMMEND_RATIO = 0.3;
+const TOTAL_STEPS = 3;
+const FIXED_COST_OPTIONS = [50000, 100000, 150000, 200000, 250000, 300000, 400000, 500000];
+const VARIABLE_COST_OPTIONS = [50000, 100000, 150000, 200000, 250000, 300000, 400000, 500000];
 
 export const OnboardingPage = () => {
   const navigate = useNavigate();
+  const toast = useToast();
+
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [onboardingData, setOnboardingData] = useState({
-    goalAmount: 0,
-  });
-  const toast = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isKdt, setIsKdt] = useState<boolean | null>(null);
+  const [fixedCostInput, setFixedCostInput] = useState('');
+  const [variableCostInput, setVariableCostInput] = useState('');
 
   useEffect(() => {
     const loadOnboardingStatus = async () => {
       try {
         const statusResponse = await fetchOnboardingStatus();
+        const onboardingStatus = statusResponse.data.onboardingStatus;
 
-        if (statusResponse.data.onboardingCompleted) {
+        if (onboardingStatus === 'COMPLETED') {
           navigate('/finance-connect', { replace: true });
           return;
+        }
+
+        if (onboardingStatus === 'IN_PROGRESS') {
+          setStep(4);
         }
       } catch (error) {
         console.error('Failed to load onboarding data:', error);
@@ -31,53 +45,269 @@ export const OnboardingPage = () => {
         setIsLoading(false);
       }
     };
-    loadOnboardingStatus();
+
+    void loadOnboardingStatus();
   }, [navigate, toast]);
 
-  const handleStep2Next = async (goalAmount: number) => {
-    try {
-      const finalData = { ...onboardingData, goalAmount };
-      setOnboardingData(finalData);
+  const fixedCost = Number(fixedCostInput || 0);
+  const variableCost = Number(variableCostInput || 0);
 
-      const response = await submitOnboarding(finalData);
-      if (response.success && response.data.onboardingCompleted) {
-        setStep(3);
+  const monthlyIncome = useMemo(() => {
+    if (isKdt === null) {
+      return 0;
+    }
+    return isKdt ? KDT_MONTHLY_INCOME : DEFAULT_MONTHLY_INCOME;
+  }, [isKdt]);
+
+  const availableAmount = Math.max(0, monthlyIncome - fixedCost - variableCost);
+  const recommendedAmount = Math.max(
+    0,
+    Math.floor((availableAmount * RECOMMEND_RATIO) / 1000) * 1000
+  );
+
+  const handleCompleteOnboarding = async (selectedVariableCost?: number) => {
+    if (isSubmitting) {
+      return;
+    }
+
+    const nextVariableCost =
+      typeof selectedVariableCost === 'number' ? selectedVariableCost : variableCost;
+    const nextAvailableAmount = Math.max(0, monthlyIncome - fixedCost - nextVariableCost);
+    const nextRecommendedAmount = Math.max(
+      0,
+      Math.floor((nextAvailableAmount * RECOMMEND_RATIO) / 1000) * 1000
+    );
+
+    setVariableCostInput(String(nextVariableCost));
+
+    setIsSubmitting(true);
+    try {
+      const response = await submitOnboarding({ recommendedAmount: nextRecommendedAmount });
+      if (
+        response.success &&
+        (response.data.onboardingStatus === 'IN_PROGRESS' || response.data.onboardingCompleted)
+      ) {
+        setStep(4);
       }
     } catch (error) {
       console.error('Failed to submit onboarding:', error);
       toast.error('정보 저장에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const progress = (step / 2) * 100;
+  const progress = Math.min((step / TOTAL_STEPS) * 100, 100);
 
   if (isLoading) {
     return (
-      <div className="w-full max-w-[800px] mx-auto py-12 px-6">
-        <div className="min-h-[500px] flex items-center justify-center text-gray-400 font-semibold">
-          온보딩 정보를 불러오는 중입니다...
+      <div className="w-full max-w-[860px] mx-auto py-6 px-4 md:px-6">
+        <div className="min-h-[620px] rounded-[36px] border border-line-soft bg-surface-base shadow-[0_26px_60px_rgba(15,23,42,0.08)] flex items-center justify-center text-text-subtle font-semibold">
+          온보딩을 준비하고 있어요...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[800px] mx-auto py-12 px-6">
-      {step < 2 && (
-        <div className="mb-16">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-[14px] font-bold text-primary-blue">STEP {step}</span>
-            <span className="text-[14px] font-bold text-gray-400">
-              {Math.round(progress)}% 완료
-            </span>
-          </div>
-          <ProgressBar progress={progress} className="h-3 rounded-full" />
-        </div>
-      )}
+    <div className="w-full max-w-[860px] mx-auto py-6 px-4 md:px-6">
+      <div className="min-h-[660px] rounded-[36px] border border-line-soft bg-gradient-to-b from-surface-base via-surface-base to-surface-muted shadow-[0_26px_60px_rgba(15,23,42,0.08)] px-4 py-5 md:px-10 md:py-8 relative overflow-hidden">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-accent-soft/60 blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 -bottom-28 h-72 w-72 rounded-full bg-surface-soft/80 blur-3xl" />
 
-      <div className="min-h-[500px] flex flex-col justify-center">
-        {step === 1 && <Step2_Goal onNext={handleStep2Next} onBack={() => navigate(-1)} />}
-        {step === 2 && <Step3_Welcome />}
+        {step <= TOTAL_STEPS && (
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-6">
+              <button
+                type="button"
+                onClick={() => (step === 1 ? navigate(-1) : setStep((prev) => prev - 1))}
+                className="h-10 w-10 rounded-full border border-line-soft bg-surface-base text-text-muted hover:text-text-strong hover:border-line-strong transition-colors"
+              >
+                ←
+              </button>
+              <div className="flex-1 h-3 rounded-full bg-surface-soft overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-accent transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="text-[13px] font-extrabold text-accent min-w-[62px] text-right">
+                {step}/{TOTAL_STEPS}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="relative z-10 min-h-[560px] flex flex-col justify-between">
+          {step === 1 && (
+            <div className="max-w-[640px] mx-auto w-full animate-in fade-in slide-in-from-right-4 duration-500 pt-2 md:pt-4">
+              <div className="flex flex-col items-center text-center mb-10">
+                <Mascot src="/assets/mascot_happy.png" className="mb-3" />
+                <h2 className="text-[32px] md:text-[36px] font-black text-text-strong tracking-tight mb-3 leading-tight">
+                  KDT에 참여 중이신가요?
+                </h2>
+                <p className="text-[15px] text-text-muted font-semibold">
+                  참여 여부에 따라 월 소득 기준이 달라져요.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-7">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsKdt(true);
+                    setStep(2);
+                  }}
+                  className="h-[88px] rounded-[20px] text-[24px] font-black"
+                >
+                  네
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsKdt(false);
+                    setStep(2);
+                  }}
+                  className="h-[88px] rounded-[20px] text-[24px] font-black"
+                >
+                  아니요
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="max-w-[640px] mx-auto w-full animate-in fade-in slide-in-from-right-4 duration-500 pt-2 md:pt-4">
+              <div className="flex flex-col items-center text-center mb-10">
+                <Mascot src="/assets/mascot_happy.png" className="mb-3" />
+                <h2 className="text-[32px] md:text-[36px] font-black text-text-strong tracking-tight mb-3 leading-tight">
+                  월 고정비를 알려주세요
+                </h2>
+                <p className="text-[15px] text-text-muted font-semibold">
+                  월세, 통신비, 보험료처럼 매달 고정으로 나가는 금액이에요.
+                </p>
+              </div>
+
+              <div className="w-full max-w-[720px] mx-auto mb-4">
+                <Button
+                  variant="outline"
+                  fullWidth={false}
+                  onClick={() => setStep(1)}
+                  className="h-[48px] min-w-[120px] rounded-[14px] px-5"
+                >
+                  이전
+                </Button>
+              </div>
+
+              <div
+                className="w-full max-w-[720px] mx-auto mb-8 grid gap-3"
+                style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
+              >
+                {FIXED_COST_OPTIONS.map((preset) => (
+                  <Button
+                    key={preset}
+                    type="button"
+                    variant="outline"
+                    fullWidth={false}
+                    onClick={() => {
+                      setFixedCostInput(String(preset));
+                      setStep(3);
+                    }}
+                    className="w-full h-[88px] rounded-[20px] text-[20px] font-black"
+                  >
+                    {formatNumber(preset)}원
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="max-w-[640px] mx-auto w-full animate-in fade-in slide-in-from-right-4 duration-500 pt-2 md:pt-4">
+              <div className="flex flex-col items-center text-center mb-10">
+                <Mascot src="/assets/mascot_happy.png" className="mb-3" />
+                <h2 className="text-[32px] md:text-[36px] font-black text-text-strong tracking-tight mb-3 leading-tight">
+                  월 변동비는 어느 정도인가요?
+                </h2>
+                <p className="text-[15px] text-text-muted font-semibold">
+                  식비, 교통비, 쇼핑처럼 달마다 변하는 지출을 입력해주세요.
+                </p>
+              </div>
+
+              <div className="w-full max-w-[720px] mx-auto mb-4">
+                <Button
+                  variant="outline"
+                  fullWidth={false}
+                  onClick={() => setStep(2)}
+                  className="h-[48px] min-w-[120px] rounded-[14px] px-5"
+                >
+                  이전
+                </Button>
+              </div>
+
+              <div
+                className="w-full max-w-[720px] mx-auto mb-8 grid gap-3"
+                style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
+              >
+                {VARIABLE_COST_OPTIONS.map((preset) => (
+                  <Button
+                    key={preset}
+                    type="button"
+                    variant="outline"
+                    fullWidth={false}
+                    disabled={isSubmitting}
+                    onClick={() => void handleCompleteOnboarding(preset)}
+                    className="w-full h-[88px] rounded-[20px] text-[20px] font-black"
+                  >
+                    {formatNumber(preset)}원
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="max-w-[660px] mx-auto w-full flex flex-col items-center text-center animate-in fade-in zoom-in duration-500 py-3">
+              <Mascot
+                src="/assets/mascot_happy.png"
+                speech="입력해주신 정보를 바탕으로 추천 저축액을 계산했어요."
+                className="mb-8"
+              />
+
+              <div className="w-full bg-surface-base rounded-[30px] p-8 border border-line-soft shadow-[0_14px_30px_rgba(15,23,42,0.08)] mb-8">
+                <p className="text-[12px] text-text-subtle font-black tracking-[0.08em] mb-2">
+                  RECOMMENDED SAVING
+                </p>
+                <p className="text-5xl font-black text-accent tracking-tight">
+                  {formatNumber(recommendedAmount)}원
+                </p>
+                <div className="mt-7 grid sm:grid-cols-2 gap-3 text-sm text-text-muted font-semibold">
+                  <p className="rounded-2xl bg-surface-muted px-4 py-3">
+                    기준 월 소득: {formatNumber(monthlyIncome)}원
+                  </p>
+                  <p className="rounded-2xl bg-surface-muted px-4 py-3">
+                    월 고정비: {formatNumber(fixedCost)}원
+                  </p>
+                  <p className="rounded-2xl bg-surface-muted px-4 py-3">
+                    월 변동비: {formatNumber(variableCost)}원
+                  </p>
+                  <p className="rounded-2xl bg-accent-soft text-accent px-4 py-3">
+                    월 가용금액: {formatNumber(availableAmount)}원
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => navigate('/finance-connect')}
+                className="max-w-[360px] h-[56px]"
+              >
+                계좌 연동으로 이동
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

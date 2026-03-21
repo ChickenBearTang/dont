@@ -57,9 +57,13 @@ export const LoginForm = () => {
       });
 
       const onboardingStatusResponse = await fetchOnboardingStatus();
-      const nextPath = onboardingStatusResponse.data.onboardingCompleted
-        ? '/dashboard'
-        : '/onboarding';
+      const onboardingStatus = onboardingStatusResponse.data.onboardingStatus;
+      const nextPath =
+        onboardingStatus === 'NOT_STARTED'
+          ? '/onboarding'
+          : onboardingStatus === 'COMPLETED'
+            ? '/dashboard'
+            : '/finance-connect';
 
       addToast('로그인에 성공했습니다.', 'success');
       navigate(nextPath, { replace: true });

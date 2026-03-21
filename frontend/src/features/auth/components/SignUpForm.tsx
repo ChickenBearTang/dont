@@ -249,9 +249,14 @@ export const SignUpForm = () => {
       });
 
       const onboardingStatusResponse = await fetchOnboardingStatus();
+      const onboardingStatus = onboardingStatusResponse.data.onboardingStatus;
       addToast('회원가입이 완료되었습니다.', 'success');
       navigate(
-        onboardingStatusResponse.data.onboardingCompleted ? '/finance-connect' : '/onboarding',
+        onboardingStatus === 'NOT_STARTED'
+          ? '/onboarding'
+          : onboardingStatus === 'COMPLETED'
+            ? '/dashboard'
+            : '/finance-connect',
         { replace: true }
       );
     } catch {

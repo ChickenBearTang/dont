@@ -2,11 +2,14 @@ package com.ssafy.edu.awesomeproject.domain.user.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
+import com.ssafy.edu.awesomeproject.domain.user.dto.request.OnboardingCheckpointRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.OnboardingStatusResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.service.UserOnboardingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,14 +37,15 @@ public class UserOnboardingController {
     }
 
     @PostMapping
-    @Operation(summary = "온보딩 완료 체크포인트 저장 API", description = "현재 로그인한 사용자의 온보딩 완료 상태를 저장합니다.")
+    @Operation(summary = "온보딩 체크포인트 저장 API", description = "추천 저축액을 임시 저장하고 온보딩 상태를 IN_PROGRESS로 전환합니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "정상 응답"),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
         @ApiResponse(responseCode = "404", description = "사용자 없음")
     })
     public CommonResponse<OnboardingStatusResponseDto> completeOnboarding(
-            @CurrentUserId Long userId) {
-        return CommonResponse.success(userOnboardingService.completeOnboarding(userId));
+            @CurrentUserId Long userId, @Valid @RequestBody OnboardingCheckpointRequestDto request) {
+        return CommonResponse.success(
+                userOnboardingService.saveOnboardingCheckpoint(userId, request.recommendedAmount()));
     }
 }
