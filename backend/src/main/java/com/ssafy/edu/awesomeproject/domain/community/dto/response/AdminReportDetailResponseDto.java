@@ -14,4 +14,9 @@ public record AdminReportDetailResponseDto(
         String processNote,
         LocalDateTime processedAt,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt) {}
+        LocalDateTime updatedAt,
+        String targetAuthorNickname,
+        String targetTitle,
+        String targetContent,
+        String targetStatus,
+        Long postId) {}

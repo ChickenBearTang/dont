@@ -309,8 +309,10 @@ export const CommunityPage = () => {
                 </div>
 
                 <div className="col-span-7 flex items-center gap-2 min-w-0">
-                  <span className="truncate text-gray-800 font-medium group-hover:text-gray-900">
-                    {post.title}
+                  <span
+                    className={`truncate font-medium ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800 group-hover:text-gray-900'}`}
+                  >
+                    {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
                   </span>
 
                   {post.commentCount > 0 && (
