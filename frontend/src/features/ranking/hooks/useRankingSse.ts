@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { EventSourcePolyfill } from 'event-source-polyfill';
 
 // --- (도메인 타입 힌트 예시) ---
 export interface RankingUser {
@@ -22,19 +24,28 @@ export const useRankingSse = () => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // 1. 단방향 스트림 연결 (쿠키 기반 인증 시 withCredentials 필수)
-    // ※ JWT 헤더 전송이 반드시 필요하다면 EventSourcePolyfill 라이브러리를 사용하세요.
-    const eventSource = new EventSource('/api/ranking/stream', {
-      withCredentials: true,
+    // 1. 단방향 스트림 연결 (JWT 헤더 인증 지원)
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+    const token = useAuthStore.getState().accessToken;
+
+    // axiosInstance가 바라보는 동일한 API BaseURL을 사용하여 404/500 혼합 에러 방지
+    const streamUrl = `${API_BASE_URL}/ranking/stream`;
+
+    // 백엔드 Spring Security 필터를 완벽하게 통과하기 위해 헤더 주입이 가능한 Polyfill 객체 사용
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eventSource = new (EventSourcePolyfill as any)(streamUrl, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
 
     // 2. Nginx 502 방어용 초기 연결 더미 이벤트 수신
-    eventSource.addEventListener('connect', (event) => {
+    eventSource.addEventListener('connect', (event: Event) => {
       console.log('✅ SSE Pipeline Connected:', (event as MessageEvent).data);
     });
 
     // 3. 랭킹 변동 알림 수신 (🔥핵심: Thundering Herd 방어🔥)
-    eventSource.addEventListener('ranking-update', (event) => {
+    eventSource.addEventListener('ranking-update', (event: Event) => {
       // 서버에서 날아온 데이터 파싱
       const payload: RankingUpdatePayload = JSON.parse((event as MessageEvent).data);
       console.log('🔥 실시간 랭킹 변동 감지!', payload);
@@ -45,19 +56,20 @@ export const useRankingSse = () => {
       // D-DoS 공격과 동일한 부하가 발생하여 단일 EC2 서버는 즉시 사망(OOM/Connection Timeout)합니다.
 
       // 🛡️ [무과부하 렌더링 - Optimistic Cache Update 방식] 🛡️
-      queryClient.setQueryData(['totalRanking'], (oldData: RankingUser[] | undefined) => {
+      // 방금 만든 RankingPage의 useQuery Key인 ['ranking', 'total'] 과 맞추어 캐시를 덮어씌웁니다.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      queryClient.setQueryData(['ranking', 'total'], (oldData: any) => {
         if (!oldData) return oldData; // 화면을 아직 안 보고 있으면 캐싱 안 함
-
-        /* --- [케이스 A] 변동 대상 유저 ID만 왔을 경우 (수동 계산) --- */
-        // return oldData.map(user =>
-        //   user.userId === payload.triggeredUserId
-        //     ? { ...user, score: user.score + (방금 저축한 금액), rank: (재계산) }
-        //     : user
-        // ).sort((a, b) => b.score - a.score);
 
         /* --- [케이스 B] 백엔드에서 이미 최신화된 Top 100 배열을 던져준 경우 (가장 이상적) --- */
         if (payload.updatedTop100) {
-          return payload.updatedTop100; // API 폴링 "0"번으로 화면의 숫자가 스르륵 변경됨
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              top100: payload.updatedTop100, // API 재호출 "0번"으로 화면의 순위 리스트 전체가 스르륵 갱신됨
+            },
+          };
         }
 
         return oldData;
@@ -70,7 +82,7 @@ export const useRankingSse = () => {
     });
 
     // 네트워크 끊김이나 타임아웃 처리
-    eventSource.addEventListener('error', (error) => {
+    eventSource.addEventListener('error', (error: Event) => {
       console.error('❌ SSE Connection Error. Retrying...', error);
       // EventSource는 자동으로 재연결(Reconnect)을 시도하므로 별도 로직 없이 두어도 되지만,
       // 무한 루프 에러를 막기 위해 일시적으로 close() 할 수도 있습니다.

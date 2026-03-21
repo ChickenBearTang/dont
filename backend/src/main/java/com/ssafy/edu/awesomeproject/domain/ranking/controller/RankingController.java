@@ -1,52 +1,50 @@
 package com.ssafy.edu.awesomeproject.domain.ranking.controller;
 
+import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.ranking.dto.response.RankingListResponse;
 import com.ssafy.edu.awesomeproject.domain.ranking.dto.response.RankingUserDto;
 import com.ssafy.edu.awesomeproject.domain.ranking.service.RankingService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
-@RequestMapping("/api/ranking")
+@RequestMapping("/ranking")
 @RequiredArgsConstructor
 public class RankingController {
 
     private final RankingService rankingService;
     private final UserRepository userRepository;
 
-    /**
-     * 전체 세이브박스 랭킹 Top 100 및 내 랭킹 조회
-     */
+    /** 전체 세이브박스 랭킹 Top 100 및 내 랭킹 조회 */
     @GetMapping("/total")
-    public CommonResponse<RankingListResponse> getTotalRanking(@RequestAttribute("userId") Long userId) {
+    public CommonResponse<RankingListResponse> getTotalRanking(@CurrentUserId Long userId) {
         List<RankingUserDto> top100 = rankingService.getTop100Ranking(null);
         RankingUserDto myRanking = rankingService.getMyRanking(userId, null);
-        
+
         return CommonResponse.success(RankingListResponse.of(top100, myRanking));
     }
 
-    /**
-     * 기수(Cohort)별 세이브박스 랭킹 Top 100 및 내 랭킹 조회
-     */
+    /** 기수(Cohort)별 세이브박스 랭킹 Top 100 및 내 랭킹 조회 */
     @GetMapping("/cohort")
-    public CommonResponse<RankingListResponse> getCohortRanking(@RequestAttribute("userId") Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        
+    public CommonResponse<RankingListResponse> getCohortRanking(@CurrentUserId Long userId) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("User not found: " + userId));
+
         // 유저 엔티티의 Lazy 로딩된 Cohort 객체에서 기수 번호를 안전하게 추출
         Integer cohortNo = (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
-        
+
         List<RankingUserDto> top100 = rankingService.getTop100Ranking(cohortNo);
         RankingUserDto myRanking = rankingService.getMyRanking(userId, cohortNo);
-        
+
         return CommonResponse.success(RankingListResponse.of(top100, myRanking));
     }
 }

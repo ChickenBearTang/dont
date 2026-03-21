@@ -164,6 +164,13 @@ export const router = createBrowserRouter([
           return { Component: SavingsRuleSetupPage };
         },
       },
+      {
+        path: '/ranking',
+        async lazy() {
+          const { RankingPage } = await import('@/features/ranking/pages/RankingPage');
+          return { Component: RankingPage };
+        },
+      },
     ],
   },
 ]);
