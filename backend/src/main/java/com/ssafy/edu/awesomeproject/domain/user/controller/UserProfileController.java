@@ -2,6 +2,7 @@ package com.ssafy.edu.awesomeproject.domain.user.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
+import com.ssafy.edu.awesomeproject.domain.user.dto.request.MyPageUpdateRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.request.NicknameChangeRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.MyPageResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.NicknameChangeResponseDto;
@@ -34,6 +35,19 @@ public class UserProfileController {
     })
     public CommonResponse<MyPageResponseDto> getMyPage(@CurrentUserId Long userId) {
         return CommonResponse.success(userProfileService.getMyPage(userId));
+    }
+
+    @PatchMapping
+    @Operation(summary = "마이페이지 수정 API", description = "현재 로그인한 사용자의 일반 프로필 정보를 수정합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "404", description = "사용자 없음")
+    })
+    public CommonResponse<MyPageResponseDto> updateMyPage(
+            @CurrentUserId Long userId, @Valid @RequestBody MyPageUpdateRequestDto request) {
+        return CommonResponse.success(userProfileService.updateMyPage(userId, request));
     }
 
     @PatchMapping("/nickname")

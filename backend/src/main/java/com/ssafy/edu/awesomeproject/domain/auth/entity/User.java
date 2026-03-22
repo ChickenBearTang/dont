@@ -92,6 +92,14 @@ public class User extends BaseEntity {
         this.nickname = nickname;
     }
 
+    public void changeName(String name) {
+        this.name = name;
+    }
+
+    public void changeBirthDate(LocalDate birthDate) {
+        this.birthDate = birthDate;
+    }
+
     public User(
             String email,
             String password,

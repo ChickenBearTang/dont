@@ -2,10 +2,12 @@ package com.ssafy.edu.awesomeproject.domain.user.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.user.dto.request.MyPageUpdateRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.MyPageResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.NicknameChangeResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.error.UserErrorCode;
 import com.ssafy.edu.awesomeproject.domain.user.error.UserException;
+import java.math.BigDecimal;
 import java.util.regex.Pattern;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -26,22 +28,37 @@ public class UserProfileService {
     @Transactional(readOnly = true)
     public MyPageResponseDto getMyPage(Long userId) {
         User user = getUser(userId);
-        Long monthlySavingGoalAmount =
-                user.getMonthlySavingGoalAmount() == null
-                        ? null
-                        : user.getMonthlySavingGoalAmount().longValue();
+        return toMyPageResponse(user);
+    }
 
-        return new MyPageResponseDto(
-                user.getId(),
-                user.getEmail(),
-                user.getName(),
-                user.getNickname(),
-                user.getBirthDate(),
-                user.getProfileImageUrl(),
-                user.getOnboardingStatusOrDefault().name(),
-                monthlySavingGoalAmount,
-                user.getCohort().getId(),
-                user.getCohort().getGenerationNo());
+    @Transactional
+    public MyPageResponseDto updateMyPage(Long userId, MyPageUpdateRequestDto request) {
+        User user = getUser(userId);
+
+        if (request.name() == null
+                && request.birthDate() == null
+                && request.monthlySavingGoalAmount() == null) {
+            throw new UserException(UserErrorCode.MY_PAGE_UPDATE_EMPTY);
+        }
+
+        if (request.name() != null) {
+            String normalizedName = request.name().trim();
+            if (normalizedName.isEmpty()) {
+                throw new UserException(UserErrorCode.NAME_INVALID);
+            }
+            user.changeName(normalizedName);
+        }
+
+        if (request.birthDate() != null) {
+            user.changeBirthDate(request.birthDate());
+        }
+
+        if (request.monthlySavingGoalAmount() != null) {
+            user.updateMonthlySavingGoalAmount(
+                    BigDecimal.valueOf(request.monthlySavingGoalAmount()));
+        }
+
+        return toMyPageResponse(user);
     }
 
     @Transactional
@@ -91,5 +108,24 @@ public class UserProfileService {
         if (userRepository.existsByNicknameAndIdNot(nickname, userId)) {
             throw new UserException(UserErrorCode.NICKNAME_ALREADY_EXISTS);
         }
+    }
+
+    private MyPageResponseDto toMyPageResponse(User user) {
+        Long monthlySavingGoalAmount =
+                user.getMonthlySavingGoalAmount() == null
+                        ? null
+                        : user.getMonthlySavingGoalAmount().longValue();
+
+        return new MyPageResponseDto(
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getNickname(),
+                user.getBirthDate(),
+                user.getProfileImageUrl(),
+                user.getOnboardingStatusOrDefault().name(),
+                monthlySavingGoalAmount,
+                user.getCohort().getId(),
+                user.getCohort().getGenerationNo());
     }
 }
