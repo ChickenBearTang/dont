@@ -1,7 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
 import { ForgotPasswordPage, SignUpPage, LoginPage } from '@/features/auth';
-import { FinanceConnectPage, OnboardingPage } from '@/features/user';
+import { FinanceConnectPage, MyPagePage, OnboardingPage } from '@/features/user';
 import {
   AuthenticatedLayoutRoute,
   DashboardRoute,
@@ -156,6 +156,10 @@ export const router = createBrowserRouter([
               const { FinanceHomePage } = await import('@/features/finance/pages/FinanceHomePage');
               return { Component: FinanceHomePage };
             },
+          },
+          {
+            path: '/mypage',
+            element: <MyPagePage />,
           },
           {
             path: '/savebox-setup',
