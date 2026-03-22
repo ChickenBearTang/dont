@@ -5,6 +5,7 @@ import com.ssafy.edu.awesomeproject.common.security.error.TokenException;
 import com.ssafy.edu.awesomeproject.common.security.jwt.ParsedToken;
 import com.ssafy.edu.awesomeproject.common.security.service.AccessTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.UserRole;
+import com.ssafy.edu.awesomeproject.domain.auth.token.RefreshTokenStore;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
 
@@ -14,14 +15,18 @@ public class CurrentUserExtractor {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final AccessTokenService accessTokenService;
+    private final RefreshTokenStore refreshTokenStore;
 
-    public CurrentUserExtractor(AccessTokenService accessTokenService) {
+    public CurrentUserExtractor(
+            AccessTokenService accessTokenService, RefreshTokenStore refreshTokenStore) {
         this.accessTokenService = accessTokenService;
+        this.refreshTokenStore = refreshTokenStore;
     }
 
     public Long extractUserId(String authorizationHeader) {
         String token = extractBearerToken(authorizationHeader);
         ParsedToken parsedToken = accessTokenService.parseAccessToken(token);
+        validateNotBlacklisted(parsedToken);
 
         try {
             return Long.parseLong(parsedToken.subject());
@@ -37,6 +42,7 @@ public class CurrentUserExtractor {
     public CurrentUserAuth extractAuthFromRequestHeader(HttpServletRequest request) {
         String token = extractBearerToken(request.getHeader(AUTHORIZATION_HEADER));
         ParsedToken parsedToken = accessTokenService.parseAccessToken(token);
+        validateNotBlacklisted(parsedToken);
         return new CurrentUserAuth(parseUserId(parsedToken), parseUserRole(parsedToken));
     }
 
@@ -75,6 +81,12 @@ public class CurrentUserExtractor {
         }
 
         return authorizationHeader;
+    }
+
+    private void validateNotBlacklisted(ParsedToken parsedToken) {
+        if (refreshTokenStore.isAccessTokenBlacklisted(parsedToken.tokenId())) {
+            throw new TokenException(TokenErrorCode.TOKEN_BLACKLISTED);
+        }
     }
 
     public record CurrentUserAuth(Long userId, UserRole role) {}

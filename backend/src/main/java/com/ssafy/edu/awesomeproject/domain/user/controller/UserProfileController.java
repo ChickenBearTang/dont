@@ -2,18 +2,24 @@ package com.ssafy.edu.awesomeproject.domain.user.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
+import com.ssafy.edu.awesomeproject.domain.auth.cookie.RefreshTokenCookieService;
+import com.ssafy.edu.awesomeproject.domain.auth.service.AuthTokenService;
 import com.ssafy.edu.awesomeproject.domain.user.dto.request.MyPageUpdateRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.request.NicknameChangeRequestDto;
+import com.ssafy.edu.awesomeproject.domain.user.dto.request.PasswordChangeRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.MyPageResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.NicknameChangeResponseDto;
+import com.ssafy.edu.awesomeproject.domain.user.dto.response.PasswordChangeResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.service.UserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,9 +27,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/users/me")
 public class UserProfileController {
     private final UserProfileService userProfileService;
+    private final AuthTokenService authTokenService;
+    private final RefreshTokenCookieService refreshTokenCookieService;
 
-    public UserProfileController(UserProfileService userProfileService) {
+    public UserProfileController(
+            UserProfileService userProfileService,
+            AuthTokenService authTokenService,
+            RefreshTokenCookieService refreshTokenCookieService) {
         this.userProfileService = userProfileService;
+        this.authTokenService = authTokenService;
+        this.refreshTokenCookieService = refreshTokenCookieService;
     }
 
     @GetMapping
@@ -48,6 +61,27 @@ public class UserProfileController {
     public CommonResponse<MyPageResponseDto> updateMyPage(
             @CurrentUserId Long userId, @Valid @RequestBody MyPageUpdateRequestDto request) {
         return CommonResponse.success(userProfileService.updateMyPage(userId, request));
+    }
+
+    @PatchMapping("/password")
+    @Operation(summary = "비밀번호 변경 API", description = "현재 로그인한 사용자의 비밀번호를 변경합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "401", description = "인증 실패 또는 현재 비밀번호 불일치"),
+        @ApiResponse(responseCode = "404", description = "사용자 없음")
+    })
+    public CommonResponse<PasswordChangeResponseDto> changePassword(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody PasswordChangeRequestDto request,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            HttpServletResponse response) {
+        PasswordChangeResponseDto changeResult =
+                userProfileService.changePassword(
+                        userId, request.currentPassword(), request.newPassword());
+        authTokenService.blacklistAccessTokenByAuthorizationHeader(authorizationHeader, userId);
+        refreshTokenCookieService.clearRefreshToken(response);
+        return CommonResponse.success(changeResult);
     }
 
     @PatchMapping("/nickname")

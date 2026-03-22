@@ -2,9 +2,12 @@ package com.ssafy.edu.awesomeproject.domain.user.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.auth.service.PasswordHashService;
+import com.ssafy.edu.awesomeproject.domain.auth.token.RefreshTokenStore;
 import com.ssafy.edu.awesomeproject.domain.user.dto.request.MyPageUpdateRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.MyPageResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.NicknameChangeResponseDto;
+import com.ssafy.edu.awesomeproject.domain.user.dto.response.PasswordChangeResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.error.UserErrorCode;
 import com.ssafy.edu.awesomeproject.domain.user.error.UserException;
 import java.math.BigDecimal;
@@ -20,9 +23,16 @@ public class UserProfileService {
     private static final Pattern NICKNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9가-힣_]+$");
 
     private final UserRepository userRepository;
+    private final PasswordHashService passwordHashService;
+    private final RefreshTokenStore refreshTokenStore;
 
-    public UserProfileService(UserRepository userRepository) {
+    public UserProfileService(
+            UserRepository userRepository,
+            PasswordHashService passwordHashService,
+            RefreshTokenStore refreshTokenStore) {
         this.userRepository = userRepository;
+        this.passwordHashService = passwordHashService;
+        this.refreshTokenStore = refreshTokenStore;
     }
 
     @Transactional(readOnly = true)
@@ -82,6 +92,25 @@ public class UserProfileService {
         }
 
         return new NicknameChangeResponseDto(user.getId(), user.getNickname());
+    }
+
+    @Transactional
+    public PasswordChangeResponseDto changePassword(
+            Long userId, String currentPassword, String newPassword) {
+        User user = getUser(userId);
+
+        if (!passwordHashService.matches(currentPassword, user.getPassword())) {
+            throw new UserException(UserErrorCode.CURRENT_PASSWORD_MISMATCH);
+        }
+
+        if (passwordHashService.matches(newPassword, user.getPassword())) {
+            throw new UserException(UserErrorCode.NEW_PASSWORD_SAME_AS_CURRENT);
+        }
+
+        user.changePassword(passwordHashService.encode(newPassword));
+        refreshTokenStore.deleteByUserId(user.getId());
+
+        return new PasswordChangeResponseDto(true, true);
     }
 
     private User getUser(Long userId) {
