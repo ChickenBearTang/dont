@@ -107,6 +107,10 @@ public class User extends BaseEntity {
         this.birthDate = birthDate;
     }
 
+    public void changeProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
     public void softDelete(LocalDateTime deletedAt) {
         this.status = UserStatus.DELETED;
         this.deletedAt = deletedAt;
