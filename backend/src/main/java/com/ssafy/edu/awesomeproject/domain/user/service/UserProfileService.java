@@ -8,6 +8,7 @@ import com.ssafy.edu.awesomeproject.common.s3.service.S3AssetUrlResolver;
 import com.ssafy.edu.awesomeproject.common.s3.service.S3FileTemplateService;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.auth.service.DefaultProfileImagePolicy;
 import com.ssafy.edu.awesomeproject.domain.auth.service.PasswordHashService;
 import com.ssafy.edu.awesomeproject.domain.auth.token.RefreshTokenStore;
 import com.ssafy.edu.awesomeproject.domain.user.dto.request.MyPageUpdateRequestDto;
@@ -43,6 +44,7 @@ public class UserProfileService {
     private final UserRepository userRepository;
     private final PasswordHashService passwordHashService;
     private final RefreshTokenStore refreshTokenStore;
+    private final DefaultProfileImagePolicy defaultProfileImagePolicy;
     private final S3FileTemplateService s3FileTemplateService;
     private final S3AssetUrlResolver s3AssetUrlResolver;
 
@@ -50,11 +52,13 @@ public class UserProfileService {
             UserRepository userRepository,
             PasswordHashService passwordHashService,
             RefreshTokenStore refreshTokenStore,
+            DefaultProfileImagePolicy defaultProfileImagePolicy,
             S3FileTemplateService s3FileTemplateService,
             S3AssetUrlResolver s3AssetUrlResolver) {
         this.userRepository = userRepository;
         this.passwordHashService = passwordHashService;
         this.refreshTokenStore = refreshTokenStore;
+        this.defaultProfileImagePolicy = defaultProfileImagePolicy;
         this.s3FileTemplateService = s3FileTemplateService;
         this.s3AssetUrlResolver = s3AssetUrlResolver;
     }
@@ -186,9 +190,13 @@ public class UserProfileService {
     @Transactional
     public ProfileImageDeleteResponseDto deleteProfileImage(Long userId) {
         User user = getUser(userId);
-        user.changeProfileImageUrl(null);
+        String defaultProfileImageKey = defaultProfileImagePolicy.pickRandomKey();
+        user.changeProfileImageUrl(defaultProfileImageKey);
 
-        return new ProfileImageDeleteResponseDto(true, null, null);
+        return new ProfileImageDeleteResponseDto(
+                true,
+                defaultProfileImageKey,
+                s3AssetUrlResolver.resolvePublicUrlOrNull(defaultProfileImageKey));
     }
 
     private User getUser(Long userId) {
