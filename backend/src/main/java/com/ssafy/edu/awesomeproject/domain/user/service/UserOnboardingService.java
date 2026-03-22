@@ -4,6 +4,7 @@ import com.ssafy.edu.awesomeproject.common.error.CommonErrorCode;
 import com.ssafy.edu.awesomeproject.common.error.CommonException;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.OnboardingStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.OnboardingStatusResponseDto;
 import java.math.BigDecimal;
@@ -66,7 +67,7 @@ public class UserOnboardingService {
 
     private User getUser(Long userId) {
         return userRepository
-                .findById(userId)
+                .findByIdAndStatus(userId, UserStatus.ACTIVE)
                 .orElseThrow(
                         () ->
                                 new CommonException(

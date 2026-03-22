@@ -7,6 +7,7 @@ import com.ssafy.edu.awesomeproject.common.security.jwt.JwtTokenSpec;
 import com.ssafy.edu.awesomeproject.common.security.jwt.ParsedToken;
 import com.ssafy.edu.awesomeproject.common.security.service.AccessTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
@@ -89,7 +90,7 @@ public class AuthTokenService {
 
             User user =
                     userRepository
-                            .findById(userId)
+                            .findByIdAndStatus(userId, UserStatus.ACTIVE)
                             .orElseThrow(
                                     () -> new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID));
 
@@ -136,7 +137,8 @@ public class AuthTokenService {
         }
 
         try {
-            ParsedToken parsedAccessToken = parseAccessToken(extractBearerToken(authorizationHeader));
+            ParsedToken parsedAccessToken =
+                    parseAccessToken(extractBearerToken(authorizationHeader));
             if (!String.valueOf(expectedUserId).equals(parsedAccessToken.subject())) {
                 throw new AuthException(AuthErrorCode.AUTHENTICATION_FAILED);
             }

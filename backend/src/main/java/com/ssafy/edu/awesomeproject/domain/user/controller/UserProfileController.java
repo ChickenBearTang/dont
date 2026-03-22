@@ -7,15 +7,18 @@ import com.ssafy.edu.awesomeproject.domain.auth.service.AuthTokenService;
 import com.ssafy.edu.awesomeproject.domain.user.dto.request.MyPageUpdateRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.request.NicknameChangeRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.request.PasswordChangeRequestDto;
+import com.ssafy.edu.awesomeproject.domain.user.dto.request.WithdrawRequestDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.MyPageResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.NicknameChangeResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.PasswordChangeResponseDto;
+import com.ssafy.edu.awesomeproject.domain.user.dto.response.WithdrawResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.service.UserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -82,6 +85,26 @@ public class UserProfileController {
         authTokenService.blacklistAccessTokenByAuthorizationHeader(authorizationHeader, userId);
         refreshTokenCookieService.clearRefreshToken(response);
         return CommonResponse.success(changeResult);
+    }
+
+    @DeleteMapping
+    @Operation(summary = "회원 탈퇴 API", description = "현재 로그인한 사용자를 soft delete 처리합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "401", description = "인증 실패 또는 현재 비밀번호 불일치"),
+        @ApiResponse(responseCode = "404", description = "사용자 없음")
+    })
+    public CommonResponse<WithdrawResponseDto> withdraw(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody WithdrawRequestDto request,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            HttpServletResponse response) {
+        WithdrawResponseDto withdrawResult =
+                userProfileService.withdraw(userId, request.currentPassword());
+        authTokenService.blacklistAccessTokenByAuthorizationHeader(authorizationHeader, userId);
+        refreshTokenCookieService.clearRefreshToken(response);
+        return CommonResponse.success(withdrawResult);
     }
 
     @PatchMapping("/nickname")

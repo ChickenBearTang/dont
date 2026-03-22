@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.auth.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
@@ -50,7 +51,7 @@ public class PasswordResetService {
         authCodeRateLimitService.checkSendLimit(AuthCodePurpose.PASSWORD_RESET, normalizedEmail);
 
         userRepository
-                .findByEmail(normalizedEmail)
+                .findByEmailAndStatus(normalizedEmail, UserStatus.ACTIVE)
                 .ifPresent(
                         user -> {
                             String code = generateCode();
@@ -98,7 +99,7 @@ public class PasswordResetService {
 
         User user =
                 userRepository
-                        .findByEmail(normalizedEmail)
+                        .findByEmailAndStatus(normalizedEmail, UserStatus.ACTIVE)
                         .orElseThrow(
                                 () -> new AuthException(AuthErrorCode.PASSWORD_RESET_CODE_INVALID));
 
