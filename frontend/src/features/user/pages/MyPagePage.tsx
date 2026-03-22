@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { BirthDateField, Button, Card, Input, Modal } from '@/shared/components';
 import {
+  changePassword,
   changeNickname,
   completeProfileImage,
   createProfileImagePresign,
@@ -10,6 +12,7 @@ import {
   fetchMyPage,
   updateMyPage,
 } from '@/features/user/api/userApi';
+import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useToast } from '@/shared/hooks';
 import type { ApiResponse } from '@/shared/types';
 import type { MyPageUpdateRequest } from '@/features/user/mypage/types';
@@ -98,7 +101,20 @@ const mapProfileImageErrorMessage = (code?: string) => {
   }
 };
 
+const mapPasswordChangeErrorMessage = (code?: string) => {
+  switch (code) {
+    case 'USER_401_1':
+      return '현재 비밀번호가 일치하지 않습니다.';
+    case 'USER_400_5':
+      return '새 비밀번호는 현재 비밀번호와 달라야 합니다.';
+    default:
+      return '비밀번호 변경에 실패했습니다.';
+  }
+};
+
 export const MyPagePage = () => {
+  const navigate = useNavigate();
+  const logout = useAuthStore((state) => state.logout);
   const { success, error, info } = useToast();
   const queryClient = useQueryClient();
   const maxBirthDate = useMemo(() => getTodayMinusOne(), []);
@@ -115,6 +131,9 @@ export const MyPagePage = () => {
   const [nicknameDraft, setNicknameDraft] = useState('');
   const [nicknameErrorMessage, setNicknameErrorMessage] = useState('');
   const [isProfileImageProcessing, setIsProfileImageProcessing] = useState(false);
+  const [currentPasswordDraft, setCurrentPasswordDraft] = useState('');
+  const [newPasswordDraft, setNewPasswordDraft] = useState('');
+  const [withdrawPasswordDraft, setWithdrawPasswordDraft] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const updateMutation = useMutation({
@@ -125,6 +144,9 @@ export const MyPagePage = () => {
   });
   const profileDeleteMutation = useMutation({
     mutationFn: deleteProfileImage,
+  });
+  const passwordChangeMutation = useMutation({
+    mutationFn: changePassword,
   });
 
   if (isLoading) {
@@ -339,8 +361,55 @@ export const MyPagePage = () => {
     }
   };
 
+  const handlePasswordSectionSubmit = async () => {
+    const currentPassword = currentPasswordDraft.trim();
+    const newPassword = newPasswordDraft.trim();
+
+    if (currentPassword.length < 8 || newPassword.length < 8) {
+      error('비밀번호는 8자 이상이어야 합니다.');
+      return;
+    }
+
+    if (currentPassword.length > 255 || newPassword.length > 255) {
+      error('비밀번호는 255자 이하여야 합니다.');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      error('새 비밀번호는 현재 비밀번호와 달라야 합니다.');
+      return;
+    }
+
+    try {
+      const response = await passwordChangeMutation.mutateAsync({
+        currentPassword,
+        newPassword,
+      });
+
+      if (response.data.passwordChanged) {
+        setCurrentPasswordDraft('');
+        setNewPasswordDraft('');
+        logout();
+        success('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      error('비밀번호 변경에 실패했습니다.');
+    } catch (mutationError) {
+      const code = axios.isAxiosError(mutationError)
+        ? (mutationError.response?.data as ApiResponse<unknown> | undefined)?.code
+        : undefined;
+      error(mapPasswordChangeErrorMessage(code));
+    }
+  };
+
+  const handleWithdrawSectionSubmit = () => {
+    info('다음 단계에서 회원 탈퇴 API를 연동합니다.');
+  };
+
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-5xl space-y-6">
       <Card className="rounded-none border border-line-soft p-0 shadow-none">
         <div className="border-b border-line-soft px-6 py-5">
           <div className="flex items-center justify-between gap-3">
@@ -528,6 +597,74 @@ export const MyPagePage = () => {
             </Button>
           </div>
         )}
+      </Card>
+
+      <Card className="rounded-none border border-line-soft p-0 shadow-none">
+        <div className="border-b border-line-soft px-6 py-5">
+          <h3 className="text-[24px] font-black text-text-strong">비밀번호 변경</h3>
+          <p className="mt-1 text-sm font-medium text-text-muted">
+            본인 확인 후 새 비밀번호로 변경할 수 있습니다.
+          </p>
+        </div>
+        <div className="space-y-1 px-6 py-5">
+          <Input
+            className="mt-0"
+            label="현재 비밀번호"
+            type="password"
+            value={currentPasswordDraft}
+            onChange={(event) => setCurrentPasswordDraft(event.target.value)}
+            placeholder="현재 비밀번호를 입력하세요"
+          />
+          <Input
+            label="새 비밀번호"
+            type="password"
+            value={newPasswordDraft}
+            onChange={(event) => setNewPasswordDraft(event.target.value)}
+            placeholder="8자 이상 입력하세요"
+            hint="현재 비밀번호와 다른 비밀번호를 사용해주세요."
+          />
+        </div>
+        <div className="flex justify-end border-t border-line-soft px-6 py-5">
+          <Button
+            fullWidth={false}
+            className="min-w-28"
+            onClick={() => void handlePasswordSectionSubmit()}
+            disabled={
+              !currentPasswordDraft || !newPasswordDraft || passwordChangeMutation.isPending
+            }
+          >
+            {passwordChangeMutation.isPending ? '변경 중...' : '비밀번호 변경'}
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="rounded-none border border-danger-soft p-0 shadow-none">
+        <div className="border-b border-danger-soft bg-surface-danger px-6 py-5">
+          <h3 className="text-[24px] font-black text-danger">회원 탈퇴</h3>
+          <p className="mt-1 text-sm font-semibold text-text-muted">
+            탈퇴 시 계정 사용이 중단됩니다. 신중하게 진행해주세요.
+          </p>
+        </div>
+        <div className="space-y-1 px-6 py-5">
+          <Input
+            className="mt-0"
+            label="현재 비밀번호 확인"
+            type="password"
+            value={withdrawPasswordDraft}
+            onChange={(event) => setWithdrawPasswordDraft(event.target.value)}
+            placeholder="탈퇴 확인을 위해 비밀번호를 입력하세요"
+          />
+        </div>
+        <div className="flex justify-end border-t border-danger-soft px-6 py-5">
+          <Button
+            fullWidth={false}
+            className="min-w-24 border-danger-strong bg-danger-strong text-white shadow-none hover:border-danger hover:bg-danger"
+            onClick={handleWithdrawSectionSubmit}
+            disabled={!withdrawPasswordDraft}
+          >
+            탈퇴하기
+          </Button>
+        </div>
       </Card>
 
       <Modal

@@ -6,6 +6,8 @@ import type {
   MyPageUpdateRequest,
   NicknameChangeRequest,
   NicknameChangeResponse,
+  PasswordChangeRequest,
+  PasswordChangeResponse,
   ProfileImageCompleteRequest,
   ProfileImageCompleteResponse,
   ProfileImageDeleteResponse,
@@ -69,4 +71,10 @@ export const completeProfileImage = async (
 
 export const deleteProfileImage = async (): Promise<ApiResponse<ProfileImageDeleteResponse>> => {
   return await axiosInstance.delete('/users/me/profile-image');
+};
+
+export const changePassword = async (
+  payload: PasswordChangeRequest
+): Promise<ApiResponse<PasswordChangeResponse>> => {
+  return await axiosInstance.patch('/users/me/password', payload);
 };
