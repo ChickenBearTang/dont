@@ -187,3 +187,39 @@ class PostgresCrawlStore:
             for row in rows
         ]
         return PostgresSampleResult(total_count=total_count, sample_items=sample_items)
+
+    def read_price_stats(self, days: int) -> dict[str, float | int | None]:
+        if days <= 0:
+            raise ValueError("days must be greater than 0")
+
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT
+                        COUNT(*)::BIGINT,
+                        AVG(NULLIF(regexp_replace(COALESCE(price, ''), '[^0-9]', '', 'g'), '')::BIGINT),
+                        MIN(NULLIF(regexp_replace(COALESCE(price, ''), '[^0-9]', '', 'g'), '')::BIGINT),
+                        MAX(NULLIF(regexp_replace(COALESCE(price, ''), '[^0-9]', '', 'g'), '')::BIGINT)
+                    FROM crawl_items
+                    WHERE fetched_at >= NOW() - (%s * INTERVAL '1 day')
+                    """,
+                    (days,),
+                )
+                row = cursor.fetchone()
+
+        if row is None:
+            return {"count": 0, "avg_price": None, "min_price": None, "max_price": None}
+
+        return {
+            "count": int(row[0] or 0),
+            "avg_price": float(row[1]) if row[1] is not None else None,
+            "min_price": float(row[2]) if row[2] is not None else None,
+            "max_price": float(row[3]) if row[3] is not None else None,
+        }
+
+    def read_window_stats(self) -> dict[str, dict[str, float | int | None]]:
+        return {
+            "30d": self.read_price_stats(30),
+            "90d": self.read_price_stats(90),
+        }

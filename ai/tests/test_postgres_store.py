@@ -118,6 +118,25 @@ class PostgresCrawlStoreTest(unittest.TestCase):
         self.assertEqual(sample_result.sample_items[0]["post_id"], "10")
         self.assertEqual(sample_result.sample_items[1]["price"], None)
 
+    def test_read_window_stats_returns_30d_and_90d(self) -> None:
+        init_cursor = _FakeCursor()
+        stats_30d_cursor = _FakeCursor(fetchone_results=[(3, 1200.0, 1000.0, 1500.0)])
+        stats_90d_cursor = _FakeCursor(fetchone_results=[(8, 1400.0, 900.0, 2000.0)])
+        connector = _ConnectorFactory(
+            [
+                _FakeConnection(init_cursor),
+                _FakeConnection(stats_30d_cursor),
+                _FakeConnection(stats_90d_cursor),
+            ]
+        )
+        store = PostgresCrawlStore(dsn="postgresql://test", connector=connector)
+
+        stats = store.read_window_stats()
+
+        self.assertEqual(stats["30d"]["count"], 3)
+        self.assertEqual(stats["30d"]["avg_price"], 1200.0)
+        self.assertEqual(stats["90d"]["max_price"], 2000.0)
+
 
 if __name__ == "__main__":
     unittest.main()

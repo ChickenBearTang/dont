@@ -62,6 +62,7 @@ def main() -> None:
         is_seen=store.is_seen,
     )
     save_stats = store.save_result(crawl_result)
+    window_stats = store.read_window_stats()
 
     payload = {
         "source": crawl_result.source,
@@ -69,6 +70,7 @@ def main() -> None:
         "inserted": save_stats.inserted,
         "updated": save_stats.updated,
         "db_backend": "postgresql",
+        "price_stats": window_stats,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
