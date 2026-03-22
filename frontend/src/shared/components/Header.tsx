@@ -65,6 +65,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
               <span className="absolute top-[2px] right-[2px] w-[6px] h-[6px] bg-error-red rounded-full"></span>
             </div>
             <div
+              onClick={() => navigate('/mypage')}
               className="cursor-pointer text-[20px] text-eel hover:text-primary-blue transition-colors"
               title={user?.nickname ? `${user.nickname}님의 마이페이지` : '마이페이지'}
             >

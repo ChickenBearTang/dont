@@ -57,6 +57,13 @@ public class User extends BaseEntity {
     @Column(name = "user_role", nullable = false, length = 32)
     private UserRole userRole;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private UserStatus status = UserStatus.ACTIVE;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     // cohort 매핑을 위한 FK 조건 추가
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cohort_id", nullable = false)
@@ -90,6 +97,27 @@ public class User extends BaseEntity {
         this.password = encodedPassword;
     }
 
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public void changeName(String name) {
+        this.name = name;
+    }
+
+    public void changeBirthDate(LocalDate birthDate) {
+        this.birthDate = birthDate;
+    }
+
+    public void changeProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public void softDelete(LocalDateTime deletedAt) {
+        this.status = UserStatus.DELETED;
+        this.deletedAt = deletedAt;
+    }
+
     public User(
             String email,
             String password,
@@ -111,6 +139,8 @@ public class User extends BaseEntity {
         this.termsAgreedAt = termsAgreedAt;
         this.onboardingStatus = OnboardingStatus.NOT_STARTED;
         this.userRole = userRole;
+        this.status = UserStatus.ACTIVE;
+        this.deletedAt = null;
         this.cohort = cohort;
     }
 }

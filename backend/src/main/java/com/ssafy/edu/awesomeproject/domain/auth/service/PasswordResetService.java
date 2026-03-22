@@ -41,20 +41,21 @@ public class PasswordResetService {
     public RequestResult requestReset(String email) {
         String normalizedEmail = normalizeEmail(email);
 
-        userRepository
-                .findByEmail(normalizedEmail)
-                .ifPresent(
-                        user -> {
-                            String code = generateCode();
-                            passwordResetTokenStore.saveCode(normalizedEmail, code, RESET_CODE_TTL);
-                            try {
-                                passwordResetEmailSender.sendResetCode(
-                                        normalizedEmail, code, RESET_CODE_TTL);
-                            } catch (RuntimeException exception) {
-                                passwordResetTokenStore.removeCode(normalizedEmail);
-                                throw exception;
-                            }
-                        });
+        try {
+            userRepository
+                    .findActiveByEmail(normalizedEmail)
+                    .orElseThrow(() -> new AuthException(AuthErrorCode.BAD_CREDENTIALS));
+            String code = generateCode();
+            passwordResetTokenStore.saveCode(normalizedEmail, code, RESET_CODE_TTL);
+            try {
+                passwordResetEmailSender.sendResetCode(normalizedEmail, code, RESET_CODE_TTL);
+            } catch (RuntimeException exception) {
+                passwordResetTokenStore.removeCode(normalizedEmail);
+                throw exception;
+            }
+        } catch (AuthException exception) {
+            // 계정 존재 여부를 노출하지 않기 위해 무시한다.
+        }
 
         // 계정 존재 여부를 노출하지 않기 위해 동일 응답을 반환한다.
         return new RequestResult("입력한 이메일로 비밀번호 재설정 안내를 전송했습니다.", RESET_CODE_TTL.getSeconds());
@@ -79,7 +80,7 @@ public class PasswordResetService {
 
         User user =
                 userRepository
-                        .findByEmail(normalizedEmail)
+                        .findActiveByEmail(normalizedEmail)
                         .orElseThrow(
                                 () -> new AuthException(AuthErrorCode.PASSWORD_RESET_CODE_INVALID));
 
