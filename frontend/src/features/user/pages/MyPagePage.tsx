@@ -11,6 +11,7 @@ import {
   deleteProfileImage,
   fetchMyPage,
   updateMyPage,
+  withdraw,
 } from '@/features/user/api/userApi';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useToast } from '@/shared/hooks';
@@ -112,6 +113,15 @@ const mapPasswordChangeErrorMessage = (code?: string) => {
   }
 };
 
+const mapWithdrawErrorMessage = (code?: string) => {
+  switch (code) {
+    case 'USER_401_1':
+      return '현재 비밀번호가 일치하지 않습니다.';
+    default:
+      return '회원 탈퇴에 실패했습니다.';
+  }
+};
+
 export const MyPagePage = () => {
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
@@ -147,6 +157,9 @@ export const MyPagePage = () => {
   });
   const passwordChangeMutation = useMutation({
     mutationFn: changePassword,
+  });
+  const withdrawMutation = useMutation({
+    mutationFn: withdraw,
   });
 
   if (isLoading) {
@@ -404,8 +417,44 @@ export const MyPagePage = () => {
     }
   };
 
-  const handleWithdrawSectionSubmit = () => {
-    info('다음 단계에서 회원 탈퇴 API를 연동합니다.');
+  const handleWithdrawSectionSubmit = async () => {
+    const currentPassword = withdrawPasswordDraft.trim();
+
+    if (currentPassword.length < 8) {
+      error('비밀번호는 8자 이상이어야 합니다.');
+      return;
+    }
+
+    if (currentPassword.length > 255) {
+      error('비밀번호는 255자 이하여야 합니다.');
+      return;
+    }
+
+    const confirmed = window.confirm('정말로 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await withdrawMutation.mutateAsync({
+        currentPassword,
+      });
+
+      if (response.data.withdrawn) {
+        setWithdrawPasswordDraft('');
+        logout();
+        success('회원 탈퇴가 완료되었습니다.');
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      error('회원 탈퇴에 실패했습니다.');
+    } catch (mutationError) {
+      const code = axios.isAxiosError(mutationError)
+        ? (mutationError.response?.data as ApiResponse<unknown> | undefined)?.code
+        : undefined;
+      error(mapWithdrawErrorMessage(code));
+    }
   };
 
   return (
@@ -659,10 +708,10 @@ export const MyPagePage = () => {
           <Button
             fullWidth={false}
             className="min-w-24 border-danger-strong bg-danger-strong text-white shadow-none hover:border-danger hover:bg-danger"
-            onClick={handleWithdrawSectionSubmit}
-            disabled={!withdrawPasswordDraft}
+            onClick={() => void handleWithdrawSectionSubmit()}
+            disabled={!withdrawPasswordDraft || withdrawMutation.isPending}
           >
-            탈퇴하기
+            {withdrawMutation.isPending ? '처리 중...' : '탈퇴하기'}
           </Button>
         </div>
       </Card>

@@ -13,6 +13,8 @@ import type {
   ProfileImageDeleteResponse,
   ProfileImagePresignRequest,
   ProfileImagePresignResponse,
+  WithdrawRequest,
+  WithdrawResponse,
 } from '../mypage/types';
 
 /**
@@ -77,4 +79,10 @@ export const changePassword = async (
   payload: PasswordChangeRequest
 ): Promise<ApiResponse<PasswordChangeResponse>> => {
   return await axiosInstance.patch('/users/me/password', payload);
+};
+
+export const withdraw = async (
+  payload: WithdrawRequest
+): Promise<ApiResponse<WithdrawResponse>> => {
+  return await axiosInstance.delete('/users/me', { data: payload });
 };
