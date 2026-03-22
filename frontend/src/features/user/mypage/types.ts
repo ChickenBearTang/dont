@@ -10,3 +10,9 @@ export interface MyPageResponse {
   cohortId: number | null;
   cohortGenerationNo: number | null;
 }
+
+export interface MyPageUpdateRequest {
+  name?: string;
+  birthDate?: string | null;
+  monthlySavingGoalAmount?: number;
+}
