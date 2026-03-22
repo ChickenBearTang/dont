@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from pydantic import BaseModel
 
 
 @dataclass(frozen=True)
@@ -50,3 +51,21 @@ class AccountTransaction:
     @property
     def month(self) -> str:
         return self.transacted_at.strftime("%Y-%m")
+
+
+class ChatRequest(BaseModel):
+    user_name: str
+    month: str
+    message: str
+    history: list[dict[str, str]] = []
+
+
+class PurchaseIntentionRequest(BaseModel):
+    user_name: str
+    item_text: str
+    item_link: str
+    user_reason: str
+
+
+class TTSRequest(BaseModel):
+    text: str

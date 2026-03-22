@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from consumption_poc.config import (
+from config import (
     DEFAULT_GEMINI_MODEL,
     DEFAULT_GEMINI_MODEL_FALLBACKS,
     get_env,

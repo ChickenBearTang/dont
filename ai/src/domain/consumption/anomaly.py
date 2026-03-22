@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections import Counter
 
-from consumption_poc.models import CardTransaction
-from consumption_poc.reporting import category_medians
+from domain.consumption.schemas import CardTransaction
+from domain.consumption.reporting import category_medians
 
 
 def detect_anomalies(cards: list[CardTransaction]) -> list[dict]:

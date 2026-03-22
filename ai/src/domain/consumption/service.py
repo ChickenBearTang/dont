@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from consumption_poc.ai_insights import generate_ai_analysis
-from consumption_poc.anomaly import detect_anomalies
-from consumption_poc.config import (
+from domain.consumption.ai_insights import generate_ai_analysis
+from domain.consumption.anomaly import detect_anomalies
+from config import (
     ACCOUNT_TRANSACTIONS_PATH,
     CARD_TRANSACTIONS_PATH,
     GENERATED_DATA_DIR,
@@ -16,8 +16,8 @@ from consumption_poc.config import (
     GENERATED_TIME_PATH,
     USER_PROFILE_PATH,
 )
-from consumption_poc.loader import load_account_transactions, load_card_transactions, load_user_profiles
-from consumption_poc.reporting import (
+from utils.loader import load_account_transactions, load_card_transactions, load_user_profiles
+from domain.consumption.reporting import (
     build_cashflow_summary,
     build_category_summary,
     build_mock_statistics_bundle,
@@ -28,19 +28,31 @@ from consumption_poc.reporting import (
     filter_account_transactions,
     filter_card_transactions,
 )
-from consumption_poc.writers import write_csv, write_json
+from utils.writers import write_csv, write_json
 import json
 
 
 class ReportService:
     def __init__(self) -> None:
-        self.profiles = load_user_profiles(USER_PROFILE_PATH)
+        try:
+            self.profiles = load_user_profiles(USER_PROFILE_PATH)
+        except Exception:
+            self.profiles = []
+            
         self._profiles_by_id = {profile.user_id: profile for profile in self.profiles}
         self._profiles_by_name = {
             profile.name.lower(): profile for profile in self.profiles
         }
-        self.card_transactions = load_card_transactions(CARD_TRANSACTIONS_PATH)
-        self.account_transactions = load_account_transactions(ACCOUNT_TRANSACTIONS_PATH)
+        
+        try:
+            self.card_transactions = load_card_transactions(CARD_TRANSACTIONS_PATH)
+        except Exception:
+            self.card_transactions = []
+            
+        try:
+            self.account_transactions = load_account_transactions(ACCOUNT_TRANSACTIONS_PATH)
+        except Exception:
+            self.account_transactions = []
 
     def _get_justifications_path(self, user_id: str, month: str):
         return GENERATED_DATA_DIR / "users" / user_id / month / "justifications.json"

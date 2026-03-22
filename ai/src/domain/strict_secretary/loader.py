@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from consumption_poc.loader import load_user_profiles, load_card_transactions
-from consumption_poc.models import UserProfile, CardTransaction
+from utils.loader import load_user_profiles, load_card_transactions
+from domain.consumption.schemas import UserProfile, CardTransaction
 
 def get_user_profile(data_dir: Path, user_id: str) -> UserProfile:
     profiles = load_user_profiles(data_dir / "raw" / "user_profile.json")

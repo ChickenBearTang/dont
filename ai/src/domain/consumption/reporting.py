@@ -4,7 +4,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from statistics import median
 
-from consumption_poc.models import AccountTransaction, CardTransaction, UserProfile
+from domain.consumption.schemas import AccountTransaction, CardTransaction, UserProfile
 
 
 WEEKDAY_ORDER = [

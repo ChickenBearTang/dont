@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from strict_secretary.models import PurchaseRequest, SecretaryResponse
-from strict_secretary.loader import (
+from domain.strict_secretary.models import PurchaseRequest, SecretaryResponse
+from domain.strict_secretary.loader import (
     get_user_profile,
     get_recent_card_transactions,
     get_explain_logs,
     get_latest_ai_report
 )
-from strict_secretary.agent import StrictSecretaryAgent
+from domain.strict_secretary.agent import StrictSecretaryAgent
 import urllib.request
 import re
 

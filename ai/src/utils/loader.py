@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from consumption_poc.models import AccountTransaction, CardTransaction, UserProfile
+from domain.consumption.schemas import AccountTransaction, CardTransaction, UserProfile
 
 
 CARD_REQUIRED_FIELDS = {

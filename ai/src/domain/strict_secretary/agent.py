@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from google import genai
 
-from consumption_poc.config import get_env, DEFAULT_GEMINI_MODEL
-from consumption_poc.ai_insights import _model_candidates, _extract_json
-from strict_secretary.models import SecretaryResponse
+from config import get_env, DEFAULT_GEMINI_MODEL
+from domain.consumption.ai_insights import _model_candidates, _extract_json
+from domain.strict_secretary.models import SecretaryResponse
 
 class StrictSecretaryAgent:
     def __init__(self):

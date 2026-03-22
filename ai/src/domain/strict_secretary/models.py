@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from consumption_poc.models import UserProfile, CardTransaction
+from domain.consumption.schemas import UserProfile, CardTransaction
 
 @dataclass
 class PurchaseRequest:
