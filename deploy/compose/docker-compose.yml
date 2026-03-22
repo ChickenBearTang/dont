@@ -81,6 +81,50 @@ services:
     networks:
       - app-net
 
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: app-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    expose:
+      - "3100"
+    volumes:
+      - ../../infra/observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - app-net
+
+  alloy:
+    image: grafana/alloy
+    container_name: app-alloy
+    restart: unless-stopped
+    command: ["run", "/etc/alloy/config.alloy"]
+    expose:
+      - "12345"
+    depends_on:
+      loki:
+        condition: service_started
+    volumes:
+      - ../../infra/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - app-net
+
+  grafana:
+    image: grafana/grafana
+    container_name: app-grafana
+    restart: unless-stopped
+    expose:
+      - "3000"
+    depends_on:
+      loki:
+        condition: service_started
+    volumes:
+      - ../../infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - app-net
+
 networks:
   app-net:
     driver: bridge
@@ -89,3 +133,5 @@ volumes:
   redis-data:
   certbot-conf:
   certbot-www:
+  loki-data:
+  grafana-data:
