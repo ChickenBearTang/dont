@@ -65,3 +65,12 @@ export interface PasswordChangeResponse {
   passwordChanged: boolean;
   reLoginRequired: boolean;
 }
+
+export interface WithdrawRequest {
+  currentPassword: string;
+}
+
+export interface WithdrawResponse {
+  withdrawn: boolean;
+  reLoginRequired: boolean;
+}
