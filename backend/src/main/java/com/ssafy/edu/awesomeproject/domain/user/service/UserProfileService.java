@@ -237,15 +237,15 @@ public class UserProfileService {
         return fileName.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
     }
 
-    private String buildProfileImagePurpose(Long userId) {
-        return PROFILE_IMAGE_PURPOSE_PREFIX + userId;
-    }
-
     private void validateProfileImageKey(Long userId, String key) {
-        String expectedPrefix = "public/" + buildProfileImagePurpose(userId) + "/";
+        String expectedPrefix = "public/profile/" + userId + "/";
         if (!key.startsWith(expectedPrefix)) {
             throw new S3Exception(S3ErrorCode.INVALID_OBJECT_KEY);
         }
+    }
+
+    private String buildProfileImagePurpose(Long userId) {
+        return PROFILE_IMAGE_PURPOSE_PREFIX + userId;
     }
 
     private String normalizeKey(String key) {
@@ -264,7 +264,7 @@ public class UserProfileService {
                 user.getName(),
                 user.getNickname(),
                 user.getBirthDate(),
-                user.getProfileImageUrl(),
+                s3AssetUrlResolver.resolvePublicUrlOrNull(user.getProfileImageUrl()),
                 user.getOnboardingStatusOrDefault().name(),
                 monthlySavingGoalAmount,
                 user.getCohort().getId(),
