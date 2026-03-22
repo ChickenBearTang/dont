@@ -128,6 +128,30 @@ public class AuthTokenService {
         blacklistAccessTokenIfPossible(parsedRefreshToken, authorizationHeader);
     }
 
+    @Transactional
+    public void blacklistAccessTokenByAuthorizationHeader(
+            String authorizationHeader, Long expectedUserId) {
+        if (authorizationHeader == null || authorizationHeader.isBlank()) {
+            return;
+        }
+
+        try {
+            ParsedToken parsedAccessToken = parseAccessToken(extractBearerToken(authorizationHeader));
+            if (!String.valueOf(expectedUserId).equals(parsedAccessToken.subject())) {
+                throw new AuthException(AuthErrorCode.AUTHENTICATION_FAILED);
+            }
+
+            refreshTokenStore.blacklistAccessToken(
+                    parsedAccessToken.tokenId(),
+                    refreshTokenStore.resolveTimeToLive(parsedAccessToken.expiresAt()));
+        } catch (TokenException | AuthException exception) {
+            log.warn(
+                    "auth.access_blacklist_skipped userId={} reason={}",
+                    expectedUserId,
+                    exception.getErrorCode().code());
+        }
+    }
+
     private IssuedToken issueAccessToken(User user) {
         JwtTokenSpec jwtTokenSpec =
                 JwtTokenSpec.access(
