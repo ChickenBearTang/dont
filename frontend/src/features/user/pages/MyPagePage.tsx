@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card } from '@/shared/components';
+import { BirthDateField, Button, Card } from '@/shared/components';
 import { fetchMyPage, updateMyPage } from '@/features/user/api/userApi';
 import { useToast } from '@/shared/hooks';
 import type { ApiResponse } from '@/shared/types';
@@ -46,6 +46,21 @@ const mapMyPageUpdateErrorMessage = (code?: string) => {
   }
 };
 
+const formatBirthDateLabel = (birthDate: string) => {
+  const [year, month, day] = birthDate.split('-');
+  if (!year || !month || !day) {
+    return birthDate;
+  }
+  return `${year}.${month}.${day}`;
+};
+
+const formatAmountLabel = (value: string) => {
+  if (!value) return '-';
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return value;
+  return `${amount.toLocaleString()}원`;
+};
+
 export const MyPagePage = () => {
   const { success, error, info } = useToast();
   const queryClient = useQueryClient();
@@ -58,6 +73,7 @@ export const MyPagePage = () => {
   });
 
   const [draftForm, setDraftForm] = useState<MyPageFormState | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const updateMutation = useMutation({
     mutationFn: (payload: MyPageUpdateRequest) => updateMyPage(payload),
@@ -92,7 +108,7 @@ export const MyPagePage = () => {
   }
 
   const initialForm = toInitialForm(data.name, data.birthDate, data.monthlySavingGoalAmount);
-  const form = draftForm ?? initialForm;
+  const form = isEditing ? (draftForm ?? initialForm) : initialForm;
   const profileInitial = (data.nickname?.trim()?.[0] ?? 'U').toUpperCase();
   const trimmedName = form.name.trim();
   const initialTrimmedName = initialForm.name.trim();
@@ -116,11 +132,21 @@ export const MyPagePage = () => {
     form.monthlySavingGoalAmount !== initialForm.monthlySavingGoalAmount;
   const isSaving = updateMutation.isPending;
 
+  const handleStartEdit = () => {
+    setDraftForm(initialForm);
+    setIsEditing(true);
+  };
+
   const handleCancel = () => {
     setDraftForm(null);
+    setIsEditing(false);
   };
 
   const handleSave = async () => {
+    if (!isEditing) {
+      return;
+    }
+
     if (!isChanged) {
       info('변경된 내용이 없습니다.');
       return;
@@ -148,6 +174,7 @@ export const MyPagePage = () => {
         monthlySavingGoalAmount: monthlyAmount,
       });
       setDraftForm(null);
+      setIsEditing(false);
       queryClient.invalidateQueries({ queryKey: ['myPage'] });
       success('마이페이지 정보가 수정되었습니다.');
     } catch (mutationError) {
@@ -162,10 +189,21 @@ export const MyPagePage = () => {
     <div className="mx-auto w-full max-w-5xl">
       <Card className="rounded-none border border-line-soft p-0 shadow-none">
         <div className="border-b border-line-soft px-6 py-5">
-          <h2 className="text-[30px] font-black text-text-strong">프로필</h2>
-          <p className="mt-1 text-sm font-medium text-text-muted">
-            이름과 생년월일을 수정할 수 있습니다.
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[30px] font-black text-text-strong">프로필</h2>
+              <p className="mt-1 text-sm font-medium text-text-muted">
+                {isEditing
+                  ? '수정 중입니다. 변경 후 적용 버튼을 눌러주세요.'
+                  : '기본 정보를 확인할 수 있습니다.'}
+              </p>
+            </div>
+            {!isEditing && (
+              <Button fullWidth={false} className="min-w-24" onClick={handleStartEdit}>
+                수정
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[180px_1fr]">
@@ -213,19 +251,23 @@ export const MyPagePage = () => {
             이름
           </div>
           <div className="border-b border-line-soft px-6 py-4">
-            <input
-              value={form.name}
-              maxLength={50}
-              onChange={(event) =>
-                setDraftForm((prev) => ({
-                  ...(prev ?? initialForm),
-                  name: event.target.value,
-                }))
-              }
-              disabled={isSaving}
-              className="w-full rounded-[8px] border border-line-soft px-3 py-2 text-[15px] font-semibold text-text-strong outline-none transition-colors focus:border-accent"
-              placeholder="이름을 입력하세요"
-            />
+            {isEditing ? (
+              <input
+                value={form.name}
+                maxLength={50}
+                onChange={(event) =>
+                  setDraftForm((prev) => ({
+                    ...(prev ?? initialForm),
+                    name: event.target.value,
+                  }))
+                }
+                disabled={isSaving}
+                className="w-full rounded-[8px] border border-line-soft px-3 py-2 text-[15px] font-semibold text-text-strong outline-none transition-colors focus:border-accent"
+                placeholder="이름을 입력하세요"
+              />
+            ) : (
+              <p className="py-2 text-[15px] font-semibold text-text-strong">{form.name || '-'}</p>
+            )}
           </div>
 
           <div className="border-b border-line-soft bg-surface-soft px-6 py-6 text-sm font-extrabold text-text-strong">
@@ -239,39 +281,50 @@ export const MyPagePage = () => {
             생년월일
           </div>
           <div className="border-b border-line-soft px-6 py-4">
-            <input
-              type="date"
-              value={form.birthDate}
-              max={maxBirthDate}
-              onChange={(event) =>
-                setDraftForm((prev) => ({
-                  ...(prev ?? initialForm),
-                  birthDate: event.target.value,
-                }))
-              }
-              disabled={isSaving}
-              className="w-full rounded-[8px] border border-line-soft px-3 py-2 text-[15px] font-semibold text-text-strong outline-none transition-colors focus:border-accent"
-            />
+            {isEditing ? (
+              <BirthDateField
+                className="mt-0"
+                value={form.birthDate}
+                max={maxBirthDate}
+                onChange={(value) =>
+                  setDraftForm((prev) => ({
+                    ...(prev ?? initialForm),
+                    birthDate: value,
+                  }))
+                }
+                disabled={isSaving}
+              />
+            ) : (
+              <p className="py-2 text-[15px] font-semibold text-text-strong">
+                {form.birthDate ? formatBirthDateLabel(form.birthDate) : '-'}
+              </p>
+            )}
           </div>
 
           <div className="border-b border-line-soft bg-surface-soft px-6 py-6 text-sm font-extrabold text-text-strong">
             월 저축 목표 금액
           </div>
           <div className="border-b border-line-soft px-6 py-4">
-            <input
-              type="text"
-              inputMode="numeric"
-              value={form.monthlySavingGoalAmount}
-              onChange={(event) =>
-                setDraftForm((prev) => ({
-                  ...(prev ?? initialForm),
-                  monthlySavingGoalAmount: event.target.value.replace(/[^0-9]/g, ''),
-                }))
-              }
-              disabled={isSaving}
-              className="w-full rounded-[8px] border border-line-soft px-3 py-2 text-[15px] font-semibold text-text-strong outline-none transition-colors focus:border-accent"
-              placeholder="예: 300000"
-            />
+            {isEditing ? (
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.monthlySavingGoalAmount}
+                onChange={(event) =>
+                  setDraftForm((prev) => ({
+                    ...(prev ?? initialForm),
+                    monthlySavingGoalAmount: event.target.value.replace(/[^0-9]/g, ''),
+                  }))
+                }
+                disabled={isSaving}
+                className="w-full rounded-[8px] border border-line-soft px-3 py-2 text-[15px] font-semibold text-text-strong outline-none transition-colors focus:border-accent"
+                placeholder="예: 300000"
+              />
+            ) : (
+              <p className="py-2 text-[15px] font-semibold text-text-strong">
+                {formatAmountLabel(form.monthlySavingGoalAmount)}
+              </p>
+            )}
           </div>
 
           <div className="bg-surface-soft px-6 py-6 text-sm font-extrabold text-text-strong">
@@ -282,27 +335,23 @@ export const MyPagePage = () => {
           </div>
         </div>
 
-        <div className="flex justify-center gap-3 border-t border-line-soft px-6 py-5">
-          <Button
-            fullWidth={false}
-            variant="outline"
-            className="min-w-24"
-            onClick={handleCancel}
-            disabled={isSaving || !isChanged}
-          >
-            취소
-          </Button>
-          <Button
-            fullWidth={false}
-            className="min-w-24"
-            onClick={() => void handleSave()}
-            disabled={
-              isSaving || !isChanged || !isNameValid || !isBirthDateValid || !isMonthlyValid
-            }
-          >
-            {isSaving ? '저장 중...' : '적용'}
-          </Button>
-        </div>
+        {isEditing && (
+          <div className="flex justify-center gap-3 border-t border-line-soft px-6 py-5">
+            <Button fullWidth={false} variant="outline" className="min-w-24" onClick={handleCancel}>
+              취소
+            </Button>
+            <Button
+              fullWidth={false}
+              className="min-w-24"
+              onClick={() => void handleSave()}
+              disabled={
+                isSaving || !isChanged || !isNameValid || !isBirthDateValid || !isMonthlyValid
+              }
+            >
+              {isSaving ? '저장 중...' : '적용'}
+            </Button>
+          </div>
+        )}
       </Card>
     </div>
   );
