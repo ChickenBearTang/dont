@@ -5,7 +5,6 @@ import com.ssafy.edu.awesomeproject.common.security.error.TokenException;
 import com.ssafy.edu.awesomeproject.common.security.jwt.ParsedToken;
 import com.ssafy.edu.awesomeproject.common.security.service.AccessTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.UserRole;
-import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.auth.token.RefreshTokenStore;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,7 +54,7 @@ public class CurrentUserExtractor {
             throw new TokenException(TokenErrorCode.TOKEN_INVALID);
         }
 
-        if (!userRepository.existsByIdAndStatus(userId, UserStatus.ACTIVE)) {
+        if (!userRepository.existsActiveById(userId)) {
             throw new TokenException(TokenErrorCode.TOKEN_INVALID);
         }
 

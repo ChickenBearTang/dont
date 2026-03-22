@@ -7,7 +7,6 @@ import com.ssafy.edu.awesomeproject.common.security.jwt.JwtTokenSpec;
 import com.ssafy.edu.awesomeproject.common.security.jwt.ParsedToken;
 import com.ssafy.edu.awesomeproject.common.security.service.AccessTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
-import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
@@ -90,7 +89,7 @@ public class AuthTokenService {
 
             User user =
                     userRepository
-                            .findByIdAndStatus(userId, UserStatus.ACTIVE)
+                            .findActiveById(userId)
                             .orElseThrow(
                                     () -> new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID));
 

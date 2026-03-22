@@ -1,7 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.user.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
-import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.auth.service.PasswordHashService;
 import com.ssafy.edu.awesomeproject.domain.auth.token.RefreshTokenStore;
@@ -132,7 +131,7 @@ public class UserProfileService {
 
     private User getUser(Long userId) {
         return userRepository
-                .findByIdAndStatus(userId, UserStatus.ACTIVE)
+                .findActiveById(userId)
                 .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
     }
 
