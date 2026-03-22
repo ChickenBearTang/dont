@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BirthDateField, Button, Card } from '@/shared/components';
-import { fetchMyPage, updateMyPage } from '@/features/user/api/userApi';
+import { BirthDateField, Button, Card, Input, Modal } from '@/shared/components';
+import { changeNickname, fetchMyPage, updateMyPage } from '@/features/user/api/userApi';
 import { useToast } from '@/shared/hooks';
 import type { ApiResponse } from '@/shared/types';
 import type { MyPageUpdateRequest } from '@/features/user/mypage/types';
@@ -61,6 +61,21 @@ const formatAmountLabel = (value: string) => {
   return `${amount.toLocaleString()}원`;
 };
 
+const NICKNAME_PATTERN = /^[a-zA-Z0-9가-힣_]+$/;
+
+const mapNicknameChangeErrorMessage = (code?: string) => {
+  switch (code) {
+    case 'USER_400_1':
+      return '닉네임은 2자 이상 20자 이하여야 합니다.';
+    case 'USER_400_2':
+      return '닉네임은 한글, 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.';
+    case 'USER_409_1':
+      return '이미 사용 중인 닉네임입니다.';
+    default:
+      return '닉네임 변경에 실패했습니다.';
+  }
+};
+
 export const MyPagePage = () => {
   const { success, error, info } = useToast();
   const queryClient = useQueryClient();
@@ -74,9 +89,15 @@ export const MyPagePage = () => {
 
   const [draftForm, setDraftForm] = useState<MyPageFormState | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
+  const [nicknameDraft, setNicknameDraft] = useState('');
+  const [nicknameErrorMessage, setNicknameErrorMessage] = useState('');
 
   const updateMutation = useMutation({
     mutationFn: (payload: MyPageUpdateRequest) => updateMyPage(payload),
+  });
+  const nicknameMutation = useMutation({
+    mutationFn: (nickname: string) => changeNickname({ nickname }),
   });
 
   if (isLoading) {
@@ -185,6 +206,47 @@ export const MyPagePage = () => {
     }
   };
 
+  const handleOpenNicknameModal = () => {
+    setNicknameDraft(data.nickname);
+    setNicknameErrorMessage('');
+    setIsNicknameModalOpen(true);
+  };
+
+  const handleCloseNicknameModal = () => {
+    if (nicknameMutation.isPending) {
+      return;
+    }
+    setIsNicknameModalOpen(false);
+    setNicknameErrorMessage('');
+  };
+
+  const handleChangeNickname = async () => {
+    const nickname = nicknameDraft.trim();
+    if (nickname.length < 2 || nickname.length > 20) {
+      setNicknameErrorMessage('닉네임은 2자 이상 20자 이하여야 합니다.');
+      return;
+    }
+    if (!NICKNAME_PATTERN.test(nickname)) {
+      setNicknameErrorMessage('닉네임은 한글, 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.');
+      return;
+    }
+
+    try {
+      await nicknameMutation.mutateAsync(nickname);
+      setIsNicknameModalOpen(false);
+      setNicknameErrorMessage('');
+      queryClient.invalidateQueries({ queryKey: ['myPage'] });
+      success('닉네임이 변경되었습니다.');
+    } catch (mutationError) {
+      const code = axios.isAxiosError(mutationError)
+        ? (mutationError.response?.data as ApiResponse<unknown> | undefined)?.code
+        : undefined;
+      const message = mapNicknameChangeErrorMessage(code);
+      setNicknameErrorMessage(message);
+      error(message);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl">
       <Card className="rounded-none border border-line-soft p-0 shadow-none">
@@ -243,8 +305,19 @@ export const MyPagePage = () => {
           <div className="border-b border-line-soft bg-surface-soft px-6 py-6 text-sm font-extrabold text-text-strong">
             닉네임
           </div>
-          <div className="border-b border-line-soft px-6 py-6 text-[15px] font-semibold text-text-strong">
-            {data.nickname}
+          <div className="border-b border-line-soft px-6 py-6">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[15px] font-semibold text-text-strong">{data.nickname}</p>
+              <Button
+                fullWidth={false}
+                variant="outline"
+                className="min-w-20 px-3 py-2 text-xs"
+                onClick={handleOpenNicknameModal}
+                disabled={nicknameMutation.isPending}
+              >
+                닉네임 변경
+              </Button>
+            </div>
           </div>
 
           <div className="border-b border-line-soft bg-surface-soft px-6 py-6 text-sm font-extrabold text-text-strong">
@@ -353,6 +426,51 @@ export const MyPagePage = () => {
           </div>
         )}
       </Card>
+
+      <Modal
+        isOpen={isNicknameModalOpen}
+        onClose={handleCloseNicknameModal}
+        title="닉네임 변경"
+        closeOnBackdropClick={false}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              fullWidth={false}
+              variant="outline"
+              className="min-w-20 px-4 py-2 text-sm"
+              onClick={handleCloseNicknameModal}
+              disabled={nicknameMutation.isPending}
+            >
+              취소
+            </Button>
+            <Button
+              fullWidth={false}
+              className="min-w-20 px-4 py-2 text-sm"
+              onClick={() => void handleChangeNickname()}
+              disabled={nicknameMutation.isPending}
+            >
+              {nicknameMutation.isPending ? '변경 중...' : '변경'}
+            </Button>
+          </div>
+        }
+      >
+        <Input
+          className="mt-0"
+          label="새 닉네임"
+          value={nicknameDraft}
+          onChange={(event) => {
+            setNicknameDraft(event.target.value);
+            if (nicknameErrorMessage) {
+              setNicknameErrorMessage('');
+            }
+          }}
+          maxLength={20}
+          placeholder="2~20자, 한글/영문/숫자/_"
+          error={!!nicknameErrorMessage}
+          errorMessage={nicknameErrorMessage}
+          disabled={nicknameMutation.isPending}
+        />
+      </Modal>
     </div>
   );
 };
