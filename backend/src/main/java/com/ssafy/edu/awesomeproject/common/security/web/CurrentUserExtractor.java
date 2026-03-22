@@ -5,6 +5,8 @@ import com.ssafy.edu.awesomeproject.common.security.error.TokenException;
 import com.ssafy.edu.awesomeproject.common.security.jwt.ParsedToken;
 import com.ssafy.edu.awesomeproject.common.security.service.AccessTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.UserRole;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
+import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.auth.token.RefreshTokenStore;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
@@ -16,23 +18,22 @@ public class CurrentUserExtractor {
 
     private final AccessTokenService accessTokenService;
     private final RefreshTokenStore refreshTokenStore;
+    private final UserRepository userRepository;
 
     public CurrentUserExtractor(
-            AccessTokenService accessTokenService, RefreshTokenStore refreshTokenStore) {
+            AccessTokenService accessTokenService,
+            RefreshTokenStore refreshTokenStore,
+            UserRepository userRepository) {
         this.accessTokenService = accessTokenService;
         this.refreshTokenStore = refreshTokenStore;
+        this.userRepository = userRepository;
     }
 
     public Long extractUserId(String authorizationHeader) {
         String token = extractBearerToken(authorizationHeader);
         ParsedToken parsedToken = accessTokenService.parseAccessToken(token);
         validateNotBlacklisted(parsedToken);
-
-        try {
-            return Long.parseLong(parsedToken.subject());
-        } catch (NumberFormatException exception) {
-            throw new TokenException(TokenErrorCode.TOKEN_INVALID);
-        }
+        return parseUserId(parsedToken);
     }
 
     public Long extractUserIdFromRequestHeader(HttpServletRequest request) {
@@ -47,11 +48,18 @@ public class CurrentUserExtractor {
     }
 
     private Long parseUserId(ParsedToken parsedToken) {
+        Long userId;
         try {
-            return Long.parseLong(parsedToken.subject());
+            userId = Long.parseLong(parsedToken.subject());
         } catch (NumberFormatException exception) {
             throw new TokenException(TokenErrorCode.TOKEN_INVALID);
         }
+
+        if (!userRepository.existsByIdAndStatus(userId, UserStatus.ACTIVE)) {
+            throw new TokenException(TokenErrorCode.TOKEN_INVALID);
+        }
+
+        return userId;
     }
 
     private UserRole parseUserRole(ParsedToken parsedToken) {

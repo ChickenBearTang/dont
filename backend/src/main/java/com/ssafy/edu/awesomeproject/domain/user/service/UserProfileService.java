@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.user.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.auth.service.PasswordHashService;
 import com.ssafy.edu.awesomeproject.domain.auth.token.RefreshTokenStore;
@@ -8,9 +9,11 @@ import com.ssafy.edu.awesomeproject.domain.user.dto.request.MyPageUpdateRequestD
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.MyPageResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.NicknameChangeResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.PasswordChangeResponseDto;
+import com.ssafy.edu.awesomeproject.domain.user.dto.response.WithdrawResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.error.UserErrorCode;
 import com.ssafy.edu.awesomeproject.domain.user.error.UserException;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.regex.Pattern;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -113,9 +116,23 @@ public class UserProfileService {
         return new PasswordChangeResponseDto(true, true);
     }
 
+    @Transactional
+    public WithdrawResponseDto withdraw(Long userId, String currentPassword) {
+        User user = getUser(userId);
+
+        if (!passwordHashService.matches(currentPassword, user.getPassword())) {
+            throw new UserException(UserErrorCode.CURRENT_PASSWORD_MISMATCH);
+        }
+
+        user.softDelete(LocalDateTime.now());
+        refreshTokenStore.deleteByUserId(user.getId());
+
+        return new WithdrawResponseDto(true, true);
+    }
+
     private User getUser(Long userId) {
         return userRepository
-                .findById(userId)
+                .findByIdAndStatus(userId, UserStatus.ACTIVE)
                 .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
     }
 

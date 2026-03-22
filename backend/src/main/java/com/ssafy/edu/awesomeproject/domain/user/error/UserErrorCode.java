@@ -10,10 +10,8 @@ public enum UserErrorCode implements ErrorCode {
             HttpStatus.BAD_REQUEST, "USER_400_2", "닉네임은 한글, 영문, 숫자, 밑줄(_)만 사용할 수 있습니다."),
     MY_PAGE_UPDATE_EMPTY(HttpStatus.BAD_REQUEST, "USER_400_3", "수정할 마이페이지 항목이 없습니다."),
     NAME_INVALID(HttpStatus.BAD_REQUEST, "USER_400_4", "이름은 공백일 수 없습니다."),
-    NEW_PASSWORD_SAME_AS_CURRENT(
-            HttpStatus.BAD_REQUEST, "USER_400_5", "새 비밀번호는 현재 비밀번호와 달라야 합니다."),
-    CURRENT_PASSWORD_MISMATCH(
-            HttpStatus.UNAUTHORIZED, "USER_401_1", "현재 비밀번호가 일치하지 않습니다."),
+    NEW_PASSWORD_SAME_AS_CURRENT(HttpStatus.BAD_REQUEST, "USER_400_5", "새 비밀번호는 현재 비밀번호와 달라야 합니다."),
+    CURRENT_PASSWORD_MISMATCH(HttpStatus.UNAUTHORIZED, "USER_401_1", "현재 비밀번호가 일치하지 않습니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_409_1", "이미 사용 중인 닉네임입니다.");
 
     private final HttpStatus httpStatus;

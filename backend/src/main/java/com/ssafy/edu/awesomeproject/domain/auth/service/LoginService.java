@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.auth.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthErrorCode;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
@@ -26,7 +27,7 @@ public class LoginService {
     public LoginResult login(String email, String password) {
         User user =
                 userRepository
-                        .findByEmail(email)
+                        .findByEmailAndStatus(email, UserStatus.ACTIVE)
                         .orElseThrow(() -> new AuthException(AuthErrorCode.BAD_CREDENTIALS));
 
         if (!passwordHashService.matches(password, user.getPassword())) {
