@@ -2,6 +2,7 @@ package com.ssafy.edu.awesomeproject.domain.user.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.user.dto.response.MyPageResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.NicknameChangeResponseDto;
 import com.ssafy.edu.awesomeproject.domain.user.error.UserErrorCode;
 import com.ssafy.edu.awesomeproject.domain.user.error.UserException;
@@ -20,6 +21,27 @@ public class UserProfileService {
 
     public UserProfileService(UserRepository userRepository) {
         this.userRepository = userRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public MyPageResponseDto getMyPage(Long userId) {
+        User user = getUser(userId);
+        Long monthlySavingGoalAmount =
+                user.getMonthlySavingGoalAmount() == null
+                        ? null
+                        : user.getMonthlySavingGoalAmount().longValue();
+
+        return new MyPageResponseDto(
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getNickname(),
+                user.getBirthDate(),
+                user.getProfileImageUrl(),
+                user.getOnboardingStatusOrDefault().name(),
+                monthlySavingGoalAmount,
+                user.getCohort().getId(),
+                user.getCohort().getGenerationNo());
     }
 
     @Transactional
