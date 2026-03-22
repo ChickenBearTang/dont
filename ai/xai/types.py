@@ -40,25 +40,42 @@ class XAIContracts:
             raise TypeError("reasons must be a list")
         return reasons
 
+    @staticmethod
+    def normalize_counterfactuals(counterfactuals: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        if counterfactuals is None:
+            return []
+        if not isinstance(counterfactuals, list):
+            raise TypeError("counterfactuals must be a list")
+        return counterfactuals
+
 
 @dataclass(frozen=True)
 class ItemExplanation:
     item_id: str
     reasons: list[dict[str, Any]] = field(default_factory=list)
+    decision: str = "REVIEW"
+    counterfactuals: list[dict[str, Any]] = field(default_factory=list)
+    polished_summary: str = ""
     errors: list[AnalysisError] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.reasons is None:
             object.__setattr__(self, "reasons", [])
+        if self.counterfactuals is None:
+            object.__setattr__(self, "counterfactuals", [])
         if self.errors is None:
             object.__setattr__(self, "errors", [])
 
     def to_dict(self, *, model_version: str, generated_at: str) -> dict[str, Any]:
         normalized_reasons = XAIContracts.normalize_reasons(self.reasons)
+        normalized_counterfactuals = XAIContracts.normalize_counterfactuals(self.counterfactuals)
         normalized_errors = XAIContracts.normalize_errors(self.errors)
         return {
             "item_id": XAIContracts.require_string(self.item_id, field_name="item_id"),
+            "decision": self.decision,
             "reasons": normalized_reasons,
+            "counterfactuals": normalized_counterfactuals,
+            "polished_summary": self.polished_summary,
             "errors": [error.to_dict() for error in normalized_errors],
             "model_version": model_version,
             "generated_at": generated_at,

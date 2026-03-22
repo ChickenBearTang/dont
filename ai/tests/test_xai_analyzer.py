@@ -40,8 +40,10 @@ class ExplainabilityAnalyzerTest(unittest.TestCase):
         self.assertIn("model_version", payload)
         self.assertIn("crawl", payload)
         self.assertIn("errors", payload)
+        self.assertIn("statistics", payload)
+        self.assertIn("finance_profile", payload)
         self.assertEqual(payload["analyzer_id"], "xai-explainability")
-        self.assertEqual(payload["model_version"], "rules-v1")
+        self.assertEqual(payload["model_version"], "rules-v2")
         self.assertEqual(payload["crawl"]["source"], "quasarzone")
         self.assertEqual(payload["errors"], [])
 
@@ -51,6 +53,9 @@ class ExplainabilityAnalyzerTest(unittest.TestCase):
         self.assertEqual(items[1]["item_id"], "https://example.com/b")
         self.assertLessEqual(len(items[0]["reasons"]), 2)
         self.assertLessEqual(len(items[1]["reasons"]), 2)
+        self.assertIn(items[0]["decision"], {"BUY", "WAIT", "SKIP", "REVIEW"})
+        self.assertIsInstance(items[0]["counterfactuals"], list)
+        self.assertIsInstance(items[0]["polished_summary"], str)
         self.assertEqual(items[0]["errors"], [])
         self.assertEqual(items[1]["errors"], [])
 
@@ -84,6 +89,7 @@ class ExplainabilityAnalyzerTest(unittest.TestCase):
 
         self.assertGreater(len(valid_item["reasons"]), 0)
         self.assertEqual(valid_item["errors"], [])
+        self.assertIsInstance(valid_item["counterfactuals"], list)
 
         self.assertEqual(malformed_item["reasons"], [])
         self.assertEqual(len(malformed_item["errors"]), 1)

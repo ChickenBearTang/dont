@@ -109,5 +109,8 @@ class ReasoningEngine:
             "reason_text": template.text,
             "feature": feature,
             "score": float(score),
+            "abs_score": abs(float(score)),
+            "impact_direction": "positive" if score >= 0 else "negative",
+            "shap_like_value": float(score),
             "source_type": template.source_type,
         }
