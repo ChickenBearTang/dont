@@ -16,3 +16,12 @@ export interface MyPageUpdateRequest {
   birthDate?: string | null;
   monthlySavingGoalAmount?: number;
 }
+
+export interface NicknameChangeRequest {
+  nickname: string;
+}
+
+export interface NicknameChangeResponse {
+  userId: number;
+  nickname: string;
+}

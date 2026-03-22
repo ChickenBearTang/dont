@@ -1,7 +1,12 @@
 import axiosInstance from '@/shared/api/axiosInstance';
 import type { ApiResponse, Cohort } from '@/shared/types';
 import type { OnboardingPayload, OnboardingResponse } from '../types';
-import type { MyPageResponse, MyPageUpdateRequest } from '../mypage/types';
+import type {
+  MyPageResponse,
+  MyPageUpdateRequest,
+  NicknameChangeRequest,
+  NicknameChangeResponse,
+} from '../mypage/types';
 
 /**
  * 기수(Cohort) 목록 조회 API
@@ -37,4 +42,10 @@ export const updateMyPage = async (
   payload: MyPageUpdateRequest
 ): Promise<ApiResponse<MyPageResponse>> => {
   return await axiosInstance.patch('/users/me', payload);
+};
+
+export const changeNickname = async (
+  payload: NicknameChangeRequest
+): Promise<ApiResponse<NicknameChangeResponse>> => {
+  return await axiosInstance.patch('/users/me/nickname', payload);
 };
