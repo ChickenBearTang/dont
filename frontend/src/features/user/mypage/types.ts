@@ -55,3 +55,13 @@ export interface ProfileImageDeleteResponse {
   profileImageKey: string;
   profileImageUrl: string;
 }
+
+export interface PasswordChangeRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface PasswordChangeResponse {
+  passwordChanged: boolean;
+  reLoginRequired: boolean;
+}
