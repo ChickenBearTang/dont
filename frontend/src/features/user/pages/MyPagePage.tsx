@@ -1,8 +1,15 @@
 import axios from 'axios';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BirthDateField, Button, Card, Input, Modal } from '@/shared/components';
-import { changeNickname, fetchMyPage, updateMyPage } from '@/features/user/api/userApi';
+import {
+  changeNickname,
+  completeProfileImage,
+  createProfileImagePresign,
+  deleteProfileImage,
+  fetchMyPage,
+  updateMyPage,
+} from '@/features/user/api/userApi';
 import { useToast } from '@/shared/hooks';
 import type { ApiResponse } from '@/shared/types';
 import type { MyPageUpdateRequest } from '@/features/user/mypage/types';
@@ -62,6 +69,8 @@ const formatAmountLabel = (value: string) => {
 };
 
 const NICKNAME_PATTERN = /^[a-zA-Z0-9가-힣_]+$/;
+const MAX_PROFILE_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_PROFILE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 const mapNicknameChangeErrorMessage = (code?: string) => {
   switch (code) {
@@ -73,6 +82,19 @@ const mapNicknameChangeErrorMessage = (code?: string) => {
       return '이미 사용 중인 닉네임입니다.';
     default:
       return '닉네임 변경에 실패했습니다.';
+  }
+};
+
+const mapProfileImageErrorMessage = (code?: string) => {
+  switch (code) {
+    case 'S3_400_1':
+      return '지원하지 않는 프로필 이미지 형식입니다.';
+    case 'S3_400_2':
+      return '파일명이 유효하지 않습니다.';
+    case 'S3_400_3':
+      return '프로필 이미지 key가 유효하지 않습니다.';
+    default:
+      return '프로필 이미지 처리에 실패했습니다.';
   }
 };
 
@@ -92,12 +114,17 @@ export const MyPagePage = () => {
   const [isNicknameModalOpen, setIsNicknameModalOpen] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState('');
   const [nicknameErrorMessage, setNicknameErrorMessage] = useState('');
+  const [isProfileImageProcessing, setIsProfileImageProcessing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: (payload: MyPageUpdateRequest) => updateMyPage(payload),
   });
   const nicknameMutation = useMutation({
     mutationFn: (nickname: string) => changeNickname({ nickname }),
+  });
+  const profileDeleteMutation = useMutation({
+    mutationFn: deleteProfileImage,
   });
 
   if (isLoading) {
@@ -247,6 +274,71 @@ export const MyPagePage = () => {
     }
   };
 
+  const handleClickChangeProfileImage = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleProfileImageFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (!ALLOWED_PROFILE_IMAGE_TYPES.includes(file.type)) {
+      error('jpg, jpeg, png, webp 형식만 업로드할 수 있습니다.');
+      return;
+    }
+
+    if (file.size <= 0 || file.size > MAX_PROFILE_IMAGE_SIZE_BYTES) {
+      error('프로필 이미지는 10MB 이하만 업로드할 수 있습니다.');
+      return;
+    }
+
+    try {
+      setIsProfileImageProcessing(true);
+      const presignResponse = await createProfileImagePresign({
+        fileName: file.name,
+        contentType: file.type,
+        contentLength: file.size,
+      });
+
+      const { uploadUrl, headers, key } = presignResponse.data;
+
+      await axios.put(uploadUrl, file, {
+        headers,
+      });
+
+      await completeProfileImage({ key });
+      queryClient.invalidateQueries({ queryKey: ['myPage'] });
+      success('프로필 이미지가 변경되었습니다.');
+    } catch (mutationError) {
+      const code = axios.isAxiosError(mutationError)
+        ? (mutationError.response?.data as ApiResponse<unknown> | undefined)?.code
+        : undefined;
+      error(mapProfileImageErrorMessage(code));
+    } finally {
+      setIsProfileImageProcessing(false);
+    }
+  };
+
+  const handleDeleteProfileImage = async () => {
+    try {
+      setIsProfileImageProcessing(true);
+      await profileDeleteMutation.mutateAsync();
+      queryClient.invalidateQueries({ queryKey: ['myPage'] });
+      success('기본 프로필 이미지로 변경되었습니다.');
+    } catch (mutationError) {
+      const code = axios.isAxiosError(mutationError)
+        ? (mutationError.response?.data as ApiResponse<unknown> | undefined)?.code
+        : undefined;
+      error(mapProfileImageErrorMessage(code));
+    } finally {
+      setIsProfileImageProcessing(false);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl">
       <Card className="rounded-none border border-line-soft p-0 shadow-none">
@@ -289,16 +381,27 @@ export const MyPagePage = () => {
                 <button
                   type="button"
                   className="border border-line-soft px-3 py-2 text-xs font-bold text-text-strong"
+                  onClick={handleClickChangeProfileImage}
+                  disabled={isProfileImageProcessing}
                 >
-                  사진변경
+                  {isProfileImageProcessing ? '처리 중...' : '사진변경'}
                 </button>
                 <button
                   type="button"
                   className="border border-line-soft px-3 py-2 text-xs font-bold text-text-muted"
+                  onClick={() => void handleDeleteProfileImage()}
+                  disabled={isProfileImageProcessing}
                 >
                   삭제
                 </button>
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(event) => void handleProfileImageFileChange(event)}
+              />
             </div>
           </div>
 
