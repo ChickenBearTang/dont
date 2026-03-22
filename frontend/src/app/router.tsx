@@ -1,5 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
+import NotFoundPage from '@/shared/components/NotFoundPage';
+import ServerErrorPage from '@/shared/components/ServerErrorPage';
 import { SignUpPage, LoginPage } from '@/features/auth';
 import { OnboardingPage } from '@/features/user';
 import {
@@ -13,6 +15,7 @@ import {
 export const router = createBrowserRouter([
   {
     element: <PublicLayout />,
+    errorElement: <ServerErrorPage />,
     children: [
       {
         path: '/',
@@ -50,6 +53,7 @@ export const router = createBrowserRouter([
   },
   {
     element: <AuthenticatedLayoutRoute />,
+    errorElement: <ServerErrorPage />,
     children: [
       {
         path: '/dashboard',
@@ -138,5 +142,13 @@ export const router = createBrowserRouter([
         },
       },
     ],
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />,
+  },
+  {
+    path: '/500',
+    element: <ServerErrorPage />,
   },
 ]);
