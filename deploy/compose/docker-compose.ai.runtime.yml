@@ -1,4 +1,21 @@
 services:
+  ai-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${AI_POSTGRES_DB:-ai_crawl}
+      POSTGRES_USER: ${AI_POSTGRES_USER:-ai_user}
+      POSTGRES_PASSWORD: ${AI_POSTGRES_PASSWORD:-ai_password}
+    ports:
+      - "${AI_POSTGRES_BIND_HOST:-127.0.0.1}:${AI_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - ai-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AI_POSTGRES_USER:-ai_user} -d ${AI_POSTGRES_DB:-ai_crawl}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   fastapi:
     build:
       context: ./fastapi
@@ -7,6 +24,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    depends_on:
+      ai-postgres:
+        condition: service_healthy
     ports:
       - "${FASTAPI_BIND_HOST:-127.0.0.1}:8000:8000"
     healthcheck:
@@ -14,3 +34,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+
+volumes:
+  ai-postgres-data:

@@ -19,4 +19,11 @@ class AIPipelineManager:
         crawl_result = self.crawler.crawl()
         if self.analyzer is None:
             return crawl_result
-        return self.analyzer(crawl_result)
+        try:
+            return self.analyzer(crawl_result)
+        except Exception:
+            return {
+                "errors": [{"code": "ANALYZER_FAILED", "message": "분석기 실행에 실패했습니다"}],
+                "crawl": {"source": crawl_result.source, "items": []},
+                "schema_version": "1.0",
+            }
