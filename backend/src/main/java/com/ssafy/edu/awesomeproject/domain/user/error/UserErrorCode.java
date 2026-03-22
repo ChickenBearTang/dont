@@ -8,6 +8,8 @@ public enum UserErrorCode implements ErrorCode {
     NICKNAME_INVALID_LENGTH(HttpStatus.BAD_REQUEST, "USER_400_1", "닉네임은 2자 이상 20자 이하여야 합니다."),
     NICKNAME_INVALID_FORMAT(
             HttpStatus.BAD_REQUEST, "USER_400_2", "닉네임은 한글, 영문, 숫자, 밑줄(_)만 사용할 수 있습니다."),
+    MY_PAGE_UPDATE_EMPTY(HttpStatus.BAD_REQUEST, "USER_400_3", "수정할 마이페이지 항목이 없습니다."),
+    NAME_INVALID(HttpStatus.BAD_REQUEST, "USER_400_4", "이름은 공백일 수 없습니다."),
     NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "USER_409_1", "이미 사용 중인 닉네임입니다.");
 
     private final HttpStatus httpStatus;
