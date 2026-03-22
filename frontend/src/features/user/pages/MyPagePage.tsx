@@ -143,7 +143,11 @@ export const MyPagePage = () => {
   const [isProfileImageProcessing, setIsProfileImageProcessing] = useState(false);
   const [currentPasswordDraft, setCurrentPasswordDraft] = useState('');
   const [newPasswordDraft, setNewPasswordDraft] = useState('');
+  const [newPasswordConfirmDraft, setNewPasswordConfirmDraft] = useState('');
   const [withdrawPasswordDraft, setWithdrawPasswordDraft] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordErrorMessage, setPasswordErrorMessage] = useState('');
+  const [withdrawErrorMessage, setWithdrawErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const updateMutation = useMutation({
@@ -377,19 +381,38 @@ export const MyPagePage = () => {
   const handlePasswordSectionSubmit = async () => {
     const currentPassword = currentPasswordDraft.trim();
     const newPassword = newPasswordDraft.trim();
+    const newPasswordConfirm = newPasswordConfirmDraft.trim();
+    setPasswordErrorMessage('');
 
-    if (currentPassword.length < 8 || newPassword.length < 8) {
-      error('비밀번호는 8자 이상이어야 합니다.');
+    if (currentPassword.length < 8 || newPassword.length < 8 || newPasswordConfirm.length < 8) {
+      const message = '비밀번호는 8자 이상이어야 합니다.';
+      setPasswordErrorMessage(message);
+      error(message);
       return;
     }
 
-    if (currentPassword.length > 255 || newPassword.length > 255) {
-      error('비밀번호는 255자 이하여야 합니다.');
+    if (
+      currentPassword.length > 255 ||
+      newPassword.length > 255 ||
+      newPasswordConfirm.length > 255
+    ) {
+      const message = '비밀번호는 255자 이하여야 합니다.';
+      setPasswordErrorMessage(message);
+      error(message);
+      return;
+    }
+
+    if (newPassword !== newPasswordConfirm) {
+      const message = '새 비밀번호와 새 비밀번호 확인이 일치하지 않습니다.';
+      setPasswordErrorMessage(message);
+      error(message);
       return;
     }
 
     if (currentPassword === newPassword) {
-      error('새 비밀번호는 현재 비밀번호와 달라야 합니다.');
+      const message = '새 비밀번호는 현재 비밀번호와 달라야 합니다.';
+      setPasswordErrorMessage(message);
+      error(message);
       return;
     }
 
@@ -402,31 +425,42 @@ export const MyPagePage = () => {
       if (response.data.passwordChanged) {
         setCurrentPasswordDraft('');
         setNewPasswordDraft('');
+        setNewPasswordConfirmDraft('');
+        setPasswordErrorMessage('');
         logout();
         success('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
         navigate('/login', { replace: true });
         return;
       }
 
-      error('비밀번호 변경에 실패했습니다.');
+      const message = '비밀번호 변경에 실패했습니다.';
+      setPasswordErrorMessage(message);
+      error(message);
     } catch (mutationError) {
       const code = axios.isAxiosError(mutationError)
         ? (mutationError.response?.data as ApiResponse<unknown> | undefined)?.code
         : undefined;
-      error(mapPasswordChangeErrorMessage(code));
+      const message = mapPasswordChangeErrorMessage(code);
+      setPasswordErrorMessage(message);
+      error(message);
     }
   };
 
   const handleWithdrawSectionSubmit = async () => {
     const currentPassword = withdrawPasswordDraft.trim();
+    setWithdrawErrorMessage('');
 
     if (currentPassword.length < 8) {
-      error('비밀번호는 8자 이상이어야 합니다.');
+      const message = '비밀번호는 8자 이상이어야 합니다.';
+      setWithdrawErrorMessage(message);
+      error(message);
       return;
     }
 
     if (currentPassword.length > 255) {
-      error('비밀번호는 255자 이하여야 합니다.');
+      const message = '비밀번호는 255자 이하여야 합니다.';
+      setWithdrawErrorMessage(message);
+      error(message);
       return;
     }
 
@@ -442,20 +476,69 @@ export const MyPagePage = () => {
 
       if (response.data.withdrawn) {
         setWithdrawPasswordDraft('');
+        setWithdrawErrorMessage('');
         logout();
         success('회원 탈퇴가 완료되었습니다.');
         navigate('/login', { replace: true });
         return;
       }
 
-      error('회원 탈퇴에 실패했습니다.');
+      const message = '회원 탈퇴에 실패했습니다.';
+      setWithdrawErrorMessage(message);
+      error(message);
     } catch (mutationError) {
       const code = axios.isAxiosError(mutationError)
         ? (mutationError.response?.data as ApiResponse<unknown> | undefined)?.code
         : undefined;
-      error(mapWithdrawErrorMessage(code));
+      const message = mapWithdrawErrorMessage(code);
+      setWithdrawErrorMessage(message);
+      error(message);
     }
   };
+
+  const eyeButtonClassName =
+    'flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-surface-soft';
+
+  const renderPasswordToggle = (visible: boolean, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={eyeButtonClassName}
+      aria-label={visible ? '비밀번호 숨기기' : '비밀번호 보기'}
+    >
+      {visible ? (
+        <svg
+          className="h-4.5 w-4.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M10.584 10.587A2 2 0 0013.413 13.416M9.88 5.09A9.953 9.953 0 0112 4.875c4.478 0 8.268 2.943 9.542 7.003a9.97 9.97 0 01-2.231 3.592M6.228 6.228A9.956 9.956 0 002.458 11.878a9.97 9.97 0 005.365 6.08A9.953 9.953 0 0012 19.125c1.41 0 2.751-.293 3.966-.82"
+          />
+        </svg>
+      ) : (
+        <svg
+          className="h-4.5 w-4.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+          />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+    </button>
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6">
@@ -661,17 +744,44 @@ export const MyPagePage = () => {
             label="현재 비밀번호"
             type="password"
             value={currentPasswordDraft}
-            onChange={(event) => setCurrentPasswordDraft(event.target.value)}
+            onChange={(event) => {
+              setCurrentPasswordDraft(event.target.value);
+              if (passwordErrorMessage) {
+                setPasswordErrorMessage('');
+              }
+            }}
             placeholder="현재 비밀번호를 입력하세요"
           />
           <Input
             label="새 비밀번호"
-            type="password"
+            type={showNewPassword ? 'text' : 'password'}
             value={newPasswordDraft}
-            onChange={(event) => setNewPasswordDraft(event.target.value)}
+            onChange={(event) => {
+              setNewPasswordDraft(event.target.value);
+              if (passwordErrorMessage) {
+                setPasswordErrorMessage('');
+              }
+            }}
             placeholder="8자 이상 입력하세요"
-            hint="현재 비밀번호와 다른 비밀번호를 사용해주세요."
+            endAdornment={renderPasswordToggle(showNewPassword, () =>
+              setShowNewPassword((prev) => !prev)
+            )}
           />
+          <Input
+            label="새 비밀번호 확인"
+            type={showNewPassword ? 'text' : 'password'}
+            value={newPasswordConfirmDraft}
+            onChange={(event) => {
+              setNewPasswordConfirmDraft(event.target.value);
+              if (passwordErrorMessage) {
+                setPasswordErrorMessage('');
+              }
+            }}
+            placeholder="새 비밀번호를 다시 입력하세요"
+          />
+          {passwordErrorMessage && (
+            <p className="mt-2 text-[12px] font-semibold text-danger">{passwordErrorMessage}</p>
+          )}
         </div>
         <div className="flex justify-end border-t border-line-soft px-6 py-5">
           <Button
@@ -679,7 +789,10 @@ export const MyPagePage = () => {
             className="min-w-28"
             onClick={() => void handlePasswordSectionSubmit()}
             disabled={
-              !currentPasswordDraft || !newPasswordDraft || passwordChangeMutation.isPending
+              !currentPasswordDraft ||
+              !newPasswordDraft ||
+              !newPasswordConfirmDraft ||
+              passwordChangeMutation.isPending
             }
           >
             {passwordChangeMutation.isPending ? '변경 중...' : '비밀번호 변경'}
@@ -700,8 +813,15 @@ export const MyPagePage = () => {
             label="현재 비밀번호 확인"
             type="password"
             value={withdrawPasswordDraft}
-            onChange={(event) => setWithdrawPasswordDraft(event.target.value)}
+            onChange={(event) => {
+              setWithdrawPasswordDraft(event.target.value);
+              if (withdrawErrorMessage) {
+                setWithdrawErrorMessage('');
+              }
+            }}
             placeholder="탈퇴 확인을 위해 비밀번호를 입력하세요"
+            error={!!withdrawErrorMessage}
+            errorMessage={withdrawErrorMessage}
           />
         </div>
         <div className="flex justify-end border-t border-danger-soft px-6 py-5">
