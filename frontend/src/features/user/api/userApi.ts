@@ -6,6 +6,11 @@ import type {
   MyPageUpdateRequest,
   NicknameChangeRequest,
   NicknameChangeResponse,
+  ProfileImageCompleteRequest,
+  ProfileImageCompleteResponse,
+  ProfileImageDeleteResponse,
+  ProfileImagePresignRequest,
+  ProfileImagePresignResponse,
 } from '../mypage/types';
 
 /**
@@ -48,4 +53,20 @@ export const changeNickname = async (
   payload: NicknameChangeRequest
 ): Promise<ApiResponse<NicknameChangeResponse>> => {
   return await axiosInstance.patch('/users/me/nickname', payload);
+};
+
+export const createProfileImagePresign = async (
+  payload: ProfileImagePresignRequest
+): Promise<ApiResponse<ProfileImagePresignResponse>> => {
+  return await axiosInstance.post('/users/me/profile-image/presign', payload);
+};
+
+export const completeProfileImage = async (
+  payload: ProfileImageCompleteRequest
+): Promise<ApiResponse<ProfileImageCompleteResponse>> => {
+  return await axiosInstance.patch('/users/me/profile-image', payload);
+};
+
+export const deleteProfileImage = async (): Promise<ApiResponse<ProfileImageDeleteResponse>> => {
+  return await axiosInstance.delete('/users/me/profile-image');
 };
