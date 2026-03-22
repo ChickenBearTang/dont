@@ -1,6 +1,7 @@
 import axiosInstance from '@/shared/api/axiosInstance';
 import type { ApiResponse, Cohort } from '@/shared/types';
 import type { OnboardingPayload, OnboardingResponse } from '../types';
+import type { MyPageResponse } from '../mypage/types';
 
 /**
  * 기수(Cohort) 목록 조회 API
@@ -26,4 +27,8 @@ export const fetchOnboardingStatus = async (): Promise<ApiResponse<OnboardingRes
 
 export const completeOnboarding = async (): Promise<ApiResponse<OnboardingResponse>> => {
   return await axiosInstance.post('/users/onboarding/complete');
+};
+
+export const fetchMyPage = async (): Promise<ApiResponse<MyPageResponse>> => {
+  return await axiosInstance.get('/users/me');
 };
