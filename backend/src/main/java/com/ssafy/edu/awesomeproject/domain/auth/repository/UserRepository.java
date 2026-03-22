@@ -19,4 +19,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByNickname(String nickname);
 
     boolean existsByNicknameAndIdNot(String nickname, Long id);
+
+    default Optional<User> findActiveByEmail(String email) {
+        return findByEmailAndStatus(email, UserStatus.ACTIVE);
+    }
+
+    default Optional<User> findActiveById(Long id) {
+        return findByIdAndStatus(id, UserStatus.ACTIVE);
+    }
+
+    default boolean existsActiveById(Long id) {
+        return existsByIdAndStatus(id, UserStatus.ACTIVE);
+    }
 }

@@ -69,7 +69,7 @@ public class PasswordResetService {
                         });
 
         return new RequestResult(
-                "입력한 이메일로 비밀번호 재설정 코드를 전송했습니다.",
+                "?낅젰???대찓?쇰줈 鍮꾨?踰덊샇 ?ъ꽕??肄붾뱶瑜??꾩넚?덉뒿?덈떎.",
                 resetCodeTimeToLive.getSeconds());
     }
 
@@ -99,7 +99,7 @@ public class PasswordResetService {
 
         User user =
                 userRepository
-                        .findByEmailAndStatus(normalizedEmail, UserStatus.ACTIVE)
+                        .findActiveByEmail(normalizedEmail)
                         .orElseThrow(
                                 () -> new AuthException(AuthErrorCode.PASSWORD_RESET_CODE_INVALID));
 
