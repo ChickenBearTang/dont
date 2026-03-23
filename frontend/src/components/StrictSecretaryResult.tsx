@@ -26,8 +26,28 @@ export default function StrictSecretaryResult({
   onReset,
 }: StrictSecretaryResultProps) {
   const [ttsState, setTtsState] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const [localAudioUrl, setLocalAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasAutoPlayedRef = useRef(false);
+
+  // 컴포넌트 언마운트 시 오디오 재생 정지
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // 컴포넌트 언마운트 시 캐싱된 오디오 URL 메모리 해제
+  useEffect(() => {
+    return () => {
+      if (localAudioUrl) {
+        URL.revokeObjectURL(localAudioUrl);
+      }
+    };
+  }, [localAudioUrl]);
 
   // 결과 페이지 도달 시 audioUrl이 있으면 자동 재생
   useEffect(() => {
@@ -59,9 +79,10 @@ export default function StrictSecretaryResult({
       return;
     }
 
-    // 미리 생성된 audioUrl이 있으면 그걸 재사용
-    if (audioUrl) {
-      const audio = new Audio(audioUrl);
+    // 미리 생성된 audioUrl이나 로컬에 캐싱된 URL이 있으면 그걸 재사용
+    const targetUrl = audioUrl || localAudioUrl;
+    if (targetUrl) {
+      const audio = new Audio(targetUrl);
       audio.onended = () => {
         setTtsState('idle');
         audioRef.current = null;
@@ -72,7 +93,7 @@ export default function StrictSecretaryResult({
       return;
     }
 
-    // audioUrl이 없으면 직접 TTS API 호출 (fallback)
+    // 재생 가능한 URL이 한 번도 없었다면 직접 TTS API 호출 (fallback)
     setTtsState('loading');
     try {
       const { data: blob } = await axiosInstance.post(
@@ -81,10 +102,11 @@ export default function StrictSecretaryResult({
         { responseType: 'blob' }
       );
       const url = URL.createObjectURL(blob);
+      setLocalAudioUrl(url); // 상태에 저장하여 캐싱 유지
+
       const audio = new Audio(url);
       audio.onended = () => {
         setTtsState('idle');
-        URL.revokeObjectURL(url);
         audioRef.current = null;
       };
       audioRef.current = audio;
