@@ -100,7 +100,7 @@ class AuthTokenServiceTest {
                 .thenReturn(true);
         when(refreshTokenStore.resolveTimeToLive(any()))
                 .thenReturn(previousRefreshTokenTtl, rotatedRefreshTokenTtl);
-        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(userRepository.findActiveById(user.getId())).thenReturn(Optional.of(user));
 
         AuthTokenService.ReissueTokenResult result =
                 authTokenService.reissue(previousRefreshToken.accessToken());
