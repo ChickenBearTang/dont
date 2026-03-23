@@ -3,7 +3,7 @@
 /**
  * 백엔드 공통 API 응답 규격
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   code: string;
   message: string;
@@ -21,4 +21,5 @@ export interface SelectOption {
 export interface Cohort {
   cohortId: number;
   cohortCode: string;
+  generationNo: number;
 }

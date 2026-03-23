@@ -11,14 +11,14 @@ export interface UserData {
  * 온보딩 요청 데이터
  */
 export interface OnboardingPayload {
-  cohortId: number;
-  goalAmount: number;
+  recommendedAmount: number;
 }
 
 /**
  * 온보딩 응답 데이터
  */
 export interface OnboardingResponse {
-  success: boolean;
+  onboardingStatus: string;
   onboardingCompleted: boolean;
+  recommendedAmount: number | null;
 }

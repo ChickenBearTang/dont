@@ -2,41 +2,67 @@ import { useId, type InputHTMLAttributes } from 'react';
 
 interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label?: string;
+  hint?: string;
+  error?: boolean;
+  errorMessage?: string;
 }
 
-export const Checkbox = ({ label, className = '', id, ...props }: CheckboxProps) => {
+export const Checkbox = ({
+  label,
+  hint,
+  error,
+  errorMessage,
+  className = '',
+  id,
+  ...props
+}: CheckboxProps) => {
   const generatedId = useId();
   const elementId = id || generatedId;
+  const message = error ? errorMessage : hint;
 
   return (
-    <div className={`flex items-start gap-3 mt-4 ${className}`}>
-      <div className="relative flex items-center h-6">
-        <input
-          type="checkbox"
-          id={elementId}
-          className="peer appearance-none w-5 h-5 bg-[#f4f7fa] border-[1.5px] border-[#d1d5db] rounded-[6px] shrink-0 checked:bg-primary-blue checked:border-primary-blue focus:outline-none focus:ring-2 focus:ring-primary-blue/30 transition-colors cursor-pointer"
-          {...props}
-        />
-        <svg
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none opacity-0 peer-checked:opacity-100 text-white transition-opacity duration-200"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
+    <div className={`mt-4 ${className}`}>
+      <div className="flex items-start gap-3">
+        <div className="relative flex items-center h-6">
+          <input
+            type="checkbox"
+            id={elementId}
+            aria-invalid={error ? 'true' : 'false'}
+            className={`peer h-5 w-5 shrink-0 appearance-none rounded-[7px] border bg-white transition-colors cursor-pointer ${
+              error
+                ? 'border-danger-strong bg-surface-danger focus:ring-4 focus:ring-danger-soft'
+                : 'border-line-soft focus:ring-4 focus:ring-accent-soft'
+            } checked:bg-accent checked:border-accent focus:outline-none`}
+            {...props}
+          />
+          <svg
+            className="pointer-events-none absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 opacity-0 text-white transition-opacity duration-200 peer-checked:opacity-100"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        {label && (
+          <label
+            htmlFor={elementId}
+            className="cursor-pointer select-none pt-0.5 text-[14px] font-semibold leading-6 text-text-muted"
+          >
+            {label}
+          </label>
+        )}
       </div>
-      {label && (
-        <label
-          htmlFor={elementId}
-          className="text-[15px] font-medium text-[#4a5568] cursor-pointer pt-0.5 select-none hover:text-eel transition-colors"
+      {message && (
+        <p
+          className={`mt-2 ml-8 text-[12px] font-semibold ${error ? 'text-danger' : 'text-text-muted'}`}
         >
-          {label}
-        </label>
+          {message}
+        </p>
       )}
     </div>
   );
