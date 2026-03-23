@@ -13,8 +13,17 @@ export const fetchCohorts = async (): Promise<ApiResponse<Cohort[]>> => {
 
 /**
  * 온보딩 정보 제출 API
- * @param data 기수 정보 및 목표 금액
  */
-export const submitOnboarding = async (data: OnboardingPayload): Promise<ApiResponse<OnboardingResponse>> => {
-  return await axiosInstance.post('/users/onboarding', data);
+export const submitOnboarding = async (
+  payload: OnboardingPayload
+): Promise<ApiResponse<OnboardingResponse>> => {
+  return await axiosInstance.post('/users/onboarding', payload);
+};
+
+export const fetchOnboardingStatus = async (): Promise<ApiResponse<OnboardingResponse>> => {
+  return await axiosInstance.get('/users/onboarding/status');
+};
+
+export const completeOnboarding = async (): Promise<ApiResponse<OnboardingResponse>> => {
+  return await axiosInstance.post('/users/onboarding/complete');
 };
