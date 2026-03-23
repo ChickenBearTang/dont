@@ -24,6 +24,16 @@ export const OnboardingPage = () => {
   const [fixedCostInput, setFixedCostInput] = useState('');
   const [variableCostInput, setVariableCostInput] = useState('');
 
+  const resolveErrorMessage = (error: unknown) => {
+    if (typeof error !== 'object' || error === null || !('response' in error)) {
+      return undefined;
+    }
+
+    const response = (error as { response?: { data?: { message?: string } } }).response;
+    const message = response?.data?.message;
+    return typeof message === 'string' && message.trim() ? message : undefined;
+  };
+
   useEffect(() => {
     const loadOnboardingStatus = async () => {
       try {
@@ -40,7 +50,7 @@ export const OnboardingPage = () => {
         }
       } catch (error) {
         console.error('Failed to load onboarding data:', error);
-        toast.error('온보딩 정보를 불러오지 못했습니다.');
+        toast.error(resolveErrorMessage(error) ?? '온보딩 정보를 불러오지 못했습니다.');
       } finally {
         setIsLoading(false);
       }
@@ -91,7 +101,7 @@ export const OnboardingPage = () => {
       }
     } catch (error) {
       console.error('Failed to submit onboarding:', error);
-      toast.error('정보 저장에 실패했습니다. 다시 시도해주세요.');
+      toast.error(resolveErrorMessage(error) ?? '정보 저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
     }
