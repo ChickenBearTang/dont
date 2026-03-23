@@ -186,6 +186,13 @@ export const router = createBrowserRouter([
             },
           },
           {
+            path: '/ranking',
+            async lazy() {
+              const { RankingPage } = await import('@/features/ranking/pages/RankingPage');
+              return { Component: RankingPage };
+            },
+          },
+          {
             path: 'admin/reports',
             async lazy() {
               const { default: AdminReportPage } =
@@ -194,80 +201,6 @@ export const router = createBrowserRouter([
             },
           },
         ],
-      },
-      {
-        path: '/finance/cards',
-        async lazy() {
-          const { CardListPage } = await import('@/features/finance/card');
-          return { Component: CardListPage };
-        },
-      },
-      {
-        path: '/finance/cards/:cardId',
-        async lazy() {
-          const { CardDetailPage } = await import('@/features/finance/card');
-          return { Component: CardDetailPage };
-        },
-      },
-      {
-        path: '/account',
-        async lazy() {
-          const { AccountPage } = await import('@/features/finance/account/pages/AccountPage');
-          return { Component: AccountPage };
-        },
-      },
-      {
-        path: '/account/:accountId',
-        async lazy() {
-          const { AccountDetailPage } =
-            await import('@/features/finance/account/pages/AccountDetailPage');
-          return { Component: AccountDetailPage };
-        },
-      },
-      {
-        path: '/finance/report',
-        async lazy() {
-          const { MonthlyReportPage } = await import('@/features/finance/report');
-          return { Component: MonthlyReportPage };
-        },
-      },
-      {
-        path: '/finance',
-        async lazy() {
-          const { FinanceHomePage } = await import('@/features/finance/pages/FinanceHomePage');
-          return { Component: FinanceHomePage };
-        },
-      },
-      {
-        path: '/savebox-setup',
-        async lazy() {
-          const { SaveboxSetupPage } =
-            await import('@/features/finance/account/pages/SaveboxSetupPage');
-          return { Component: SaveboxSetupPage };
-        },
-      },
-      {
-        path: '/finance/savebox',
-        async lazy() {
-          const { SaveboxDetailPage } =
-            await import('@/features/finance/account/pages/SaveboxDetailPage');
-          return { Component: SaveboxDetailPage };
-        },
-      },
-      {
-        path: '/savings-rule-setup',
-        async lazy() {
-          const { SavingsRuleSetupPage } =
-            await import('@/features/finance/account/pages/SavingsRuleSetupPage');
-          return { Component: SavingsRuleSetupPage };
-        },
-      },
-      {
-        path: '/ranking',
-        async lazy() {
-          const { RankingPage } = await import('@/features/ranking/pages/RankingPage');
-          return { Component: RankingPage };
-        },
       },
     ],
   },
