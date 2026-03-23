@@ -1,0 +1,12 @@
+package com.ssafy.edu.awesomeproject.domain.notification.entity;
+
+public enum NotificationType {
+    POST_COMMENT_CREATED,
+    POST_REPORTED,
+    COMMENT_REPORTED,
+    REPORT_PROCESSED_BLINDED,
+    REPORT_PROCESSED_REJECTED,
+    POST_BLINDED,
+    COMMENT_BLINDED,
+    FINANCE_GENERIC
+}
