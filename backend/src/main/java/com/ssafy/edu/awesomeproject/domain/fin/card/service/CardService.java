@@ -19,6 +19,12 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.Account;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountTransactionRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiAnalysisRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.AiAnalysisResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.global.client.AiClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -36,6 +42,9 @@ public class CardService {
     private final CardRepository cardRepository;
     private final CardTransactionRepository cardTransactionRepository;
     private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
+    private final AccountTransactionRepository accountTransactionRepository;
+    private final AiClient aiClient;
 
     @Value("${ssafy.api.key}")
     private String apiKey;
@@ -177,7 +186,64 @@ public class CardService {
                 .message("Card summary retrieved.")
                 .totalAmount(totalAmount)
                 .RankColumList(rankColumList)
+                .aiReport(getAiAnalysis(userId, start, end, transactions))
                 .build();
+    }
+
+    private AiAnalysisResponse getAiAnalysis(Long userId, LocalDate start, LocalDate end, List<CardTransaction> cardTxs) {
+        User user = userRepository.findById(userId).orElseThrow();
+        
+        // 유저 계좌 내역 수집
+        List<Account> accounts = accountRepository.findAllByUserId(userId);
+        List<AiAnalysisRequest.AccountTransactionBase> accountTxBases = new ArrayList<>();
+        for (Account acc : accounts) {
+            accountTransactionRepository.findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+                acc.getId(), start, end
+            ).forEach(tx -> accountTxBases.add(AiAnalysisRequest.AccountTransactionBase.builder()
+                .transaction_date(tx.getTransactionDate().format(DATE_FORMATTER))
+                .transaction_time(tx.getTransactionTime())
+                .transaction_type(tx.getTransactionType())
+                .transaction_type_name(tx.getTransactionTypeName())
+                .transaction_amount(tx.getTransactionAmount().longValue())
+                .after_balance(tx.getAfterBalance().longValue())
+                .transaction_summary(tx.getTransactionSummary())
+                .transaction_memo(tx.getTransactionMemo())
+                .build()));
+        }
+
+        List<AiAnalysisRequest.CardTransactionBase> cardTxBases = cardTxs.stream()
+            .map(tx -> AiAnalysisRequest.CardTransactionBase.builder()
+                .transaction_date(tx.getTransactionDate().format(DATE_FORMATTER))
+                .transaction_time(tx.getTransactionTime())
+                .merchant_name(tx.getMerchantName())
+                .category_name(tx.getCategoryName())
+                .transaction_amount(tx.getTransactionAmount())
+                .transaction_type(tx.getTransactionType())
+                .approval_no(tx.getApprovalNo())
+                .description(tx.getDescription())
+                .build())
+            .collect(Collectors.toList());
+
+        AiAnalysisRequest request = AiAnalysisRequest.builder()
+            .user_profile(AiAnalysisRequest.UserProfileBase.builder()
+                .user_id(String.valueOf(userId))
+                .name(user.getName())
+                .monthly_income(5000000L) // TODO: 실제 연봉 정보가 있다면 연동
+                .build())
+            .card_transactions(cardTxBases)
+            .account_transactions(accountTxBases)
+            .start_date(start.format(DATE_FORMATTER))
+            .end_date(end.format(DATE_FORMATTER))
+            .include_ai(true)
+            .build();
+
+        try {
+            return aiClient.analyzeConsumption(request);
+        } catch (Exception e) {
+            // AI 서버 호출 실패 시 null 반환 (로그만 남김)
+            System.err.println("AI Analysis failed: " + e.getMessage());
+            return null;
+        }
     }
 
     private RefreshResult refreshCardsFromExternal(Long userId) {

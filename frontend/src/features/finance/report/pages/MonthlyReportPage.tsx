@@ -176,18 +176,68 @@ export const MonthlyReportPage = () => {
 
               <DonutChart data={summary.rankColumList} />
 
-              <div className="mt-8 text-center flex flex-col items-center">
-                <p className="text-[14px] text-gray-400 font-bold mb-1 tracking-tight">
-                  총 이용 금액
-                </p>
-                <div className="flex items-baseline justify-center">
-                  <span className="text-[34px] font-black tracking-tighter text-blue-600">
-                    {summary.totalAmount?.toLocaleString() || 0}
-                  </span>
-                  <span className="text-[18px] font-bold text-gray-800 ml-1">원</span>
-                </div>
               </div>
             </div>
+
+            {/* AI 브리핑 섹션 */}
+            {summary.aiReport && (
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-7 text-white shadow-lg shadow-blue-200/50">
+                <div className="flex items-center gap-2.5 mb-6">
+                  <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md">
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
+                      <path d="M12 2L14.85 8.65L22 9.82L17.07 15.14L18.42 22.25L12 18.99L5.58 22.25L6.93 15.14L2 9.82L9.15 8.65L12 2Z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-[17px] font-black tracking-tight">AI 소비 인사이트</h3>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-[14px] font-bold text-blue-100 mb-2.5 flex items-center gap-2">
+                      <span className="w-1 h-1 bg-blue-300 rounded-full"></span>
+                      소비 패턴 분석
+                    </h4>
+                    <ul className="space-y-2">
+                      {summary.aiReport.ai_analysis.consumption_patterns.map((item, i) => (
+                        <li key={i} className="text-[14px] leading-relaxed text-blue-50 font-medium list-disc ml-4">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {summary.aiReport.ai_analysis.anomaly_explanations.length > 0 && (
+                    <div>
+                      <h4 className="text-[14px] font-bold text-rose-200 mb-2.5 flex items-center gap-2">
+                        <span className="w-1 h-1 bg-rose-300 rounded-full"></span>
+                        특이 지출 알림
+                      </h4>
+                      <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
+                        <ul className="space-y-2">
+                          {summary.aiReport.ai_analysis.anomaly_explanations.map((item, i) => (
+                            <li key={i} className="text-[13px] text-rose-50 font-medium">
+                              • {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-white/10">
+                    <h4 className="text-[14px] font-bold text-emerald-200 mb-3">전파고의 조언</h4>
+                    <div className="space-y-2">
+                      {summary.aiReport.ai_analysis.actionable_solutions.map((item, i) => (
+                        <div key={i} className="flex gap-2.5 items-start">
+                          <span className="bg-emerald-400/20 text-emerald-200 text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 mt-0.5">Solution</span>
+                          <p className="text-[13px] text-emerald-50 font-medium leading-relaxed">{item}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="bg-white rounded-3xl p-7 border border-gray-100 shadow-sm">
               <h3 className="text-[16px] font-extrabold text-gray-900 mb-5">

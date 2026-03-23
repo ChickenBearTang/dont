@@ -61,11 +61,50 @@ class ChatRequest(BaseModel):
 
 
 class PurchaseIntentionRequest(BaseModel):
-    user_name: str
+    user_profile: UserProfileBase
     item_text: str
     item_link: str
     user_reason: str
+    recent_transactions: list[CardTransactionBase] = []
+    ai_report_context: str | None = None
 
 
 class TTSRequest(BaseModel):
     text: str
+
+
+class UserProfileBase(BaseModel):
+    user_id: str
+    name: str
+    monthly_income: int
+
+
+class CardTransactionBase(BaseModel):
+    transaction_date: str  # YYYYMMDD or YYYY-MM-DD
+    transaction_time: str
+    merchant_name: str
+    category_name: str
+    transaction_amount: int
+    transaction_type: str | None = None
+    approval_no: str | None = None
+    description: str | None = None
+
+
+class AccountTransactionBase(BaseModel):
+    transaction_date: str
+    transaction_time: str
+    transaction_type: str  # 1: 입금, 2: 출금
+    transaction_type_name: str | None = None
+    transaction_amount: int
+    after_balance: int
+    transaction_summary: str | None = None
+    transaction_memo: str | None = None
+
+
+class ConsumptionAnalysisRequest(BaseModel):
+    user_profile: UserProfileBase
+    card_transactions: list[CardTransactionBase]
+    account_transactions: list[AccountTransactionBase]
+    start_date: str
+    end_date: str
+    include_ai: bool = True

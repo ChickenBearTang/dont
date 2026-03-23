@@ -11,4 +11,12 @@ export interface SpendingSummaryResponse {
   message: string;
   totalAmount: number;
   rankColumList: SpendingSummaryRank[];
+  aiReport?: {
+    ai_analysis: {
+      consumption_patterns: string[];
+      anomaly_explanations: string[];
+      actionable_solutions: string[];
+      llm_advice?: string;
+    };
+  };
 }

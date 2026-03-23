@@ -193,6 +193,119 @@ class ReportService:
             **bundle,
         }
 
+    def build_report_from_data(self, request: ConsumptionAnalysisRequest) -> dict:
+        from domain.consumption.schemas import (
+            UserProfile as InternalProfile,
+            CardTransaction as InternalCard,
+            AccountTransaction as InternalAccount,
+        )
+
+        profile = InternalProfile(
+            user_id=request.user_profile.user_id,
+            name=request.user_profile.name,
+            age=30,  # Default
+            job="Unknown",  # Default
+            monthly_income=request.user_profile.monthly_income,
+            pay_day=25,  # Default
+            residence_type="Unknown",
+            main_bank="Unknown",
+            main_card_type="Unknown",
+        )
+
+        cards: list[InternalCard] = []
+        for tx in request.card_transactions:
+            try:
+                # Handle YYYYMMDD or YYYY-MM-DD
+                dt_str = tx.transaction_date.replace("-", "")
+                # Ensure time is 6 digits
+                t_str = tx.transaction_time.ljust(6, "0")[:6]
+                dt = datetime.strptime(dt_str + t_str, "%Y%m%d%H%M%S")
+            except Exception:
+                dt = datetime.now()
+
+            cards.append(
+                InternalCard(
+                    transaction_id=tx.approval_no or "0",
+                    user_id=request.user_profile.user_id,
+                    approved_at=dt,
+                    merchant_name=tx.merchant_name,
+                    amount=tx.transaction_amount,
+                    category=tx.category_name,
+                    subcategory=tx.description or tx.category_name,
+                    payment_method="card",
+                    status="approved",
+                    is_recurring=False,
+                )
+            )
+
+        accounts: list[InternalAccount] = []
+        for tx in request.account_transactions:
+            try:
+                dt_str = tx.transaction_date.replace("-", "")
+                t_str = tx.transaction_time.ljust(6, "0")[:6]
+                dt = datetime.strptime(dt_str + t_str, "%Y%m%d%H%M%S")
+            except Exception:
+                dt = datetime.now()
+
+            accounts.append(
+                InternalAccount(
+                    transaction_id="0",
+                    user_id=request.user_profile.user_id,
+                    transacted_at=dt,
+                    transaction_type="in" if tx.transaction_type == "1" else "out",
+                    counterparty=tx.transaction_summary or "Unknown",
+                    amount=tx.transaction_amount,
+                    category="general",
+                    subcategory=tx.transaction_memo or "general",
+                    balance_after=tx.after_balance.to_integral_value() if hasattr(tx.after_balance, "to_integral_value") else int(tx.after_balance),
+                )
+            )
+
+        # Re-use the building logic from build_report but with passed data
+        if not cards:
+            raise ValueError("No card transactions provided.")
+
+        monthly = build_monthly_summary(cards, profile.monthly_income)
+        categories = build_category_summary(cards)
+        time_patterns = build_time_summary(cards)
+        cashflow = build_cashflow_summary(accounts)
+        anomalies = detect_anomalies(cards)
+
+        overview = build_overview(profile, cards, monthly)
+        fallback_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
+        
+        justifications = self.load_justifications(profile.user_id, request.start_date)
+        
+        llm_payload = {
+            "overview": overview,
+            "monthly": monthly,
+            "top_categories": categories["top_categories"][:5],
+            "top_subcategories": categories["top_subcategories"][:5],
+            "time_patterns": time_patterns,
+            "cashflow": cashflow,
+            "anomalies": anomalies[:5],
+            "fallback_analysis": fallback_analysis,
+            "justifications": justifications,
+        }
+        ai_analysis, llm_status = generate_ai_analysis(llm_payload, fallback_analysis, include_ai=request.include_ai)
+
+        return {
+            "meta": {
+                "user_id": profile.user_id,
+                "user_name": profile.name,
+                "period": {"start": request.start_date, "end": request.end_date},
+                "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "llm_status": llm_status,
+            },
+            "overview": overview,
+            "monthly": monthly,
+            "categories": categories,
+            "time_patterns": time_patterns,
+            "cashflow": cashflow,
+            "anomalies": anomalies,
+            "ai_analysis": ai_analysis,
+        }
+
     def regenerate(self, user_id: str | None = None, user_name: str | None = None) -> list[str]:
         profile = self._resolve_profile(user_id=user_id, user_name=user_name) if (user_id or user_name) else self.profiles[0]
         target_user_id = profile.user_id

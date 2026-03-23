@@ -30,32 +30,27 @@ def fetch_url_text(url: str) -> str:
     except Exception as e:
         return f"웹페이지 내용을 가져오지 못했습니다. 오류: {str(e)}"
 
-def evaluate_purchase_intention(data_dir: Path, request: PurchaseRequest) -> SecretaryResponse:
+def evaluate_purchase_intention(request: PurchaseIntentionRequest) -> SecretaryResponse:
     """
     Main orchestrator for the 'Fact Violence AI Secretary'.
-    Gathers user data and evaluates the purchase intention using LLM.
+    Uses passed data for evaluation instead of loading from disk.
     """
-    profile = get_user_profile(data_dir, request.user_id)
-    recent_txs = get_recent_card_transactions(data_dir, request.user_id, months_back=2)
-    explain_logs = get_explain_logs(data_dir, request.user_id)
-    ai_report = get_latest_ai_report(data_dir, request.user_id)
-    
-    # summarize recent txs for the LLM to avoid token overflow
-    tx_summary = []
-    for tx in recent_txs[-50:]:  # max 50 recent transactions
-        tx_summary.append({
-            "date": tx.approved_at.strftime("%Y-%m-%d"),
-            "merchant": tx.merchant_name,
-            "amount": tx.amount,
-            "category": tx.category
-        })
-        
     profile_dict = {
-        "monthly_income": profile.monthly_income,
-        "job": profile.job,
-        "age": profile.age,
-        "residence": profile.residence_type
+        "monthly_income": request.user_profile.monthly_income,
+        "job": "Unknown",  # Default if not provided
+        "age": 30,         # Default
+        "residence": "Unknown"
     }
+    
+    # summarize recent txs for the LLM
+    tx_summary = []
+    for tx in request.recent_transactions[-50:]:  # max 50 recent transactions
+        tx_summary.append({
+            "date": tx.transaction_date,
+            "merchant": tx.merchant_name,
+            "amount": tx.transaction_amount,
+            "category": tx.category_name
+        })
     
     page_content = fetch_url_text(request.item_link)
 
@@ -67,8 +62,8 @@ def evaluate_purchase_intention(data_dir: Path, request: PurchaseRequest) -> Sec
         page_content=page_content,
         profile=profile_dict,
         recent_txs=tx_summary,
-        explain_logs=explain_logs,
-        ai_report=ai_report
+        explain_logs=[], # Currently not passed from backend
+        ai_report=request.ai_report_context
     )
     
     return response

@@ -13,14 +13,7 @@ service = ReportService()
 @router.post("")
 def handle_strict_secretary(req: PurchaseIntentionRequest) -> dict:
     try:
-        profile = service._resolve_profile(user_name=req.user_name)
-        pr = PurchaseRequest(
-            user_id=profile.user_id,
-            item_text=req.item_text,
-            item_link=req.item_link,
-            user_reason=req.user_reason
-        )
-        result = evaluate_purchase_intention(DATA_DIR, pr)
+        result = evaluate_purchase_intention(req)
         return result.to_dict()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

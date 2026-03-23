@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from domain.consumption.service import ReportService
+from domain.consumption.schemas import ConsumptionAnalysisRequest
 
 router = APIRouter()
 service = ReportService()
@@ -42,3 +43,11 @@ def get_mock_consumption_stats(
         return service.build_mock_statistics(month=month, user_id=user_id, user_name=user_name)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/analyze")
+def analyze_consumption(request: ConsumptionAnalysisRequest) -> dict:
+    try:
+        return service.build_report_from_data(request)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
