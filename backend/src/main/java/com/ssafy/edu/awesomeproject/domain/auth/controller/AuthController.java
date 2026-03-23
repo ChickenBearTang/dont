@@ -166,7 +166,6 @@ public class AuthController {
                 signupRequestDto.password(),
                 signupRequestDto.name(),
                 signupRequestDto.birthDate(),
-                signupRequestDto.nickname(),
                 signupRequestDto.termsAgreed(),
                 signupRequestDto.cohortId());
 
