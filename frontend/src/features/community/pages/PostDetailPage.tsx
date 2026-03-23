@@ -350,15 +350,26 @@ const CommentItem = ({
 export const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
   const [searchParams] = useSearchParams();
-  const highlightedCommentId = searchParams.get('commentId')
-    ? Number(searchParams.get('commentId'))
-    : null;
+  const [highlightedCommentId, setHighlightedCommentId] = useState<number | null>(
+    Number(searchParams.get('commentId')) || null
+  );
   const navigate = useNavigate();
 
   const [post, setPost] = useState<GetPostResponseDto | null>(null);
   const [comments, setComments] = useState<CommentSummaryDto[]>([]);
   const [commentPage, setCommentPage] = useState(0);
   const [hasMoreComments, setHasMoreComments] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('highlightNewest') === 'true' && comments.length > 0) {
+      // Logic to find the newest comment (highest ID)
+      // Sort by id DESC and take the first one
+      const newestComment = [...comments].sort((a, b) => b.commentId - a.commentId)[0];
+      if (newestComment) {
+        setHighlightedCommentId(newestComment.commentId);
+      }
+    }
+  }, [searchParams, comments]);
 
   const [commentInput, setCommentInput] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);

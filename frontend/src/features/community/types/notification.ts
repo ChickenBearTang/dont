@@ -1,0 +1,36 @@
+export type NotificationType =
+  | 'POST_COMMENT_CREATED'
+  | 'POST_REPORTED'
+  | 'COMMENT_REPORTED'
+  | 'REPORT_PROCESSED_BLINDED'
+  | 'REPORT_PROCESSED_REJECTED'
+  | 'POST_BLINDED'
+  | 'COMMENT_BLINDED'
+  | 'FINANCE_GENERIC'
+  | string;
+export type NotificationReferenceType = 'POST' | 'COMMENT' | string;
+
+export interface NotificationSummaryDto {
+  notificationId: number;
+  notificationType: NotificationType;
+  title: string;
+  body: string;
+  referenceType: NotificationReferenceType;
+  referenceId: number;
+  isRead: boolean;
+  pushedAt: string;
+  createdAt: string;
+}
+
+export interface NotificationListResponseDto {
+  content: NotificationSummaryDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface NotificationUnreadCountResponseDto {
+  unreadCount: number;
+}
