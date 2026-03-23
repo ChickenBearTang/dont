@@ -21,8 +21,6 @@ public interface AiClient {
             @RequestBody
                     com.ssafy.edu.awesomeproject.domain.fin.secretary.dto.request.TtsRequest
                             request);
-import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.CardRecommendationRequest;
-import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardRecommendationResponse;
 
     @PostExchange("/api/v1/recommendation/calculate")
     CardRecommendationResponse getCardRecommendation(@RequestBody CardRecommendationRequest request);
