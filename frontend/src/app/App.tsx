@@ -5,18 +5,9 @@ import { ToastContainer } from '@/shared/components/ToastContainer';
 import { refreshAccessToken } from '@/features/auth/api/authApi';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { loadAuthUser } from '@/features/auth/utils/authStorage';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/shared/api/queryClient';
+import { QueryClientProvider } from '@tanstack/react-query';
 import '@/styles/index.css';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 5, // 5분
-    },
-  },
-});
 
 const AppBootstrap = () => {
   const hasBootstrappedRef = useRef(false);
