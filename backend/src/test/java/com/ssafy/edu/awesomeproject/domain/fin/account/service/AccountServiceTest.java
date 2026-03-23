@@ -50,7 +50,7 @@ class AccountServiceTest {
     @Mock private SavingsSettingRepository savingsSettingRepository;
 
     @Mock private UserRepository userRepository;
-    
+
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @InjectMocks private AccountService accountService;
@@ -96,7 +96,9 @@ class AccountServiceTest {
         given(primaryAccount.getUserId()).willReturn(userId);
         given(primaryAccount.getAccountNo()).willReturn("111-222");
         given(saveboxAccount.getUserId()).willReturn(userId);
+        given(saveboxAccount.getId()).willReturn(20L);
         given(saveboxAccount.getAccountNo()).willReturn("333-444");
+        given(saveboxAccount.getBalance()).willReturn(new BigDecimal("10000"));
 
         given(accountRepository.findById(10L)).willReturn(Optional.of(primaryAccount));
         given(accountRepository.findById(20L)).willReturn(Optional.of(saveboxAccount));
