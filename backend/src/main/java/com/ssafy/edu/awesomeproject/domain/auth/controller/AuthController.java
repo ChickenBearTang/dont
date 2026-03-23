@@ -132,7 +132,8 @@ public class AuthController {
     })
     public CommonResponse<PasswordResetRequestResponseDto> requestPasswordReset(
             @Valid @RequestBody PasswordResetRequestRequestDto requestDto) {
-        PasswordResetService.RequestResult result = passwordResetService.requestReset(requestDto.email());
+        PasswordResetService.RequestResult result =
+                passwordResetService.requestReset(requestDto.email());
         return CommonResponse.success(
                 new PasswordResetRequestResponseDto(result.message(), result.expiresInSeconds()));
     }
