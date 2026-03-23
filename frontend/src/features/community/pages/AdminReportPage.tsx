@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import {
@@ -50,7 +50,7 @@ const AdminReportPage: React.FC = () => {
     prevUserRef.current = user;
   }, [user, isAdmin, navigate, isAuthInitializing]);
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getAdminReports(filterStatus, currentPage);
@@ -63,13 +63,13 @@ const AdminReportPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, filterStatus]);
 
   useEffect(() => {
     if (isAdmin) {
-      fetchReports();
+      void fetchReports();
     }
-  }, [currentPage, filterStatus, isAdmin]);
+  }, [fetchReports, isAdmin]);
 
   const handleViewDetail = async (reportId: number) => {
     try {
@@ -127,7 +127,7 @@ const AdminReportPage: React.FC = () => {
         await processReportReject(reportId, { processNote: note });
       }
       alert(`${actionName} 처리가 완료되었습니다.`);
-      fetchReports();
+      void fetchReports();
     } catch (error) {
       console.error(`Failed to ${type} report:`, error);
       alert('처리 중 오류가 발생했습니다.');
