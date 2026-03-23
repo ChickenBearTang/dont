@@ -14,6 +14,5 @@ public record SignupRequestDto(
         @NotBlank @Size(min = 8, max = 255) String password,
         @NotBlank @Size(max = 50) String name,
         @NotNull @Past LocalDate birthDate,
-        @NotBlank @Size(max = 60) String nickname,
         @NotNull @AssertTrue Boolean termsAgreed,
         @NotNull @Positive Long cohortId) {}

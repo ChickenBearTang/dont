@@ -11,14 +11,14 @@ import com.ssafy.edu.awesomeproject.common.s3.model.FileVisibility;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -32,6 +32,8 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 public class DefaultS3PresignService implements S3PresignService {
 
     private static final int MIN_EXPIRE_SECONDS = 1;
+    private static final Pattern USER_OWNED_PURPOSE_PATTERN =
+            Pattern.compile("^([a-z0-9_-]+)-user-(\\d+)$");
 
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
@@ -224,22 +226,30 @@ public class DefaultS3PresignService implements S3PresignService {
     }
 
     private String buildObjectKey(FileVisibility visibility, String purpose, String fileName) {
-        LocalDate today = LocalDate.now(clock.withZone(ZoneOffset.UTC));
         String visibilityPath = visibility.pathSegment();
-        String safePurpose = sanitizePathSegment(purpose);
         String uniqueId = UUID.randomUUID().toString().replace("-", "");
         String safeFileName = sanitizeFileName(fileName);
+        String normalizedPurpose = purpose.trim().toLowerCase(Locale.ROOT);
+
+        Matcher userOwnedMatcher = USER_OWNED_PURPOSE_PATTERN.matcher(normalizedPurpose);
+        if (userOwnedMatcher.matches()) {
+            String domainPurpose = sanitizePathSegment(userOwnedMatcher.group(1));
+            String userId = userOwnedMatcher.group(2);
+
+            return String.format(
+                    Locale.ROOT,
+                    "%s/%s/%s/%s_%s",
+                    visibilityPath,
+                    domainPurpose,
+                    userId,
+                    uniqueId,
+                    safeFileName);
+        }
+
+        String safePurpose = sanitizePathSegment(normalizedPurpose);
 
         return String.format(
-                Locale.ROOT,
-                "%s/%s/%d/%02d/%02d/%s_%s",
-                visibilityPath,
-                safePurpose,
-                today.getYear(),
-                today.getMonthValue(),
-                today.getDayOfMonth(),
-                uniqueId,
-                safeFileName);
+                Locale.ROOT, "%s/%s/%s_%s", visibilityPath, safePurpose, uniqueId, safeFileName);
     }
 
     private static void requireNotBlank(String value, String message) {

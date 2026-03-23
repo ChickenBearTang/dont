@@ -24,6 +24,8 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountTransac
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSettingRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankAdapter;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response.OpenBankDetailAccountResponse;
+import com.ssafy.edu.awesomeproject.domain.ranking.event.SaveboxBalanceUpdatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -48,6 +50,7 @@ public class AccountService {
     private final AccountTransactionRepository accountTransactionRepository;
     private final SavingsSettingRepository savingsSettingRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** '세이브 박스' 계좌를 신규 개설합니다. (Stateless) */
     public AccountCreateResponse createSaveBox(Long userId, SaveBoxCreateRequest request) {
@@ -92,7 +95,10 @@ public class AccountService {
                                 .bankName(detail.bankName())
                                 .bankCode(detail.bankCode())
                                 .accountName(detail.accountName())
-                                .currencyCode(detail.currency() != null ? detail.currency().currency() : "KRW")
+                                .currencyCode(
+                                        detail.currency() != null
+                                                ? detail.currency().currency()
+                                                : "KRW")
                                 .balance(parseBigDecimal(detail.accountBalance()))
                                 .status(AccountStatus.ACTIVE)
                                 .isPrimary(false)
@@ -370,6 +376,13 @@ public class AccountService {
 
         // 이체 성공 후 로컬 잔액 강제 갱신
         syncAccounts(userId);
+
+        // --- 랭킹(Ranking) 시스템으로 이벤트 발송 ---
+        Account updatedSavebox = accountRepository.findById(saveboxAccount.getId()).orElse(null);
+        if (updatedSavebox != null) {
+            Integer cohortNo = user.getCohort() != null ? user.getCohort().getGenerationNo() : null;
+            eventPublisher.publishEvent(new SaveboxBalanceUpdatedEvent(userId, updatedSavebox.getBalance().longValue(), cohortNo));
+        }
     }
 
     public SavingsSettingResponse createOrUpdateSavingsSetting(
@@ -496,6 +509,12 @@ public class AccountService {
         }
 
         syncAccounts(userId);
+
+        // --- 랭킹(Ranking) 시스템으로 이벤트 발송 ---
+        Account updatedSavebox = accountRepository.findById(saveboxAccount.getId())
+                .orElseThrow(() -> new AccountException(AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
+        Integer cohortNo = user.getCohort() != null ? user.getCohort().getGenerationNo() : null;
+        eventPublisher.publishEvent(new SaveboxBalanceUpdatedEvent(userId, updatedSavebox.getBalance().longValue(), cohortNo));
     }
 
     private void syncAccounts(Long userId) {
