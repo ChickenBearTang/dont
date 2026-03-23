@@ -33,19 +33,32 @@ class ExplainabilityAnalyzer:
         feature_extractor: Any | None = None,
         reasoning_engine: Any | None = None,
         counterfactual_engine: Any | None = None,
+        dice_counterfactual_engine: Any | None = None,
+        shap_contribution_engine: Any | None = None,
         summary_polisher: Any | None = None,
         finance_profile: dict[str, float | int] | None = None,
     ) -> None:
         features_module = import_module("ai.xai.features")
         reasoning_module = import_module("ai.xai.reasoning")
         counterfactuals_module = import_module("ai.xai.counterfactuals")
+        dice_module = import_module("ai.xai.dice_engine")
+        shap_module = import_module("ai.xai.shap_engine")
         polisher_module = import_module("ai.xai.polisher")
         self._feature_extractor = (
             feature_extractor or features_module.FeatureExtractor()
         )
         self._reasoning_engine = reasoning_engine or reasoning_module.ReasoningEngine()
-        self._counterfactual_engine = (
+        self._rule_counterfactual_engine = (
             counterfactual_engine or counterfactuals_module.CounterfactualEngine()
+        )
+        self._dice_counterfactual_engine = (
+            dice_counterfactual_engine
+            or dice_module.DiceCounterfactualEngine(
+                fallback_engine=self._rule_counterfactual_engine
+            )
+        )
+        self._shap_contribution_engine = (
+            shap_contribution_engine or shap_module.ShapContributionEngine()
         )
         self._summary_polisher = (
             summary_polisher or polisher_module.LLMSummaryPolisher()
@@ -65,6 +78,16 @@ class ExplainabilityAnalyzer:
         item_explanations: list[ItemExplanation] = []
         errors: list[AnalysisError] = []
         audit_logs: list[XAIAuditLogEntry] = []
+        shap_engine_state: dict[str, Any] = {
+            "enabled": False,
+            "backend": "fallback",
+            "reason": "not_computed",
+        }
+        dice_engine_state: dict[str, Any] = {
+            "enabled": False,
+            "backend": "fallback",
+            "reason": "not_computed",
+        }
 
         requested_top_k = max(1, min(int(top_k), 4))
 
@@ -77,8 +100,12 @@ class ExplainabilityAnalyzer:
                 feature_scores = self._build_feature_scores(
                     features, window_stats=window_stats
                 )
+                shap_scores, shap_meta = self._shap_contribution_engine.compute(
+                    feature_scores
+                )
+                shap_engine_state = shap_meta
                 reasons = self._reasoning_engine.analyze(
-                    feature_scores, top_k=requested_top_k
+                    shap_scores, top_k=requested_top_k
                 )
                 decision_outcome = self._decision_engine.decide(feature_scores)
                 price_int = features.get("price_int")
@@ -97,7 +124,7 @@ class ExplainabilityAnalyzer:
                     self._finance_profile.get("expected_card_payment_amount", 200_000)
                 )
 
-                counterfactuals = self._counterfactual_engine.suggest(
+                counterfactuals, dice_meta = self._dice_counterfactual_engine.suggest(
                     price_int=price_value,
                     monthly_spending_30d=monthly_spending_30d,
                     emergency_fund_balance=emergency_fund_balance,
@@ -105,6 +132,7 @@ class ExplainabilityAnalyzer:
                     days_until_card_due=days_until_card_due,
                     expected_card_payment_amount=expected_card_payment_amount,
                 )
+                dice_engine_state = dice_meta
                 top_reason_text = (
                     str(reasons[0].get("reason_text", "기여도 신호 분석 결과"))
                     if len(reasons) > 0
@@ -139,7 +167,7 @@ class ExplainabilityAnalyzer:
                 item = self._explanation_engine.build_item_explanation(
                     item_id=deal.url,
                     reasons=reasons,
-                    feature_scores=feature_scores,
+                    feature_scores=shap_scores,
                     observed_features=observed_features,
                     decision_outcome=decision_outcome,
                     counterfactuals=counterfactuals,
@@ -153,7 +181,7 @@ class ExplainabilityAnalyzer:
                         ["feature_extractor", "score_builder", "reasoning_engine"],
                         item.data_snapshot_id,
                         item.data_snapshot_id,
-                        build_model_input_vector_hash(feature_scores),
+                        build_model_input_vector_hash(shap_scores),
                         decision_outcome.fired_rule_ids,
                         [
                             {
@@ -203,6 +231,10 @@ class ExplainabilityAnalyzer:
         payload["statistics"] = window_stats or {}
         payload["rule_version"] = self._decision_engine.RULE_VERSION
         payload["audit_logs"] = [entry.to_dict() for entry in audit_logs]
+        payload["runtime_engines"] = {
+            "shap": shap_engine_state,
+            "dice": dice_engine_state,
+        }
         payload["finance_profile"] = {
             "current_balance": float(
                 self._finance_profile.get("current_balance", 1_500_000)
