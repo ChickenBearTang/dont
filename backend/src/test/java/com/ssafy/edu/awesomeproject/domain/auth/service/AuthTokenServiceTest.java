@@ -311,6 +311,18 @@ class AuthTokenServiceTest {
     }
 
     @Test
+    void reissueRejectsBlankRefreshToken() {
+        assertThatThrownBy(() -> authTokenService.reissue("   "))
+                .isInstanceOfSatisfying(
+                        AuthException.class,
+                        exception ->
+                                assertThat(exception.getErrorCode())
+                                        .isEqualTo(AuthErrorCode.REFRESH_TOKEN_INVALID));
+
+        verify(reissueLockStore, never()).tryAcquireBySessionId(any(), any());
+    }
+
+    @Test
     void concurrentReissueRequestsFollowSidLockPolicy() {
         User user = createUser(1L);
         String sessionId = "session-lock-policy";
@@ -371,6 +383,25 @@ class AuthTokenServiceTest {
         verify(refreshTokenStore).invalidateSession(sessionId);
         verify(refreshTokenStore).blacklistRefreshToken(refreshTokenId, refreshTokenTtl);
         verify(reissueLockStore).releaseBySessionId(sessionId);
+    }
+
+    @Test
+    void logoutFailureWithRefreshTokenErrorRequiresRefreshCookieClear() {
+        AuthException invalid = new AuthException(AuthErrorCode.REFRESH_TOKEN_INVALID);
+        AuthException expired = new AuthException(AuthErrorCode.REFRESH_TOKEN_EXPIRED);
+        AuthException blacklisted = new AuthException(AuthErrorCode.REFRESH_TOKEN_BLACKLISTED);
+
+        assertThat(authTokenService.shouldClearRefreshCookieOnLogoutFailure(invalid)).isTrue();
+        assertThat(authTokenService.shouldClearRefreshCookieOnLogoutFailure(expired)).isTrue();
+        assertThat(authTokenService.shouldClearRefreshCookieOnLogoutFailure(blacklisted)).isTrue();
+    }
+
+    @Test
+    void logoutFailureWithNonRefreshTokenErrorDoesNotRequireRefreshCookieClear() {
+        AuthException authenticationFailed = new AuthException(AuthErrorCode.AUTHENTICATION_FAILED);
+
+        assertThat(authTokenService.shouldClearRefreshCookieOnLogoutFailure(authenticationFailed))
+                .isFalse();
     }
 
     private User createUser(Long id) {

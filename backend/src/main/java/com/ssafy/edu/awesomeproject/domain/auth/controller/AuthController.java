@@ -9,6 +9,7 @@ import com.ssafy.edu.awesomeproject.domain.auth.dto.request.TokenReissueRequestD
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LoginResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LogoutResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.TokenReissueResponseDto;
+import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.service.AuthTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.LoginService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.SignupService;
@@ -104,16 +105,15 @@ public class AuthController {
             @RequestBody(required = false) TokenReissueRequestDto tokenReissueRequestDto,
             HttpServletRequest request,
             HttpServletResponse response) {
-        String refreshToken =
-                refreshTokenCookieService
-                        .resolveRefreshToken(request)
-                        .orElseGet(
-                                () ->
-                                        tokenReissueRequestDto == null
-                                                ? null
-                                                : tokenReissueRequestDto.refreshToken());
+        ResolvedRefreshToken resolvedRefreshToken =
+                resolveRefreshToken(
+                        request,
+                        tokenReissueRequestDto == null
+                                ? null
+                                : tokenReissueRequestDto.refreshToken());
 
-        AuthTokenService.ReissueTokenResult result = authTokenService.reissue(refreshToken);
+        AuthTokenService.ReissueTokenResult result =
+                authTokenService.reissue(resolvedRefreshToken.refreshToken());
 
         refreshTokenCookieService.setRefreshToken(
                 response,
@@ -136,18 +136,52 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response,
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
-        String refreshToken =
-                refreshTokenCookieService
-                        .resolveRefreshToken(request)
-                        .orElseGet(
-                                () ->
-                                        logoutRequestDto == null
-                                                ? null
-                                                : logoutRequestDto.refreshToken());
+        ResolvedRefreshToken resolvedRefreshToken =
+                resolveRefreshToken(
+                        request, logoutRequestDto == null ? null : logoutRequestDto.refreshToken());
+        boolean shouldClearRefreshCookie = false;
 
-        authTokenService.logout(refreshToken, authorizationHeader);
-        refreshTokenCookieService.clearRefreshToken(response);
+        try {
+            authTokenService.logout(resolvedRefreshToken.refreshToken(), authorizationHeader);
+            shouldClearRefreshCookie = true;
+            return CommonResponse.success(new LogoutResponseDto("Logged out."));
+        } catch (AuthException exception) {
+            if (resolvedRefreshToken.hasPresentedSource()
+                    && authTokenService.shouldClearRefreshCookieOnLogoutFailure(exception)) {
+                shouldClearRefreshCookie = true;
+            }
+            throw exception;
+        } finally {
+            if (shouldClearRefreshCookie) {
+                refreshTokenCookieService.clearRefreshToken(response);
+            }
+        }
+    }
 
-        return CommonResponse.success(new LogoutResponseDto("Logged out."));
+    private ResolvedRefreshToken resolveRefreshToken(
+            HttpServletRequest request, String fallbackRefreshToken) {
+        return refreshTokenCookieService
+                .resolveRefreshToken(request)
+                .map(token -> new ResolvedRefreshToken(token, RefreshTokenSource.COOKIE))
+                .orElseGet(
+                        () -> {
+                            if (fallbackRefreshToken == null || fallbackRefreshToken.isBlank()) {
+                                return new ResolvedRefreshToken(null, RefreshTokenSource.NONE);
+                            }
+                            return new ResolvedRefreshToken(
+                                    fallbackRefreshToken, RefreshTokenSource.BODY);
+                        });
+    }
+
+    private enum RefreshTokenSource {
+        COOKIE,
+        BODY,
+        NONE
+    }
+
+    private record ResolvedRefreshToken(String refreshToken, RefreshTokenSource source) {
+        private boolean hasPresentedSource() {
+            return source != RefreshTokenSource.NONE;
+        }
     }
 }

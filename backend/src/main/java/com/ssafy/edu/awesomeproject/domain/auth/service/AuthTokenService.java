@@ -128,6 +128,16 @@ public class AuthTokenService {
         blacklistAccessTokenIfPossible(parsedRefreshToken, authorizationHeader);
     }
 
+    public boolean shouldClearRefreshCookieOnLogoutFailure(AuthException exception) {
+        if (!(exception.getErrorCode() instanceof AuthErrorCode authErrorCode)) {
+            return false;
+        }
+
+        return authErrorCode == AuthErrorCode.REFRESH_TOKEN_INVALID
+                || authErrorCode == AuthErrorCode.REFRESH_TOKEN_EXPIRED
+                || authErrorCode == AuthErrorCode.REFRESH_TOKEN_BLACKLISTED;
+    }
+
     private IssuedToken issueAccessToken(User user) {
         JwtTokenSpec jwtTokenSpec =
                 JwtTokenSpec.access(

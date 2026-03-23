@@ -24,6 +24,10 @@ public class LoginService {
     }
 
     public LoginResult login(String email, String password) {
+        if (isBlank(email) || isBlank(password)) {
+            throw new AuthException(AuthErrorCode.BAD_CREDENTIALS);
+        }
+
         User user =
                 userRepository
                         .findByEmail(email)
@@ -45,6 +49,10 @@ public class LoginService {
                 loginTokenResult.expiresInSeconds(),
                 loginTokenResult.refreshToken(),
                 loginTokenResult.refreshTokenExpiresInSeconds());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     public record LoginResult(

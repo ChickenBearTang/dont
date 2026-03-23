@@ -43,6 +43,15 @@ class RefreshTokenCookieServiceTest {
         assertThat(setCookie).contains("Max-Age=0");
     }
 
+    @Test
+    void resolveRefreshTokenReturnsEmptyWhenCookieValueIsBlank() {
+        RefreshTokenCookieService service = new RefreshTokenCookieService(defaultProperties());
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new MockCookie("__Host-refresh", "   "));
+
+        assertThat(service.resolveRefreshToken(request)).isEmpty();
+    }
+
     private RefreshTokenCookieProperties defaultProperties() {
         return new RefreshTokenCookieProperties("__Host-refresh", "/", true, "Lax");
     }
