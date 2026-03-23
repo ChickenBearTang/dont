@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { createPost } from '../api/communityApi';
+import { createPoll, createPost } from '../api/communityApi';
 import type { BoardCategory } from '../types';
 import { createPr } from '@/features/community/pr';
 
@@ -22,7 +22,7 @@ const getCategoryDescription = (category: BoardCategory) => {
     case 'PR':
       return '구매 요청을 올리고 다른 사용자의 의견을 받아보세요.';
     case 'POLL':
-      return '찬반이 갈리는 주제를 올리고 투표를 받아보세요.';
+      return '찬반이 갈리는 주제를 올리고 기한 안에 의견을 모아보세요.';
     case 'HOTDEAL':
       return '좋은 할인 정보를 빠르게 공유해 보세요.';
     default:
@@ -39,11 +39,7 @@ const isValidUrl = (value: string): boolean => {
   }
 };
 
-const buildPrContent = (
-  reason: string,
-  budgetReason: string,
-  alternativeComparison: string
-) =>
+const buildPrContent = (reason: string, budgetReason: string, alternativeComparison: string) =>
   [
     '왜 필요한가?',
     reason.trim(),
@@ -77,6 +73,11 @@ export const CreatePostPage = () => {
   const [budgetReason, setBudgetReason] = useState('');
   const [alternativeComparison, setAlternativeComparison] = useState('');
 
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptionA, setPollOptionA] = useState('');
+  const [pollOptionB, setPollOptionB] = useState('');
+  const [pollDeadlineAt, setPollDeadlineAt] = useState('');
+
   const selectedCategoryLabel = useMemo(
     () => CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? '게시판',
     [category]
@@ -84,6 +85,7 @@ export const CreatePostPage = () => {
 
   const isCohortCategory = category === 'COHORT';
   const isPrCategory = category === 'PR';
+  const isPollCategory = category === 'POLL';
 
   const handleCancel = () => {
     const target = category ? `/community?category=${category}` : '/community';
@@ -118,15 +120,15 @@ export const CreatePostPage = () => {
       return false;
     }
     if (!reason.trim()) {
-      setErrorMessage('왜 필요한가를 입력해 주세요.');
+      setErrorMessage('필요 사유를 입력해 주세요.');
       return false;
     }
     if (!budgetReason.trim()) {
-      setErrorMessage('예산은 적절한가를 입력해 주세요.');
+      setErrorMessage('예산 근거를 입력해 주세요.');
       return false;
     }
     if (!alternativeComparison.trim()) {
-      setErrorMessage('대체재는 없는가를 입력해 주세요.');
+      setErrorMessage('대체재 비교 내용을 입력해 주세요.');
       return false;
     }
     if (purchaseUrl.trim() && !isValidUrl(purchaseUrl.trim())) {
@@ -141,6 +143,31 @@ export const CreatePostPage = () => {
     return true;
   };
 
+  const validatePollPost = (trimmedTitle: string, trimmedContent: string) => {
+    if (!trimmedTitle) {
+      setErrorMessage('제목을 입력해 주세요.');
+      return false;
+    }
+    if (!trimmedContent) {
+      setErrorMessage('내용을 입력해 주세요.');
+      return false;
+    }
+    if (!pollQuestion.trim()) {
+      setErrorMessage('질문을 입력해 주세요.');
+      return false;
+    }
+    if (!pollOptionA.trim() || !pollOptionB.trim()) {
+      setErrorMessage('선택지 A/B를 모두 입력해 주세요.');
+      return false;
+    }
+    if (!pollDeadlineAt) {
+      setErrorMessage('투표 마감 시각을 선택해 주세요.');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -149,7 +176,9 @@ export const CreatePostPage = () => {
 
     const isValid = isPrCategory
       ? validatePrPost(trimmedTitle)
-      : validateDefaultPost(trimmedTitle, trimmedContent);
+      : isPollCategory
+        ? validatePollPost(trimmedTitle, trimmedContent)
+        : validateDefaultPost(trimmedTitle, trimmedContent);
 
     if (!isValid) {
       return;
@@ -170,6 +199,15 @@ export const CreatePostPage = () => {
           imageUrl: imageUrl.trim() || undefined,
           deadlineAt: deadlineAt || undefined,
         });
+      } else if (isPollCategory) {
+        await createPoll({
+          title: trimmedTitle,
+          content: trimmedContent,
+          question: pollQuestion.trim(),
+          optionA: pollOptionA.trim(),
+          optionB: pollOptionB.trim(),
+          deadlineAt: pollDeadlineAt,
+        });
       } else {
         await createPost({
           category,
@@ -178,7 +216,7 @@ export const CreatePostPage = () => {
         });
       }
 
-      navigate(category === 'COHORT' ? '/community?category=COHORT' : `/community?category=${category}`);
+      navigate(`/community?category=${category}`);
     } catch (error: unknown) {
       let serverMessage = '게시글 작성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
 
@@ -253,7 +291,7 @@ export const CreatePostPage = () => {
             id="title"
             type="text"
             maxLength={200}
-            placeholder="제목을 입력해 주세요"
+            placeholder="제목을 입력해 주세요."
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
@@ -266,7 +304,7 @@ export const CreatePostPage = () => {
             <div className="rounded-2xl border border-gray-100 bg-gray-50/70 px-5 py-5">
               <h2 className="text-[16px] font-bold text-gray-900">PR 기본 정보</h2>
               <p className="mt-1 text-[12px] text-gray-400">
-                제목은 공통 게시글 제목으로 사용되고, 아래 필드는 PR 전용 정보로 저장됩니다.
+                제목은 공통 게시글 제목으로 쓰이고, 아래 필드는 PR 상세 정보로 저장됩니다.
               </p>
               <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
@@ -366,7 +404,7 @@ export const CreatePostPage = () => {
                     id="reason"
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
-                    placeholder="구매 배경과 필요성을 적어주세요."
+                    placeholder="구매 배경과 필요성을 적어 주세요."
                     className="min-h-[120px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
                   />
                 </div>
@@ -378,7 +416,7 @@ export const CreatePostPage = () => {
                     id="budgetReason"
                     value={budgetReason}
                     onChange={(event) => setBudgetReason(event.target.value)}
-                    placeholder="가격 근거와 예산 판단 이유를 적어주세요."
+                    placeholder="가격 근거와 예산 판단 이유를 적어 주세요."
                     className="min-h-[120px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
                   />
                 </div>
@@ -393,11 +431,89 @@ export const CreatePostPage = () => {
                     id="alternativeComparison"
                     value={alternativeComparison}
                     onChange={(event) => setAlternativeComparison(event.target.value)}
-                    placeholder="대체 상품과 비교한 내용을 적어주세요."
+                    placeholder="대체 상품과 비교한 내용을 적어 주세요."
                     className="min-h-[120px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
                   />
                 </div>
               </div>
+            </div>
+          </>
+        ) : isPollCategory ? (
+          <>
+              <div className="rounded-2xl border border-gray-200 bg-white px-5 py-5">
+              <h2 className="text-[16px] font-bold text-gray-900">토론 질문 설정</h2>
+              <p className="mt-1 text-[12px] text-gray-500">
+                질문, 양자택일 선택지, 마감 시각을 정하면 토론 게시판 카드와 상세 화면에 반영됩니다.
+              </p>
+              <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="pollQuestion" className="text-[13px] font-semibold text-gray-700">
+                    질문
+                  </label>
+                  <input
+                    id="pollQuestion"
+                    type="text"
+                    maxLength={255}
+                    value={pollQuestion}
+                    onChange={(event) => setPollQuestion(event.target.value)}
+                    placeholder="예: 로봇청소기를 지금 사는 게 맞을까요?"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="pollOptionA" className="text-[13px] font-semibold text-gray-700">
+                    선택지 A
+                  </label>
+                  <input
+                    id="pollOptionA"
+                    type="text"
+                    maxLength={255}
+                    value={pollOptionA}
+                    onChange={(event) => setPollOptionA(event.target.value)}
+                    placeholder="예: 지금 구매"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="pollOptionB" className="text-[13px] font-semibold text-gray-700">
+                    선택지 B
+                  </label>
+                  <input
+                    id="pollOptionB"
+                    type="text"
+                    maxLength={255}
+                    value={pollOptionB}
+                    onChange={(event) => setPollOptionB(event.target.value)}
+                    placeholder="예: 다음 달까지 보류"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="pollDeadlineAt" className="text-[13px] font-semibold text-gray-700">
+                    투표 마감 시각
+                  </label>
+                  <input
+                    id="pollDeadlineAt"
+                    type="datetime-local"
+                    value={pollDeadlineAt}
+                    onChange={(event) => setPollDeadlineAt(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="content" className="text-[13px] font-semibold text-gray-700">
+                내용
+              </label>
+              <textarea
+                id="content"
+                placeholder="토론 배경과 판단 근거를 적어 주세요."
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                className="min-h-[260px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
+              />
             </div>
           </>
         ) : (
@@ -407,7 +523,7 @@ export const CreatePostPage = () => {
             </label>
             <textarea
               id="content"
-              placeholder={`${selectedCategoryLabel}에 등록할 내용을 입력해 주세요`}
+              placeholder={`${selectedCategoryLabel}에 등록할 내용을 입력해 주세요.`}
               value={content}
               onChange={(event) => setContent(event.target.value)}
               className="min-h-[320px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"

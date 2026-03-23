@@ -77,6 +77,65 @@ export interface PostExtraSummaryDto {
   poll: PollSummaryDto | null;
 }
 
+export interface PollCreateRequestDto {
+  title: string;
+  content: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  deadlineAt: string;
+}
+
+export interface PollCreateResponseDto {
+  postId: number;
+  createdAt: string;
+}
+
+export interface PollDetailResponseDto {
+  postId: number;
+  title: string;
+  content: string;
+  authorNickname: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  deadlineAt: string | null;
+  isClosed: boolean;
+  optionACount: number;
+  optionBCount: number;
+  totalVoteCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PollUpdateRequestDto {
+  title: string;
+  content: string;
+  question: string;
+  optionA: string;
+  optionB: string;
+  deadlineAt: string;
+}
+
+export interface PollUpdateResponseDto {
+  postId: number;
+  updatedAt: string;
+}
+
+export interface PollVoteSubmitRequestDto {
+  voteOption: 'OPTION_A' | 'OPTION_B';
+}
+
+export interface PollVoteSubmitResponseDto {
+  postId: number;
+  userId: number;
+  voteOption: 'OPTION_A' | 'OPTION_B';
+  optionACount: number;
+  optionBCount: number;
+  totalVoteCount: number;
+  updatedAt: string;
+}
+
 export interface PostSummaryDto {
   postId: number;
   category: BoardCategory;

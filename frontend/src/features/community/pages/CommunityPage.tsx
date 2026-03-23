@@ -34,6 +34,16 @@ const formatRelativeDate = (dateStr: string) => {
   });
 };
 
+const formatDateTime = (dateStr: string | null | undefined) => {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleString('ko-KR', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const getCategoryName = (cat: BoardCategory | undefined) => {
   switch (cat) {
     case 'FREE':
@@ -80,22 +90,21 @@ const getPrStatusTone = (status: string | undefined) => {
   return 'bg-slate-100 text-slate-700 border-slate-200';
 };
 
-const PrBoardList = ({
+const getPollStatusTone = (isClosed: boolean) =>
+  isClosed
+    ? 'bg-slate-100 text-slate-700 border-slate-200'
+    : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+
+const PollBoardList = ({
   posts,
   loading,
   onOpenPost,
-  selectedStatuses,
-  onToggleStatus,
-  onSelectAllStatuses,
 }: {
   posts: PostSummaryDto[];
   loading: boolean;
   onOpenPost: (post: PostSummaryDto) => void;
-  selectedStatuses: PrStatusFilter[];
-  onToggleStatus: (status: PrStatusFilter) => void;
-  onSelectAllStatuses: () => void;
 }) => {
-  if (false && loading) {
+  if (loading) {
     return (
       <div className="py-24 flex flex-col items-center justify-center">
         <div className="w-7 h-7 border-2 border-gray-100 border-t-gray-400 rounded-full animate-spin" />
@@ -104,7 +113,7 @@ const PrBoardList = ({
     );
   }
 
-  if (false && posts.length === 0) {
+  if (posts.length === 0) {
     return (
       <div className="py-24 flex flex-col items-center justify-center">
         <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center mb-3">
@@ -122,8 +131,125 @@ const PrBoardList = ({
             />
           </svg>
         </div>
-        <p className="font-semibold text-gray-400 text-[13px]">등록된 PR이 없습니다</p>
-        <p className="mt-1 text-[12px] text-gray-300">첫 구매 요청을 올려 보세요.</p>
+        <p className="font-semibold text-gray-400 text-[13px]">등록된 토론이 없습니다</p>
+        <p className="mt-1 text-[12px] text-gray-300">첫 번째 토론을 열어 보세요</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      {posts.map((post) => {
+        const poll = post.extraSummary?.poll;
+        const totalVotes = poll?.totalVoteCount ?? 0;
+        const optionARate = totalVotes > 0 ? Math.round(((poll?.optionACount ?? 0) / totalVotes) * 100) : 0;
+        const optionBRate = totalVotes > 0 ? Math.round(((poll?.optionBCount ?? 0) / totalVotes) * 100) : 0;
+
+        return (
+          <button
+            key={post.postId}
+            type="button"
+            onClick={() => onOpenPost(post)}
+            className="text-left rounded-2xl border border-gray-100 bg-white px-5 py-5 transition hover:border-emerald-200 hover:bg-emerald-50/30"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-2 text-[12px] font-semibold text-emerald-600">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    POLL
+                  </span>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${getPollStatusTone(poll?.isClosed ?? false)}`}
+                  >
+                    {poll?.isClosed ? 'CLOSED' : 'OPEN'}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-[19px] font-bold text-gray-900 tracking-[-0.02em]">
+                    {post.title}
+                  </h3>
+                  <p className="mt-1 text-[14px] font-semibold text-gray-700">
+                    {poll?.question ?? '질문 없음'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="min-w-[220px] rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4">
+                <p className="text-[11px] font-semibold text-gray-400">투표 현황</p>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3 text-[12px] font-medium text-gray-600">
+                    <span className="truncate">{poll?.optionA ?? '선택지 A'}</span>
+                    <span>{optionARate}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white">
+                    <div
+                      className="h-2 rounded-full bg-emerald-400"
+                      style={{ width: `${optionARate}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-[12px] font-medium text-gray-600">
+                    <span className="truncate">{poll?.optionB ?? '선택지 B'}</span>
+                    <span>{optionBRate}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white">
+                    <div
+                      className="h-2 rounded-full bg-teal-600"
+                      style={{ width: `${optionBRate}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-700">
+                참여 {totalVotes}명
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-semibold text-slate-600">
+                마감 {formatDateTime(poll?.deadlineAt)}
+              </span>
+              <span className="rounded-full bg-rose-50 px-3 py-1 text-[12px] font-semibold text-rose-500">
+                좋아요 {post.likeCount || 0}
+              </span>
+              {post.commentCount > 0 ? (
+                <span className="rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-600">
+                  댓글 {post.commentCount}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
+              <span>{post.authorNickname || '작성자 없음'}</span>
+              <span>{formatRelativeDate(post.createdAt)}</span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+const PrBoardList = ({
+  posts,
+  loading,
+  onOpenPost,
+  selectedStatuses,
+  onToggleStatus,
+  onSelectAllStatuses,
+}: {
+  posts: PostSummaryDto[];
+  loading: boolean;
+  onOpenPost: (post: PostSummaryDto) => void;
+  selectedStatuses: PrStatusFilter[];
+  onToggleStatus: (status: PrStatusFilter) => void;
+  onSelectAllStatuses: () => void;
+}) => {
+  if (loading) {
+    return (
+      <div className="py-24 flex flex-col items-center justify-center">
+        <div className="w-7 h-7 border-2 border-gray-100 border-t-gray-400 rounded-full animate-spin" />
+        <span className="mt-3 text-[12px] font-medium text-gray-300">불러오는 중...</span>
       </div>
     );
   }
@@ -154,80 +280,81 @@ const PrBoardList = ({
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-      {posts.map((post) => {
-        const pr = post.extraSummary?.pr;
-        return (
-          <button
-            key={post.postId}
-            type="button"
-            onClick={() => onOpenPost(post)}
-            className="text-left rounded-2xl border border-gray-100 bg-white px-5 py-5 transition hover:border-amber-200 hover:bg-amber-50/30"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-2 text-[12px] font-semibold text-amber-600">
-                    <span className="w-2 h-2 rounded-full bg-amber-400" />
-                    PR
-                  </span>
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${getPrStatusTone(pr?.resultStatus ?? pr?.status)}`}
-                  >
-                    {normalizePrStatus(pr?.resultStatus ?? pr?.status)}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-[19px] font-bold text-gray-900 tracking-[-0.02em]">
-                    {post.title}
-                  </h3>
-                  <p className="mt-1 text-[13px] font-medium text-gray-500">
-                    {pr?.itemName ?? '상품명 없음'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 min-w-[180px]">
-                <p className="text-[11px] font-semibold text-gray-400">요청 금액</p>
-                <p className="mt-1 text-[22px] font-black leading-none text-gray-900">
-                  {formatCurrency(pr?.priceAmount)}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-[12px] font-semibold text-amber-700">
-                투표 {pr?.totalVoteCount ?? 0}명
-              </span>
-              {pr?.deadlineAt ? (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-semibold text-slate-600">
-                  마감 {formatRelativeDate(pr.deadlineAt)}
-                </span>
-              ) : null}
-              <span className="rounded-full bg-rose-50 px-3 py-1 text-[12px] font-semibold text-rose-500">
-                좋아요 {post.likeCount || 0}
-              </span>
-              {post.commentCount > 0 ? (
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-600">
-                  댓글 {post.commentCount}
-                </span>
-              ) : null}
-            </div>
-
-            <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
-              <span>{post.authorNickname || '알 수 없음'}</span>
-              <span>{formatRelativeDate(post.createdAt)}</span>
-            </div>
-          </button>
-        );
-      })}
-      </div>
-      {!loading && posts.length === 0 ? (
+      {posts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
           <p className="text-[14px] font-semibold text-gray-600">선택한 상태에 해당하는 PR이 없습니다</p>
           <p className="mt-1 text-[12px] text-gray-400">상태 필터를 조정하거나 전체 보기를 눌러보세요</p>
         </div>
-      ) : null}
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {posts.map((post) => {
+            const pr = post.extraSummary?.pr;
+            return (
+              <button
+                key={post.postId}
+                type="button"
+                onClick={() => onOpenPost(post)}
+                className="text-left rounded-2xl border border-gray-100 bg-white px-5 py-5 transition hover:border-amber-200 hover:bg-amber-50/30"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-2 text-[12px] font-semibold text-amber-600">
+                        <span className="w-2 h-2 rounded-full bg-amber-400" />
+                        PR
+                      </span>
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${getPrStatusTone(pr?.resultStatus ?? pr?.status)}`}
+                      >
+                        {normalizePrStatus(pr?.resultStatus ?? pr?.status)}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-[19px] font-bold text-gray-900 tracking-[-0.02em]">
+                        {post.title}
+                      </h3>
+                      <p className="mt-1 text-[13px] font-medium text-gray-500">
+                        {pr?.itemName ?? '상품명 없음'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 min-w-[180px]">
+                    <p className="text-[11px] font-semibold text-gray-400">요청 금액</p>
+                    <p className="mt-1 text-[22px] font-black leading-none text-gray-900">
+                      {formatCurrency(pr?.priceAmount)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-amber-50 px-3 py-1 text-[12px] font-semibold text-amber-700">
+                    투표 {pr?.totalVoteCount ?? 0}명
+                  </span>
+                  {pr?.deadlineAt ? (
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-semibold text-slate-600">
+                      마감 {formatRelativeDate(pr.deadlineAt)}
+                    </span>
+                  ) : null}
+                  <span className="rounded-full bg-rose-50 px-3 py-1 text-[12px] font-semibold text-rose-500">
+                    좋아요 {post.likeCount || 0}
+                  </span>
+                  {post.commentCount > 0 ? (
+                    <span className="rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-600">
+                      댓글 {post.commentCount}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
+                  <span>{post.authorNickname || '작성자 없음'}</span>
+                  <span>{formatRelativeDate(post.createdAt)}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
@@ -332,12 +459,14 @@ export const CommunityPage = () => {
       }
     };
 
-    fetchPosts();
+    void fetchPosts();
   }, [category, currentPage, keyword]);
 
   const isPrBoard = category === 'PR';
+  const isPollBoard = category === 'POLL';
   const totalPages = pageInfo?.totalPages ?? 0;
   const totalElements = pageInfo?.totalElements ?? 0;
+
   const filteredPosts = useMemo(() => {
     const searchedPosts = !keyword
       ? posts
@@ -348,11 +477,14 @@ export const CommunityPage = () => {
     }
 
     return searchedPosts.filter((post) => {
-      const prStatus = normalizePrStatus(post.extraSummary?.pr?.resultStatus ?? post.extraSummary?.pr?.status);
+      const prStatus = normalizePrStatus(
+        post.extraSummary?.pr?.resultStatus ?? post.extraSummary?.pr?.status
+      );
       return selectedPrStatuses.includes(prStatus as PrStatusFilter);
     });
   }, [isPrBoard, keyword, posts, selectedPrStatuses]);
-  const listCount = isPrBoard
+
+  const listCount = isPrBoard || isPollBoard
     ? filteredPosts.length
     : keyword
       ? filteredPosts.length
@@ -381,10 +513,12 @@ export const CommunityPage = () => {
       : '전체 게시판';
 
   const categoryDescription = keyword
-    ? `${totalElements}개의 게시물을 찾았습니다.`
+    ? `${totalElements}개의 게시글을 찾았습니다.`
     : category === 'PR'
       ? '구매 요청을 올리고 다른 사용자의 의견을 받아보세요.'
-      : '우리만의 소식을 나누고 함께 소통해 보세요.';
+      : category === 'POLL'
+        ? '찬반이 갈리는 주제를 올리고 기한 안에 의견을 모아보세요.'
+        : '우리만의 소식을 나누고 함께 소통해 보세요.';
 
   const handleTogglePrStatus = (status: PrStatusFilter) => {
     setSelectedPrStatuses((prev) => {
@@ -468,9 +602,6 @@ export const CommunityPage = () => {
           <div className="text-[12px] text-gray-400 font-medium">
             총 <span className="font-bold text-gray-700">{listCount}</span>개
           </div>
-          <div className="hidden text-[12px] text-gray-400 font-medium">
-            총 <span className="font-bold text-gray-700">{keyword ? filteredPosts.length : totalElements}</span>개
-          </div>
           <div className="text-[12px] text-gray-400 font-medium">
             페이지 <span className="font-bold text-gray-700">{currentPage}</span>
             {totalPages > 0 ? ` / ${totalPages}` : ''}
@@ -485,6 +616,12 @@ export const CommunityPage = () => {
             selectedStatuses={selectedPrStatuses}
             onToggleStatus={handleTogglePrStatus}
             onSelectAllStatuses={handleSelectAllPrStatuses}
+          />
+        ) : isPollBoard ? (
+          <PollBoardList
+            posts={filteredPosts}
+            loading={loading}
+            onOpenPost={(post) => navigate(getPostDetailPath(post))}
           />
         ) : (
           <>
@@ -519,7 +656,7 @@ export const CommunityPage = () => {
                     </svg>
                   </div>
                   <p className="font-semibold text-gray-400 text-[13px]">등록된 게시물이 없습니다</p>
-                  <p className="text-[12px] text-gray-300 mt-1">첫 글을 작성해 보세요.</p>
+                  <p className="text-[12px] text-gray-300 mt-1">첫 글을 작성해 보세요</p>
                 </div>
               ) : (
                 filteredPosts.map((post, idx) => (
@@ -561,7 +698,7 @@ export const CommunityPage = () => {
                     </div>
 
                     <div className="col-span-2 text-center text-gray-500 text-[13px] font-medium truncate">
-                      {post.authorNickname || '알 수 없음'}
+                      {post.authorNickname || '작성자 없음'}
                     </div>
 
                     <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium">

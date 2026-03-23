@@ -5,7 +5,9 @@ import {
   deleteComment,
   deletePost,
   getComments,
+  getPollDetail,
   getPost,
+  submitPollVote,
   toggleReaction,
   updateComment,
 } from '../api/communityApi';
@@ -13,6 +15,7 @@ import type {
   BoardCategory,
   CommentSummaryDto,
   GetPostResponseDto,
+  PollDetailResponseDto,
   ReactionType,
   ReportTargetType,
 } from '../types';
@@ -35,6 +38,13 @@ interface CommentItemProps {
   formatDate: (dateStr: string) => string;
   onReport: (type: ReportTargetType, id: number) => void;
   highlightedCommentId: number | null;
+}
+
+interface PollVotePanelProps {
+  detail: PollDetailResponseDto;
+  selectedVote: 'OPTION_A' | 'OPTION_B' | null;
+  isSubmittingVote: boolean;
+  onVote: (voteOption: 'OPTION_A' | 'OPTION_B') => void;
 }
 
 const CommentItem = ({
@@ -347,6 +357,99 @@ const CommentItem = ({
   );
 };
 
+const PollVotePanel = ({
+  detail,
+  selectedVote,
+  isSubmittingVote,
+  onVote,
+}: PollVotePanelProps) => {
+  const totalVotes = detail.totalVoteCount || 0;
+  const optionARate = totalVotes > 0 ? Math.round((detail.optionACount / totalVotes) * 100) : 0;
+  const optionBRate = totalVotes > 0 ? Math.round((detail.optionBCount / totalVotes) * 100) : 0;
+
+  return (
+    <div className="mt-6 rounded-[28px] border border-gray-200 bg-white p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-700">
+            POLL
+          </span>
+          <h2 className="mt-3 text-[24px] font-black leading-tight text-gray-900">
+            {detail.question}
+          </h2>
+          <p className="mt-2 text-[13px] font-medium text-gray-500">
+            마감 {detail.deadlineAt ? new Date(detail.deadlineAt).toLocaleString('ko-KR') : '-'}
+          </p>
+        </div>
+        <span
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${detail.isClosed ? 'border-slate-200 bg-slate-100 text-slate-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}
+        >
+          {detail.isClosed ? 'CLOSED' : 'OPEN'}
+        </span>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {[
+          {
+            voteOption: 'OPTION_A' as const,
+            label: detail.optionA,
+            count: detail.optionACount,
+            rate: optionARate,
+            tone: 'bg-emerald-500',
+            selectedClass: 'border-emerald-300 bg-emerald-50',
+          },
+          {
+            voteOption: 'OPTION_B' as const,
+            label: detail.optionB,
+            count: detail.optionBCount,
+            rate: optionBRate,
+            tone: 'bg-teal-500',
+            selectedClass: 'border-teal-300 bg-teal-50',
+          },
+        ].map((option) => {
+          const isSelected = selectedVote === option.voteOption;
+
+          return (
+            <button
+              key={option.voteOption}
+              type="button"
+              disabled={detail.isClosed || isSubmittingVote}
+              onClick={() => onVote(option.voteOption)}
+              className={`rounded-2xl border px-5 py-5 text-left transition ${
+                detail.isClosed
+                  ? 'cursor-not-allowed border-gray-200 bg-gray-50'
+                  : isSelected
+                    ? option.selectedClass
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[16px] font-bold text-gray-900">{option.label}</p>
+                <span className="text-[13px] font-bold text-gray-500">{option.count}표</span>
+              </div>
+              <div className="mt-4 h-2 rounded-full bg-white/90">
+                <div
+                  className={`h-2 rounded-full ${option.tone}`}
+                  style={{ width: `${option.rate}%` }}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[12px] font-medium text-gray-500">
+                <span>{option.rate}%</span>
+                <span>{isSelected ? '내 선택' : '선택하기'}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between text-[13px] font-medium text-gray-500">
+        <span>총 {totalVotes}명 참여</span>
+        <span>{detail.isClosed ? '마감된 토론입니다.' : '마감 전까지 선택을 변경할 수 있습니다.'}</span>
+      </div>
+    </div>
+  );
+};
+
 export const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
   const [searchParams] = useSearchParams();
@@ -364,8 +467,12 @@ export const PostDetailPage = () => {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [pollDetail, setPollDetail] = useState<PollDetailResponseDto | null>(null);
+  const [selectedPollVote, setSelectedPollVote] = useState<'OPTION_A' | 'OPTION_B' | null>(null);
+  const [submittingPollVote, setSubmittingPollVote] = useState(false);
 
   const reactionStorageKey = `post_reaction_${postId}`;
+  const pollVoteStorageKey = `poll_vote_${postId}`;
   const [selectedReaction, setSelectedReaction] = useState<ReactionType | null>(() => {
     const saved = localStorage.getItem(reactionStorageKey);
     return saved === 'LIKE' || saved === 'DISLIKE' ? (saved as ReactionType) : null;
@@ -454,6 +561,19 @@ export const PostDetailPage = () => {
           setSelectedReaction(
             saved === 'LIKE' || saved === 'DISLIKE' ? (saved as ReactionType) : null
           );
+          if (postRes.data.category === 'POLL') {
+            const pollRes = await getPollDetail(Number(postId));
+            setPollDetail(pollRes.data ?? null);
+            const savedPollVote = localStorage.getItem(pollVoteStorageKey);
+            setSelectedPollVote(
+              savedPollVote === 'OPTION_A' || savedPollVote === 'OPTION_B'
+                ? (savedPollVote as 'OPTION_A' | 'OPTION_B')
+                : null
+            );
+          } else {
+            setPollDetail(null);
+            setSelectedPollVote(null);
+          }
         } else {
           setError('게시글을 찾을 수 없습니다.');
         }
@@ -464,7 +584,7 @@ export const PostDetailPage = () => {
       }
     };
     fetchPostDetail();
-  }, [postId, reactionStorageKey]);
+  }, [pollVoteStorageKey, postId, reactionStorageKey]);
 
   const refreshComments = async () => {
     if (!postId) return;
@@ -525,6 +645,33 @@ export const PostDetailPage = () => {
       }
     } catch {
       // Failed to load more comments
+    }
+  };
+
+  const handlePollVote = async (voteOption: 'OPTION_A' | 'OPTION_B') => {
+    if (!postId || !pollDetail || pollDetail.isClosed || submittingPollVote) return;
+
+    setSubmittingPollVote(true);
+    try {
+      const res = await submitPollVote(Number(postId), { voteOption });
+      if (res.data) {
+        setPollDetail((prev) =>
+          prev
+            ? {
+                ...prev,
+                optionACount: res.data.optionACount,
+                optionBCount: res.data.optionBCount,
+                totalVoteCount: res.data.totalVoteCount,
+              }
+            : prev
+        );
+        setSelectedPollVote(voteOption);
+        localStorage.setItem(pollVoteStorageKey, voteOption);
+      }
+    } catch {
+      alert('토론 투표에 실패했습니다.');
+    } finally {
+      setSubmittingPollVote(false);
     }
   };
 
@@ -757,6 +904,14 @@ export const PostDetailPage = () => {
           >
             {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
           </h1>
+          {post.status !== 'BLINDED' && post.category === 'POLL' && pollDetail ? (
+            <PollVotePanel
+              detail={pollDetail}
+              selectedVote={selectedPollVote}
+              isSubmittingVote={submittingPollVote}
+              onVote={handlePollVote}
+            />
+          ) : null}
           <div
             className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
           >

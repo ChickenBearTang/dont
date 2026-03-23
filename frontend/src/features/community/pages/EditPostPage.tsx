@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { getPost, updatePost } from '../api/communityApi';
+import { getPollDetail, getPost, updatePoll, updatePost } from '../api/communityApi';
 import type { BoardCategory } from '../types';
 
 const getCategoryLabel = (cat: BoardCategory | undefined) => {
@@ -31,8 +31,13 @@ export const EditPostPage = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptionA, setPollOptionA] = useState('');
+  const [pollOptionB, setPollOptionB] = useState('');
+  const [pollDeadlineAt, setPollDeadlineAt] = useState('');
 
   const categoryLabel = useMemo(() => getCategoryLabel(category), [category]);
+  const isPollCategory = category === 'POLL';
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -42,12 +47,23 @@ export const EditPostPage = () => {
       try {
         const res = await getPost(Number(postId));
 
-        if (res.data) {
-          setTitle(res.data.title);
-          setContent(res.data.content);
-          setCategory(res.data.category);
-        } else {
+        if (!res.data) {
           setErrorMessage('게시글을 찾을 수 없습니다.');
+          return;
+        }
+
+        setTitle(res.data.title);
+        setContent(res.data.content);
+        setCategory(res.data.category);
+
+        if (res.data.category === 'POLL') {
+          const pollRes = await getPollDetail(Number(postId));
+          if (pollRes.data) {
+            setPollQuestion(pollRes.data.question);
+            setPollOptionA(pollRes.data.optionA);
+            setPollOptionB(pollRes.data.optionB);
+            setPollDeadlineAt(pollRes.data.deadlineAt ? pollRes.data.deadlineAt.slice(0, 16) : '');
+          }
         }
       } catch {
         setErrorMessage('게시글을 불러오는 데 실패했습니다.');
@@ -56,7 +72,7 @@ export const EditPostPage = () => {
       }
     };
 
-    fetchPost();
+    void fetchPost();
   }, [postId]);
 
   const handleCancel = () => {
@@ -79,14 +95,40 @@ export const EditPostPage = () => {
       return;
     }
 
+    if (isPollCategory) {
+      if (!pollQuestion.trim()) {
+        setErrorMessage('질문을 입력해 주세요.');
+        return;
+      }
+      if (!pollOptionA.trim() || !pollOptionB.trim()) {
+        setErrorMessage('선택지 A/B를 모두 입력해 주세요.');
+        return;
+      }
+      if (!pollDeadlineAt) {
+        setErrorMessage('투표 마감 시각을 선택해 주세요.');
+        return;
+      }
+    }
+
     setErrorMessage('');
     setIsSubmitting(true);
 
     try {
-      await updatePost(Number(postId), {
-        title: trimmedTitle,
-        content: trimmedContent,
-      });
+      if (isPollCategory) {
+        await updatePoll(Number(postId), {
+          title: trimmedTitle,
+          content: trimmedContent,
+          question: pollQuestion.trim(),
+          optionA: pollOptionA.trim(),
+          optionB: pollOptionB.trim(),
+          deadlineAt: pollDeadlineAt,
+        });
+      } else {
+        await updatePost(Number(postId), {
+          title: trimmedTitle,
+          content: trimmedContent,
+        });
+      }
 
       navigate(`/community/${postId}`);
     } catch (error: unknown) {
@@ -113,7 +155,7 @@ export const EditPostPage = () => {
       <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden min-h-[400px] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-7 h-7 border-2 border-gray-100 border-t-blue-500 rounded-full animate-spin" />
-          <span className="text-[13px] text-gray-400 font-medium">게시글 불러오는 중...</span>
+          <span className="text-[13px] text-gray-400 font-medium">게시글을 불러오는 중...</span>
         </div>
       </div>
     );
@@ -148,7 +190,7 @@ export const EditPostPage = () => {
             id="edit-title"
             type="text"
             maxLength={200}
-            placeholder="제목을 입력해 주세요"
+            placeholder="제목을 입력해 주세요."
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
@@ -156,18 +198,92 @@ export const EditPostPage = () => {
           <div className="text-right text-[12px] text-gray-300">{title.length}/200</div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="edit-content" className="text-[13px] font-semibold text-gray-700">
-            내용
-          </label>
-          <textarea
-            id="edit-content"
-            placeholder="내용을 입력해 주세요."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="min-h-[320px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-blue-500 resize-none"
-          />
-        </div>
+        {isPollCategory ? (
+          <>
+            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-5">
+              <h2 className="text-[16px] font-bold text-gray-900">토론 질문 설정</h2>
+              <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="pollQuestion" className="text-[13px] font-semibold text-gray-700">
+                    질문
+                  </label>
+                  <input
+                    id="pollQuestion"
+                    type="text"
+                    maxLength={255}
+                    value={pollQuestion}
+                    onChange={(e) => setPollQuestion(e.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="pollOptionA" className="text-[13px] font-semibold text-gray-700">
+                    선택지 A
+                  </label>
+                  <input
+                    id="pollOptionA"
+                    type="text"
+                    maxLength={255}
+                    value={pollOptionA}
+                    onChange={(e) => setPollOptionA(e.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="pollOptionB" className="text-[13px] font-semibold text-gray-700">
+                    선택지 B
+                  </label>
+                  <input
+                    id="pollOptionB"
+                    type="text"
+                    maxLength={255}
+                    value={pollOptionB}
+                    onChange={(e) => setPollOptionB(e.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="pollDeadlineAt" className="text-[13px] font-semibold text-gray-700">
+                    투표 마감 시각
+                  </label>
+                  <input
+                    id="pollDeadlineAt"
+                    type="datetime-local"
+                    value={pollDeadlineAt}
+                    onChange={(e) => setPollDeadlineAt(e.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="edit-content" className="text-[13px] font-semibold text-gray-700">
+                내용
+              </label>
+              <textarea
+                id="edit-content"
+                placeholder="토론 배경과 판단 근거를 적어 주세요."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="min-h-[260px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-blue-500 resize-none"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="edit-content" className="text-[13px] font-semibold text-gray-700">
+              내용
+            </label>
+            <textarea
+              id="edit-content"
+              placeholder="내용을 입력해 주세요."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="min-h-[320px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-blue-500 resize-none"
+            />
+          </div>
+        )}
 
         {errorMessage ? (
           <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-500">
