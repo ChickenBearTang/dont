@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { useToast } from '@/shared/hooks';
 import {
   getAdminReports,
   getAdminReportDetail,
@@ -12,6 +13,7 @@ import { ReportProcessModal } from '@/features/community/components/ReportProces
 
 const AdminReportPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const { user, isAuthInitializing } = useAuthStore();
   const [reports, setReports] = useState<AdminReportSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,12 +45,12 @@ const AdminReportPage: React.FC = () => {
       // If the user was never an admin or was null, it's an unauthorized access attempt -> alert
       const wasAdmin = prevUserRef.current?.role?.includes('ADMIN');
       if (!wasAdmin) {
-        alert('관리자 권한이 없습니다.');
+        toast.error('관리자 권한이 없습니다.');
       }
       navigate('/community');
     }
     prevUserRef.current = user;
-  }, [user, isAdmin, navigate, isAuthInitializing]);
+  }, [user, isAdmin, navigate, isAuthInitializing, toast]);
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -81,11 +83,11 @@ const AdminReportPage: React.FC = () => {
         }
         navigate(url);
       } else {
-        alert('게시물 정보를 찾을 수 없습니다.');
+        toast.error('게시물 정보를 찾을 수 없습니다.');
       }
     } catch (error) {
       console.error('Failed to fetch report detail:', error);
-      alert('상세 정보를 불러오는 중 오류가 발생했습니다.');
+      toast.error('상세 정보를 불러오는 중 오류가 발생했습니다.');
     }
   };
 
@@ -113,7 +115,7 @@ const AdminReportPage: React.FC = () => {
       });
     } catch (error) {
       console.error('Failed to fetch report detail for processing:', error);
-      alert('상세 정보를 불러오는 데 실패했습니다.');
+      toast.error('상세 정보를 불러오는 데 실패했습니다.');
     }
   };
 
@@ -126,11 +128,11 @@ const AdminReportPage: React.FC = () => {
       } else {
         await processReportReject(reportId, { processNote: note });
       }
-      alert(`${actionName} 처리가 완료되었습니다.`);
+      toast.success(`${actionName} 처리가 완료되었습니다.`);
       void fetchReports();
     } catch (error) {
       console.error(`Failed to ${type} report:`, error);
-      alert('처리 중 오류가 발생했습니다.');
+      toast.error('처리 중 오류가 발생했습니다.');
       throw error; // Let the modal handle the loading state
     }
   };
