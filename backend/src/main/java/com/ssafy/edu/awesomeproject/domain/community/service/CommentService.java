@@ -17,6 +17,10 @@ import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.ReactionRepository;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationReferenceType;
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
+import com.ssafy.edu.awesomeproject.domain.notification.service.NotificationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -36,16 +40,19 @@ public class CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final ReactionRepository reactionRepository;
+    private final NotificationService notificationService;
 
     public CommentService(
         CommentRepository commentRepository,
         PostRepository postRepository,
         UserRepository userRepository,
-        ReactionRepository reactionRepository) {
+        ReactionRepository reactionRepository,
+        NotificationService notificationService) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.reactionRepository = reactionRepository;
+        this.notificationService = notificationService;
     }
 
     // 댓글 작성
@@ -83,6 +90,8 @@ public class CommentService {
 
         Comment comment = new Comment(post, user, parentComment, content);
         Comment savedComment = commentRepository.save(comment);
+
+        sendPostCommentCreatedNotification(post, user, userId);
 
         return new CreateCommentResult(savedComment.getId(), savedComment.getCreatedAt());
     }
@@ -178,6 +187,23 @@ public class CommentService {
         comment.delete();
 
         return new DeleteCommentResult(true, comment.getDeletedAt());
+    }
+
+    private void sendPostCommentCreatedNotification(Post post, User commenter, Long commenterUserId) {
+        Long postAuthorUserId = post.getUser().getId();
+
+        if (postAuthorUserId.equals(commenterUserId)) {
+            return;
+        }
+
+        notificationService.createNotification(
+            postAuthorUserId,
+            NotificationType.POST_COMMENT_CREATED,
+            "새 댓글이 달렸어요",
+            commenter.getNickname() + "님이 회원님의 게시글에 댓글을 남겼습니다.",
+            NotificationReferenceType.POST,
+            post.getId()
+        );
     }
 
     private void validateUserCohortAccess(User user, Board board) {
