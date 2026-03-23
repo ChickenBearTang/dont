@@ -87,6 +87,4 @@ public class Post extends BaseEntity {
     public boolean isAuthor(Long userId) {
         return this.user.getId().equals(userId);
     }
-
-
 }
