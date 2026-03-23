@@ -30,6 +30,15 @@ def _default_dsn() -> str:
     return f"postgresql://{user}:{password}@{host}:{port}/{db}"
 
 
+def _default_finance_api_timeout() -> int:
+    raw = os.environ.get("AI_FINANCE_API_TIMEOUT", "3")
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return 3
+    return parsed if parsed > 0 else 3
+
+
 class AIPipelineApplication:
     def parse_args(self, argv: list[str] | None) -> argparse.Namespace:
         parser = argparse.ArgumentParser(prog="python -m ai")
@@ -64,7 +73,67 @@ class AIPipelineApplication:
             "--expected-card-payment-amount", type=float, default=200000.0
         )
         parser.add_argument("--days-until-card-due", type=int, default=14)
+        parser.add_argument(
+            "--finance-api-url",
+            default=os.environ.get("AI_FINANCE_API_URL"),
+            help="Spring finance profile API URL (optional)",
+        )
+        parser.add_argument(
+            "--finance-api-timeout",
+            type=_positive_int,
+            default=_default_finance_api_timeout(),
+            help="Spring finance API timeout in seconds (must be > 0)",
+        )
         return parser.parse_args(argv)
+
+    def _cli_finance_profile(self, args: argparse.Namespace) -> dict[str, float | int]:
+        return {
+            "current_balance": args.current_balance,
+            "emergency_fund_balance": args.emergency_fund_balance,
+            "expected_card_payment_amount": args.expected_card_payment_amount,
+            "days_until_card_due": args.days_until_card_due,
+        }
+
+    def build_finance_profile(
+        self,
+        args: argparse.Namespace,
+    ) -> tuple[dict[str, float | int], str]:
+        profile = self._cli_finance_profile(args)
+        finance_api_url = args.finance_api_url
+        if not isinstance(finance_api_url, str) or finance_api_url.strip() == "":
+            return profile, "cli_default"
+
+        finance_module = import_module("ai.finance_profile")
+        fetched_profile = finance_module.fetch_finance_profile(
+            finance_api_url,
+            timeout=args.finance_api_timeout,
+        )
+        if not isinstance(fetched_profile, dict):
+            return profile, "cli_default_fallback"
+
+        merged = {
+            "current_balance": float(
+                fetched_profile.get("current_balance", profile["current_balance"])
+            ),
+            "emergency_fund_balance": float(
+                fetched_profile.get(
+                    "emergency_fund_balance",
+                    profile["emergency_fund_balance"],
+                )
+            ),
+            "expected_card_payment_amount": float(
+                fetched_profile.get(
+                    "expected_card_payment_amount",
+                    profile["expected_card_payment_amount"],
+                )
+            ),
+            "days_until_card_due": int(
+                fetched_profile.get(
+                    "days_until_card_due", profile["days_until_card_due"]
+                )
+            ),
+        }
+        return merged, "spring_api"
 
     def build_crawler(self, args: argparse.Namespace) -> HotDealCrawler:
         if args.real_crawl:
@@ -77,12 +146,7 @@ class AIPipelineApplication:
             return AIPipelineManager(crawler=crawler)
 
         analyzer_module = import_module("ai.xai.analyzer")
-        finance_profile = {
-            "current_balance": args.current_balance,
-            "emergency_fund_balance": args.emergency_fund_balance,
-            "expected_card_payment_amount": args.expected_card_payment_amount,
-            "days_until_card_due": args.days_until_card_due,
-        }
+        finance_profile, finance_profile_source = self.build_finance_profile(args)
         analyzer = analyzer_module.ExplainabilityAnalyzer(
             finance_profile=finance_profile
         )
@@ -109,6 +173,7 @@ class AIPipelineApplication:
                 top_k=reason_top_k,
                 window_stats=window_stats,
             )
+            analyzed["finance_profile_source"] = finance_profile_source
             if db_save is not None:
                 analyzed["db_save"] = db_save
             return analyzed
