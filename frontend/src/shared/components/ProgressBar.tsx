@@ -12,10 +12,6 @@ export const ProgressBar = ({ progress, label, className = '' }: ProgressBarProp
         style={{ width: `${progress}%` }}
       ></div>
     </div>
-    {label && (
-      <p className="mt-2 text-center text-gray font-extrabold pb-0">
-        {label}
-      </p>
-    )}
+    {label && <p className="mt-2 text-center text-gray font-extrabold pb-0">{label}</p>}
   </div>
 );

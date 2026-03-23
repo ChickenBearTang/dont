@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
@@ -89,6 +90,22 @@ public class RefreshTokenRedisStore implements RefreshTokenStore {
     @Override
     public void deleteBySessionId(String sessionId) {
         stringRedisTemplate.delete(refreshKey(sessionId));
+    }
+
+    @Override
+    public void deleteByUserId(Long userId) {
+        Set<String> keys = stringRedisTemplate.keys(REFRESH_KEY_PREFIX + "*");
+        if (keys == null || keys.isEmpty()) {
+            return;
+        }
+
+        String targetUserId = String.valueOf(userId);
+        for (String key : keys) {
+            Object uid = stringRedisTemplate.opsForHash().get(key, USER_ID_FIELD);
+            if (targetUserId.equals(uid)) {
+                stringRedisTemplate.delete(key);
+            }
+        }
     }
 
     @Override

@@ -6,15 +6,27 @@ interface ModalProps {
   title?: string;
   children: ReactNode;
   footer?: ReactNode;
+  closeOnBackdropClick?: boolean;
 }
 
-export const Modal = ({ isOpen, onClose, title, children, footer }: ModalProps) => {
+export const Modal = ({
+  isOpen,
+  onClose,
+  title,
+  children,
+  footer,
+  closeOnBackdropClick = true,
+}: ModalProps) => {
   if (!isOpen) return null;
 
   return (
     <div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-5 z-[999] animate-[fadeInEffect_0.2s_ease-out_forwards]"
-      onClick={onClose}
+      onClick={() => {
+        if (closeOnBackdropClick) {
+          onClose();
+        }
+      }}
     >
       <div
         className="bg-white rounded-[24px] w-full max-w-[400px] overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.15)] animate-[slideUp_0.3s_cubic-bezier(0.17,0.67,0.83,1.3)_forwards]"
