@@ -66,7 +66,7 @@ public class UserOnboardingService {
 
     private User getUser(Long userId) {
         return userRepository
-                .findById(userId)
+                .findActiveById(userId)
                 .orElseThrow(
                         () ->
                                 new CommonException(
