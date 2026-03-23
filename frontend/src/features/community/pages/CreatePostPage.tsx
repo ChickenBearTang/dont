@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { createPost } from '../api/communityApi';
 import type { BoardCategory } from '../types';
+import { createPr } from '@/features/community/pr';
 
 const CATEGORY_OPTIONS: Array<{ value: BoardCategory; label: string }> = [
   { value: 'FREE', label: '자유 게시판' },
@@ -17,17 +18,42 @@ const getCategoryDescription = (category: BoardCategory) => {
     case 'FREE':
       return '자유롭게 생각과 정보를 공유해 보세요.';
     case 'COHORT':
-      return '내 기수 게시판에 자동으로 글이 등록됩니다.';
+      return '같은 기수 사람들과 더 가까운 이야기를 나눠보세요.';
     case 'PR':
-      return '의견을 묻고 추천을 받는 게시판이에요.';
+      return '구매 요청을 올리고 다른 사용자의 의견을 받아보세요.';
     case 'POLL':
-      return '찬반 의견과 토론 주제를 올릴 수 있어요.';
+      return '찬반이 갈리는 주제를 올리고 투표를 받아보세요.';
     case 'HOTDEAL':
-      return '좋은 할인 정보와 특가 소식을 공유해 보세요.';
+      return '좋은 할인 정보를 빠르게 공유해 보세요.';
     default:
       return '';
   }
 };
+
+const isValidUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const buildPrContent = (
+  reason: string,
+  budgetReason: string,
+  alternativeComparison: string
+) =>
+  [
+    '왜 필요한가?',
+    reason.trim(),
+    '',
+    '예산은 적절한가?',
+    budgetReason.trim(),
+    '',
+    '대체재는 없는가?',
+    alternativeComparison.trim(),
+  ].join('\n');
 
 export const CreatePostPage = () => {
   const navigate = useNavigate();
@@ -36,21 +62,83 @@ export const CreatePostPage = () => {
   const initialCategory = searchParams.get('category') as BoardCategory | null;
 
   const [category, setCategory] = useState<BoardCategory>(initialCategory ?? 'FREE');
-  const [title, setTitle] = useState<string>('');
-  const [content, setContent] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const isCohortCategory = category === 'COHORT';
+  const [itemName, setItemName] = useState('');
+  const [priceAmount, setPriceAmount] = useState('');
+  const [prCategory, setPrCategory] = useState('');
+  const [purchaseUrl, setPurchaseUrl] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [deadlineAt, setDeadlineAt] = useState('');
+  const [reason, setReason] = useState('');
+  const [budgetReason, setBudgetReason] = useState('');
+  const [alternativeComparison, setAlternativeComparison] = useState('');
 
   const selectedCategoryLabel = useMemo(
     () => CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? '게시판',
     [category]
   );
 
+  const isCohortCategory = category === 'COHORT';
+  const isPrCategory = category === 'PR';
+
   const handleCancel = () => {
     const target = category ? `/community?category=${category}` : '/community';
     navigate(target);
+  };
+
+  const validateDefaultPost = (trimmedTitle: string, trimmedContent: string) => {
+    if (!trimmedTitle) {
+      setErrorMessage('제목을 입력해 주세요.');
+      return false;
+    }
+
+    if (!trimmedContent) {
+      setErrorMessage('내용을 입력해 주세요.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const validatePrPost = (trimmedTitle: string) => {
+    if (!trimmedTitle) {
+      setErrorMessage('제목을 입력해 주세요.');
+      return false;
+    }
+    if (!itemName.trim()) {
+      setErrorMessage('상품명을 입력해 주세요.');
+      return false;
+    }
+    if (!priceAmount || Number(priceAmount) < 0) {
+      setErrorMessage('가격은 0 이상이어야 합니다.');
+      return false;
+    }
+    if (!reason.trim()) {
+      setErrorMessage('왜 필요한가를 입력해 주세요.');
+      return false;
+    }
+    if (!budgetReason.trim()) {
+      setErrorMessage('예산은 적절한가를 입력해 주세요.');
+      return false;
+    }
+    if (!alternativeComparison.trim()) {
+      setErrorMessage('대체재는 없는가를 입력해 주세요.');
+      return false;
+    }
+    if (purchaseUrl.trim() && !isValidUrl(purchaseUrl.trim())) {
+      setErrorMessage('구매 링크는 http 또는 https URL이어야 합니다.');
+      return false;
+    }
+    if (imageUrl.trim() && !isValidUrl(imageUrl.trim())) {
+      setErrorMessage('이미지 링크는 http 또는 https URL이어야 합니다.');
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -59,13 +147,11 @@ export const CreatePostPage = () => {
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
 
-    if (!trimmedTitle) {
-      setErrorMessage('제목을 입력해 주세요.');
-      return;
-    }
+    const isValid = isPrCategory
+      ? validatePrPost(trimmedTitle)
+      : validateDefaultPost(trimmedTitle, trimmedContent);
 
-    if (!trimmedContent) {
-      setErrorMessage('내용을 입력해 주세요.');
+    if (!isValid) {
       return;
     }
 
@@ -73,18 +159,27 @@ export const CreatePostPage = () => {
     setIsSubmitting(true);
 
     try {
-      await createPost({
-        category,
-        title: trimmedTitle,
-        content: trimmedContent,
-      });
+      if (isPrCategory) {
+        await createPr({
+          title: trimmedTitle,
+          content: buildPrContent(reason, budgetReason, alternativeComparison),
+          itemName: itemName.trim(),
+          priceAmount: Number(priceAmount),
+          category: prCategory.trim() || undefined,
+          purchaseUrl: purchaseUrl.trim() || undefined,
+          imageUrl: imageUrl.trim() || undefined,
+          deadlineAt: deadlineAt || undefined,
+        });
+      } else {
+        await createPost({
+          category,
+          title: trimmedTitle,
+          content: trimmedContent,
+        });
+      }
 
-      navigate(
-        category === 'COHORT' ? '/community?category=COHORT' : `/community?category=${category}`
-      );
+      navigate(category === 'COHORT' ? '/community?category=COHORT' : `/community?category=${category}`);
     } catch (error: unknown) {
-      console.error('Failed to create post:', error);
-
       let serverMessage = '게시글 작성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
 
       if (axios.isAxiosError(error)) {
@@ -111,7 +206,7 @@ export const CreatePostPage = () => {
           <div>
             <h1 className="text-[22px] font-bold text-gray-900 tracking-[-0.02em]">게시글 작성</h1>
             <p className="text-gray-400 mt-1 text-[13px] font-medium tracking-[-0.01em]">
-              게시판을 선택하고 제목과 내용을 입력해 새 글을 등록해 주세요.
+              게시판을 선택하면 입력 폼이 해당 게시판에 맞게 바뀝니다.
             </p>
           </div>
           <button
@@ -145,7 +240,7 @@ export const CreatePostPage = () => {
 
           {isCohortCategory && (
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-[13px] font-medium text-blue-700">
-              내 기수 게시판에 자동으로 등록됩니다.
+              기수 게시판은 현재 로그인한 사용자의 기수로 자동 등록됩니다.
             </div>
           )}
         </div>
@@ -166,18 +261,159 @@ export const CreatePostPage = () => {
           <div className="text-right text-[12px] text-gray-300">{title.length}/200</div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="content" className="text-[13px] font-semibold text-gray-700">
-            내용
-          </label>
-          <textarea
-            id="content"
-            placeholder={`${selectedCategoryLabel}에 등록할 내용을 입력해 주세요.`}
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            className="min-h-[320px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
-          />
-        </div>
+        {isPrCategory ? (
+          <>
+            <div className="rounded-2xl border border-gray-100 bg-gray-50/70 px-5 py-5">
+              <h2 className="text-[16px] font-bold text-gray-900">PR 기본 정보</h2>
+              <p className="mt-1 text-[12px] text-gray-400">
+                제목은 공통 게시글 제목으로 사용되고, 아래 필드는 PR 전용 정보로 저장됩니다.
+              </p>
+              <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="itemName" className="text-[13px] font-semibold text-gray-700">
+                    상품명
+                  </label>
+                  <input
+                    id="itemName"
+                    type="text"
+                    maxLength={200}
+                    value={itemName}
+                    onChange={(event) => setItemName(event.target.value)}
+                    placeholder="예: 로보락 S10 MaxV Ultra"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="priceAmount" className="text-[13px] font-semibold text-gray-700">
+                    가격
+                  </label>
+                  <input
+                    id="priceAmount"
+                    type="number"
+                    min={0}
+                    value={priceAmount}
+                    onChange={(event) => setPriceAmount(event.target.value)}
+                    placeholder="예: 1590000"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="prCategory" className="text-[13px] font-semibold text-gray-700">
+                    상품 카테고리
+                  </label>
+                  <input
+                    id="prCategory"
+                    type="text"
+                    maxLength={200}
+                    value={prCategory}
+                    onChange={(event) => setPrCategory(event.target.value)}
+                    placeholder="예: 가전"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="deadlineAt" className="text-[13px] font-semibold text-gray-700">
+                    투표 마감 시각
+                  </label>
+                  <input
+                    id="deadlineAt"
+                    type="datetime-local"
+                    value={deadlineAt}
+                    onChange={(event) => setDeadlineAt(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="purchaseUrl" className="text-[13px] font-semibold text-gray-700">
+                    구매 링크
+                  </label>
+                  <input
+                    id="purchaseUrl"
+                    type="url"
+                    value={purchaseUrl}
+                    onChange={(event) => setPurchaseUrl(event.target.value)}
+                    placeholder="https://..."
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="imageUrl" className="text-[13px] font-semibold text-gray-700">
+                    이미지 링크
+                  </label>
+                  <input
+                    id="imageUrl"
+                    type="url"
+                    value={imageUrl}
+                    onChange={(event) => setImageUrl(event.target.value)}
+                    placeholder="https://..."
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 bg-white px-5 py-5">
+              <h2 className="text-[16px] font-bold text-gray-900">의사결정에 필요한 내용</h2>
+              <p className="mt-1 text-[12px] text-gray-400">
+                상세 화면에서 각각의 섹션으로 표시됩니다.
+              </p>
+              <div className="mt-5 flex flex-col gap-5">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="reason" className="text-[13px] font-semibold text-gray-700">
+                    왜 필요한가?
+                  </label>
+                  <textarea
+                    id="reason"
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder="구매 배경과 필요성을 적어주세요."
+                    className="min-h-[120px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="budgetReason" className="text-[13px] font-semibold text-gray-700">
+                    예산은 적절한가?
+                  </label>
+                  <textarea
+                    id="budgetReason"
+                    value={budgetReason}
+                    onChange={(event) => setBudgetReason(event.target.value)}
+                    placeholder="가격 근거와 예산 판단 이유를 적어주세요."
+                    className="min-h-[120px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor="alternativeComparison"
+                    className="text-[13px] font-semibold text-gray-700"
+                  >
+                    대체재는 없는가?
+                  </label>
+                  <textarea
+                    id="alternativeComparison"
+                    value={alternativeComparison}
+                    onChange={(event) => setAlternativeComparison(event.target.value)}
+                    placeholder="대체 상품과 비교한 내용을 적어주세요."
+                    className="min-h-[120px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="content" className="text-[13px] font-semibold text-gray-700">
+              내용
+            </label>
+            <textarea
+              id="content"
+              placeholder={`${selectedCategoryLabel}에 등록할 내용을 입력해 주세요`}
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              className="min-h-[320px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
+            />
+          </div>
+        )}
 
         {errorMessage ? (
           <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-500">

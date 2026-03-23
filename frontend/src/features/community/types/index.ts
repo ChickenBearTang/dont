@@ -46,6 +46,8 @@ export interface GetPostResponseDto {
 export interface PrSummaryDto {
   status: string;
   resultStatus: string;
+  itemName: string;
+  priceAmount: number | null;
   totalVoteCount: number | null;
   deadlineAt: string | null;
 }
