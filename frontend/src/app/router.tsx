@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
-import { SignUpPage, LoginPage } from '@/features/auth';
+import { ForgotPasswordPage, SignUpPage, LoginPage } from '@/features/auth';
 import { FinanceConnectPage, OnboardingPage } from '@/features/user';
 import {
   AuthenticatedLayoutRoute,
@@ -27,6 +27,10 @@ export const router = createBrowserRouter([
       {
         path: '/signup',
         element: <SignUpPage />,
+      },
+      {
+        path: '/forgot-password',
+        element: <ForgotPasswordPage />,
       },
       {
         element: <RequireAuthRoute />,

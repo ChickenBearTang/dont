@@ -36,7 +36,6 @@ public class User extends BaseEntity {
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
-    // 유저의 키를 받아오는용
     @Column(name = "ssafy_finance_user_key", length = 255)
     private String ssafyFinanceUserKey;
 
@@ -57,7 +56,6 @@ public class User extends BaseEntity {
     @Column(name = "user_role", nullable = false, length = 32)
     private UserRole userRole;
 
-    // cohort 매핑을 위한 FK 조건 추가
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cohort_id", nullable = false)
     private Cohort cohort;
@@ -84,6 +82,10 @@ public class User extends BaseEntity {
 
     public void updateMonthlySavingGoalAmount(BigDecimal monthlySavingGoalAmount) {
         this.monthlySavingGoalAmount = monthlySavingGoalAmount;
+    }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
     }
 
     public User(
