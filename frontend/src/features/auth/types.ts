@@ -72,3 +72,22 @@ export interface EmailAvailabilityResponseData {
   email: string;
   available: boolean;
 }
+
+export interface PasswordResetRequestPayload {
+  email: string;
+}
+
+export interface PasswordResetRequestResponseData {
+  message: string;
+  expiresInSeconds: number;
+}
+
+export interface PasswordResetConfirmPayload {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+export interface PasswordResetConfirmResponseData {
+  resetCompleted: boolean;
+}

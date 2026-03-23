@@ -8,6 +8,10 @@ import type {
   EmailVerificationSendResponseData,
   LoginRequestPayload,
   LoginResponseData,
+  PasswordResetConfirmPayload,
+  PasswordResetConfirmResponseData,
+  PasswordResetRequestPayload,
+  PasswordResetRequestResponseData,
   SignUpRequestPayload,
   SignUpResponseData,
   TokenReissueResponseData,
@@ -74,4 +78,16 @@ export const checkEmailAvailability = async (
   return await axiosInstance.get('/auth/check-email', {
     params: { email },
   });
+};
+
+export const requestPasswordReset = async (
+  data: PasswordResetRequestPayload
+): Promise<ApiResponse<PasswordResetRequestResponseData>> => {
+  return await axiosInstance.post('/auth/password-reset/request', data);
+};
+
+export const confirmPasswordReset = async (
+  data: PasswordResetConfirmPayload
+): Promise<ApiResponse<PasswordResetConfirmResponseData>> => {
+  return await axiosInstance.post('/auth/password-reset/confirm', data);
 };

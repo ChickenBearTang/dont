@@ -6,6 +6,8 @@ import com.ssafy.edu.awesomeproject.domain.auth.dto.request.EmailVerificationCon
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.EmailVerificationSendRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LoginRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.LogoutRequestDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.request.PasswordResetConfirmRequestDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.request.PasswordResetRequestRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.SignupRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.request.TokenReissueRequestDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailAvailabilityResponseDto;
@@ -13,11 +15,14 @@ import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailVerificationCo
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.EmailVerificationSendResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LoginResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.LogoutResponseDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.response.PasswordResetConfirmResponseDto;
+import com.ssafy.edu.awesomeproject.domain.auth.dto.response.PasswordResetRequestResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.dto.response.TokenReissueResponseDto;
 import com.ssafy.edu.awesomeproject.domain.auth.service.AccountValidationService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.AuthTokenService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.EmailVerificationService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.LoginService;
+import com.ssafy.edu.awesomeproject.domain.auth.service.PasswordResetService;
 import com.ssafy.edu.awesomeproject.domain.auth.service.SignupService;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.CohortResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.service.CohortQueryService;
@@ -42,6 +47,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
     private final LoginService loginService;
     private final SignupService signupService;
+    private final PasswordResetService passwordResetService;
     private final AccountValidationService accountValidationService;
     private final CohortQueryService cohortQueryService;
     private final EmailVerificationService emailVerificationService;
@@ -51,6 +57,7 @@ public class AuthController {
     public AuthController(
             LoginService loginService,
             SignupService signupService,
+            PasswordResetService passwordResetService,
             AccountValidationService accountValidationService,
             CohortQueryService cohortQueryService,
             EmailVerificationService emailVerificationService,
@@ -58,6 +65,7 @@ public class AuthController {
             RefreshTokenCookieService refreshTokenCookieService) {
         this.loginService = loginService;
         this.signupService = signupService;
+        this.passwordResetService = passwordResetService;
         this.accountValidationService = accountValidationService;
         this.cohortQueryService = cohortQueryService;
         this.emailVerificationService = emailVerificationService;
@@ -113,6 +121,36 @@ public class AuthController {
         return CommonResponse.success(
                 new EmailVerificationConfirmResponseDto(
                         result.email(), result.verified(), result.verifiedExpiresInSeconds()));
+    }
+
+    @PostMapping("/password-reset/request")
+    @Operation(summary = "비밀번호 재설정 코드 요청 API", description = "입력한 이메일로 비밀번호 재설정 코드를 전송합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "502", description = "메일 전송 실패")
+    })
+    public CommonResponse<PasswordResetRequestResponseDto> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequestRequestDto requestDto) {
+        PasswordResetService.RequestResult result =
+                passwordResetService.requestReset(requestDto.email());
+        return CommonResponse.success(
+                new PasswordResetRequestResponseDto(result.message(), result.expiresInSeconds()));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @Operation(summary = "비밀번호 재설정 확정 API", description = "재설정 코드를 검증하고 비밀번호를 변경합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 또는 코드 오류"),
+        @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
+    public CommonResponse<PasswordResetConfirmResponseDto> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequestDto requestDto) {
+        PasswordResetService.ConfirmResult result =
+                passwordResetService.confirmReset(
+                        requestDto.email(), requestDto.code(), requestDto.newPassword());
+        return CommonResponse.success(new PasswordResetConfirmResponseDto(result.resetCompleted()));
     }
 
     @PostMapping("/signup")
