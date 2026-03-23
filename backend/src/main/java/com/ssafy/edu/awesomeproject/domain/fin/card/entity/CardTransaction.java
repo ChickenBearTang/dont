@@ -54,6 +54,9 @@ public class CardTransaction extends BaseEntity {
     @Column(name = "description", length = 500)
     private String description;
 
+    @Column(name = "justification", length = 1000)
+    private String justification;
+
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
@@ -79,5 +82,9 @@ public class CardTransaction extends BaseEntity {
         this.approvalNo = approvalNo;
         this.description = description;
         this.userId = userId;
+    }
+ 
+    public void updateJustification(String justification) {
+        this.justification = justification;
     }
 }

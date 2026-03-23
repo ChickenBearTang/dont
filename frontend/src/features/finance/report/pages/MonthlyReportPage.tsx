@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getSpendingSummary } from '../api/reportApi';
+import { getSpendingSummary, updateJustification } from '../api/reportApi';
 import type { SpendingSummaryResponse, SpendingSummaryRank } from '../types';
 
 const CATEGORY_COLORS = [
@@ -111,6 +111,20 @@ export const MonthlyReportPage = () => {
     setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
+  const handleJustify = async (transactionId: number, text: string) => {
+    try {
+      await updateJustification(transactionId, text);
+      alert('소명이 성공적으로 저장되었습니다. 다음 분석에 반영됩니다!');
+      // 데이터 새로고침
+      const { startDate, endDate } = getMonthRange(currentDate);
+      const res = await getSpendingSummary(startDate, endDate);
+      setSummary(res);
+    } catch (err) {
+      console.error('Justification failed:', err);
+      alert('소명 저장에 실패했습니다.');
+    }
+  };
+
   return (
     <div className="w-full max-w-3xl mx-auto bg-gray-50/30 rounded-2xl overflow-hidden flex flex-col min-h-[600px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
       <div className="bg-white px-7 pt-7 pb-5">
@@ -175,8 +189,6 @@ export const MonthlyReportPage = () => {
               </h3>
 
               <DonutChart data={summary.rankColumList} />
-
-              </div>
             </div>
 
             {/* AI 브리핑 섹션 */}
@@ -236,6 +248,55 @@ export const MonthlyReportPage = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* 소명 요청 섹션 (Anomaly Transactions) */}
+                {summary.aiReport.anomaly_transactions && summary.aiReport.anomaly_transactions.length > 0 && (
+                  <div className="mt-8 bg-white/10 rounded-3xl p-6 border border-white/20">
+                    <h4 className="text-[15px] font-bold text-white mb-4 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      금액이 큰 지출에 대해 알려주세요
+                    </h4>
+                    <div className="space-y-4">
+                      {summary.aiReport.anomaly_transactions.map((tx) => (
+                        <div key={tx.id} className="bg-white/90 rounded-2xl p-4 text-gray-800 shadow-sm transition-all hover:bg-white">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <div className="text-[13px] font-bold text-gray-500">{tx.merchant_name}</div>
+                              <div className="text-[15px] font-black">{tx.transaction_amount.toLocaleString()}원</div>
+                            </div>
+                            {tx.justification && (
+                              <span className="bg-blue-100 text-blue-600 text-[10px] px-2 py-0.5 rounded-full font-bold">소명 완료</span>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              defaultValue={tx.justification || ''}
+                              placeholder="이 지출은 어떤 성격인가요?"
+                              className="flex-1 bg-gray-100 border-none rounded-xl px-4 py-2 text-[13px] font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleJustify(tx.id, (e.target as HTMLInputElement).value);
+                                }
+                              }}
+                            />
+                            <button 
+                              onClick={(e) => {
+                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                                handleJustify(tx.id, input.value);
+                              }}
+                              className="bg-blue-600 text-white text-[12px] font-bold px-4 py-2 rounded-xl hover:bg-blue-700 transition shrink-0 shadow-md shadow-blue-200"
+                            >
+                              소명
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

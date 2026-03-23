@@ -18,10 +18,12 @@ public class CardTransactionResponse {
     @Getter
     @Builder
     public static class TransactionItem {
+        private Long id;
         private String categoryName;
         private String merchantName;
         private String transactionDate;
         private String transactionTime;
         private String transactionAmount;
+        private String justification;
     }
 }

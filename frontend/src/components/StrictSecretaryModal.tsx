@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import StrictSecretaryForm from '@/components/StrictSecretaryForm';
 import StrictSecretaryLanding from '@/components/StrictSecretaryLanding';
 import StrictSecretaryResult, { type AIResultData } from '@/components/StrictSecretaryResult';
+import { evaluatePurchase, getTtsAudio } from '@/features/ai/spending-judgment/api/strictSecretaryApi';
 import PRImage from '@/assets/PR.png';
 import './StrictSecretaryModal.css';
 
@@ -32,17 +33,8 @@ export default function StrictSecretaryModal() {
   };
 
   const prefetchTts = (text: string) => {
-    fetch('http://localhost:8000/api/v1/strict-secretary/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('TTS 생성 실패');
-        return res.blob();
-      })
-      .then((blob) => {
-        const url = URL.createObjectURL(blob);
+    getTtsAudio(text)
+      .then((url) => {
         ttsAudioUrlRef.current = url;
         setTtsAudioUrl(url);
       })
@@ -63,21 +55,12 @@ export default function StrictSecretaryModal() {
     ttsAudioUrlRef.current = null;
     setTtsAudioUrl(null);
 
-    fetch('http://localhost:8000/api/v1/strict-secretary', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_name: 'Kim Minsoo',
-        item_text: data.item_text,
-        item_link: data.item_link,
-        user_reason: data.user_reason,
-      }),
+    evaluatePurchase({
+      item_text: data.item_text,
+      item_link: data.item_link,
+      user_reason: data.user_reason,
     })
-      .then((res) => {
-        if (!res.ok) throw new Error('API 요청 실패');
-        return res.json();
-      })
-      .then((result: AIResultData) => {
+      .then((result) => {
         isApiResolvedRef.current = true;
         currentAiDataRef.current = result;
 

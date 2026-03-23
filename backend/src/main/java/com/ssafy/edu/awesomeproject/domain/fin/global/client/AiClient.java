@@ -15,5 +15,8 @@ public interface AiClient {
     StrictSecretaryResponse evaluatePurchase(@RequestBody StrictSecretaryRequest request);
 
     @PostExchange("/api/v1/strict-sec/tts")
-    byte[] getTtsAudio(@RequestBody com.ssafy.edu.awesomeproject.domain.fin.secretary.dto.request.TtsRequest request);
+    byte[] getTtsAudio(
+            @RequestBody
+                    com.ssafy.edu.awesomeproject.domain.fin.secretary.dto.request.TtsRequest
+                            request);
 }

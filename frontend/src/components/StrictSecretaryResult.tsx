@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import './StrictSecretaryResult.css';
+import axiosInstance from '@/shared/api/axiosInstance';
 import ApprovedImg from '@/assets/approved.mp4';
 import RejectedImg from '@/assets/rejected.mp4';
 
@@ -74,14 +75,11 @@ export default function StrictSecretaryResult({
     // audioUrl이 없으면 직접 TTS API 호출 (fallback)
     setTtsState('loading');
     try {
-      const res = await fetch('http://localhost:8000/api/v1/strict-secretary/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: data.fact_violence_comment }),
-      });
-      if (!res.ok) throw new Error('TTS 요청 실패');
-
-      const blob = await res.blob();
+      const { data: blob } = await axiosInstance.post(
+        '/fin/strict-secretary/tts',
+        { text: data.fact_violence_comment },
+        { responseType: 'blob' }
+      );
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audio.onended = () => {

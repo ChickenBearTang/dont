@@ -18,5 +18,11 @@ export interface SpendingSummaryResponse {
       actionable_solutions: string[];
       llm_advice?: string;
     };
+    anomaly_transactions: {
+      id: number;
+      merchant_name: string;
+      transaction_amount: number;
+      justification?: string;
+    }[];
   };
 }

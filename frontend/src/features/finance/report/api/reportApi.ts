@@ -9,3 +9,11 @@ export const getSpendingSummary = async (
     params: { startDate, endDate },
   });
 };
+export const updateJustification = async (
+  transactionId: number,
+  justification: string
+): Promise<void> => {
+  return await axiosInstance.post(`/fin/cards/transactions/${transactionId}/justification`, {
+    justification,
+  });
+};

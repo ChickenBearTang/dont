@@ -1,8 +1,8 @@
 package com.ssafy.edu.awesomeproject.domain.fin.secretary.dto.request;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 @Getter
 @NoArgsConstructor

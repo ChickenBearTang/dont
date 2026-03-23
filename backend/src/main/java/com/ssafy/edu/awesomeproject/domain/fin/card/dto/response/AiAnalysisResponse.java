@@ -2,9 +2,9 @@ package com.ssafy.edu.awesomeproject.domain.fin.card.dto.response;
 
 import java.util.List;
 import java.util.Map;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 
 @Getter
 @NoArgsConstructor

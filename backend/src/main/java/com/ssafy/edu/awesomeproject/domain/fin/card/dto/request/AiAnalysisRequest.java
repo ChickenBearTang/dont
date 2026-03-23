@@ -33,6 +33,7 @@ public class AiAnalysisRequest {
         private String transaction_type;
         private String approval_no;
         private String description;
+        private String justification;
     }
 
     @Getter
