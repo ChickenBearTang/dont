@@ -13,6 +13,10 @@ FRONTEND_STATUS=$?
 echo "---------------------------------------"
 echo "2/2 백엔드(Spring Boot) 포맷팅..."
 cd ../backend || exit 1
+if [ -d "/c/Program Files/Java/jdk-21.0.10" ]; then
+  export JAVA_HOME="/c/Program Files/Java/jdk-21.0.10"
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
 if [ -f "gradle/wrapper/gradle-wrapper.jar" ] && [ -f "gradlew" ]; then
   ./gradlew --no-daemon spotlessApply
   BACKEND_STATUS=$?
