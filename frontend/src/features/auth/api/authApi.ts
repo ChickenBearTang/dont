@@ -1,6 +1,11 @@
 import axios from 'axios';
 import axiosInstance from '@/shared/api/axiosInstance';
 import type {
+  EmailAvailabilityResponseData,
+  EmailVerificationConfirmPayload,
+  EmailVerificationConfirmResponseData,
+  EmailVerificationSendPayload,
+  EmailVerificationSendResponseData,
   LoginRequestPayload,
   LoginResponseData,
   SignUpRequestPayload,
@@ -49,4 +54,24 @@ export const signup = async (
   data: SignUpRequestPayload
 ): Promise<ApiResponse<SignUpResponseData>> => {
   return await axiosInstance.post('/auth/signup', data);
+};
+
+export const sendEmailVerificationCode = async (
+  data: EmailVerificationSendPayload
+): Promise<ApiResponse<EmailVerificationSendResponseData>> => {
+  return await axiosInstance.post('/auth/email-verification/send', data);
+};
+
+export const confirmEmailVerificationCode = async (
+  data: EmailVerificationConfirmPayload
+): Promise<ApiResponse<EmailVerificationConfirmResponseData>> => {
+  return await axiosInstance.post('/auth/email-verification/confirm', data);
+};
+
+export const checkEmailAvailability = async (
+  email: string
+): Promise<ApiResponse<EmailAvailabilityResponseData>> => {
+  return await axiosInstance.get('/auth/check-email', {
+    params: { email },
+  });
 };

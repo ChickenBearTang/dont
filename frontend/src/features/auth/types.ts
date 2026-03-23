@@ -39,19 +39,36 @@ export interface AuthResponse {
 
 export interface SignUpRequestPayload {
   email: string;
-  password?: string;
-  realName: string;
+  password: string;
+  name: string;
   birthDate: string;
-  nickname: string;
   cohortId: number;
   termsAgreed: boolean;
 }
 
-export interface SignUpResponseData {
-  userId: number;
+export type SignUpResponseData = null;
+
+export interface EmailVerificationSendPayload {
   email: string;
-  nickname: string;
-  onboardingRequired: boolean;
-  onboardingStatus: string;
-  createdAt: string;
+}
+
+export interface EmailVerificationSendResponseData {
+  email: string;
+  expiresInSeconds: number;
+}
+
+export interface EmailVerificationConfirmPayload {
+  email: string;
+  code: string;
+}
+
+export interface EmailVerificationConfirmResponseData {
+  email: string;
+  verified: boolean;
+  verifiedExpiresInSeconds: number;
+}
+
+export interface EmailAvailabilityResponseData {
+  email: string;
+  available: boolean;
 }
