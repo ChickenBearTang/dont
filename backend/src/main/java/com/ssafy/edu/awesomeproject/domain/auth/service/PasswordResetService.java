@@ -11,53 +11,65 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PasswordResetService {
     private static final int RESET_CODE_LENGTH = 6;
-    private static final Duration RESET_CODE_TTL = Duration.ofMinutes(10);
 
     private final UserRepository userRepository;
     private final PasswordHashService passwordHashService;
     private final PasswordResetTokenStore passwordResetTokenStore;
     private final PasswordResetEmailSender passwordResetEmailSender;
     private final RefreshTokenStore refreshTokenStore;
+    private final AuthCodeRateLimitService authCodeRateLimitService;
+    private final Duration resetCodeTimeToLive;
 
     public PasswordResetService(
             UserRepository userRepository,
             PasswordHashService passwordHashService,
             PasswordResetTokenStore passwordResetTokenStore,
             PasswordResetEmailSender passwordResetEmailSender,
-            RefreshTokenStore refreshTokenStore) {
+            RefreshTokenStore refreshTokenStore,
+            AuthCodeRateLimitService authCodeRateLimitService,
+            @Value("${auth.password-reset.code-ttl-seconds}") long resetCodeTtlSeconds) {
         this.userRepository = userRepository;
         this.passwordHashService = passwordHashService;
         this.passwordResetTokenStore = passwordResetTokenStore;
         this.passwordResetEmailSender = passwordResetEmailSender;
         this.refreshTokenStore = refreshTokenStore;
+        this.authCodeRateLimitService = authCodeRateLimitService;
+        this.resetCodeTimeToLive = Duration.ofSeconds(resetCodeTtlSeconds);
     }
 
     public RequestResult requestReset(String email) {
         String normalizedEmail = normalizeEmail(email);
+
+        authCodeRateLimitService.checkSendLimit(AuthCodePurpose.PASSWORD_RESET, normalizedEmail);
 
         userRepository
                 .findByEmail(normalizedEmail)
                 .ifPresent(
                         user -> {
                             String code = generateCode();
-                            passwordResetTokenStore.saveCode(normalizedEmail, code, RESET_CODE_TTL);
+                            passwordResetTokenStore.saveCode(
+                                    normalizedEmail, code, resetCodeTimeToLive);
+                            authCodeRateLimitService.clearVerificationFailures(
+                                    AuthCodePurpose.PASSWORD_RESET, normalizedEmail);
                             try {
                                 passwordResetEmailSender.sendResetCode(
-                                        normalizedEmail, code, RESET_CODE_TTL);
+                                        normalizedEmail, code, resetCodeTimeToLive);
                             } catch (RuntimeException exception) {
                                 passwordResetTokenStore.removeCode(normalizedEmail);
                                 throw exception;
                             }
                         });
 
-        // 계정 존재 여부를 노출하지 않기 위해 동일 응답을 반환한다.
-        return new RequestResult("입력한 이메일로 비밀번호 재설정 안내를 전송했습니다.", RESET_CODE_TTL.getSeconds());
+        return new RequestResult(
+                "입력한 이메일로 비밀번호 재설정 코드를 전송했습니다.",
+                resetCodeTimeToLive.getSeconds());
     }
 
     @Transactional
@@ -74,6 +86,13 @@ public class PasswordResetService {
         if (!MessageDigest.isEqual(
                 savedCode.getBytes(StandardCharsets.UTF_8),
                 normalizedCode.getBytes(StandardCharsets.UTF_8))) {
+            boolean limitExceeded =
+                    authCodeRateLimitService.registerVerificationFailure(
+                            AuthCodePurpose.PASSWORD_RESET, normalizedEmail);
+            if (limitExceeded) {
+                passwordResetTokenStore.removeCode(normalizedEmail);
+                throw new AuthException(AuthErrorCode.PASSWORD_RESET_ATTEMPTS_EXCEEDED);
+            }
             throw new AuthException(AuthErrorCode.PASSWORD_RESET_CODE_INVALID);
         }
 
@@ -85,6 +104,8 @@ public class PasswordResetService {
 
         user.changePassword(passwordHashService.encode(newPassword));
         passwordResetTokenStore.removeCode(normalizedEmail);
+        authCodeRateLimitService.clearVerificationFailures(
+                AuthCodePurpose.PASSWORD_RESET, normalizedEmail);
         refreshTokenStore.deleteByUserId(user.getId());
 
         return new ConfirmResult(true);
