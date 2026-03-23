@@ -10,9 +10,12 @@ import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBank
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiAnalysisRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.AiAnalysisResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.CardRecommendationRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardRecommendationResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.Card;
+import java.time.YearMonth;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
@@ -490,6 +493,41 @@ public class CardService {
                 String timestamp = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                 int randomNo = new Random().nextInt(900000) + 100000;
                 return timestamp + randomNo;
+        }
+
+        @Transactional(readOnly = true)
+        public CardRecommendationResponse getCardRecommendation(Long userId, String monthStr) {
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+                YearMonth targetMonth = YearMonth.parse(monthStr);
+                LocalDate start = targetMonth.atDay(1);
+                LocalDate end = targetMonth.atEndOfMonth();
+
+                List<CardTransaction> transactions = cardTransactionRepository
+                                .findByUserIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+                                                userId, start, end);
+
+                List<CardRecommendationRequest.TransactionDto> rawData = transactions.stream()
+                                .map(tx -> CardRecommendationRequest.TransactionDto.builder()
+                                                .storeName(tx.getMerchantName())
+                                                .amount(tx.getTransactionAmount())
+                                                .category(tx.getCategoryName())
+                                                .build())
+                                .collect(Collectors.toList());
+
+                CardRecommendationRequest request = CardRecommendationRequest.builder()
+                                .user_name(user.getName())
+                                .month(monthStr)
+                                .raw_data(rawData)
+                                .build();
+
+                try {
+                        return aiClient.getCardRecommendation(request);
+                } catch (Exception e) {
+                        System.err.println("AI Card Recommendation failed: " + e.getMessage());
+                        return null; // 프론트의 우회 처리를 위해 null 반환
+                }
         }
 
         @Transactional

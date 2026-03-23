@@ -77,3 +77,29 @@ export interface AiReportResponse {
   data: AiReportData;
   timestamp: string;
 }
+
+export interface Persona {
+  type_id: string;
+  name: string;
+  description: string;
+  total_amount: number;
+  count: number;
+  score: number;
+}
+
+export interface CardResult {
+  card_id: number;
+  name: string;
+  main_text: string;
+  sub_text: string[];
+  estimated_savings: number;
+  picking_rate: number;
+  comment: string;
+}
+
+export interface CardRecommendationResponse {
+  user_persona: Persona;
+  best_card: CardResult;
+  all_cards: CardResult[];
+  total_spend: number;
+}

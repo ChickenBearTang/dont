@@ -5,7 +5,8 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-DATA_DIR = BASE_DIR / "data"
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
+DATA_DIR = PROJECT_ROOT / "ai" / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 GENERATED_DATA_DIR = DATA_DIR / "generated"
 FRONTEND_DIR = BASE_DIR / "frontend"

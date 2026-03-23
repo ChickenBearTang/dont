@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pydantic import BaseModel
+from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +22,17 @@ class ChatRequest(BaseModel):
     month: str
     message: str
     history: list[dict[str, str]] = []
+
+class TransactionDto(BaseModel):
+    storeName: str
+    amount: int
+    category: str
+    subcategory: Optional[str] = ""
+
+class CardRecommendationRequest(BaseModel):
+    user_name: Optional[str] = None
+    month: str
+    raw_data: List[TransactionDto]
 
 
 @app.get("/health")
@@ -108,5 +120,26 @@ def get_recommendation(
 ) -> dict:
     try:
         return service.get_card_recommendation(user_name=user_name, month=month)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/recommendation/calculate")
+def calculate_recommendation(req: CardRecommendationRequest) -> dict:
+    try:
+        # Pydantic v1, v2 호환성을 위해 dict 변환
+        raw_data = [tx.dict() if hasattr(tx, "dict") else dict(tx) for tx in req.raw_data]
+        
+        from consumption_poc.recommendation import AIConsumptionEngine
+        from consumption_poc.config import RAW_DATA_DIR
+        import json
+        
+        with open(RAW_DATA_DIR / "persons.json", "r", encoding="utf-8") as f:
+            personas = json.load(f)
+        with open(RAW_DATA_DIR / "cards.json", "r", encoding="utf-8") as f:
+            cards_data = json.load(f)
+            
+        engine = AIConsumptionEngine(personas, cards_data)
+        return engine.run(raw_data)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
