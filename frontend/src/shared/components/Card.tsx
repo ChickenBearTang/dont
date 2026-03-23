@@ -6,9 +6,13 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 
 export const Card = ({ children, className = '', ...props }: CardProps) => (
   <div
-    className={`bg-white rounded-[20px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#f0f0f0] transition-transform hover:-translate-y-1 ${className}`}
+    className={`relative bg-glass rounded-[24px] p-7 transition-all duration-300 hover:shadow-[0_12px_44px_rgba(31,38,135,0.08)] hover:-translate-y-1 overflow-hidden group ${className}`}
     {...props}
   >
-    {children}
+    {/* Subtle texture layer that won't overwhelm the eye (very faint dot pattern) */}
+    <div className="absolute inset-0 bg-pattern-dots opacity-[0.6] pointer-events-none mix-blend-overlay"></div>
+
+    {/* Main content pushed above the background */}
+    <div className="relative z-10">{children}</div>
   </div>
 );

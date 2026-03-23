@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Card } from '@/shared/components';
 import { useCurrentMonthSpending } from '../report/hooks/useReportQueries';
 import { useGetMyAccounts, useGetSavingsSetting } from '../account/hooks/useAccountQueries';
 import { ManualSavingsModal } from '../account/components/ManualSavingsModal';
@@ -20,9 +21,9 @@ const CategoryCard: React.FC<{
   const navigate = useNavigate();
 
   return (
-    <div
+    <Card
       onClick={() => navigate(path)}
-      className="group relative bg-white p-10 rounded-[40px] border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500 cursor-pointer overflow-hidden min-h-[300px] flex flex-col justify-start"
+      className="group relative !p-10 !rounded-[40px] cursor-pointer min-h-[300px] flex flex-col justify-start"
     >
       {/* Subtle background accent circle in top-right */}
       <div
@@ -53,7 +54,7 @@ const CategoryCard: React.FC<{
         {/* Dynamic content (e.g., Spending box) */}
         {extraContent && <div className="mt-6">{extraContent}</div>}
       </div>
-    </div>
+    </Card>
   );
 };
 
@@ -109,17 +110,17 @@ export const FinanceHomePage: React.FC = () => {
           isLoading={!spendingData}
           extraContent={
             spendingData && (
-              <div className="bg-white border border-gray-100 rounded-[24px] p-6 shadow-sm flex flex-col items-start gap-1">
+              <Card className="!bg-white/40 !p-6 flex flex-col items-start gap-1 backdrop-blur-sm">
                 <span className="text-[10px] font-black text-eel uppercase tracking-tighter opacity-60">
                   이번 달 총 지출
                 </span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-black text-primary-green">
+                  <span className="text-2xl font-black text-primary-blue">
                     {spendingData.totalAmount.toLocaleString()}
                   </span>
                   <span className="text-sm font-bold text-eel">원</span>
                 </div>
-              </div>
+              </Card>
             )
           }
         />

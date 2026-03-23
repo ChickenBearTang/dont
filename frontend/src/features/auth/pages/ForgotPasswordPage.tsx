@@ -126,81 +126,85 @@ export const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="max-w-[460px] mx-auto rounded-[28px] border border-line-soft bg-surface-base p-8 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-      <h2 className="text-[28px] font-black text-text-strong tracking-tight mb-2">비밀번호 찾기</h2>
-      <p className="text-[14px] text-text-muted font-semibold mb-6">
-        이메일로 받은 코드로 비밀번호를 재설정할 수 있어요.
-      </p>
+    <div className="w-full px-4">
+      <div className="max-w-[460px] mx-auto rounded-[28px] border border-line-soft bg-surface-base p-8 px-6 sm:px-8 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+        <h2 className="text-[28px] font-black text-text-strong tracking-tight mb-2">
+          비밀번호 찾기
+        </h2>
+        <p className="text-[14px] text-text-muted font-semibold mb-6">
+          이메일로 받은 코드로 비밀번호를 재설정할 수 있어요.
+        </p>
 
-      <div className="space-y-2">
-        <Input
-          label="이메일"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="example@test.com"
-          error={email.length > 0 && !isValidEmail}
-          errorMessage="올바른 이메일 형식을 입력해주세요."
-        />
-        <Button onClick={handleRequestCode} disabled={isRequesting} className="mt-2">
-          {isRequesting ? '요청 중...' : '재설정 코드 요청'}
-        </Button>
-      </div>
-
-      {isCodeRequested && (
-        <div className="mt-7 space-y-2">
-          <p className="text-[12px] font-semibold text-text-subtle">
-            코드 유효시간: {formatRemainingTime(Math.max(0, expiresIn))}
-          </p>
+        <div className="space-y-2">
           <Input
-            label="인증 코드"
-            value={code}
-            onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="6자리 코드"
-            maxLength={6}
-            error={code.length > 0 && !/^\d{6}$/.test(code)}
-            errorMessage="인증 코드는 숫자 6자리여야 합니다."
+            label="이메일"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="example@test.com"
+            error={email.length > 0 && !isValidEmail}
+            errorMessage="올바른 이메일 형식을 입력해주세요."
           />
-          <Input
-            label="새 비밀번호"
-            type="password"
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-            placeholder="8자 이상 입력"
-            error={passwordTooShort}
-            errorMessage="비밀번호는 8자 이상이어야 합니다."
-          />
-          <Input
-            label="새 비밀번호 확인"
-            type="password"
-            value={passwordConfirm}
-            onChange={(event) => setPasswordConfirm(event.target.value)}
-            placeholder="비밀번호 다시 입력"
-            error={passwordMismatch}
-            errorMessage="비밀번호가 일치하지 않습니다."
-          />
-          <Button
-            onClick={handleConfirm}
-            disabled={
-              isConfirming ||
-              expiresIn <= 0 ||
-              code.length !== 6 ||
-              passwordTooShort ||
-              passwordMismatch
-            }
-          >
-            {isConfirming ? '변경 중...' : '비밀번호 재설정'}
+          <Button onClick={handleRequestCode} disabled={isRequesting} className="mt-2">
+            {isRequesting ? '요청 중...' : '재설정 코드 요청'}
           </Button>
         </div>
-      )}
 
-      <button
-        type="button"
-        className="mt-6 text-[13px] font-bold text-accent hover:underline"
-        onClick={() => navigate('/login')}
-      >
-        로그인으로 돌아가기
-      </button>
+        {isCodeRequested && (
+          <div className="mt-7 space-y-2">
+            <p className="text-[12px] font-semibold text-text-subtle">
+              코드 유효시간: {formatRemainingTime(Math.max(0, expiresIn))}
+            </p>
+            <Input
+              label="인증 코드"
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="6자리 코드"
+              maxLength={6}
+              error={code.length > 0 && !/^\d{6}$/.test(code)}
+              errorMessage="인증 코드는 숫자 6자리여야 합니다."
+            />
+            <Input
+              label="새 비밀번호"
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              placeholder="8자 이상 입력"
+              error={passwordTooShort}
+              errorMessage="비밀번호는 8자 이상이어야 합니다."
+            />
+            <Input
+              label="새 비밀번호 확인"
+              type="password"
+              value={passwordConfirm}
+              onChange={(event) => setPasswordConfirm(event.target.value)}
+              placeholder="비밀번호 다시 입력"
+              error={passwordMismatch}
+              errorMessage="비밀번호가 일치하지 않습니다."
+            />
+            <Button
+              onClick={handleConfirm}
+              disabled={
+                isConfirming ||
+                expiresIn <= 0 ||
+                code.length !== 6 ||
+                passwordTooShort ||
+                passwordMismatch
+              }
+            >
+              {isConfirming ? '변경 중...' : '비밀번호 재설정'}
+            </Button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="mt-6 text-[13px] font-bold text-accent hover:underline"
+          onClick={() => navigate('/login')}
+        >
+          로그인으로 돌아가기
+        </button>
+      </div>
     </div>
   );
 };

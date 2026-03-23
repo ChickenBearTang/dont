@@ -18,6 +18,7 @@ import type {
 } from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { ReportModal } from '../components/ReportModal';
+import { Card, Button } from '@/shared/components';
 
 interface CommentNode extends CommentSummaryDto {
   children: CommentNode[];
@@ -632,28 +633,25 @@ export const PostDetailPage = () => {
 
   if (loading)
     return (
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden min-h-[600px] flex items-center justify-center p-12">
-        <div className="w-8 h-8 border-4 border-gray-100 border-t-blue-500 rounded-full animate-spin mb-4" />
-      </div>
+      <Card className="!p-0 min-h-[600px] overflow-hidden flex items-center justify-center p-12">
+        <div className="w-8 h-8 border-4 border-primary-blue border-t-transparent rounded-full animate-spin mb-4" />
+      </Card>
     );
   if (error || !post)
     return (
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px] items-center justify-center p-12">
+      <Card className="!p-0 min-h-[600px] overflow-hidden flex flex-col items-center justify-center p-12">
         <p className="text-gray-700 font-bold text-[18px] mb-2">
           {error || '게시글을 찾을 수 없습니다.'}
         </p>
-        <button
-          onClick={() => navigate('/community')}
-          className="mt-4 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm text-[14px]"
-        >
+        <Button onClick={() => navigate('/community')} className="mt-4 !px-6 !py-2.5">
           목록으로 돌아가기
-        </button>
-      </div>
+        </Button>
+      </Card>
     );
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col">
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-4 h-14 flex items-center justify-between border-b border-gray-100">
+    <Card className="!p-0 flex flex-col min-h-[600px] overflow-hidden">
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 h-14 flex items-center justify-between border-b border-gray-100">
         <button
           onClick={() => navigate('/community')}
           className="p-2 -ml-2 text-gray-800 hover:text-black transition-colors"
@@ -734,48 +732,54 @@ export const PostDetailPage = () => {
         </div>
       </div>
 
-      <div className="w-full overflow-y-auto">
-        <div className="px-5 pt-6 flex items-start gap-3 w-full">
+      <div className="w-full overflow-y-auto relative z-10 pb-10">
+        <div className="px-5 pt-6 flex items-start gap-4 w-full">
           <div
-            className={`w-[42px] h-[42px] rounded-full flex items-center justify-center text-white font-bold text-[18px] shrink-0 ${getCategoryDot(post.category)}`}
+            className={`w-[48px] h-[48px] rounded-full flex items-center justify-center text-white font-black text-[20px] shrink-0 ${getCategoryDot(post.category)} shadow-sm`}
           >
             {(post.authorNickname || '?')[0]}
           </div>
-          <div className="pt-0.5">
-            <div className="text-[15px] font-bold text-gray-900 leading-tight">
+          <div className="pt-1">
+            <div className="text-[16px] font-black text-eel leading-tight tracking-tight">
               {post.authorNickname || '알 수 없음'}
             </div>
-            <div className="text-[12px] text-gray-400 font-medium mt-0.5">
+            <div className="text-[13px] text-text-muted font-bold mt-1">
               {formatDate(post.createdAt)}
             </div>
           </div>
         </div>
 
-        <div className="px-5 mt-5">
+        <div className="px-5 mt-6">
           <h1
-            className={`text-[20px] font-bold leading-snug tracking-[-0.01em] whitespace-pre-wrap ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-900'}`}
+            className={`text-[24px] font-black leading-[1.4] tracking-tight whitespace-pre-wrap ${post.status === 'BLINDED' ? 'text-text-muted italic' : 'text-eel'}`}
           >
             {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
           </h1>
           <div
-            className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
+            className={`mt-6 text-[15.5px] leading-[1.8] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-text-muted italic' : 'text-text-strong'}`}
           >
             {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
           </div>
         </div>
 
-        <div className="mt-8 px-5 flex items-center gap-2">
+        <div className="mt-10 px-5 flex items-center gap-2">
           <button
             onClick={() => handleToggleReaction('LIKE')}
             disabled={post.status === 'BLINDED'}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'LIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 transition-all duration-300 font-bold ${
+              post.status === 'BLINDED'
+                ? 'opacity-50 cursor-not-allowed border flex-1 border-line-soft bg-surface-soft text-text-muted shrink-0'
+                : selectedReaction === 'LIKE'
+                  ? 'border border-primary-blue bg-primary-blue/5 text-primary-blue shadow-sm'
+                  : 'border border-line-soft hover:bg-surface-soft text-text-muted'
+            }`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'LIKE' ? 'text-blue-600' : 'text-gray-800'}`}
+              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-text-muted' : selectedReaction === 'LIKE' ? 'text-primary-blue' : 'text-text-muted'}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth="2.5"
             >
               <path
                 strokeLinecap="round"
@@ -783,19 +787,21 @@ export const PostDetailPage = () => {
                 d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
               />
             </svg>
-            <span
-              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'LIKE' ? 'text-blue-700' : 'text-gray-700'}`}
-            >
-              좋아요 {post.likeCount}
-            </span>
+            <span className="text-[13px]">좋아요 {post.likeCount}</span>
           </button>
           <button
             onClick={() => handleToggleReaction('DISLIKE')}
             disabled={post.status === 'BLINDED'}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'DISLIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 transition-all duration-300 font-bold ${
+              post.status === 'BLINDED'
+                ? 'opacity-50 cursor-not-allowed border border-line-soft bg-surface-soft text-text-muted shrink-0'
+                : selectedReaction === 'DISLIKE'
+                  ? 'border border-error-red bg-error-red/5 text-error-red shadow-sm'
+                  : 'border border-line-soft hover:bg-surface-soft text-text-muted'
+            }`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'DISLIKE' ? 'text-blue-600' : 'text-gray-800'}`}
+              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-text-muted' : selectedReaction === 'DISLIKE' ? 'text-error-red' : 'text-text-muted'}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -807,11 +813,7 @@ export const PostDetailPage = () => {
                 d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"
               />
             </svg>
-            <span
-              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'DISLIKE' ? 'text-blue-700' : 'text-gray-700'}`}
-            >
-              싫어요 {post.dislikeCount}
-            </span>
+            <span className="text-[13px]">싫어요 {post.dislikeCount}</span>
           </button>
         </div>
 
@@ -856,22 +858,22 @@ export const PostDetailPage = () => {
       {post.status !== 'BLINDED' && (
         <form
           onSubmit={handleCommentSubmit}
-          className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-3"
+          className="sticky bottom-0 bg-white/80 backdrop-blur-md border-t border-line-soft px-4 py-3 z-30"
         >
           <div className="flex items-center gap-2">
             <input
               value={commentInput}
               onChange={(e) => setCommentInput(e.target.value)}
               placeholder="댓글을 입력하세요."
-              className="flex-1 h-11 px-4 rounded-full bg-gray-100 text-[14px] outline-none placeholder:text-gray-400"
+              className="flex-1 h-11 px-4 rounded-full bg-surface-soft border-line-soft font-bold text-eel text-[14px] outline-none placeholder:text-text-muted focus:border-primary-blue focus:bg-white transition-all shadow-sm"
             />
-            <button
+            <Button
               type="submit"
               disabled={submittingComment || !commentInput.trim()}
-              className="h-11 px-4 rounded-full bg-blue-600 text-white text-[14px] font-bold disabled:bg-gray-300 transition-colors"
+              className="!rounded-full !px-6"
             >
               등록
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -882,6 +884,6 @@ export const PostDetailPage = () => {
         targetType={reportModalState.targetType}
         targetId={reportModalState.targetId}
       />
-    </div>
+    </Card>
   );
 };
