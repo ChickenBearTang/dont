@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetSavingsSetting, useGetMyAccounts } from '../hooks/useAccountQueries';
 import { useSaveSavingsSetting } from '../hooks/useAccountMutations';
@@ -16,28 +16,27 @@ export const SavingsRuleSetupPage: React.FC = () => {
   // Primary: First non-savebox account
   // Savebox: First account with '세이브박스' in name or type
   const primaryAccount = accounts?.find(
-    (a) => !a.accountName.includes('세이브박스') && !a.accountTypeName.includes('세이브박스')
+    (a) =>
+      !(a.accountName?.includes('세이브박스') ?? false) &&
+      !(a.accountTypeName?.includes('세이브박스') ?? false)
   );
   const saveboxAccount = accounts?.find(
-    (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
+    (a) =>
+      (a.accountName?.includes('세이브박스') ?? false) ||
+      (a.accountTypeName?.includes('세이브박스') ?? false)
   );
 
   const isFetching = isFetchingSetting || isFetchingAccounts;
 
   // Form states
-  const [keyword, setKeyword] = useState('');
-  const [amount, setAmount] = useState<number>(0);
-  const [isActive, setIsActive] = useState(true);
+  const [keywordDraft, setKeywordDraft] = useState<string | null>(null);
+  const [amountDraft, setAmountDraft] = useState<number | null>(null);
+  const [isActiveDraft, setIsActiveDraft] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Load existing settings into form
-  useEffect(() => {
-    if (initialSetting) {
-      setKeyword(initialSetting.keyword || '');
-      setAmount(initialSetting.savingsAmount || 0);
-      setIsActive(initialSetting.isActive ?? true);
-    }
-  }, [initialSetting]);
+  const keyword = keywordDraft ?? initialSetting?.keyword ?? '';
+  const amount = amountDraft ?? initialSetting?.savingsAmount ?? 0;
+  const isActive = isActiveDraft ?? initialSetting?.isActive ?? true;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +53,9 @@ export const SavingsRuleSetupPage: React.FC = () => {
     }
 
     if (!primaryAccount || !saveboxAccount) {
-      setError('주계좌 또는 세이브박스를 찾을 수 없습니다. 세이브박스가 개설되어 있는지 확인해 주세요.');
+      setError(
+        '주계좌 또는 세이브박스를 찾을 수 없습니다. 세이브박스가 개설되어 있는지 확인해 주세요.'
+      );
       return;
     }
 
@@ -95,11 +96,13 @@ export const SavingsRuleSetupPage: React.FC = () => {
           Auto Savings
         </div>
         <h1 className="text-3xl lg:text-4xl font-black text-eel mb-4 tracking-tight">
-          어떤 결제를 할 때마다<br />
+          어떤 결제를 할 때마다
+          <br />
           <span className="text-primary-blue">자동으로 저축</span>할까요?
         </h1>
         <p className="text-gray font-medium">
-          자주 이용하는 결제 키워드를 등록하면,<br />
+          자주 이용하는 결제 키워드를 등록하면,
+          <br />
           해당 결제가 발생할 때마다 정해진 금액을 세이브박스에 모아드려요.
         </p>
       </div>
@@ -113,7 +116,7 @@ export const SavingsRuleSetupPage: React.FC = () => {
             <input
               type="text"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => setKeywordDraft(e.target.value)}
               placeholder="예: 커피, 택시, 배달의민족"
               className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-blue/30 transition-all font-bold text-eel placeholder:text-gray-300"
             />
@@ -130,11 +133,16 @@ export const SavingsRuleSetupPage: React.FC = () => {
             <input
               type="number"
               value={amount || ''}
-              onChange={(e) => setAmount(Number(e.target.value))}
+              onChange={(e) => {
+                const nextValue = e.target.value;
+                setAmountDraft(nextValue === '' ? 0 : Number(nextValue));
+              }}
               placeholder="0"
               className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-blue/30 transition-all font-black text-2xl text-primary-blue text-right pr-12"
             />
-            <span className="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-eel text-lg">원</span>
+            <span className="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-eel text-lg">
+              원
+            </span>
           </div>
         </div>
 
@@ -146,7 +154,7 @@ export const SavingsRuleSetupPage: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={() => setIsActive(!isActive)}
+            onClick={() => setIsActiveDraft(!isActive)}
             className={`w-14 h-8 rounded-full transition-all duration-500 relative ${
               isActive ? 'bg-primary-blue shadow-lg shadow-blue-200' : 'bg-gray-200'
             }`}
