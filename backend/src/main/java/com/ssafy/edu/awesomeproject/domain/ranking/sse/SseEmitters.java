@@ -1,14 +1,13 @@
 package com.ssafy.edu.awesomeproject.domain.ranking.sse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
@@ -22,22 +21,25 @@ public class SseEmitters {
     // 클라이언트 커넥션 추가
     public SseEmitter add(Long userId, SseEmitter emitter) {
         this.emitters.put(userId, emitter);
-        
+
         log.info("새로운 SSE 연결 추가! User={}, 현재 총 접속자 수 = {}", userId, this.emitters.size());
-        
+
         // 브라우저 닫힘, 시간 초과, 네트워크 에러 발생 시 메모리 누수를 막기 위한 콜백
-        emitter.onCompletion(() -> {
-            log.info("SSE 완료 처리됨 (User: {})", userId);
-            this.emitters.remove(userId);
-        });
-        emitter.onTimeout(() -> {
-            log.info("SSE 타임아웃 발생 (User: {})", userId);
-            emitter.complete();
-        });
-        emitter.onError((e) -> {
-            log.error("SSE 에러 발생 (User: {})", userId, e);
-            emitter.complete();
-        });
+        emitter.onCompletion(
+                () -> {
+                    log.info("SSE 완료 처리됨 (User: {})", userId);
+                    this.emitters.remove(userId);
+                });
+        emitter.onTimeout(
+                () -> {
+                    log.info("SSE 타임아웃 발생 (User: {})", userId);
+                    emitter.complete();
+                });
+        emitter.onError(
+                (e) -> {
+                    log.error("SSE 에러 발생 (User: {})", userId, e);
+                    emitter.complete();
+                });
 
         return emitter;
     }
@@ -53,9 +55,7 @@ public class SseEmitters {
                     (userId, emitter) -> {
                         try {
                             emitter.send(
-                                    SseEmitter.event()
-                                            .name("ranking-update")
-                                            .data(jsonPayload));
+                                    SseEmitter.event().name("ranking-update").data(jsonPayload));
                         } catch (IOException e) {
                             // 클라이언트와의 연결이 물리적으로 끊어진 경우 소켓을 제거
                             log.info("SSE 발송 중 IO 예외 발생 (Client 연결 끊김) - 제거: User {}", userId);
