@@ -26,7 +26,7 @@ public class LoginService {
     public LoginResult login(String email, String password) {
         User user =
                 userRepository
-                        .findByEmail(email)
+                        .findActiveByEmail(email)
                         .orElseThrow(() -> new AuthException(AuthErrorCode.BAD_CREDENTIALS));
 
         if (!passwordHashService.matches(password, user.getPassword())) {
