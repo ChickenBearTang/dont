@@ -5,7 +5,6 @@ import {
   generateMonthlyAiReport,
   sendAiJustification,
   regenerateAiReport,
-  updateJustification,
 } from '../api/reportApi';
 import type { SpendingSummaryResponse, SpendingSummaryRank, AiReportPayload } from '../types';
 
@@ -284,9 +283,9 @@ const ReportChatbot = ({
 
       // Dummy fallback logic if no actual response is set yet
       const aiResponse = String(
-        data?.aiResponse || '설득력이 있는 내용이네요. 내용을 검토하겠습니다.'
+        data?.ai_response ?? data?.aiResponse ?? '설득력이 있는 내용이네요. 내용을 검토하겠습니다.'
       );
-      const valid = Boolean(data?.valid || false);
+      const valid = Boolean(data?.is_valid ?? data?.valid ?? false);
 
       setMessages((prev) => [...prev, { sender: 'ai', text: aiResponse }]);
 
@@ -574,20 +573,6 @@ export const MonthlyReportPage = () => {
 
   const handleNextMonth = () => {
     setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  };
-
-  const handleJustify = async (transactionId: number, text: string) => {
-    try {
-      await updateJustification(transactionId, text);
-      alert('소명이 성공적으로 저장되었습니다. 다음 분석에 반영됩니다!');
-      // 데이터 새로고침
-      const { startDate, endDate } = getMonthRange(currentDate);
-      const res = await getSpendingSummary(startDate, endDate);
-      setSummary(res);
-    } catch (err) {
-      console.error('Justification failed:', err);
-      alert('소명 저장에 실패했습니다.');
-    }
   };
 
   return (

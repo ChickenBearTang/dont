@@ -7,7 +7,7 @@ interface StrictSecretaryLandingProps {
   onClose: () => void;
 }
 
-export default function StrictSecretaryLanding({ onVideoEnded, onClose }: StrictSecretaryLandingProps) {
+export default function StrictSecretaryLanding({ onVideoEnded }: StrictSecretaryLandingProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(false);
 

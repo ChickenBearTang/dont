@@ -32,8 +32,8 @@ export const sendAiJustification = async (
   return await axiosInstance.post(
     '/fin/consumption/reports/justifications/evaluate',
     {
-      targetMonth,
-      message,
+      target_month: targetMonth,
+      user_message: message,
     },
     { timeout: 30000 }
   );
@@ -48,11 +48,4 @@ export const regenerateAiReport = async (reportMonth: string): Promise<AiReportR
     { timeout: 30000 }
   );
 };
-export const updateJustification = async (
-  transactionId: number,
-  justification: string
-): Promise<void> => {
-  return await axiosInstance.post(`/fin/cards/transactions/${transactionId}/justification`, {
-    justification,
-  });
-};
+
