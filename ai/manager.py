@@ -4,6 +4,7 @@ from typing import Any, Callable
 
 from ai.crawler.base import Crawler
 from ai.models import CrawlResult
+from ai.xai.types import XAIContracts
 
 
 class AIPipelineManager:
@@ -23,7 +24,10 @@ class AIPipelineManager:
             return self.analyzer(crawl_result)
         except Exception:
             return {
-                "errors": [{"code": "ANALYZER_FAILED", "message": "분석기 실행에 실패했습니다"}],
+                "errors": [
+                    {"code": "ANALYZER_FAILED", "message": "분석기 실행에 실패했습니다"}
+                ],
                 "crawl": {"source": crawl_result.source, "items": []},
-                "schema_version": "1.0",
+                "schema_version": XAIContracts.SCHEMA_VERSION,
+                "spec_version": XAIContracts.SPEC_VERSION,
             }

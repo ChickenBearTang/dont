@@ -33,19 +33,36 @@ def _default_dsn() -> str:
 class AIPipelineApplication:
     def parse_args(self, argv: list[str] | None) -> argparse.Namespace:
         parser = argparse.ArgumentParser(prog="python -m ai")
-        parser.add_argument("--xai", action="store_true", help="Enable explainability output")
+        parser.add_argument(
+            "--xai",
+            action="store_true",
+            help=(
+                "Enable Explainable AI (XAI) output with schema_version, "
+                "explanations, and analysis payload fields"
+            ),
+        )
         parser.add_argument(
             "--top-k",
             type=_positive_int,
             default=3,
             help="Number of explanation reasons per item (must be > 0)",
         )
-        parser.add_argument("--real-crawl", action="store_true", help="Fetch data from real source")
-        parser.add_argument("--persist-db", action="store_true", help="Persist crawled data into PostgreSQL")
-        parser.add_argument("--db-url", default=_default_dsn(), help="PostgreSQL DSN for persistence")
+        parser.add_argument(
+            "--real-crawl", action="store_true", help="Fetch data from real source"
+        )
+        parser.add_argument(
+            "--persist-db",
+            action="store_true",
+            help="Persist crawled data into PostgreSQL",
+        )
+        parser.add_argument(
+            "--db-url", default=_default_dsn(), help="PostgreSQL DSN for persistence"
+        )
         parser.add_argument("--current-balance", type=float, default=1500000.0)
         parser.add_argument("--emergency-fund-balance", type=float, default=600000.0)
-        parser.add_argument("--expected-card-payment-amount", type=float, default=200000.0)
+        parser.add_argument(
+            "--expected-card-payment-amount", type=float, default=200000.0
+        )
         parser.add_argument("--days-until-card-due", type=int, default=14)
         return parser.parse_args(argv)
 
@@ -66,7 +83,9 @@ class AIPipelineApplication:
             "expected_card_payment_amount": args.expected_card_payment_amount,
             "days_until_card_due": args.days_until_card_due,
         }
-        analyzer = analyzer_module.ExplainabilityAnalyzer(finance_profile=finance_profile)
+        analyzer = analyzer_module.ExplainabilityAnalyzer(
+            finance_profile=finance_profile
+        )
 
         store = None
         if args.persist_db:
@@ -76,6 +95,7 @@ class AIPipelineApplication:
         def analyze_with_optional_persistence(result: CrawlResult) -> dict[str, Any]:
             window_stats: dict[str, dict[str, float | int | None]] | None = None
             db_save: dict[str, int] | None = None
+            reason_top_k = min(args.top_k, 4)
             if store is not None:
                 save_stats = store.save_result(result)
                 window_stats = store.read_window_stats()
@@ -84,7 +104,11 @@ class AIPipelineApplication:
                     "updated": int(save_stats.updated),
                 }
 
-            analyzed = analyzer.analyze_crawl_result(result, top_k=args.top_k, window_stats=window_stats)
+            analyzed = analyzer.analyze_crawl_result(
+                result,
+                top_k=reason_top_k,
+                window_stats=window_stats,
+            )
             if db_save is not None:
                 analyzed["db_save"] = db_save
             return analyzed
@@ -109,10 +133,14 @@ class AIPipelineApplication:
             raise TypeError("Expected analyzer output dict when --xai is enabled")
 
         crawl_candidate = analysis.get("crawl")
-        crawl: dict[str, Any] = crawl_candidate if isinstance(crawl_candidate, dict) else {}
+        crawl: dict[str, Any] = (
+            crawl_candidate if isinstance(crawl_candidate, dict) else {}
+        )
 
         explanations_candidate = crawl.get("items")
-        explanations: list[Any] = explanations_candidate if isinstance(explanations_candidate, list) else []
+        explanations: list[Any] = (
+            explanations_candidate if isinstance(explanations_candidate, list) else []
+        )
 
         source_candidate = crawl.get("source")
         source = source_candidate if isinstance(source_candidate, str) else ""

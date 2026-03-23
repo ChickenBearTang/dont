@@ -27,4 +27,9 @@
 
 # 주요 기능
 
+## Explainable AI (XAI)
+
+본 프로젝트의 XAI는 외부 서비스/브랜드명이 아니라 **Explainable AI(설명 가능한 AI)** 를 의미합니다.
+`python -m ai --xai` 실행 시 의사결정 근거를 포함한 설명 페이로드(`schema_version`, `explanations`, `analysis`)를 출력합니다.
+
 # ERD

@@ -6,9 +6,12 @@ import unittest
 
 from ai import AIPipelineManager
 from ai.models import CrawlResult, HotDeal
+from ai.xai.types import XAIContracts
 
 
-ExplainabilityAnalyzer = importlib.import_module("ai.xai.analyzer").ExplainabilityAnalyzer
+ExplainabilityAnalyzer = importlib.import_module(
+    "ai.xai.analyzer"
+).ExplainabilityAnalyzer
 
 
 class _FakeCrawler:
@@ -43,7 +46,7 @@ class AIPipelineManagerXAITest(unittest.TestCase):
         run_result = manager.run()
 
         self.assertIsInstance(run_result, dict)
-        self.assertEqual(run_result["schema_version"], "1.0")
+        self.assertEqual(run_result["schema_version"], XAIContracts.SCHEMA_VERSION)
         self.assertEqual(run_result["crawl"], {"source": "test-source", "items": []})
         self.assertEqual(
             run_result["errors"],

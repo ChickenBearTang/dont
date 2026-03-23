@@ -23,9 +23,11 @@ class ReasoningEngineTest(unittest.TestCase):
 
         self.assertEqual(first, second)
         self.assertEqual(len(first), 3)
-        self.assertEqual(first[0]["reason_code"], "FEATURE_SIGNAL")
+        self.assertEqual(first[0]["reason_code"], "DECISION_FEATURE_SIGNAL")
         self.assertEqual(first[1]["reason_code"], "PRICE_RELATIVE_TO_30D_AVG")
-        self.assertEqual(first[2]["reason_code"], "SHIPPING_COST_REDUCES_ATTRACTIVENESS")
+        self.assertEqual(
+            first[2]["reason_code"], "PRICE_SHIPPING_COST_REDUCES_ATTRACTIVENESS"
+        )
 
     def test_empty_input_returns_fallback_reason(self) -> None:
         reasons = self.engine.analyze({}, top_k=3)

@@ -54,6 +54,13 @@ class XAISchemaTest(unittest.TestCase):
                 crawl=CrawlExplanation(source="test-source", items=[]),
             )
 
+    def test_invalid_decision_label_is_rejected(self) -> None:
+        item = ItemExplanation(item_id="item-1", decision="BUY")
+        with self.assertRaises(ValueError):
+            item.to_dict(
+                model_version="v1", generated_at=datetime.now(timezone.utc).isoformat()
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

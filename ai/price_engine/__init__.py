@@ -11,7 +11,11 @@ from ai.price_engine.schema_models import (
     RawMerchantOffer,
     RawPostDetail,
 )
-from ai.price_engine.schema_validator import SchemaValidationError, validate_schema_version
+from ai.price_engine.schema_validator import (
+    SchemaValidationError,
+    validate_inference_payload,
+    validate_schema_version,
+)
 
 __all__ = [
     "FEATURE_ALLOWLIST_PHASE1",
@@ -24,5 +28,6 @@ __all__ = [
     "SchemaValidationError",
     "build_price_feature_snapshot_v1",
     "merge_to_price_observation",
+    "validate_inference_payload",
     "validate_schema_version",
 ]

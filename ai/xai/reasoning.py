@@ -19,49 +19,49 @@ class ReasoningEngine:
             source_type="price_signal",
         ),
         "current_price": _ReasonTemplate(
-            code="CURRENT_PRICE_LEVEL",
+            code="PRICE_CURRENT_LEVEL",
             text="Current absolute price level influenced the decision.",
             source_type="price_signal",
         ),
         "coupon_applied": _ReasonTemplate(
-            code="COUPON_DISCOUNT_APPLIED",
+            code="PRICE_COUPON_DISCOUNT_APPLIED",
             text="Coupon discount lowers the effective purchase price.",
             source_type="price_signal",
         ),
         "shipping_fee": _ReasonTemplate(
-            code="SHIPPING_COST_REDUCES_ATTRACTIVENESS",
+            code="PRICE_SHIPPING_COST_REDUCES_ATTRACTIVENESS",
             text="Shipping cost reduces overall deal attractiveness.",
             source_type="price_signal",
         ),
         "recent_30d_spending_growth_rate": _ReasonTemplate(
-            code="RECENT_SPENDING_SURGE",
+            code="FIN_RECENT_SPENDING_SURGE",
             text="Recent spending growth indicates higher budget pressure.",
             source_type="finance_signal",
         ),
         "emergency_fund_balance": _ReasonTemplate(
-            code="EMERGENCY_FUND_TOO_LOW",
+            code="FIN_EMERGENCY_BUFFER_TOO_LOW",
             text="Emergency fund level appears low for this purchase.",
             source_type="finance_signal",
         ),
         "projected_balance_after_purchase": _ReasonTemplate(
-            code="BALANCE_AFTER_PURCHASE_TOO_LOW",
+            code="FIN_BALANCE_AFTER_PURCHASE_TOO_LOW",
             text="Projected post-purchase balance may become too low.",
             source_type="finance_signal",
         ),
         "product_price_vs_monthly_spending": _ReasonTemplate(
-            code="PRICE_TOO_LARGE_VS_MONTHLY_SPENDING",
+            code="FIN_PRICE_TOO_LARGE_VS_MONTHLY_SPENDING",
             text="Item price is high compared with monthly spending.",
             source_type="finance_signal",
         ),
         "days_until_card_due": _ReasonTemplate(
-            code="CARD_DUE_SOON",
+            code="TIME_CARD_DUE_SOON",
             text="Card payment due date is near, increasing cashflow pressure.",
             source_type="finance_signal",
         ),
     }
 
     _UNKNOWN_REASON_TEMPLATE = _ReasonTemplate(
-        code="FEATURE_SIGNAL",
+        code="DECISION_FEATURE_SIGNAL",
         text="Feature contribution influenced the recommendation.",
         source_type="feature_score",
     )
@@ -74,7 +74,9 @@ class ReasoningEngine:
         "source_type": "fallback",
     }
 
-    def analyze(self, feature_scores: dict[str, Any], top_k: int) -> list[dict[str, Any]]:
+    def analyze(
+        self, feature_scores: dict[str, Any], top_k: int
+    ) -> list[dict[str, Any]]:
         if top_k <= 0:
             raise ValueError("top_k must be greater than 0")
 
