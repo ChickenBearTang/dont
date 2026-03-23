@@ -3,6 +3,7 @@ package com.ssafy.edu.awesomeproject.domain.auth.entity;
 import com.ssafy.edu.awesomeproject.common.entity.BaseEntity;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Cohort;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.Getter;
@@ -29,13 +30,12 @@ public class User extends BaseEntity {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
-    @Column(name = "nickname", nullable = false, length = 60)
+    @Column(name = "nickname", length = 60)
     private String nickname;
 
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
-    // 유저의 키를 받아오는용
     @Column(name = "ssafy_finance_user_key", length = 255)
     private String ssafyFinanceUserKey;
 
@@ -45,17 +45,47 @@ public class User extends BaseEntity {
     @Column(name = "terms_agreed_at")
     private LocalDateTime termsAgreedAt;
 
+    @Column(name = "monthly_saving_goal_amount", precision = 15, scale = 2)
+    private BigDecimal monthlySavingGoalAmount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "onboarding_status", length = 20)
+    private OnboardingStatus onboardingStatus = OnboardingStatus.NOT_STARTED;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "user_role", nullable = false, length = 32)
     private UserRole userRole;
 
-    // cohort 매핑을 위한 FK 조건 추가
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cohort_id", nullable = false)
     private Cohort cohort;
 
     public String getUserRole() {
         return userRole.toString();
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public OnboardingStatus getOnboardingStatusOrDefault() {
+        return onboardingStatus != null ? onboardingStatus : OnboardingStatus.NOT_STARTED;
+    }
+
+    public void markOnboardingCompleted() {
+        this.onboardingStatus = OnboardingStatus.COMPLETED;
+    }
+
+    public void markOnboardingInProgress() {
+        this.onboardingStatus = OnboardingStatus.IN_PROGRESS;
+    }
+
+    public void updateMonthlySavingGoalAmount(BigDecimal monthlySavingGoalAmount) {
+        this.monthlySavingGoalAmount = monthlySavingGoalAmount;
+    }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
     }
 
     public User(
@@ -77,6 +107,7 @@ public class User extends BaseEntity {
         this.profileImageUrl = profileImageUrl;
         this.termsAgreed = termsAgreed;
         this.termsAgreedAt = termsAgreedAt;
+        this.onboardingStatus = OnboardingStatus.NOT_STARTED;
         this.userRole = userRole;
         this.cohort = cohort;
     }

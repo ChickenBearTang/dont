@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   createComment,
   deleteComment,
@@ -9,8 +9,15 @@ import {
   toggleReaction,
   updateComment,
 } from '../api/communityApi';
-import type { BoardCategory, CommentSummaryDto, GetPostResponseDto, ReactionType } from '../types';
+import type {
+  BoardCategory,
+  CommentSummaryDto,
+  GetPostResponseDto,
+  ReactionType,
+  ReportTargetType,
+} from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { ReportModal } from '../components/ReportModal';
 
 interface CommentNode extends CommentSummaryDto {
   children: CommentNode[];
@@ -26,6 +33,8 @@ interface CommentItemProps {
   refreshComments: () => Promise<void>;
   setPost: React.Dispatch<React.SetStateAction<GetPostResponseDto | null>>;
   formatDate: (dateStr: string) => string;
+  onReport: (type: ReportTargetType, id: number) => void;
+  highlightedCommentId: number | null;
 }
 
 const CommentItem = ({
@@ -37,7 +46,19 @@ const CommentItem = ({
   refreshComments,
   setPost,
   formatDate,
+  onReport,
+  highlightedCommentId,
 }: CommentItemProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isHighlighted = node.commentId === highlightedCommentId;
+
+  useEffect(() => {
+    if (isHighlighted && containerRef.current) {
+      setTimeout(() => {
+        containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500); // Give some time for the comments to render/load
+    }
+  }, [isHighlighted]);
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
@@ -88,7 +109,7 @@ const CommentItem = ({
   };
 
   const handleToggleCommentReaction = async () => {
-    if (node.isVirtual) return;
+    if (node.isVirtual || node.status === 'BLINDED') return;
     const nextActive = !isLiked;
     try {
       await toggleReaction({
@@ -121,7 +142,10 @@ const CommentItem = ({
 
   return (
     <div
-      className={`flex flex-col ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
+      ref={containerRef}
+      className={`flex flex-col transition-all duration-1000 ${
+        isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
+      } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
     >
       <div className="flex gap-3">
         <div className="w-[34px] h-[34px] bg-gray-100 rounded-full shrink-0 flex justify-center items-center font-bold text-gray-400 text-[14px] overflow-hidden">
@@ -145,16 +169,18 @@ const CommentItem = ({
 
             {!node.isVirtual && isCommentAuthor && (
               <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditing(!isEditing);
-                    setEditContent(node.content);
-                  }}
-                  className="text-[12px] font-medium text-gray-400 hover:text-gray-700"
-                >
-                  {isEditing ? '취소' : '수정'}
-                </button>
+                {node.status !== 'BLINDED' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(!isEditing);
+                      setEditContent(node.content);
+                    }}
+                    className="text-[12px] font-medium text-gray-400 hover:text-gray-700"
+                  >
+                    {isEditing ? '취소' : '수정'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => handleDeleteComment(node.commentId)}
@@ -163,6 +189,15 @@ const CommentItem = ({
                   삭제
                 </button>
               </div>
+            )}
+            {!node.isVirtual && !isCommentAuthor && node.status !== 'BLINDED' && (
+              <button
+                type="button"
+                onClick={() => onReport('COMMENT', node.commentId)}
+                className="text-[12px] font-medium text-gray-300 hover:text-rose-400 transition-colors"
+              >
+                신고
+              </button>
             )}
           </div>
 
@@ -192,9 +227,13 @@ const CommentItem = ({
             </form>
           ) : (
             <div
-              className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual ? 'text-gray-400 italic' : 'text-gray-800'}`}
+              className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual || node.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
             >
-              {node.isVirtual ? '삭제된 댓글입니다.' : node.content}
+              {node.status === 'BLINDED'
+                ? '신고 처리된 댓글입니다.'
+                : node.isVirtual
+                  ? '삭제된 댓글입니다.'
+                  : node.content}
             </div>
           )}
 
@@ -202,7 +241,8 @@ const CommentItem = ({
             <div className="mt-2.5 flex items-center gap-3">
               <button
                 onClick={handleToggleCommentReaction}
-                className="group flex items-center gap-1.5 transition-colors"
+                disabled={node.status === 'BLINDED'}
+                className={`group flex items-center gap-1.5 transition-colors ${node.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isLiked ? (
                   <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
@@ -210,7 +250,7 @@ const CommentItem = ({
                   </svg>
                 ) : (
                   <svg
-                    className="w-4 h-4 text-gray-300 group-hover:text-rose-400"
+                    className={`w-4 h-4 ${node.status === 'BLINDED' ? 'text-gray-200' : 'text-gray-300 group-hover:text-rose-400'}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -224,32 +264,34 @@ const CommentItem = ({
                   </svg>
                 )}
                 <span
-                  className={`text-[12px] font-bold transition-colors ${isLiked ? 'text-rose-600' : 'text-gray-400 group-hover:text-gray-600'}`}
+                  className={`text-[12px] font-bold transition-colors ${node.status === 'BLINDED' ? 'text-gray-300' : isLiked ? 'text-rose-600' : 'text-gray-400 group-hover:text-gray-600'}`}
                 >
                   {node.likeCount || 0}
                 </span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setIsReplying(!isReplying)}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-bold transition-colors ${isReplying ? 'bg-blue-600 text-white' : 'bg-[#EBF5FF] text-[#007AFF] hover:bg-[#D1E9FF]'}`}
-              >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
+              {node.status !== 'BLINDED' && (
+                <button
+                  type="button"
+                  onClick={() => setIsReplying(!isReplying)}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-bold transition-colors ${isReplying ? 'bg-blue-600 text-white' : 'bg-[#EBF5FF] text-[#007AFF] hover:bg-[#D1E9FF]'}`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                <span>답글</span>
-              </button>
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                  <span>답글</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -297,6 +339,8 @@ const CommentItem = ({
             refreshComments={refreshComments}
             setPost={setPost}
             formatDate={formatDate}
+            onReport={onReport}
+            highlightedCommentId={highlightedCommentId}
           />
         ))}
     </div>
@@ -305,6 +349,10 @@ const CommentItem = ({
 
 export const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
+  const [searchParams] = useSearchParams();
+  const highlightedCommentId = searchParams.get('commentId')
+    ? Number(searchParams.get('commentId'))
+    : null;
   const navigate = useNavigate();
 
   const [post, setPost] = useState<GetPostResponseDto | null>(null);
@@ -322,6 +370,24 @@ export const PostDetailPage = () => {
     const saved = localStorage.getItem(reactionStorageKey);
     return saved === 'LIKE' || saved === 'DISLIKE' ? (saved as ReactionType) : null;
   });
+
+  const [reportModalState, setReportModalState] = useState<{
+    isOpen: boolean;
+    targetType: ReportTargetType;
+    targetId: number;
+  }>({
+    isOpen: false,
+    targetType: 'POST',
+    targetId: 0,
+  });
+
+  const onReport = (type: ReportTargetType, id: number) => {
+    setReportModalState({
+      isOpen: true,
+      targetType: type,
+      targetId: id,
+    });
+  };
 
   const currentUser = useAuthStore((state) => state.user);
 
@@ -355,6 +421,7 @@ export const PostDetailPage = () => {
             dislikeCount: 0,
             createdAt: node.createdAt,
             updatedAt: node.createdAt,
+            status: 'DELETED',
             children: [],
             isVirtual: true,
           };
@@ -462,7 +529,7 @@ export const PostDetailPage = () => {
   };
 
   const handleToggleReaction = async (rType: ReactionType) => {
-    if (!postId || !post) return;
+    if (!postId || !post || post.status === 'BLINDED') return;
     const oppositeType: ReactionType = rType === 'LIKE' ? 'DISLIKE' : 'LIKE';
     const isCurrentActive = selectedReaction === rType;
     const isOppositeActive = selectedReaction === oppositeType;
@@ -638,7 +705,31 @@ export const PostDetailPage = () => {
               </div>
             </div>
           ) : (
-            <div className="w-5" />
+            <button
+              type="button"
+              onClick={() => onReport('POST', Number(postId))}
+              className="p-2 -mr-2 text-gray-400 hover:text-rose-500 transition-colors"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2.2"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 18v-6a5 5 0 1 1 10 0v6" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 12h1M12 2v1m-6.5 1.5L4 3M18.5 4.5 20 3M2 12h1"
+                />
+              </svg>
+            </button>
           )}
         </div>
       </div>
@@ -661,21 +752,26 @@ export const PostDetailPage = () => {
         </div>
 
         <div className="px-5 mt-5">
-          <h1 className="text-[20px] font-bold text-gray-900 leading-snug tracking-[-0.01em] whitespace-pre-wrap">
-            {post.title}
+          <h1
+            className={`text-[20px] font-bold leading-snug tracking-[-0.01em] whitespace-pre-wrap ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-900'}`}
+          >
+            {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
           </h1>
-          <div className="mt-4 text-[16px] text-gray-800 leading-[1.65] font-medium whitespace-pre-wrap word-break-all">
-            {post.content}
+          <div
+            className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
+          >
+            {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
           </div>
         </div>
 
         <div className="mt-8 px-5 flex items-center gap-2">
           <button
             onClick={() => handleToggleReaction('LIKE')}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${selectedReaction === 'LIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
+            disabled={post.status === 'BLINDED'}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'LIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${selectedReaction === 'LIKE' ? 'text-blue-600' : 'text-gray-800'}`}
+              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'LIKE' ? 'text-blue-600' : 'text-gray-800'}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -688,17 +784,18 @@ export const PostDetailPage = () => {
               />
             </svg>
             <span
-              className={`text-[13px] font-medium ${selectedReaction === 'LIKE' ? 'text-blue-700' : 'text-gray-700'}`}
+              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'LIKE' ? 'text-blue-700' : 'text-gray-700'}`}
             >
               좋아요 {post.likeCount}
             </span>
           </button>
           <button
             onClick={() => handleToggleReaction('DISLIKE')}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${selectedReaction === 'DISLIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
+            disabled={post.status === 'BLINDED'}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'DISLIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${selectedReaction === 'DISLIKE' ? 'text-blue-600' : 'text-gray-800'}`}
+              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'DISLIKE' ? 'text-blue-600' : 'text-gray-800'}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -711,7 +808,7 @@ export const PostDetailPage = () => {
               />
             </svg>
             <span
-              className={`text-[13px] font-medium ${selectedReaction === 'DISLIKE' ? 'text-blue-700' : 'text-gray-700'}`}
+              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'DISLIKE' ? 'text-blue-700' : 'text-gray-700'}`}
             >
               싫어요 {post.dislikeCount}
             </span>
@@ -738,6 +835,8 @@ export const PostDetailPage = () => {
                   refreshComments={refreshComments}
                   setPost={setPost}
                   formatDate={formatDate}
+                  onReport={onReport}
+                  highlightedCommentId={highlightedCommentId}
                 />
               ))
             )}
@@ -754,26 +853,35 @@ export const PostDetailPage = () => {
         </div>
       </div>
 
-      <form
-        onSubmit={handleCommentSubmit}
-        className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-3"
-      >
-        <div className="flex items-center gap-2">
-          <input
-            value={commentInput}
-            onChange={(e) => setCommentInput(e.target.value)}
-            placeholder="댓글을 입력하세요."
-            className="flex-1 h-11 px-4 rounded-full bg-gray-100 text-[14px] outline-none placeholder:text-gray-400"
-          />
-          <button
-            type="submit"
-            disabled={submittingComment || !commentInput.trim()}
-            className="h-11 px-4 rounded-full bg-blue-600 text-white text-[14px] font-bold disabled:bg-gray-300 transition-colors"
-          >
-            등록
-          </button>
-        </div>
-      </form>
+      {post.status !== 'BLINDED' && (
+        <form
+          onSubmit={handleCommentSubmit}
+          className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-3"
+        >
+          <div className="flex items-center gap-2">
+            <input
+              value={commentInput}
+              onChange={(e) => setCommentInput(e.target.value)}
+              placeholder="댓글을 입력하세요."
+              className="flex-1 h-11 px-4 rounded-full bg-gray-100 text-[14px] outline-none placeholder:text-gray-400"
+            />
+            <button
+              type="submit"
+              disabled={submittingComment || !commentInput.trim()}
+              className="h-11 px-4 rounded-full bg-blue-600 text-white text-[14px] font-bold disabled:bg-gray-300 transition-colors"
+            >
+              등록
+            </button>
+          </div>
+        </form>
+      )}
+
+      <ReportModal
+        isOpen={reportModalState.isOpen}
+        onClose={() => setReportModalState((prev) => ({ ...prev, isOpen: false }))}
+        targetType={reportModalState.targetType}
+        targetId={reportModalState.targetId}
+      />
     </div>
   );
 };
