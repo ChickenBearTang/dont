@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { getPollDetail, getPost, updatePoll, updatePost } from '../api/communityApi';
+import {
+  getHotdealDetail,
+  getPollDetail,
+  getPost,
+  updateHotdeal,
+  updatePoll,
+  updatePost,
+} from '../api/communityApi';
 import type { BoardCategory } from '../types';
 
-const getCategoryLabel = (cat: BoardCategory | undefined) => {
-  switch (cat) {
+const getCategoryLabel = (category: BoardCategory | undefined) => {
+  switch (category) {
     case 'FREE':
       return '자유 게시판';
     case 'COHORT':
@@ -17,7 +24,16 @@ const getCategoryLabel = (cat: BoardCategory | undefined) => {
     case 'HOTDEAL':
       return '핫딜 게시판';
     default:
-      return '게시판';
+      return '게시글';
+  }
+};
+
+const isValidUrl = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
   }
 };
 
@@ -31,13 +47,23 @@ export const EditPostPage = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptionA, setPollOptionA] = useState('');
   const [pollOptionB, setPollOptionB] = useState('');
   const [pollDeadlineAt, setPollDeadlineAt] = useState('');
 
+  const [productName, setProductName] = useState('');
+  const [storeName, setStoreName] = useState('');
+  const [dealPriceAmount, setDealPriceAmount] = useState('');
+  const [originalPriceAmount, setOriginalPriceAmount] = useState('');
+  const [dealUrl, setDealUrl] = useState('');
+  const [shippingInfo, setShippingInfo] = useState('');
+  const [expiredAt, setExpiredAt] = useState('');
+
   const categoryLabel = useMemo(() => getCategoryLabel(category), [category]);
   const isPollCategory = category === 'POLL';
+  const isHotdealCategory = category === 'HOTDEAL';
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -65,8 +91,25 @@ export const EditPostPage = () => {
             setPollDeadlineAt(pollRes.data.deadlineAt ? pollRes.data.deadlineAt.slice(0, 16) : '');
           }
         }
+
+        if (res.data.category === 'HOTDEAL') {
+          const hotdealRes = await getHotdealDetail(Number(postId));
+          if (hotdealRes.data) {
+            setProductName(hotdealRes.data.productName);
+            setStoreName(hotdealRes.data.storeName ?? '');
+            setDealPriceAmount(String(hotdealRes.data.dealPriceAmount ?? ''));
+            setOriginalPriceAmount(
+              hotdealRes.data.originalPriceAmount != null
+                ? String(hotdealRes.data.originalPriceAmount)
+                : ''
+            );
+            setDealUrl(hotdealRes.data.dealUrl ?? '');
+            setShippingInfo(hotdealRes.data.shippingInfo ?? '');
+            setExpiredAt(hotdealRes.data.expiredAt ? hotdealRes.data.expiredAt.slice(0, 16) : '');
+          }
+        }
       } catch {
-        setErrorMessage('게시글을 불러오는 데 실패했습니다.');
+        setErrorMessage('게시글을 불러오지 못했습니다.');
       } finally {
         setLoading(false);
       }
@@ -79,8 +122,8 @@ export const EditPostPage = () => {
     navigate(`/community/${postId}`);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
@@ -110,6 +153,33 @@ export const EditPostPage = () => {
       }
     }
 
+    if (isHotdealCategory) {
+      if (!productName.trim()) {
+        setErrorMessage('상품명을 입력해 주세요.');
+        return;
+      }
+      if (!dealPriceAmount || Number(dealPriceAmount) <= 0) {
+        setErrorMessage('딜 가격은 1원 이상이어야 합니다.');
+        return;
+      }
+      if (originalPriceAmount && Number(originalPriceAmount) <= 0) {
+        setErrorMessage('정가는 1원 이상이어야 합니다.');
+        return;
+      }
+      if (
+        originalPriceAmount &&
+        Number(dealPriceAmount) > 0 &&
+        Number(originalPriceAmount) < Number(dealPriceAmount)
+      ) {
+        setErrorMessage('정가는 딜 가격보다 크거나 같아야 합니다.');
+        return;
+      }
+      if (dealUrl.trim() && !isValidUrl(dealUrl.trim())) {
+        setErrorMessage('딜 링크는 http 또는 https URL이어야 합니다.');
+        return;
+      }
+    }
+
     setErrorMessage('');
     setIsSubmitting(true);
 
@@ -123,6 +193,18 @@ export const EditPostPage = () => {
           optionB: pollOptionB.trim(),
           deadlineAt: pollDeadlineAt,
         });
+      } else if (isHotdealCategory) {
+        await updateHotdeal(Number(postId), {
+          title: trimmedTitle,
+          content: trimmedContent,
+          productName: productName.trim(),
+          storeName: storeName.trim() || undefined,
+          dealPriceAmount: Number(dealPriceAmount),
+          originalPriceAmount: originalPriceAmount ? Number(originalPriceAmount) : undefined,
+          dealUrl: dealUrl.trim() || undefined,
+          shippingInfo: shippingInfo.trim() || undefined,
+          expiredAt: expiredAt || undefined,
+        });
       } else {
         await updatePost(Number(postId), {
           title: trimmedTitle,
@@ -132,8 +214,6 @@ export const EditPostPage = () => {
 
       navigate(`/community/${postId}`);
     } catch (error: unknown) {
-      console.error('Failed to update post:', error);
-
       let serverMessage = '게시글 수정에 실패했습니다. 잠시 후 다시 시도해 주세요.';
 
       if (axios.isAxiosError(error)) {
@@ -168,7 +248,7 @@ export const EditPostPage = () => {
           <div>
             <h1 className="text-[22px] font-bold text-gray-900 tracking-[-0.02em]">게시글 수정</h1>
             <p className="text-gray-400 mt-1 text-[13px] font-medium tracking-[-0.01em]">
-              {categoryLabel}의 게시글을 수정합니다.
+              {categoryLabel} 게시글을 수정합니다.
             </p>
           </div>
           <button
@@ -190,9 +270,8 @@ export const EditPostPage = () => {
             id="edit-title"
             type="text"
             maxLength={200}
-            placeholder="제목을 입력해 주세요."
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(event) => setTitle(event.target.value)}
             className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
           />
           <div className="text-right text-[12px] text-gray-300">{title.length}/200</div>
@@ -212,7 +291,7 @@ export const EditPostPage = () => {
                     type="text"
                     maxLength={255}
                     value={pollQuestion}
-                    onChange={(e) => setPollQuestion(e.target.value)}
+                    onChange={(event) => setPollQuestion(event.target.value)}
                     className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
                   />
                 </div>
@@ -225,7 +304,7 @@ export const EditPostPage = () => {
                     type="text"
                     maxLength={255}
                     value={pollOptionA}
-                    onChange={(e) => setPollOptionA(e.target.value)}
+                    onChange={(event) => setPollOptionA(event.target.value)}
                     className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
                   />
                 </div>
@@ -238,7 +317,7 @@ export const EditPostPage = () => {
                     type="text"
                     maxLength={255}
                     value={pollOptionB}
-                    onChange={(e) => setPollOptionB(e.target.value)}
+                    onChange={(event) => setPollOptionB(event.target.value)}
                     className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
                   />
                 </div>
@@ -250,7 +329,7 @@ export const EditPostPage = () => {
                     id="pollDeadlineAt"
                     type="datetime-local"
                     value={pollDeadlineAt}
-                    onChange={(e) => setPollDeadlineAt(e.target.value)}
+                    onChange={(event) => setPollDeadlineAt(event.target.value)}
                     className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
                   />
                 </div>
@@ -263,9 +342,117 @@ export const EditPostPage = () => {
               </label>
               <textarea
                 id="edit-content"
-                placeholder="토론 배경과 판단 근거를 적어 주세요."
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(event) => setContent(event.target.value)}
+                className="min-h-[260px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-blue-500 resize-none"
+              />
+            </div>
+          </>
+        ) : isHotdealCategory ? (
+          <>
+            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-5">
+              <h2 className="text-[16px] font-bold text-gray-900">핫딜 정보</h2>
+              <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="productName" className="text-[13px] font-semibold text-gray-700">
+                    상품명
+                  </label>
+                  <input
+                    id="productName"
+                    type="text"
+                    maxLength={200}
+                    value={productName}
+                    onChange={(event) => setProductName(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="storeName" className="text-[13px] font-semibold text-gray-700">
+                    판매처
+                  </label>
+                  <input
+                    id="storeName"
+                    type="text"
+                    maxLength={100}
+                    value={storeName}
+                    onChange={(event) => setStoreName(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="dealPriceAmount" className="text-[13px] font-semibold text-gray-700">
+                    딜 가격
+                  </label>
+                  <input
+                    id="dealPriceAmount"
+                    type="number"
+                    min={1}
+                    value={dealPriceAmount}
+                    onChange={(event) => setDealPriceAmount(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="originalPriceAmount" className="text-[13px] font-semibold text-gray-700">
+                    정가
+                  </label>
+                  <input
+                    id="originalPriceAmount"
+                    type="number"
+                    min={1}
+                    value={originalPriceAmount}
+                    onChange={(event) => setOriginalPriceAmount(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="shippingInfo" className="text-[13px] font-semibold text-gray-700">
+                    배송 정보
+                  </label>
+                  <input
+                    id="shippingInfo"
+                    type="text"
+                    maxLength={255}
+                    value={shippingInfo}
+                    onChange={(event) => setShippingInfo(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="expiredAt" className="text-[13px] font-semibold text-gray-700">
+                    종료 시각
+                  </label>
+                  <input
+                    id="expiredAt"
+                    type="datetime-local"
+                    value={expiredAt}
+                    onChange={(event) => setExpiredAt(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="dealUrl" className="text-[13px] font-semibold text-gray-700">
+                    딜 링크
+                  </label>
+                  <input
+                    id="dealUrl"
+                    type="url"
+                    value={dealUrl}
+                    onChange={(event) => setDealUrl(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="edit-content" className="text-[13px] font-semibold text-gray-700">
+                내용
+              </label>
+              <textarea
+                id="edit-content"
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
                 className="min-h-[260px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-blue-500 resize-none"
               />
             </div>
@@ -277,9 +464,8 @@ export const EditPostPage = () => {
             </label>
             <textarea
               id="edit-content"
-              placeholder="내용을 입력해 주세요."
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(event) => setContent(event.target.value)}
               className="min-h-[320px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-blue-500 resize-none"
             />
           </div>

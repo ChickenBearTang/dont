@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { createPoll, createPost } from '../api/communityApi';
+import { createHotdeal, createPoll, createPost } from '../api/communityApi';
 import type { BoardCategory } from '../types';
 import { createPr } from '@/features/community/pr';
 
@@ -77,6 +77,13 @@ export const CreatePostPage = () => {
   const [pollOptionA, setPollOptionA] = useState('');
   const [pollOptionB, setPollOptionB] = useState('');
   const [pollDeadlineAt, setPollDeadlineAt] = useState('');
+  const [productName, setProductName] = useState('');
+  const [storeName, setStoreName] = useState('');
+  const [dealPriceAmount, setDealPriceAmount] = useState('');
+  const [originalPriceAmount, setOriginalPriceAmount] = useState('');
+  const [dealUrl, setDealUrl] = useState('');
+  const [shippingInfo, setShippingInfo] = useState('');
+  const [expiredAt, setExpiredAt] = useState('');
 
   const selectedCategoryLabel = useMemo(
     () => CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? '게시판',
@@ -86,6 +93,7 @@ export const CreatePostPage = () => {
   const isCohortCategory = category === 'COHORT';
   const isPrCategory = category === 'PR';
   const isPollCategory = category === 'POLL';
+  const isHotdealCategory = category === 'HOTDEAL';
 
   const handleCancel = () => {
     const target = category ? `/community?category=${category}` : '/community';
@@ -168,6 +176,43 @@ export const CreatePostPage = () => {
     return true;
   };
 
+  const validateHotdealPost = (trimmedTitle: string, trimmedContent: string) => {
+    if (!trimmedTitle) {
+      setErrorMessage('제목을 입력해 주세요.');
+      return false;
+    }
+    if (!trimmedContent) {
+      setErrorMessage('내용을 입력해 주세요.');
+      return false;
+    }
+    if (!productName.trim()) {
+      setErrorMessage('상품명을 입력해 주세요.');
+      return false;
+    }
+    if (!dealPriceAmount || Number(dealPriceAmount) <= 0) {
+      setErrorMessage('딜 가격은 1원 이상이어야 합니다.');
+      return false;
+    }
+    if (originalPriceAmount && Number(originalPriceAmount) <= 0) {
+      setErrorMessage('정가는 1원 이상이어야 합니다.');
+      return false;
+    }
+    if (
+      originalPriceAmount &&
+      Number(dealPriceAmount) > 0 &&
+      Number(originalPriceAmount) < Number(dealPriceAmount)
+    ) {
+      setErrorMessage('정가는 딜 가격보다 크거나 같아야 합니다.');
+      return false;
+    }
+    if (dealUrl.trim() && !isValidUrl(dealUrl.trim())) {
+      setErrorMessage('딜 링크는 http 또는 https URL이어야 합니다.');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -178,6 +223,8 @@ export const CreatePostPage = () => {
       ? validatePrPost(trimmedTitle)
       : isPollCategory
         ? validatePollPost(trimmedTitle, trimmedContent)
+        : isHotdealCategory
+          ? validateHotdealPost(trimmedTitle, trimmedContent)
         : validateDefaultPost(trimmedTitle, trimmedContent);
 
     if (!isValid) {
@@ -207,6 +254,18 @@ export const CreatePostPage = () => {
           optionA: pollOptionA.trim(),
           optionB: pollOptionB.trim(),
           deadlineAt: pollDeadlineAt,
+        });
+      } else if (isHotdealCategory) {
+        await createHotdeal({
+          title: trimmedTitle,
+          content: trimmedContent,
+          productName: productName.trim(),
+          storeName: storeName.trim() || undefined,
+          dealPriceAmount: Number(dealPriceAmount),
+          originalPriceAmount: originalPriceAmount ? Number(originalPriceAmount) : undefined,
+          dealUrl: dealUrl.trim() || undefined,
+          shippingInfo: shippingInfo.trim() || undefined,
+          expiredAt: expiredAt || undefined,
         });
       } else {
         await createPost({
@@ -510,6 +569,125 @@ export const CreatePostPage = () => {
               <textarea
                 id="content"
                 placeholder="토론 배경과 판단 근거를 적어 주세요."
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                className="min-h-[260px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"
+              />
+            </div>
+          </>
+        ) : isHotdealCategory ? (
+          <>
+            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-5">
+              <h2 className="text-[16px] font-bold text-gray-900">핫딜 정보</h2>
+              <p className="mt-1 text-[12px] text-gray-500">
+                상품 정보와 가격, 구매 링크를 입력하면 핫딜 카드와 상세 화면에 함께 노출됩니다.
+              </p>
+              <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="productName" className="text-[13px] font-semibold text-gray-700">
+                    상품명
+                  </label>
+                  <input
+                    id="productName"
+                    type="text"
+                    maxLength={200}
+                    value={productName}
+                    onChange={(event) => setProductName(event.target.value)}
+                    placeholder="예: 로보락 S10 MaxV Ultra"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="storeName" className="text-[13px] font-semibold text-gray-700">
+                    판매처
+                  </label>
+                  <input
+                    id="storeName"
+                    type="text"
+                    maxLength={100}
+                    value={storeName}
+                    onChange={(event) => setStoreName(event.target.value)}
+                    placeholder="예: 롯데온"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="dealPriceAmount" className="text-[13px] font-semibold text-gray-700">
+                    딜 가격
+                  </label>
+                  <input
+                    id="dealPriceAmount"
+                    type="number"
+                    min={1}
+                    value={dealPriceAmount}
+                    onChange={(event) => setDealPriceAmount(event.target.value)}
+                    placeholder="예: 1590000"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="originalPriceAmount" className="text-[13px] font-semibold text-gray-700">
+                    정가
+                  </label>
+                  <input
+                    id="originalPriceAmount"
+                    type="number"
+                    min={1}
+                    value={originalPriceAmount}
+                    onChange={(event) => setOriginalPriceAmount(event.target.value)}
+                    placeholder="예: 1790000"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="shippingInfo" className="text-[13px] font-semibold text-gray-700">
+                    배송 정보
+                  </label>
+                  <input
+                    id="shippingInfo"
+                    type="text"
+                    maxLength={255}
+                    value={shippingInfo}
+                    onChange={(event) => setShippingInfo(event.target.value)}
+                    placeholder="예: 무료배송"
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="expiredAt" className="text-[13px] font-semibold text-gray-700">
+                    종료 시각
+                  </label>
+                  <input
+                    id="expiredAt"
+                    type="datetime-local"
+                    value={expiredAt}
+                    onChange={(event) => setExpiredAt(event.target.value)}
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <label htmlFor="dealUrl" className="text-[13px] font-semibold text-gray-700">
+                    딜 링크
+                  </label>
+                  <input
+                    id="dealUrl"
+                    type="url"
+                    value={dealUrl}
+                    onChange={(event) => setDealUrl(event.target.value)}
+                    placeholder="https://..."
+                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="content" className="text-[13px] font-semibold text-gray-700">
+                내용
+              </label>
+              <textarea
+                id="content"
+                placeholder="핫딜의 특징, 구매 포인트, 주의할 점을 적어 주세요."
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
                 className="min-h-[260px] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue resize-none"

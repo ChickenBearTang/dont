@@ -4,6 +4,7 @@ import {
   createComment,
   deleteComment,
   deletePost,
+  getHotdealDetail,
   getComments,
   getPollDetail,
   getPost,
@@ -15,6 +16,7 @@ import type {
   BoardCategory,
   CommentSummaryDto,
   GetPostResponseDto,
+  HotdealDetailResponseDto,
   PollDetailResponseDto,
   ReactionType,
   ReportTargetType,
@@ -45,6 +47,10 @@ interface PollVotePanelProps {
   selectedVote: 'OPTION_A' | 'OPTION_B' | null;
   isSubmittingVote: boolean;
   onVote: (voteOption: 'OPTION_A' | 'OPTION_B') => void;
+}
+
+interface HotdealInfoPanelProps {
+  detail: HotdealDetailResponseDto;
 }
 
 const CommentItem = ({
@@ -450,6 +456,102 @@ const PollVotePanel = ({
   );
 };
 
+const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
+  const discountRate =
+    detail.originalPriceAmount && detail.originalPriceAmount > 0
+      ? Math.max(
+          0,
+          Math.round(
+            ((detail.originalPriceAmount - detail.dealPriceAmount) / detail.originalPriceAmount) * 100
+          )
+        )
+      : null;
+  const isExpired = detail.expiredAt ? new Date(detail.expiredAt).getTime() <= Date.now() : false;
+
+  return (
+    <div className="mt-6 rounded-[28px] border border-gray-200 bg-white p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <span className="inline-flex rounded-full bg-rose-100 px-3 py-1 text-[11px] font-bold text-rose-700">
+            HOTDEAL
+          </span>
+          <h2 className="mt-3 text-[24px] font-black leading-tight text-gray-900">
+            {detail.productName}
+          </h2>
+          <p className="mt-2 text-[13px] font-medium text-gray-500">
+            {detail.storeName || '판매처 미정'}
+          </p>
+        </div>
+        <span
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${
+            isExpired
+              ? 'border-slate-200 bg-slate-100 text-slate-700'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
+          }`}
+        >
+          {isExpired ? 'EXPIRED' : 'LIVE'}
+        </span>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+          <p className="text-[12px] font-semibold text-gray-400">구매 정보</p>
+          <div className="mt-4 space-y-3">
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400">딜 가격</p>
+              <p className="mt-1 text-[28px] font-black leading-none text-gray-900">
+                {new Intl.NumberFormat('ko-KR', {
+                  style: 'currency',
+                  currency: 'KRW',
+                  maximumFractionDigits: 0,
+                }).format(detail.dealPriceAmount)}
+              </p>
+            </div>
+            {detail.originalPriceAmount ? (
+              <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold">
+                <span className="text-gray-400 line-through">
+                  {new Intl.NumberFormat('ko-KR', {
+                    style: 'currency',
+                    currency: 'KRW',
+                    maximumFractionDigits: 0,
+                  }).format(detail.originalPriceAmount)}
+                </span>
+                {discountRate != null ? <span className="text-rose-600">{discountRate}% 할인</span> : null}
+              </div>
+            ) : null}
+            {detail.shippingInfo ? (
+              <div className="rounded-xl bg-white px-4 py-3 text-[13px] font-medium text-gray-600">
+                배송: {detail.shippingInfo}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-5">
+          <p className="text-[12px] font-semibold text-gray-400">구매 링크</p>
+          <div className="mt-4 space-y-3 text-[13px] font-medium text-gray-600">
+            <p>종료 {detail.expiredAt ? new Date(detail.expiredAt).toLocaleString('ko-KR') : '-'}</p>
+            {detail.dealUrl ? (
+              <a
+                href={detail.dealUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-slate-900 px-4 text-[14px] font-bold text-white transition hover:bg-slate-800"
+              >
+                구매처에서 보기
+              </a>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-200 px-4 py-3 text-center text-[13px] text-gray-400">
+                등록된 딜 링크가 없습니다.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
   const [searchParams] = useSearchParams();
@@ -468,6 +570,7 @@ export const PostDetailPage = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [pollDetail, setPollDetail] = useState<PollDetailResponseDto | null>(null);
+  const [hotdealDetail, setHotdealDetail] = useState<HotdealDetailResponseDto | null>(null);
   const [selectedPollVote, setSelectedPollVote] = useState<'OPTION_A' | 'OPTION_B' | null>(null);
   const [submittingPollVote, setSubmittingPollVote] = useState(false);
 
@@ -570,8 +673,15 @@ export const PostDetailPage = () => {
                 ? (savedPollVote as 'OPTION_A' | 'OPTION_B')
                 : null
             );
+            setHotdealDetail(null);
+          } else if (postRes.data.category === 'HOTDEAL') {
+            const hotdealRes = await getHotdealDetail(Number(postId));
+            setHotdealDetail(hotdealRes.data ?? null);
+            setPollDetail(null);
+            setSelectedPollVote(null);
           } else {
             setPollDetail(null);
+            setHotdealDetail(null);
             setSelectedPollVote(null);
           }
         } else {
@@ -911,6 +1021,9 @@ export const PostDetailPage = () => {
               isSubmittingVote={submittingPollVote}
               onVote={handlePollVote}
             />
+          ) : null}
+          {post.status !== 'BLINDED' && post.category === 'HOTDEAL' && hotdealDetail ? (
+            <HotdealInfoPanel detail={hotdealDetail} />
           ) : null}
           <div
             className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
