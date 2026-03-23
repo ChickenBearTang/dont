@@ -36,8 +36,18 @@ const AppBootstrap = () => {
           accessToken: nextToken,
           user: savedUser,
         });
-      } catch {
-        logout();
+      } catch (error) {
+        const statusCode =
+          typeof error === 'object' && error !== null && 'response' in error
+            ? (error as { response?: { status?: number } }).response?.status
+            : undefined;
+
+        if (statusCode === 401 || statusCode === 403) {
+          logout();
+          return;
+        }
+
+        console.error('Failed to refresh access token during bootstrap:', error);
       } finally {
         setAuthInitializing(false);
       }
