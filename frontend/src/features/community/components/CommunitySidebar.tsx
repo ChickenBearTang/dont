@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { Card } from '@/shared/components';
 
 const CategoryIcon = ({ type }: { type: string | null }) => {
   const base = 'w-[18px] h-[18px] flex items-center justify-center flex-shrink-0';
@@ -117,10 +118,10 @@ export const CommunitySidebar = () => {
   ];
 
   return (
-    <nav className="bg-white rounded-2xl p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 flex flex-col gap-0.5">
+    <Card className="!p-4 flex flex-col gap-0.5" role="navigation">
       <div className="px-3 pt-2 pb-5 flex items-center gap-2.5">
         <div className="w-[3px] h-[18px] bg-primary-blue rounded-full" />
-        <h3 className="text-[17px] font-bold text-gray-900 tracking-[-0.01em]">커뮤니티</h3>
+        <h3 className="text-[17px] font-bold text-eel tracking-tight">커뮤니티</h3>
       </div>
 
       {links.map((link) => {
@@ -132,10 +133,10 @@ export const CommunitySidebar = () => {
             key={link.label}
             to={to}
             className={() =>
-              `px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-all duration-150 flex items-center gap-2.5 ${
+              `px-3 py-2.5 rounded-xl text-[13.5px] font-bold transition-all duration-300 flex items-center gap-2.5 ${
                 isActive
-                  ? 'bg-blue-50 text-blue-600 font-bold'
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                  ? 'bg-primary-blue/10 text-primary-blue shadow-sm'
+                  : 'text-text-muted hover:bg-surface-soft hover:text-eel'
               }`
             }
           >
@@ -147,14 +148,14 @@ export const CommunitySidebar = () => {
 
       {user?.role?.includes('ADMIN') && (
         <>
-          <div className="h-px bg-gray-100 my-2 mx-3" />
+          <div className="h-px bg-line-soft my-2 mx-3" />
           <NavLink
             to="/community/admin/reports"
             className={({ isActive }) =>
-              `px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-all duration-150 flex items-center gap-2.5 ${
+              `px-3 py-2.5 rounded-xl text-[13.5px] font-bold transition-all duration-300 flex items-center gap-2.5 ${
                 isActive
-                  ? 'bg-red-50 text-red-600 font-bold'
-                  : 'text-red-500 hover:bg-red-50 transition-colors'
+                  ? 'bg-error-red/10 text-error-red shadow-sm'
+                  : 'text-error-red hover:bg-error-red/5'
               }`
             }
           >
@@ -162,6 +163,6 @@ export const CommunitySidebar = () => {
           </NavLink>
         </>
       )}
-    </nav>
+    </Card>
   );
 };

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Card, Button } from '@/shared/components';
 import { getPosts } from '../api/communityApi';
 import type { BoardCategory, GetPostListResponseDto, PostSummaryDto } from '../types';
 
@@ -182,8 +183,8 @@ export const CommunityPage = () => {
   }, [currentPage, totalPages]);
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px]">
-      <div className="px-7 pt-7 pb-5 flex justify-between items-start">
+    <Card className="!p-0 flex flex-col min-h-[600px] overflow-hidden">
+      <div className="px-7 pt-7 pb-5 flex justify-between items-start relative z-10 w-full">
         <div>
           <h1 className="text-[22px] font-bold text-gray-900 tracking-[-0.02em]">
             {categoryTitle}
@@ -215,16 +216,16 @@ export const CommunityPage = () => {
               placeholder="검색"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="bg-gray-50 border border-gray-100 text-[13px] rounded-lg pl-9 pr-3 py-2 w-[180px] outline-none focus:border-gray-200 focus:bg-white transition-all font-medium text-gray-600 placeholder:text-gray-300"
+              className="bg-surface-soft border border-line-soft text-[13px] rounded-lg pl-9 pr-3 py-2 w-[180px] outline-none focus:border-primary-blue focus:bg-white transition-all font-bold text-eel placeholder:text-text-muted"
             />
           </form>
 
-          <button
+          <Button
             type="button"
             onClick={() =>
               navigate(category ? `/community/write?category=${category}` : '/community/write')
             }
-            className="inline-flex items-center gap-2 rounded-xl border border-blue-600 bg-blue-600 px-4 py-2.5 text-[14px] font-bold text-white shadow-sm transition hover:border-blue-700 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="!px-4 !py-2.5 !text-[14px]"
           >
             <svg
               className="w-4 h-4 flex-shrink-0"
@@ -236,13 +237,13 @@ export const CommunityPage = () => {
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
             </svg>
             <span>글쓰기</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="mx-7 border-t border-gray-100" />
 
-      <div className="px-7 pb-6 flex-1 flex flex-col">
+      <div className="px-7 pb-6 flex-1 flex flex-col relative z-10">
         <div className="flex items-center justify-between py-3">
           <div className="text-[12px] text-gray-400 font-medium">
             총{' '}
@@ -267,7 +268,7 @@ export const CommunityPage = () => {
         <div className="flex flex-col flex-1">
           {loading ? (
             <div className="py-28 flex flex-col items-center justify-center">
-              <div className="w-6 h-6 border-2 border-gray-100 border-t-gray-400 rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-primary-blue border-t-transparent rounded-full animate-spin" />
               <span className="text-[12px] text-gray-300 mt-3 font-medium">불러오는 중</span>
             </div>
           ) : posts.length === 0 ? (
@@ -295,59 +296,59 @@ export const CommunityPage = () => {
               <div
                 key={post.postId}
                 onClick={() => navigate(`/community/${post.postId}`)}
-                className={`grid grid-cols-12 gap-3 py-3.5 text-[13.5px] items-center hover:bg-gray-50/60 transition-colors cursor-pointer group ${
-                  idx !== posts.length - 1 ? 'border-b border-gray-50' : ''
+                className={`grid grid-cols-12 gap-3 py-4 text-[13.5px] items-center hover:bg-white/60 transition-colors cursor-pointer group ${
+                  idx !== posts.length - 1 ? 'border-b border-gray-50/50' : ''
                 }`}
               >
                 <div className="col-span-1 flex items-center gap-0">
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${getCategoryDot(post.category)} flex-shrink-0`}
                   />
-                  <span className="text-[12px] text-gray-400 font-medium ml-1.5 hidden lg:inline">
+                  <span className="text-[12px] text-gray-400 font-bold ml-1.5 hidden lg:inline tracking-tight">
                     {getCategoryName(post.category)}
                   </span>
                 </div>
 
                 <div className="col-span-7 flex items-center gap-2 min-w-0">
                   <span
-                    className={`truncate font-medium ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800 group-hover:text-gray-900'}`}
+                    className={`truncate font-bold ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-eel group-hover:text-primary-blue transition-colors'}`}
                   >
                     {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
                   </span>
 
                   {post.commentCount > 0 && (
-                    <span className="text-[12px] font-semibold text-blue-500 shrink-0">
-                      [{post.commentCount}]
+                    <span className="text-[12px] font-bold text-primary-blue shrink-0 bg-blue-50 px-1.5 py-0.5 rounded-md">
+                      {post.commentCount}
                     </span>
                   )}
 
                   <div className="flex items-center gap-2 ml-1 shrink-0">
-                    <div className="flex items-center gap-0.5 text-rose-400">
+                    <div className="flex items-center gap-0.5 text-accent">
                       <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" />
                       </svg>
-                      <span className="text-[11.5px] font-bold">{post.likeCount || 0}</span>
+                      <span className="text-[11.5px] font-black">{post.likeCount || 0}</span>
                     </div>
                   </div>
 
                   {post.extraSummary?.poll && !post.extraSummary.poll.isClosed && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-500 font-semibold shrink-0">
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-500 font-bold shrink-0">
                       진행중
                     </span>
                   )}
 
                   {post.extraSummary?.pr && post.extraSummary.pr.status === 'OPEN' && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-500 font-semibold shrink-0">
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-500 font-bold shrink-0">
                       투표중
                     </span>
                   )}
                 </div>
 
-                <div className="col-span-2 text-center text-gray-500 text-[13px] font-medium truncate">
+                <div className="col-span-2 text-center text-text-muted text-[13px] font-bold truncate">
                   {post.authorNickname || '알 수 없음'}
                 </div>
 
-                <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium">
+                <div className="col-span-2 text-right text-text-subtle text-[12px] font-semibold tracking-tight">
                   {formatDate(post.createdAt)}
                 </div>
               </div>
@@ -356,12 +357,12 @@ export const CommunityPage = () => {
         </div>
 
         {!loading && totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-1.5">
+          <div className="mt-8 flex items-center justify-center gap-1.5">
             <button
               type="button"
               onClick={() => moveToListPage(currentPage - 1)}
               disabled={currentPage <= 1}
-              className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="px-3 py-2 rounded-lg border border-line-soft text-[13px] font-bold text-text-muted disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-soft transition-colors"
             >
               이전
             </button>
@@ -371,10 +372,10 @@ export const CommunityPage = () => {
                 key={pageNumber}
                 type="button"
                 onClick={() => moveToListPage(pageNumber)}
-                className={`min-w-[36px] h-[36px] rounded-lg text-[13px] font-semibold transition ${
+                className={`min-w-[36px] h-[36px] rounded-lg text-[13px] font-black transition-all ${
                   pageNumber === currentPage
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-500 hover:bg-gray-50'
+                    ? 'bg-gradient-to-br from-primary-blue to-accent text-white shadow-sm'
+                    : 'text-text-muted hover:bg-surface-soft'
                 }`}
               >
                 {pageNumber}
@@ -385,13 +386,13 @@ export const CommunityPage = () => {
               type="button"
               onClick={() => moveToListPage(currentPage + 1)}
               disabled={currentPage >= totalPages}
-              className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="px-3 py-2 rounded-lg border border-line-soft text-[13px] font-bold text-text-muted disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-soft transition-colors"
             >
               다음
             </button>
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 };

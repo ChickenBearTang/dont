@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { Input, Button } from '@/shared/components';
@@ -87,7 +87,7 @@ export const LoginForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <Input
         label="이메일"
         name="email"
@@ -112,17 +112,17 @@ export const LoginForm = () => {
         errorMessage={errors.password}
       />
 
-      <div className="-mt-1 text-right">
+      <div className="flex justify-end -mt-2">
         <button
           type="button"
-          className="text-[13px] font-bold text-accent hover:underline"
+          className="text-[14px] font-bold text-text-muted hover:text-eel transition-colors duration-200"
           onClick={() => navigate('/forgot-password')}
         >
-          비밀번호 찾기
+          비밀번호를 잊으셨나요?
         </button>
       </div>
 
-      <Button type="submit" className="mt-8" disabled={isPending}>
+      <Button type="submit" className="mt-6" disabled={isPending}>
         {isPending ? '로그인 중...' : '로그인'}
       </Button>
     </form>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Card, Input, Button } from '@/shared/components';
 import { useGetSavingsSetting, useGetMyAccounts } from '../hooks/useAccountQueries';
 import { useSaveSavingsSetting } from '../hooks/useAccountMutations';
 
@@ -88,104 +89,105 @@ export const SavingsRuleSetupPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <div className="w-12 h-12 border-4 border-blue-100 border-t-primary-blue rounded-full animate-spin mb-4" />
-        <p className="text-gray-500 font-medium">기존 설정을 불러오고 있습니다...</p>
+        <p className="text-text-muted font-bold">기존 설정을 불러오고 있습니다...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <div className="mb-10 text-center">
-        <div className="inline-block px-4 py-1.5 bg-blue-50 text-primary-blue rounded-full text-xs font-black mb-4 uppercase tracking-wider">
+    <div className="max-w-2xl mx-auto px-6 py-12 relative">
+      <div className="absolute inset-0 bg-pattern-dots opacity-30 z-0 pointer-events-none" />
+      <div className="mb-10 text-center relative z-10">
+        <div className="inline-block px-4 py-1.5 bg-accent-soft text-primary-blue rounded-full text-[13px] font-black mb-4 uppercase tracking-[0.05em] shadow-sm">
           Auto Savings
         </div>
-        <h1 className="text-3xl lg:text-4xl font-black text-eel mb-4 tracking-tight">
+        <h1 className="text-3xl lg:text-[2.5rem] font-black text-eel mb-4 tracking-tight leading-tight">
           어떤 결제를 할 때마다
           <br />
-          <span className="text-primary-blue">자동으로 저축</span>할까요?
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent drop-shadow-sm">
+            자동으로 저축
+          </span>
+          할까요?
         </h1>
-        <p className="text-gray font-medium">
+        <p className="text-text-muted font-bold">
           자주 이용하는 결제 키워드를 등록하면,
           <br />
           해당 결제가 발생할 때마다 정해진 금액을 세이브박스에 모아드려요.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
         {/* Keyword Card */}
-        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-          <label className="block text-sm font-black text-eel mb-4">결제처 키워드</label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl">🔍</span>
-            <input
-              type="text"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="예: 커피, 택시, 배달의민족"
-              className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-blue/30 transition-all font-bold text-eel placeholder:text-gray-300"
-            />
+        <Card className="!p-8 !rounded-[32px]">
+          <Input
+            label="결제처 키워드"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="예: 커피, 택시, 배달의민족"
+            inputClassName="pl-12 font-black"
+          />
+          <div className="absolute left-9 top-[52px] text-xl z-10 group-focus-within:text-primary-blue transition-colors">
+            🔍
           </div>
-          <p className="mt-3 text-xs text-gray-400 font-medium">
+          <p className="mt-3 ml-2 text-xs text-text-subtle font-bold">
             * 입력하신 단어가 포함된 결제 내역이 생기면 저축이 실행됩니다.
           </p>
-        </div>
+        </Card>
 
         {/* Amount Card */}
-        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-          <label className="block text-sm font-black text-eel mb-4">1회 저축 금액</label>
-          <div className="relative">
-            <input
-              type="number"
-              value={amount || ''}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              placeholder="0"
-              className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-primary-blue/30 transition-all font-black text-2xl text-primary-blue text-right pr-12"
-            />
-            <span className="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-eel text-lg">
-              원
-            </span>
-          </div>
-        </div>
+        <Card className="!p-8 !rounded-[32px]">
+          <Input
+            label="1회 저축 금액"
+            type="number"
+            value={amount || ''}
+            onChange={(e) => setAmount(Number(e.target.value))}
+            placeholder="0"
+            inputClassName="text-right pr-9 font-black text-2xl text-primary-blue leading-none"
+            unit="원"
+          />
+        </Card>
 
         {/* Toggle Card */}
-        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between">
+        <Card className="!p-8 !rounded-[32px] flex items-center justify-between">
           <div>
-            <label className="block text-sm font-black text-eel mb-1">저축 상태 설정</label>
-            <p className="text-xs text-gray-400 font-medium">지금 바로 자동 저축을 시작할까요?</p>
+            <label className="block text-[14px] font-black text-eel tracking-tight ml-1">
+              저축 상태 설정
+            </label>
+            <p className="text-[13px] text-text-subtle font-bold ml-1 mt-1">
+              지금 바로 자동 저축을 시작할까요?
+            </p>
           </div>
           <button
             type="button"
             onClick={() => setIsActive(!isActive)}
-            className={`w-14 h-8 rounded-full transition-all duration-500 relative ${
-              isActive ? 'bg-primary-blue shadow-lg shadow-blue-200' : 'bg-gray-200'
+            className={`w-[60px] h-[32px] rounded-full transition-all duration-300 relative shadow-inner ${
+              isActive
+                ? 'bg-gradient-to-r from-primary-blue to-accent shadow-blue-200/50'
+                : 'bg-surface-soft border border-line-soft'
             }`}
           >
             <div
-              className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-500 shadow-sm ${
-                isActive ? 'left-7' : 'left-1'
+              className={`absolute top-[3px] w-[24px] h-[24px] bg-white rounded-full transition-all duration-300 shadow-sm ${
+                isActive ? 'left-[33px]' : 'left-[3px]'
               }`}
             />
           </button>
-        </div>
+        </Card>
 
         {error && (
-          <div className="p-4 bg-red-50 text-error-red rounded-2xl text-center text-sm font-bold animate-shake">
+          <div className="p-4 bg-error-red/5 text-error-red border border-error-red/20 rounded-[20px] text-center text-[14px] font-bold animate-shake backdrop-blur-sm">
             ⚠️ {error}
           </div>
         )}
 
         {/* Submit Button */}
-        <button
+        <Button
           type="submit"
           disabled={isSubmitting}
-          className={`w-full py-5 rounded-[24px] font-black text-lg transition-all transform active:scale-95 shadow-xl ${
-            isSubmitting
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-primary-blue text-white hover:bg-blue-600 shadow-blue-200 hover:shadow-blue-300'
-          }`}
+          className="w-full !py-[18px] !text-[17px] !rounded-[24px] shadow-[0_12px_30px_rgba(10,101,255,0.2)] mt-8"
         >
           {isSubmitting ? '설정 저장 중...' : '저축 설정 완료하기'}
-        </button>
+        </Button>
       </form>
     </div>
   );

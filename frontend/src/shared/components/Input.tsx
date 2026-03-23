@@ -12,7 +12,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 const baseInputClassName =
-  'w-full rounded-[16px] border bg-surface-muted px-4 py-[15px] text-[15px] font-semibold text-text-strong placeholder:text-text-subtle shadow-[0_10px_24px_rgba(15,23,42,0.04)] transition-all duration-200 hover:border-line-strong focus:outline-none disabled:cursor-not-allowed disabled:border-line-soft disabled:bg-surface-soft disabled:text-text-subtle';
+  'w-full rounded-[20px] px-5 py-[16px] text-[16px] font-bold text-eel placeholder:text-text-subtle transition-all duration-300 outline-none ring-0 disabled:cursor-not-allowed disabled:opacity-60 border border-transparent';
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   (
@@ -37,43 +37,43 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const hasTrailingAdornment = !!unit || !!endAdornment;
 
     return (
-      <div className={`mt-4 ${className}`}>
+      <div className={`flex flex-col gap-1.5 ${className}`}>
         {label && (
           <label
             htmlFor={inputId}
-            className="mb-2.5 block text-[13px] font-bold tracking-[-0.01em] text-text-muted"
+            className="block text-[14px] font-black tracking-tight text-text-strong ml-1"
           >
             {label}
           </label>
         )}
-        <div className={unit || endAdornment ? 'relative' : ''}>
+        <div className={unit || endAdornment ? 'relative flex items-center' : 'relative'}>
           <input
             ref={ref}
             id={inputId}
             aria-invalid={error ? 'true' : 'false'}
             className={`${baseInputClassName} ${
               error
-                ? 'border-danger-strong bg-surface-danger focus:border-danger-strong focus:bg-surface-base focus:ring-4 focus:ring-danger-soft'
-                : 'border-transparent focus:border-accent focus:bg-surface-base focus:ring-4 focus:ring-accent-soft'
+                ? 'bg-error-red/5 ring-2 ring-error-red focus:bg-white focus:shadow-[0_4px_24px_rgba(255,59,48,0.15)]'
+                : 'bg-[#eaeff5] shadow-[inset_0_2px_8px_rgba(15,23,42,0.06)] focus:bg-white focus:ring-1 focus:ring-primary-blue focus:border-primary-blue focus:shadow-[0_4px_24px_rgba(10,101,255,0.08)] hover:bg-[#dfe5f0]'
             } ${inputClassName}`}
             {...props}
-            style={hasTrailingAdornment ? { paddingRight: '3.25rem' } : undefined}
+            style={hasTrailingAdornment ? { paddingRight: '3.5rem' } : undefined}
           />
           {unit && (
-            <span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-[13px] font-bold text-text-muted">
+            <span className="pointer-events-none absolute right-5 text-[15px] font-black text-text-muted">
               {unit}
             </span>
           )}
           {endAdornment && !unit && (
-            <div className="absolute inset-y-0 right-3 flex items-center text-text-subtle">
+            <div className="absolute inset-y-0 right-4 flex items-center text-text-subtle">
               {endAdornment}
             </div>
           )}
         </div>
         {message && (
           <p
-            className={`mt-2 text-[12px] font-semibold ${
-              error ? 'text-danger' : hintTone === 'success' ? 'text-success' : 'text-text-muted'
+            className={`mt-1 text-[13px] font-bold ml-1 ${
+              error ? 'text-error-red' : hintTone === 'success' ? 'text-success' : 'text-text-muted'
             }`}
           >
             {message}
