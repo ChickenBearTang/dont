@@ -63,23 +63,24 @@ export interface TransactionItem {
 export interface SavingsSetting {
   id?: number;
   primaryAccountId: number;
-  saveBoxAccountId: number;
+  saveboxAccountId: number;
   keyword: string;
-  savingAmount: number;
+  savingsAmount: number;
   isActive: boolean;
 }
 
 /* --- API Requests --- */
 
 export interface SaveBoxCreateRequest {
-  accountName: string;
+  accountTypeUniqueNo: string;
 }
 
 export interface SavingsSettingRequest {
   primaryAccountId: number;
-  saveBoxAccountId: number;
+  saveboxAccountId: number;
   keyword: string;
-  savingAmount: number;
+  savingsAmount: number;
+  isActive: boolean;
 }
 
 /* --- API Responses --- */

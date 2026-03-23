@@ -42,10 +42,6 @@ export const router = createBrowserRouter([
         element: <div>LoadingScreen Placeholder</div>,
       },
       {
-        path: '/savebox-setup',
-        element: <div>SaveboxSetup Placeholder</div>,
-      },
-      {
         path: '/success',
         element: <div>SuccessScreen Placeholder</div>,
       },
@@ -103,6 +99,14 @@ export const router = createBrowserRouter([
               return { Component: EditPostPage };
             },
           },
+          {
+            path: 'admin/reports',
+            async lazy() {
+              const { default: AdminReportPage } =
+                await import('@/features/community/pages/AdminReportPage');
+              return { Component: AdminReportPage };
+            },
+          },
         ],
       },
       {
@@ -139,6 +143,37 @@ export const router = createBrowserRouter([
         async lazy() {
           const { MonthlyReportPage } = await import('@/features/finance/report');
           return { Component: MonthlyReportPage };
+        },
+      },
+      {
+        path: '/finance',
+        async lazy() {
+          const { FinanceHomePage } = await import('@/features/finance/pages/FinanceHomePage');
+          return { Component: FinanceHomePage };
+        },
+      },
+      {
+        path: '/savebox-setup',
+        async lazy() {
+          const { SaveboxSetupPage } =
+            await import('@/features/finance/account/pages/SaveboxSetupPage');
+          return { Component: SaveboxSetupPage };
+        },
+      },
+      {
+        path: '/finance/savebox',
+        async lazy() {
+          const { SaveboxDetailPage } =
+            await import('@/features/finance/account/pages/SaveboxDetailPage');
+          return { Component: SaveboxDetailPage };
+        },
+      },
+      {
+        path: '/savings-rule-setup',
+        async lazy() {
+          const { SavingsRuleSetupPage } =
+            await import('@/features/finance/account/pages/SavingsRuleSetupPage');
+          return { Component: SavingsRuleSetupPage };
         },
       },
     ],
