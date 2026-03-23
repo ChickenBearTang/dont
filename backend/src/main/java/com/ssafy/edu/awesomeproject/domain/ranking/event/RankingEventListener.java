@@ -1,6 +1,8 @@
 package com.ssafy.edu.awesomeproject.domain.ranking.event;
 
+import com.ssafy.edu.awesomeproject.domain.ranking.dto.response.RankingListResponse;
 import com.ssafy.edu.awesomeproject.domain.ranking.service.RankingService;
+import com.ssafy.edu.awesomeproject.domain.ranking.sse.RankingUpdatePayload;
 import com.ssafy.edu.awesomeproject.domain.ranking.sse.SseEmitters;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,10 +28,17 @@ public class RankingEventListener {
         log.info("[Ranking Update Event] User: {}, New Balance: {}, Cohort: {}", 
                  event.userId(), event.currentBalance(), event.cohort());
         
-        // Redis ZSET에 업데이트 (전체 & 기수별)
+        // 1. Redis ZSET 업데이트 (전체 & 기수별)
         rankingService.updateSaveboxRanking(event.userId(), event.currentBalance(), event.cohort());
         
-        // 인메모리에 붙어 있는 모든 유저 클라이언트들에게 랭킹 변동 알림(SSE) 브로드캐스트 직파!
-        sseEmitters.sendRankingUpdateNotification(event.userId());
+        // 2. 🔥 최신화된 전체 랭킹 조회 (내 랭킹 데이터 포함)
+        RankingListResponse totalRankingData = RankingListResponse.of(
+                rankingService.getTop10Ranking(null),
+                rankingService.getMyRanking(event.userId(), null)
+        );
+
+        // 3. Payload 조립 및 SSE 브로드캐스트 직파!
+        RankingUpdatePayload payload = new RankingUpdatePayload(event.userId(), totalRankingData);
+        sseEmitters.sendRankingUpdateNotification(payload);
     }
 }

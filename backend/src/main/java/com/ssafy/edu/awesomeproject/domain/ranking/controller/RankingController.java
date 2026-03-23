@@ -21,16 +21,16 @@ public class RankingController {
     private final RankingService rankingService;
     private final UserRepository userRepository;
 
-    /** 전체 세이브박스 랭킹 Top 100 및 내 랭킹 조회 */
+    /** 전체 세이브박스 랭킹 Top 10 및 내 랭킹 조회 */
     @GetMapping("/total")
     public CommonResponse<RankingListResponse> getTotalRanking(@CurrentUserId Long userId) {
-        List<RankingUserDto> top100 = rankingService.getTop100Ranking(null);
+        List<RankingUserDto> top10 = rankingService.getTop10Ranking(null);
         RankingUserDto myRanking = rankingService.getMyRanking(userId, null);
 
-        return CommonResponse.success(RankingListResponse.of(top100, myRanking));
+        return CommonResponse.success(RankingListResponse.of(top10, myRanking));
     }
 
-    /** 기수(Cohort)별 세이브박스 랭킹 Top 100 및 내 랭킹 조회 */
+    /** 기수(Cohort)별 세이브박스 랭킹 Top 10 및 내 랭킹 조회 */
     @GetMapping("/cohort")
     public CommonResponse<RankingListResponse> getCohortRanking(@CurrentUserId Long userId) {
         User user =
@@ -42,9 +42,9 @@ public class RankingController {
         // 유저 엔티티의 Lazy 로딩된 Cohort 객체에서 기수 번호를 안전하게 추출
         Integer cohortNo = (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
 
-        List<RankingUserDto> top100 = rankingService.getTop100Ranking(cohortNo);
+        List<RankingUserDto> top10 = rankingService.getTop10Ranking(cohortNo);
         RankingUserDto myRanking = rankingService.getMyRanking(userId, cohortNo);
 
-        return CommonResponse.success(RankingListResponse.of(top100, myRanking));
+        return CommonResponse.success(RankingListResponse.of(top10, myRanking));
     }
 }

@@ -8,7 +8,7 @@ interface RankingResponse {
   status: string;
   message: string;
   data: {
-    top100: RankingUser[]; // 백엔드는 최대 10명만 반환하지만 호환성을 위해 유지
+    top10: RankingUser[];
     myRanking: RankingUser;
   };
 }
@@ -36,7 +36,7 @@ export const RankingPage = () => {
     staleTime: 1000 * 60 * 5, // 5분 동안 캐시 유지 (나머지는 SSE가 업데이트 책임짐)
   });
 
-  const top100 = data?.data?.top100 || [];
+  const top10 = data?.data?.top10 || [];
   const myRanking = data?.data?.myRanking;
 
   return (
@@ -110,14 +110,14 @@ export const RankingPage = () => {
           </p>
         )}
 
-        {!isLoading && !isError && top100.length === 0 && (
+        {!isLoading && !isError && top10.length === 0 && (
           <p className="text-center text-gray-500 my-10 py-10 bg-white rounded-xl shadow-sm">
             아직 랭킹에 등록된 유저가 없습니다.
           </p>
         )}
 
         <ul className="space-y-3">
-          {top100.map((user) => (
+          {top10.map((user) => (
             <li
               key={user.userId}
               className={`flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border ${
@@ -144,7 +144,9 @@ export const RankingPage = () => {
                 >
                   {user.rank}
                 </span>
-                <span className="font-semibold text-gray-800">유저 {user.userId}</span>
+                <span className="font-semibold text-gray-800">
+                  {user.nickname || `유저 ${user.userId}`}
+                </span>
               </div>
               <span className="font-bold text-indigo-600">
                 {user.score.toLocaleString()}

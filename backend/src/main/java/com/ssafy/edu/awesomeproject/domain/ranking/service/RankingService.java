@@ -1,9 +1,13 @@
 package com.ssafy.edu.awesomeproject.domain.ranking.service;
 
+import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.ranking.dto.response.RankingUserDto;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
@@ -14,6 +18,7 @@ import org.springframework.stereotype.Service;
 public class RankingService {
 
     private final StringRedisTemplate redisTemplate;
+    private final UserRepository userRepository;
 
     // 글로벌 전체 랭킹용 Redis Key
     private static final String TOTAL_RANKING_KEY = "ranking:savebox:total";
@@ -47,21 +52,37 @@ public class RankingService {
     }
 
     /** Top 10 랭킹 리스트 조회 (cohort 인자가 null이면 전체 랭킹 조회) */
-    public List<RankingUserDto> getTop100Ranking(Integer cohort) {
+    public List<RankingUserDto> getTop10Ranking(Integer cohort) {
         String key =
                 (cohort != null && cohort > 0) ? COHORT_RANKING_PREFIX + cohort : TOTAL_RANKING_KEY;
-        Set<TypedTuple<String>> top100 =
+        Set<TypedTuple<String>> top10 =
                 redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, 9);
 
-        if (top100 == null || top100.isEmpty()) return List.of();
+        if (top10 == null || top10.isEmpty()) return List.of();
 
         long currentRank = 1;
         List<RankingUserDto> result = new ArrayList<>();
-        for (TypedTuple<String> tuple : top100) {
+        List<Long> userIds = new ArrayList<>();
+        List<Double> scores = new ArrayList<>();
+
+        for (TypedTuple<String> tuple : top10) {
             Long id = Long.valueOf(tuple.getValue());
-            Long score = tuple.getScore() != null ? tuple.getScore().longValue() : 0L;
-            result.add(RankingUserDto.of(id, score, currentRank++));
+            Double score = tuple.getScore();
+            if (score != null) {
+                userIds.add(id);
+                scores.add(score);
+            }
         }
+
+        Map<Long, String> nicknameMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getNickname));
+
+        for (int i = 0; i < userIds.size(); i++) {
+            Long userId = userIds.get(i);
+            String nickname = nicknameMap.getOrDefault(userId, "탈퇴한 유저");
+            result.add(RankingUserDto.of(userId, nickname, scores.get(i).longValue(), currentRank++));
+        }
+
         return result;
     }
 
@@ -75,10 +96,14 @@ public class RankingService {
         Long rank = redisTemplate.opsForZSet().reverseRank(key, userIdStr);
 
         if (scoreDouble == null || rank == null) {
-            return RankingUserDto.of(userId, 0L, -1L);
+            return RankingUserDto.of(userId, null, 0L, -1L);
         }
 
+        String nickname = userRepository.findById(userId)
+                .map(User::getNickname)
+                .orElse("탈퇴한 유저");
+
         return RankingUserDto.of(
-                userId, scoreDouble.longValue(), rank + 1); // Redis ZSET Rank는 0부터 시작하므로 +1
+                userId, nickname, scoreDouble.longValue(), rank + 1); // Redis ZSET Rank는 0부터 시작하므로 +1
     }
 }

@@ -6,15 +6,25 @@ import { EventSourcePolyfill } from 'event-source-polyfill';
 // --- (도메인 타입 힌트 예시) ---
 export interface RankingUser {
   userId: number;
+  nickname?: string;
   score: number;
   rank: number;
 }
 
+export interface RankingListResponse {
+  top10: RankingUser[];
+  myRanking: RankingUser;
+}
+
+export interface RankingResponse {
+  status: string;
+  message: string;
+  data: RankingListResponse;
+}
+
 export interface RankingUpdatePayload {
   triggeredUserId: number;
-  // 단일 서버 부하를 극한으로 없애기 위해, 백엔드에서 랭킹 변동 시점의
-  // '최신 Top 100 랭킹 리스트' 전체를 payload에 담아 보내주는 방식을 강력 추천합니다.
-  updatedTop100?: RankingUser[];
+  updatedData?: RankingListResponse;
 }
 
 /**
@@ -57,18 +67,15 @@ export const useRankingSse = () => {
 
       // 🛡️ [무과부하 렌더링 - Optimistic Cache Update 방식] 🛡️
       // 방금 만든 RankingPage의 useQuery Key인 ['ranking', 'total'] 과 맞추어 캐시를 덮어씌웁니다.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      queryClient.setQueryData(['ranking', 'total'], (oldData: any) => {
+      // 시니어 피드백 반영: 제네릭 타입 <RankingResponse> 지정으로 ESLint (no-explicit-any) 완벽 방어!
+      queryClient.setQueryData<RankingResponse>(['ranking', 'total'], (oldData) => {
         if (!oldData) return oldData; // 화면을 아직 안 보고 있으면 캐싱 안 함
 
-        /* --- [케이스 B] 백엔드에서 이미 최신화된 Top 100 배열을 던져준 경우 (가장 이상적) --- */
-        if (payload.updatedTop100) {
+        /* --- [케이스 B] 백엔드에서 이미 랭킹 전체 구조를 통째로 던져준 경우 --- */
+        if (payload.updatedData) {
           return {
             ...oldData,
-            data: {
-              ...oldData.data,
-              top100: payload.updatedTop100, // API 재호출 "0번"으로 화면의 순위 리스트 전체가 스르륵 갱신됨
-            },
+            data: payload.updatedData, // 통째로 갈아끼움!
           };
         }
 
