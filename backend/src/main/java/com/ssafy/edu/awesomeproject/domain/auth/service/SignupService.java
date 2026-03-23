@@ -22,26 +22,25 @@ public class SignupService {
             List.of("알뜰한", "든든한", "차분한", "영리한", "기민한", "반듯한");
     private static final List<String> NICKNAME_SUFFIXES =
             List.of("펭귄", "곰", "다람쥐", "여우", "고래", "토끼");
-    private static final List<String> DEFAULT_PROFILE_IMAGE_KEYS =
-            List.of(
-                    "public/profile/default/profile_penguin.png",
-                    "public/profile/default/profile_bear.png");
     private static final int NICKNAME_MAX_ATTEMPTS = 20;
 
     private final UserRepository userRepository;
     private final PasswordHashService passwordHashService;
     private final CohortRepository cohortRepository;
     private final EmailVerificationService emailVerificationService;
+    private final DefaultProfileImagePolicy defaultProfileImagePolicy;
 
     public SignupService(
             UserRepository userRepository,
             PasswordHashService passwordHashService,
             CohortRepository cohortRepository,
-            EmailVerificationService emailVerificationService) {
+            EmailVerificationService emailVerificationService,
+            DefaultProfileImagePolicy defaultProfileImagePolicy) {
         this.userRepository = userRepository;
         this.passwordHashService = passwordHashService;
         this.cohortRepository = cohortRepository;
         this.emailVerificationService = emailVerificationService;
+        this.defaultProfileImagePolicy = defaultProfileImagePolicy;
     }
 
     public void signup(
@@ -67,7 +66,7 @@ public class SignupService {
         String encodedPassword = passwordHashService.encode(rawPassword);
         LocalDateTime termsAgreedAt = termsAgreed ? LocalDateTime.now() : null;
         String generatedNickname = generateUniqueNickname();
-        String defaultProfileImageKey = pickDefaultProfileImageKey();
+        String defaultProfileImageKey = defaultProfileImagePolicy.pickRandomKey();
         User user =
                 new User(
                         normalizedEmail,
@@ -86,11 +85,6 @@ public class SignupService {
         } catch (DataIntegrityViolationException ex) {
             throw new AuthException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         }
-    }
-
-    private String pickDefaultProfileImageKey() {
-        int index = ThreadLocalRandom.current().nextInt(DEFAULT_PROFILE_IMAGE_KEYS.size());
-        return DEFAULT_PROFILE_IMAGE_KEYS.get(index);
     }
 
     private String generateUniqueNickname() {
