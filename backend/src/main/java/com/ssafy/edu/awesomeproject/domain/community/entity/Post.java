@@ -78,8 +78,15 @@ public class Post extends BaseEntity {
         this.deletedAt = LocalDateTime.now();
     }
 
+    // 게시물 blind 메서드 추가
+    public void blind() {
+        this.status = PostStatus.BLINDED;
+    }
+
     // 사용자가 맞는지 확인
     public boolean isAuthor(Long userId) {
         return this.user.getId().equals(userId);
     }
+
+
 }

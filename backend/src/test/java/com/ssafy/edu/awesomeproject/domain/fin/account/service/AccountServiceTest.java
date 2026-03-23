@@ -51,6 +51,8 @@ class AccountServiceTest {
 
     @Mock private UserRepository userRepository;
 
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @InjectMocks private AccountService accountService;
 
     @Test

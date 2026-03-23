@@ -24,5 +24,7 @@ public record OpenBankDetailAccountResponse(
             String oneTimeTransferLimit,
             String accountBalance,
             String lastTransactionDate,
-            String currency) {}
+            Currency currency) {}
+
+    public record Currency(String currency, String currencyName) {}
 }
