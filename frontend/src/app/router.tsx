@@ -10,6 +10,7 @@ import {
   HomeRoute,
   PrCreateRoute,
   PrDetailRoute,
+  RequireAdminRoute,
   RequireAuthRoute,
   RequireCompletedOnboardingRoute,
 } from '@/app/routeComponents';
@@ -196,12 +197,17 @@ export const router = createBrowserRouter([
             },
           },
           {
-            path: 'admin/reports',
-            async lazy() {
-              const { default: AdminReportPage } =
-                await import('@/features/community/pages/AdminReportPage');
-              return { Component: AdminReportPage };
-            },
+            element: <RequireAdminRoute />,
+            children: [
+              {
+                path: '/admin/reports',
+                async lazy() {
+                  const { default: AdminReportPage } =
+                    await import('@/features/community/pages/AdminReportPage');
+                  return { Component: AdminReportPage };
+                },
+              },
+            ],
           },
           {
             path: '/ranking',

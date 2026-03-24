@@ -7,7 +7,7 @@ class MockDatabase {
       userId: 1,
       nickname: '테스트유저',
       onboardingCompleted: false,
-      role: 'ROLE_USER',
+      role: 'USER',
       email: 'test@test.com',
     },
   ];
@@ -41,7 +41,7 @@ class MockDatabase {
       userId: this.users.length + 1,
       nickname: payload.name,
       onboardingCompleted: false,
-      role: 'ROLE_USER' as const,
+      role: 'USER' as const,
       email: payload.email,
     };
     this.users.push(newUser);
