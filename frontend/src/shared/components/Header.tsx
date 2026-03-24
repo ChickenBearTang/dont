@@ -13,7 +13,6 @@ interface HeaderProps {
 }
 
 const NAV_TABS = [
-  { label: '대시보드', path: '/dashboard' },
   { label: '금융', path: '/finance' },
   { label: '소비리포트', path: '/finance/report' },
   { label: '랭킹', path: '/ranking' },
