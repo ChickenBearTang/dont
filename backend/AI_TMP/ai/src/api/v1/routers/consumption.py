@@ -1,6 +1,11 @@
 from fastapi import APIRouter, HTTPException, Query
 from domain.consumption.service import ReportService
-from domain.consumption.schemas import ConsumptionAnalysisRequest
+from domain.consumption.schemas import (
+    CardRecommendationDbRequest,
+    ConsumptionAnalysisRequest,
+    DateRangeAnalysisRequest,
+    MonthlyReportDbRequest,
+)
 
 router = APIRouter()
 service = ReportService()
@@ -49,5 +54,46 @@ def get_mock_consumption_stats(
 def analyze_consumption(request: ConsumptionAnalysisRequest) -> dict:
     try:
         return service.build_report_from_data(request)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/consumption/monthly-report")
+def analyze_monthly_report(request: MonthlyReportDbRequest) -> dict:
+    try:
+        report = service.build_report_from_db(
+            user_id=request.user_id,
+            report_month=request.report_month,
+            include_ai=True,
+        )
+        return {
+            "analysis_payload": report.get("ai_analysis", {}),
+            "llm_status": report.get("meta", {}).get("llm_status", "skipped"),
+            "report_context": report,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/consumption/date-range-report")
+def analyze_date_range_report(request: DateRangeAnalysisRequest) -> dict:
+    try:
+        return service.build_report_from_db_range(
+            user_id=request.user_id,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            include_ai=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/recommendation/db")
+def recommend_card_from_db(request: CardRecommendationDbRequest) -> dict:
+    try:
+        return service.get_card_recommendation_from_db(
+            user_id=request.user_id,
+            month=request.month,
+        )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))

@@ -1,8 +1,12 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
-from domain.consumption.schemas import PurchaseIntentionRequest, TTSRequest
-from config import DATA_DIR
-from domain.strict_secretary.models import PurchaseRequest
+from domain.consumption.schemas import (
+    CardTransactionBase,
+    PurchaseIntentionRequest,
+    StrictSecretaryDbRequest,
+    TTSRequest,
+    UserProfileBase,
+)
 from domain.strict_secretary.service import evaluate_purchase_intention
 from domain.strict_secretary.voice import generate_tts_audio
 from domain.consumption.service import ReportService
@@ -14,6 +18,33 @@ service = ReportService()
 def handle_strict_secretary(req: PurchaseIntentionRequest) -> dict:
     try:
         result = evaluate_purchase_intention(req)
+        return result.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/db")
+def handle_strict_secretary_db(req: StrictSecretaryDbRequest) -> dict:
+    try:
+        context = service.build_strict_secretary_context_from_db(req.user_id)
+        purchase_request = PurchaseIntentionRequest(
+            user_profile=UserProfileBase(**context["profile"]),
+            item_text=req.item_text,
+            item_link=req.item_link,
+            user_reason=req.user_reason,
+            recent_transactions=[
+                CardTransactionBase(
+                    transaction_date=row["approved_at"][:10].replace("-", ""),
+                    transaction_time=row["approved_at"][11:19].replace(":", ""),
+                    merchant_name=row["merchant_name"],
+                    category_name=row["category"],
+                    transaction_amount=row["amount"],
+                )
+                for row in context["recent_transactions"]
+            ],
+            ai_report_context=str(context["ai_report"]),
+        )
+        result = evaluate_purchase_intention(purchase_request)
         return result.to_dict()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -35,7 +35,7 @@ export interface AiReportJustification {
 }
 
 export interface AiReportPayload {
-  base: {
+  base?: {
     userId: number;
     reportMonth: string;
     topCategory: {
@@ -55,6 +55,7 @@ export interface AiReportPayload {
     anomaly_explanations: string[];
     consumption_patterns: string[];
   };
+  cardRecommendation?: CardRecommendationResponse;
   justifications: AiReportJustification[];
 }
 

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
-from domain.consumption.schemas import ChatRequest
+from domain.consumption.schemas import ChatRequest, JustificationDbRequest
 from domain.consumption.service import ReportService
 from domain.chat.chat_agent import ChatAgent
 
@@ -31,3 +31,15 @@ def handle_chat(req: ChatRequest) -> dict:
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/evaluate-db")
+def evaluate_justification_from_db(req: JustificationDbRequest) -> dict:
+    try:
+        context, history = service.build_justification_context_from_db(
+            user_id=req.user_id,
+            report_month=req.target_month,
+        )
+        return chat_agent.evaluate_justification(req.message, context, history)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

@@ -50,9 +50,10 @@ export const regenerateAiReport = async (reportMonth: string): Promise<AiReportR
 };
 
 export const getCardRecommendation = async (month: string): Promise<CardRecommendationResponse> => {
-  return await axiosInstance.get('/fin/cards/recommend', {
+  const res: any = await axiosInstance.get('/fin/cards/recommend', {
     params: { month },
   });
+  return res?.data ?? res;
 };
 
 

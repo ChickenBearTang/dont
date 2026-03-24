@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
+import type { AxiosError } from 'axios';
 import {
   getSpendingSummary,
   getMonthlyAiReport,
   generateMonthlyAiReport,
   sendAiJustification,
   regenerateAiReport,
-  getCardRecommendation,
 } from '../api/reportApi';
 import type { SpendingSummaryResponse, SpendingSummaryRank, AiReportPayload, CardRecommendationResponse } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -185,50 +185,50 @@ const AIAnalysisCard = ({
 
         {/* AI 기반 소비 유형 및 카드 추천 결과 */}
         {cardRecommendLoading ? (
-            <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm flex items-center justify-center min-h-[160px]">
-                <div className="w-8 h-8 border-4 border-gray-100 border-t-purple-500 rounded-full animate-spin"></div>
-            </div>
+          <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm flex items-center justify-center min-h-[160px]">
+            <div className="w-8 h-8 border-4 border-gray-100 border-t-purple-500 rounded-full animate-spin"></div>
+          </div>
         ) : cardRecommendation && cardRecommendation.user_persona ? (
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-[24px] p-7 border border-indigo-100 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="text-4xl text-indigo-500">🧑‍💻</div>
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-[24px] p-7 border border-indigo-100 shadow-sm">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="text-4xl text-indigo-500">🧑‍💻</div>
+              <div>
+                <h3 className="text-[14px] font-bold text-indigo-500 tracking-tight">AI 분석 맞춤 소비 유형</h3>
+                <div className="text-[20px] font-black text-gray-900">{cardRecommendation.user_persona.name}</div>
+              </div>
+            </div>
+            <p className="text-[14px] text-gray-700 leading-relaxed font-medium mb-6">
+              {cardRecommendation.user_persona.description}
+            </p>
+
+            {cardRecommendation.best_card && (
+              <div className="bg-white rounded-2xl p-5 border border-indigo-100/50 shadow-[0_2px_8px_rgba(79,70,229,0.06)]">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-full">Best 추천 카드</span>
+                </div>
+                <div className="flex justify-between items-center flex-wrap gap-4">
                   <div>
-                    <h3 className="text-[14px] font-bold text-indigo-500 tracking-tight">AI 분석 맞춤 소비 유형</h3>
-                    <div className="text-[20px] font-black text-gray-900">{cardRecommendation.user_persona.name}</div>
+                    <h4 className="text-[18px] font-extrabold text-gray-900">{cardRecommendation.best_card.name}</h4>
+                    <p className="text-[13px] text-gray-500 font-medium mt-1">{cardRecommendation.best_card.main_text}</p>
+                  </div>
+                  <div className="text-right ml-auto">
+                    <div className="text-[12px] text-indigo-400 font-bold mb-1">예상 월 혜택</div>
+                    <div className="flex items-baseline justify-end">
+                      <span className="text-[22px] font-black tracking-tighter text-indigo-600">{cardRecommendation.best_card.estimated_savings?.toLocaleString()}</span>
+                      <span className="text-[14px] font-bold text-indigo-600 ml-1">원</span>
+                    </div>
                   </div>
                 </div>
-                <p className="text-[14px] text-gray-700 leading-relaxed font-medium mb-6">
-                  {cardRecommendation.user_persona.description}
-                </p>
-                
-                {cardRecommendation.best_card && (
-                  <div className="bg-white rounded-2xl p-5 border border-indigo-100/50 shadow-[0_2px_8px_rgba(79,70,229,0.06)]">
-                    <div className="flex justify-between items-start mb-2">
-                       <span className="bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-full">Best 추천 카드</span>
-                    </div>
-                    <div className="flex justify-between items-center flex-wrap gap-4">
-                       <div>
-                         <h4 className="text-[18px] font-extrabold text-gray-900">{cardRecommendation.best_card.name}</h4>
-                         <p className="text-[13px] text-gray-500 font-medium mt-1">{cardRecommendation.best_card.main_text}</p>
-                       </div>
-                       <div className="text-right ml-auto">
-                         <div className="text-[12px] text-indigo-400 font-bold mb-1">예상 월 혜택</div>
-                         <div className="flex items-baseline justify-end">
-                           <span className="text-[22px] font-black tracking-tighter text-indigo-600">{cardRecommendation.best_card.estimated_savings?.toLocaleString()}</span>
-                           <span className="text-[14px] font-bold text-indigo-600 ml-1">원</span>
-                         </div>
-                       </div>
-                    </div>
-                  </div>
-                )}
-                
-                <button 
-                  onClick={onNavigateToRecommend}
-                  className="w-full mt-4 bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 font-bold py-3.5 rounded-xl transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  맞춤 카드 추천 전체 결과 확인하기 <span className="text-[18px]">›</span>
-                </button>
-            </div>
+              </div>
+            )}
+
+            <button
+              onClick={onNavigateToRecommend}
+              className="w-full mt-4 bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 font-bold py-3.5 rounded-xl transition-all shadow-sm active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              맞춤 카드 추천 전체 결과 확인하기 <span className="text-[18px]">›</span>
+            </button>
+          </div>
         ) : null}
 
         <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
@@ -421,8 +421,8 @@ const ReportChatbot = ({
           <div
             key={idx}
             className={`max-w-[85%] rounded-2xl p-3 text-[14px] leading-relaxed shadow-sm ${m.sender === 'user'
-                ? 'bg-blue-600 text-white self-end rounded-tr-sm'
-                : 'bg-white text-gray-800 self-start rounded-tl-sm border border-gray-100'
+              ? 'bg-blue-600 text-white self-end rounded-tr-sm'
+              : 'bg-white text-gray-800 self-start rounded-tl-sm border border-gray-100'
               }`}
           >
             {m.text}
@@ -507,6 +507,19 @@ export const MonthlyReportPage = () => {
   const [cardRecommendation, setCardRecommendation] = useState<CardRecommendationResponse | null>(null);
   const [cardRecommendLoading, setCardRecommendLoading] = useState(true);
 
+  const extractReportPayload = (res: unknown): AiReportPayload | undefined =>
+    (res as { data?: { data?: { reportPayload?: AiReportPayload } } })?.data?.data?.reportPayload ||
+    (res as { data?: { reportPayload?: AiReportPayload } })?.data?.reportPayload ||
+    (res as { reportPayload?: AiReportPayload })?.reportPayload;
+
+  const getAxiosStatus = (error: unknown): number | undefined =>
+    (error as AxiosError | undefined)?.response?.status;
+
+  const applyMonthlyReportPayload = (payload?: AiReportPayload) => {
+    setAiAnalysis(payload?.aiAnalysis ?? null);
+    setCardRecommendation(payload?.cardRecommendation ?? null);
+  };
+
   const isCurrentMonth =
     currentDate.getMonth() === new Date().getMonth() &&
     currentDate.getFullYear() === new Date().getFullYear();
@@ -526,27 +539,18 @@ export const MonthlyReportPage = () => {
       const reportMonth = formatToYYYYMM(currentDate);
       await generateMonthlyAiReport(reportMonth);
 
-      // Reload AI report
-      setAiLoading(true);
-      const res = await getMonthlyAiReport(reportMonth);
-
-      const payload =
-        (res as { data?: { data?: { reportPayload?: AiReportPayload } } })?.data?.data
-          ?.reportPayload ||
-        (res as { data?: { reportPayload?: AiReportPayload } })?.data?.reportPayload ||
-        (res as { reportPayload?: AiReportPayload })?.reportPayload;
-
-      if (payload?.aiAnalysis) {
-        setAiAnalysis(payload.aiAnalysis);
-      } else {
-        setAiAnalysis(null);
-      }
+        // Reload AI report
+        setAiLoading(true);
+        setCardRecommendLoading(true);
+        const res = await getMonthlyAiReport(reportMonth);
+        applyMonthlyReportPayload(extractReportPayload(res));
     } catch (error) {
       console.error('Failed to generate AI report:', error);
       alert('리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setGenerating(false);
       setAiLoading(false);
+      setCardRecommendLoading(false);
     }
   };
 
@@ -558,23 +562,15 @@ export const MonthlyReportPage = () => {
 
       // 새로고침 로직
       setAiLoading(true);
+      setCardRecommendLoading(true);
       const res = await getMonthlyAiReport(reportMonth);
-      const payload =
-        (res as { data?: { data?: { reportPayload?: AiReportPayload } } })?.data?.data
-          ?.reportPayload ||
-        (res as { data?: { reportPayload?: AiReportPayload } })?.data?.reportPayload ||
-        (res as { reportPayload?: AiReportPayload })?.reportPayload;
-
-      if (payload?.aiAnalysis) {
-        setAiAnalysis(payload.aiAnalysis);
-      } else {
-        setAiAnalysis(null);
-      }
+      applyMonthlyReportPayload(extractReportPayload(res));
     } catch (error) {
       console.error(error);
       throw error;
     } finally {
       setAiLoading(false);
+      setCardRecommendLoading(false);
     }
   };
 
@@ -603,44 +599,24 @@ export const MonthlyReportPage = () => {
     const fetchAiReport = async () => {
       try {
         setAiLoading(true);
-        const reportMonth = formatToYYYYMM(currentDate);
-        const res = await getMonthlyAiReport(reportMonth);
-        const payload =
-          (res as { data?: { data?: { reportPayload?: AiReportPayload } } })?.data?.data
-            ?.reportPayload ||
-          (res as { data?: { reportPayload?: AiReportPayload } })?.data?.reportPayload ||
-          (res as { reportPayload?: AiReportPayload })?.reportPayload;
-
-        if (payload?.aiAnalysis) {
-          setAiAnalysis(payload.aiAnalysis);
-        } else {
-          setAiAnalysis(null);
-        }
-      } catch (error) {
-        console.error('Failed to fetch AI report:', error);
-        setAiAnalysis(null);
-      } finally {
-        setAiLoading(false);
-      }
-    };
-
-    const fetchCardRecommendation = async () => {
-      try {
         setCardRecommendLoading(true);
         const reportMonth = formatToYYYYMM(currentDate);
-        const res = await getCardRecommendation(reportMonth);
-        setCardRecommendation(res);
+        const res = await getMonthlyAiReport(reportMonth);
+        applyMonthlyReportPayload(extractReportPayload(res));
       } catch (error) {
-        console.error('Failed to fetch card recommendation:', error);
+        if (getAxiosStatus(error) !== 404) {
+          console.error('Failed to fetch AI report:', error);
+        }
+        setAiAnalysis(null);
         setCardRecommendation(null);
       } finally {
+        setAiLoading(false);
         setCardRecommendLoading(false);
       }
     };
 
     fetchSummary();
     fetchAiReport();
-    fetchCardRecommendation();
   }, [currentDate]);
 
   const handlePrevMonth = () => {
@@ -809,7 +785,9 @@ export const MonthlyReportPage = () => {
           isCurrentMonth={isCurrentMonth}
           generating={generating}
           onGenerate={handleGenerateReport}
-          onNavigateToRecommend={() => navigate('/finance/cards/recommendation')}
+          onNavigateToRecommend={() =>
+            navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`)
+          }
         />
       </div>
 

@@ -83,8 +83,11 @@ public class CardTransaction extends BaseEntity {
         this.description = description;
         this.userId = userId;
     }
- 
+
     public void updateJustification(String justification) {
         this.justification = justification;
     }
+
 }
+
+    

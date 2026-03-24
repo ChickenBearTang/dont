@@ -1,9 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 
 from domain.consumption.ai_insights import generate_ai_analysis
 from domain.consumption.anomaly import detect_anomalies
+from domain.consumption.db import (
+    build_date_range,
+    fetch_account_transactions,
+    fetch_card_transactions,
+    fetch_card_transactions_between,
+    fetch_justification_history,
+    fetch_user_profile,
+    fetch_valid_justifications,
+    get_connection,
+)
 from config import (
     ACCOUNT_TRANSACTIONS_PATH,
     CARD_TRANSACTIONS_PATH,
@@ -193,6 +203,232 @@ class ReportService:
             **bundle,
         }
 
+    def _build_report_bundle(
+        self,
+        profile,
+        cards,
+        accounts,
+        start_date: str,
+        end_date: str,
+        include_ai: bool,
+        justifications: list[dict] | None = None,
+    ) -> dict:
+        if not cards:
+            raise ValueError("No card transactions found for the requested period.")
+
+        monthly = build_monthly_summary(cards, profile.monthly_income)
+        categories = build_category_summary(cards)
+        time_patterns = build_time_summary(cards)
+        cashflow = build_cashflow_summary(accounts)
+        anomalies = detect_anomalies(cards)
+        overview = build_overview(profile, cards, monthly)
+        fallback_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
+
+        llm_payload = {
+            "overview": overview,
+            "monthly": monthly,
+            "top_categories": categories["top_categories"][:5],
+            "top_subcategories": categories["top_subcategories"][:5],
+            "time_patterns": time_patterns,
+            "cashflow": cashflow,
+            "anomalies": anomalies[:5],
+            "fallback_analysis": fallback_analysis,
+            "justifications": justifications or [],
+        }
+        ai_analysis, llm_status = generate_ai_analysis(
+            llm_payload, fallback_analysis, include_ai=include_ai
+        )
+
+        return {
+            "meta": {
+                "user_id": profile.user_id,
+                "user_name": profile.name,
+                "period": {"start": start_date, "end": end_date},
+                "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                "llm_status": llm_status,
+            },
+            "overview": overview,
+            "monthly": monthly,
+            "categories": categories,
+            "time_patterns": time_patterns,
+            "cashflow": cashflow,
+            "anomalies": anomalies,
+            "ai_analysis": ai_analysis,
+        }
+
+    def build_report_from_db(self, user_id: int, report_month: str, include_ai: bool = True) -> dict:
+        from domain.consumption.schemas import (
+            AccountTransaction as InternalAccount,
+            CardTransaction as InternalCard,
+            UserProfile as InternalProfile,
+        )
+
+        with get_connection() as connection:
+            db_profile = fetch_user_profile(connection, user_id, report_month)
+            card_rows = fetch_card_transactions(connection, user_id, report_month)
+            account_rows = fetch_account_transactions(connection, user_id, report_month)
+            valid_justifications = fetch_valid_justifications(connection, user_id, report_month)
+
+        profile = InternalProfile(
+            user_id=db_profile.user_id,
+            name=db_profile.name,
+            age=30,
+            job="Unknown",
+            monthly_income=db_profile.monthly_income,
+            pay_day=25,
+            residence_type="Unknown",
+            main_bank="Unknown",
+            main_card_type="Unknown",
+        )
+        cards = [InternalCard(**row) for row in card_rows]
+        accounts = [InternalAccount(**row) for row in account_rows]
+
+        return self._build_report_bundle(
+            profile=profile,
+            cards=cards,
+            accounts=accounts,
+            start_date=report_month,
+            end_date=report_month,
+            include_ai=include_ai,
+            justifications=valid_justifications,
+        )
+
+    def build_report_from_db_range(
+        self, user_id: int, start_date: str, end_date: str, include_ai: bool = True
+    ) -> dict:
+        from domain.consumption.schemas import (
+            AccountTransaction as InternalAccount,
+            CardTransaction as InternalCard,
+            UserProfile as InternalProfile,
+        )
+
+        with get_connection() as connection:
+            db_profile, card_rows, account_rows = build_date_range(
+                connection, user_id, start_date, end_date
+            )
+
+        profile = InternalProfile(
+            user_id=db_profile.user_id,
+            name=db_profile.name,
+            age=30,
+            job="Unknown",
+            monthly_income=db_profile.monthly_income,
+            pay_day=25,
+            residence_type="Unknown",
+            main_bank="Unknown",
+            main_card_type="Unknown",
+        )
+        cards = [InternalCard(**row) for row in card_rows]
+        accounts = [InternalAccount(**row) for row in account_rows]
+
+        return self._build_report_bundle(
+            profile=profile,
+            cards=cards,
+            accounts=accounts,
+            start_date=start_date,
+            end_date=end_date,
+            include_ai=include_ai,
+            justifications=[],
+        )
+
+    def get_card_recommendation_from_db(self, user_id: int, month: str) -> dict:
+        with get_connection() as connection:
+            db_profile = fetch_user_profile(connection, user_id, month)
+            card_rows = fetch_card_transactions(connection, user_id, month)
+
+        if not card_rows:
+            return {"error": "해당 월에 카드 결제 내역이 없습니다."}
+
+        raw_data = [
+            {
+                "storeName": row["merchant_name"],
+                "amount": row["amount"],
+                "category": row["category"],
+                "subcategory": row["subcategory"],
+            }
+            for row in card_rows
+        ]
+
+        from consumption_poc.recommendation import AIConsumptionEngine
+        from config import RAW_DATA_DIR
+
+        with open(RAW_DATA_DIR / "persons.json", "r", encoding="utf-8") as f:
+            personas = json.load(f)
+        with open(RAW_DATA_DIR / "cards.json", "r", encoding="utf-8") as f:
+            cards_data = json.load(f)
+
+        engine = AIConsumptionEngine(personas, cards_data)
+        result = engine.run(raw_data)
+        if result.get("user_persona") is None:
+            result["user_persona"] = {
+                "type_id": "UNKNOWN",
+                "name": f"{db_profile.name}님의 소비 유형",
+                "description": "분석할 소비 유형 데이터가 충분하지 않습니다.",
+                "total_amount": 0,
+                "count": 0,
+                "score": 0,
+            }
+        return result
+
+    def build_strict_secretary_context_from_db(self, user_id: int) -> dict:
+        from domain.consumption.schemas import CardTransaction as InternalCard
+
+        today = date.today()
+        two_months_ago = today.replace(day=1)
+        if two_months_ago.month <= 2:
+            two_months_ago = two_months_ago.replace(
+                year=two_months_ago.year - 1, month=two_months_ago.month + 10
+            )
+        else:
+            two_months_ago = two_months_ago.replace(month=two_months_ago.month - 2)
+
+        current_month = today.strftime("%Y-%m")
+        with get_connection() as connection:
+            db_profile = fetch_user_profile(connection, user_id, current_month)
+            recent_card_rows = fetch_card_transactions_between(
+                connection, user_id, two_months_ago, today + timedelta(days=1)
+            )
+
+        recent_transactions = [InternalCard(**row) for row in recent_card_rows]
+        report_context = self.build_report_from_db(
+            user_id=user_id, report_month=current_month, include_ai=False
+        )
+
+        return {
+            "profile": {
+                "user_id": db_profile.user_id,
+                "name": db_profile.name,
+                "monthly_income": db_profile.monthly_income,
+            },
+            "recent_transactions": [
+                {
+                    "approved_at": tx.approved_at.isoformat(),
+                    "merchant_name": tx.merchant_name,
+                    "amount": tx.amount,
+                    "category": tx.category,
+                    "subcategory": tx.subcategory,
+                }
+                for tx in recent_transactions
+            ],
+            "ai_report": report_context,
+            "explain_logs": [],
+        }
+
+    def build_justification_context_from_db(self, user_id: int, report_month: str) -> tuple[dict, list[dict[str, str]]]:
+        report = self.build_report_from_db(user_id=user_id, report_month=report_month, include_ai=False)
+        context = {
+            "overview": report.get("overview", {}),
+            "monthly": report.get("monthly", []),
+            "categories": report.get("categories", {}),
+            "anomalies": report.get("anomalies", []),
+            "existing_ai_analysis": report.get("ai_analysis", {}),
+        }
+
+        with get_connection() as connection:
+            history = fetch_justification_history(connection, user_id, report_month)
+
+        return context, history
+
     def build_report_from_data(self, request: ConsumptionAnalysisRequest) -> dict:
         from domain.consumption.schemas import (
             UserProfile as InternalProfile,
@@ -261,50 +497,16 @@ class ReportService:
                 )
             )
 
-        # Re-use the building logic from build_report but with passed data
-        if not cards:
-            raise ValueError("No card transactions provided.")
-
-        monthly = build_monthly_summary(cards, profile.monthly_income)
-        categories = build_category_summary(cards)
-        time_patterns = build_time_summary(cards)
-        cashflow = build_cashflow_summary(accounts)
-        anomalies = detect_anomalies(cards)
-
-        overview = build_overview(profile, cards, monthly)
-        fallback_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
-        
         justifications = self.load_justifications(profile.user_id, request.start_date)
-        
-        llm_payload = {
-            "overview": overview,
-            "monthly": monthly,
-            "top_categories": categories["top_categories"][:5],
-            "top_subcategories": categories["top_subcategories"][:5],
-            "time_patterns": time_patterns,
-            "cashflow": cashflow,
-            "anomalies": anomalies[:5],
-            "fallback_analysis": fallback_analysis,
-            "justifications": justifications,
-        }
-        ai_analysis, llm_status = generate_ai_analysis(llm_payload, fallback_analysis, include_ai=request.include_ai)
-
-        return {
-            "meta": {
-                "user_id": profile.user_id,
-                "user_name": profile.name,
-                "period": {"start": request.start_date, "end": request.end_date},
-                "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-                "llm_status": llm_status,
-            },
-            "overview": overview,
-            "monthly": monthly,
-            "categories": categories,
-            "time_patterns": time_patterns,
-            "cashflow": cashflow,
-            "anomalies": anomalies,
-            "ai_analysis": ai_analysis,
-        }
+        return self._build_report_bundle(
+            profile=profile,
+            cards=cards,
+            accounts=accounts,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            include_ai=request.include_ai,
+            justifications=justifications,
+        )
 
     def regenerate(self, user_id: str | None = None, user_name: str | None = None) -> list[str]:
         profile = self._resolve_profile(user_id=user_id, user_name=user_name) if (user_id or user_name) else self.profiles[0]

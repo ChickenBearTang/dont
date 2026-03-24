@@ -60,6 +60,35 @@ class ChatRequest(BaseModel):
     history: list[dict[str, str]] = []
 
 
+class MonthlyReportDbRequest(BaseModel):
+    user_id: int
+    report_month: str
+
+
+class JustificationDbRequest(BaseModel):
+    user_id: int
+    target_month: str
+    message: str
+
+
+class DateRangeAnalysisRequest(BaseModel):
+    user_id: int
+    start_date: str
+    end_date: str
+
+
+class CardRecommendationDbRequest(BaseModel):
+    user_id: int
+    month: str
+
+
+class StrictSecretaryDbRequest(BaseModel):
+    user_id: int
+    item_text: str
+    item_link: str
+    user_reason: str
+
+
 class PurchaseIntentionRequest(BaseModel):
     user_profile: UserProfileBase
     item_text: str

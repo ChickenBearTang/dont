@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getCardRecommendation } from '@/features/finance/report/api/reportApi';
 import type { CardRecommendationResponse } from '@/features/finance/report/types';
 
 export const CardRecommendationRankPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState<CardRecommendationResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -12,11 +13,13 @@ export const CardRecommendationRankPage = () => {
     const fetchRanking = async () => {
       try {
         setLoading(true);
+        const requestedMonth = searchParams.get('month');
         const date = new Date();
         const yyyy = date.getFullYear();
         const mm = String(date.getMonth() + 1).padStart(2, '0');
-        const monthStr = `${yyyy}-${mm}`;
-        
+        const fallbackMonth = `${yyyy}-${mm}`;
+        const monthStr = requestedMonth || fallbackMonth;
+
         const res = await getCardRecommendation(monthStr);
         setData(res);
       } catch (error) {
@@ -26,7 +29,7 @@ export const CardRecommendationRankPage = () => {
       }
     };
     fetchRanking();
-  }, []);
+  }, [searchParams]);
 
   return (
     <div className="w-full max-w-[760px] mx-auto min-h-screen px-4 py-8 pb-16 bg-gray-50/30">
