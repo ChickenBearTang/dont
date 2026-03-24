@@ -5,8 +5,8 @@ from typing import Any
 
 from google import genai
 
-from consumption_poc.config import get_env, DEFAULT_GEMINI_MODEL
-from consumption_poc.ai_insights import _model_candidates, _extract_json
+from config import get_env, DEFAULT_GEMINI_MODEL
+from domain.consumption.ai_insights import _model_candidates, _extract_json
 
 class ChatAgent:
     def __init__(self):
@@ -70,7 +70,7 @@ User's Latest Message:
                     }
             except Exception as e:
                 import logging
-                logging.warning(f"Error evaluating justification with model {{candidate}}: {{e}}")
+                logging.warning("Error evaluating justification with model %s: %s", candidate, e)
                 continue
 
         # Fallback if all models fail or return bad JSON

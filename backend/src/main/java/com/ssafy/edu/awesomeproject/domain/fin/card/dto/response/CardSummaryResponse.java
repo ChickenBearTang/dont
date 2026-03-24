@@ -16,6 +16,8 @@ public class CardSummaryResponse {
 
     private List<RankColum> RankColumList;
 
+    private AiAnalysisResponse aiReport;
+
     @Getter
     @Builder
     public static class RankColum {
