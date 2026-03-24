@@ -174,8 +174,7 @@ def fetch_card_transactions_between(
                    transaction_amount,
                    transaction_type,
                    approval_no,
-                   description,
-                   justification
+                   description
             from card_transactions
             where user_id = %s
               and transaction_date >= %s

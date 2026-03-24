@@ -301,9 +301,11 @@ const AIAnalysisCard = ({
 const ReportChatbot = ({
   targetMonth,
   onRegenerate,
+  onApplyRegeneratedReport,
 }: {
   targetMonth: string;
   onRegenerate: () => void;
+  onApplyRegeneratedReport: (payload?: AiReportPayload) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ sender: 'user' | 'ai'; text: string }[]>([]);
@@ -343,10 +345,23 @@ const ReportChatbot = ({
         data?.ai_response ?? data?.aiResponse ?? '설득력이 있는 내용이네요. 내용을 검토하겠습니다.'
       );
       const valid = Boolean(data?.is_valid ?? data?.valid ?? false);
+      const reportRegenerated = Boolean(
+        data?.report_regenerated ?? data?.reportRegenerated ?? false
+      );
+      const regeneratedReport = (
+        data?.regenerated_report ?? data?.regeneratedReport
+      ) as { reportPayload?: AiReportPayload } | undefined;
 
       setMessages((prev) => [...prev, { sender: 'ai', text: aiResponse }]);
 
-      if (valid) {
+      if (reportRegenerated) {
+        onApplyRegeneratedReport(regeneratedReport?.reportPayload);
+        setMessages((prev) => [
+          ...prev,
+          { sender: 'ai', text: '소명 내용을 반영해서 소비리포트도 바로 업데이트했어요.' },
+        ]);
+        setIsValidated(false);
+      } else if (valid) {
         setIsValidated(true);
       }
     } catch (e) {
@@ -796,6 +811,7 @@ export const MonthlyReportPage = () => {
         <ReportChatbot
           targetMonth={formatToYYYYMM(currentDate)}
           onRegenerate={handleChatRegenerate}
+          onApplyRegeneratedReport={applyMonthlyReportPayload}
         />
       )}
     </div>

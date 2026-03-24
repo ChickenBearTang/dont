@@ -140,8 +140,12 @@ python scripts/regenerate_reports.py
 ### API 서버 실행
 
 ```bash
-python -m uvicorn consumption_poc.main:app --host 127.0.0.1 --port 8000
+cd src
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
+
+기존 명령인 `python -m uvicorn consumption_poc.main:app --host 127.0.0.1 --port 8000` 도
+호환되지만, 현재 DB 연동 기준 실제 런타임 엔트리는 `src/main.py` 입니다.
 
 ### 테스트 실행
 

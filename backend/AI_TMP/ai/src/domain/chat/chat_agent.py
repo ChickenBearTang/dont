@@ -70,7 +70,7 @@ User's Latest Message:
                     }
             except Exception as e:
                 import logging
-                logging.warning(f"Error evaluating justification with model {{candidate}}: {{e}}")
+                logging.warning("Error evaluating justification with model %s: %s", candidate, e)
                 continue
 
         # Fallback if all models fail or return bad JSON

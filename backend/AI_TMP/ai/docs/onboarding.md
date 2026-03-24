@@ -192,7 +192,8 @@ python scripts/regenerate_reports.py
 ### 3. 서버 실행
 
 ```bash
-python -m uvicorn consumption_poc.main:app --host 127.0.0.1 --port 8000
+cd src
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
 ### 4. 테스트 실행

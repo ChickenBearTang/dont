@@ -32,8 +32,8 @@ export const sendAiJustification = async (
   return await axiosInstance.post(
     '/fin/consumption/reports/justifications/evaluate',
     {
-      target_month: targetMonth,
-      user_message: message,
+      targetMonth,
+      message,
     },
     { timeout: 30000 }
   );
@@ -55,5 +55,4 @@ export const getCardRecommendation = async (month: string): Promise<CardRecommen
   });
   return res?.data ?? res;
 };
-
 

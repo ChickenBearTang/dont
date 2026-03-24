@@ -162,7 +162,7 @@ public class CardService {
                                     return CardSummaryResponse.RankColum.builder()
                                             .categoryName(entry.getKey())
                                             .percentage(percentage)
-                                            .amount(Math.toIntExact(amount))
+                                            .amount((int) amount)
                                             .build();
                                 })
                         .sorted(Comparator.comparing(CardSummaryResponse.RankColum::getPercentage).reversed())
