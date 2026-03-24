@@ -25,7 +25,6 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSetting
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankAdapter;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.response.OpenBankDetailAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.ranking.event.SaveboxBalanceUpdatedEvent;
-import org.springframework.context.ApplicationEventPublisher;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -36,6 +35,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -381,7 +381,9 @@ public class AccountService {
         Account updatedSavebox = accountRepository.findById(saveboxAccount.getId()).orElse(null);
         if (updatedSavebox != null) {
             Integer cohortNo = user.getCohort() != null ? user.getCohort().getGenerationNo() : null;
-            eventPublisher.publishEvent(new SaveboxBalanceUpdatedEvent(userId, updatedSavebox.getBalance().longValue(), cohortNo));
+            eventPublisher.publishEvent(
+                    new SaveboxBalanceUpdatedEvent(
+                            userId, updatedSavebox.getBalance().longValue(), cohortNo));
         }
     }
 
@@ -511,10 +513,17 @@ public class AccountService {
         syncAccounts(userId);
 
         // --- 랭킹(Ranking) 시스템으로 이벤트 발송 ---
-        Account updatedSavebox = accountRepository.findById(saveboxAccount.getId())
-                .orElseThrow(() -> new AccountException(AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
+        Account updatedSavebox =
+                accountRepository
+                        .findById(saveboxAccount.getId())
+                        .orElseThrow(
+                                () ->
+                                        new AccountException(
+                                                AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
         Integer cohortNo = user.getCohort() != null ? user.getCohort().getGenerationNo() : null;
-        eventPublisher.publishEvent(new SaveboxBalanceUpdatedEvent(userId, updatedSavebox.getBalance().longValue(), cohortNo));
+        eventPublisher.publishEvent(
+                new SaveboxBalanceUpdatedEvent(
+                        userId, updatedSavebox.getBalance().longValue(), cohortNo));
     }
 
     private void syncAccounts(Long userId) {
