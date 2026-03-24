@@ -2,6 +2,8 @@ import type { UserProfile } from '@/features/auth/types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotificationStore } from '@/features/community/store/useNotificationStore';
 import { useEffect, useState, useRef } from 'react';
+import bellIcon from '@/assets/logo/bell-icon.png';
+import profileIcon from '@/assets/logo/profile.png';
 
 interface HeaderProps {
   user: UserProfile | null;
@@ -128,11 +130,10 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                 <div
                   key={tab.label}
                   onClick={() => navigate(tab.path)}
-                  className={`flex items-center justify-center px-5 cursor-pointer text-[15px] border-b-[3px] transition-all duration-300 hover:text-primary-blue ${
-                    isActive
-                      ? 'border-primary-blue text-primary-blue'
-                      : 'border-transparent text-gray-500 hover:border-gray-200'
-                  }`}
+                  className={`flex items-center justify-center px-5 cursor-pointer text-[15px] border-b-[3px] transition-all duration-300 hover:text-primary-blue ${isActive
+                    ? 'border-primary-blue text-primary-blue'
+                    : 'border-transparent text-gray-500 hover:border-gray-200'
+                    }`}
                 >
                   {tab.label}
                 </div>
@@ -168,12 +169,11 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
             <div className="relative" ref={dropdownRef}>
               <div
-                className={`relative cursor-pointer text-[20px] transition-transform hover:scale-110 ${
-                  isDropdownOpen ? 'text-primary-blue' : 'text-eel'
-                }`}
+                className={`relative cursor-pointer transition-transform hover:scale-110 ${isDropdownOpen ? 'opacity-70' : ''
+                  }`}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                🔔
+                <img src={bellIcon} alt="Notifications" className="w-5 h-5 object-contain" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-[2px] -right-[2px] min-w-[16px] h-[16px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -204,9 +204,8 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                       notifications.map((notif) => (
                         <div
                           key={notif.notificationId}
-                          className={`group px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col gap-0.5 border-b border-gray-50 last:border-0 relative ${
-                            !notif.isRead ? 'bg-blue-50/30' : ''
-                          }`}
+                          className={`group px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col gap-0.5 border-b border-gray-50 last:border-0 relative ${!notif.isRead ? 'bg-blue-50/30' : ''
+                            }`}
                           onClick={() => handleNotificationClick(notif)}
                         >
                           <div className="flex justify-between items-start gap-2 pr-5">
@@ -267,10 +266,10 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
             <div
               onClick={() => navigate('/mypage')}
-              className="cursor-pointer text-[20px] text-eel hover:text-primary-blue transition-colors"
+              className="cursor-pointer transition-transform hover:scale-110"
               title={user?.nickname ? `${user.nickname}님의 마이페이지` : '마이페이지'}
             >
-              👤
+              <img src={profileIcon} alt="Profile" className="w-6 h-6 object-contain" />
             </div>
 
             <button

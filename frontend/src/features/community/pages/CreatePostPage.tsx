@@ -5,6 +5,7 @@ import { createHotdeal, createPoll, createPost } from '../api/communityApi';
 import { AttachmentUploader } from '../components/AttachmentUploader';
 import { toAttachmentRequests } from '../api/attachmentApi';
 import type { BoardCategory, PostAttachmentDto } from '../types';
+import { Card, Button } from '@/shared/components';
 import { createPr } from '@/features/community/pr';
 
 const CATEGORY_OPTIONS: Array<{ value: BoardCategory; label: string }> = [
@@ -222,7 +223,7 @@ export const CreatePostPage = () => {
         ? validatePollPost(trimmedTitle, trimmedContent)
         : isHotdealCategory
           ? validateHotdealPost(trimmedTitle, trimmedContent)
-        : validateDefaultPost(trimmedTitle, trimmedContent);
+          : validateDefaultPost(trimmedTitle, trimmedContent);
 
     if (!isValid) {
       return;
@@ -297,8 +298,8 @@ export const CreatePostPage = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden min-h-[600px]">
-      <div className="px-7 pt-7 pb-5 border-b border-gray-100">
+    <Card className="!p-0 flex flex-col min-h-[600px] overflow-hidden">
+      <div className="px-7 pt-7 pb-5 border-b border-gray-100 relative z-10 w-full">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-[22px] font-bold text-gray-900 tracking-[-0.02em]">게시글 작성</h1>
@@ -309,7 +310,7 @@ export const CreatePostPage = () => {
           <button
             type="button"
             onClick={handleCancel}
-            className="text-[13px] font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+            className="text-[13px] font-bold text-text-subtle hover:text-eel transition-colors"
           >
             목록으로 돌아가기
           </button>
@@ -488,7 +489,7 @@ export const CreatePostPage = () => {
           </>
         ) : isPollCategory ? (
           <>
-              <div className="rounded-2xl border border-gray-200 bg-white px-5 py-5">
+            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-5">
               <h2 className="text-[16px] font-bold text-gray-900">토론 질문 설정</h2>
               <p className="mt-1 text-[12px] text-gray-500">
                 질문, 양자택일 선택지, 마감 시각을 정하면 토론 게시판 카드와 상세 화면에 반영됩니다.
@@ -699,28 +700,20 @@ export const CreatePostPage = () => {
         )}
 
         {errorMessage ? (
-          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-500">
+          <div className="rounded-xl border border-error-red/20 bg-error-red/5 px-4 py-3 text-[13px] font-bold text-error-red">
             {errorMessage}
           </div>
         ) : null}
 
         <div className="flex justify-end gap-3 pt-2 shrink-0">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="inline-flex h-11 items-center justify-center rounded-xl border border-gray-300 bg-white px-5 text-[14px] font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
-          >
+          <Button variant="outline" type="button" onClick={handleCancel} className="!px-5">
             취소
-          </button>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="inline-flex h-11 items-center justify-center rounded-xl border border-blue-600 bg-blue-600 px-5 text-[14px] font-bold text-white shadow-sm transition hover:border-blue-700 hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-300"
-          >
+          </Button>
+          <Button type="submit" disabled={isSubmitting} className="!px-5">
             {isSubmitting ? '등록 중...' : '작성완료'}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Card>
   );
 };

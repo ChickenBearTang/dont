@@ -169,7 +169,9 @@ public class PostService {
                 Math.toIntExact(
                         commentRepository.countByPost_IdAndStatusIn(
                                 post.getId(), READABLE_COMMENT_STATUSES)),
+
                 postAttachmentService.getAttachments(post.getId()),
+
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }

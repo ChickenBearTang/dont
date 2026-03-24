@@ -9,7 +9,7 @@ export const SignUpPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="max-w-[600px] mx-auto py-10">
+    <div className="w-full max-w-[600px] px-4 mx-auto py-10">
       {/* 타이틀 영역 */}
       <div className="text-center mb-10">
         <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-tight">
