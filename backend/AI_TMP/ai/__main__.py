@@ -10,6 +10,9 @@ from ai.finance_profile import fetch_finance_profile
 from ai.manager import AIPipelineManager
 from ai.models import CrawlResult
 from ai.xai.analyzer import ExplainabilityAnalyzer
+from ai.xai.counterfactuals import CounterfactualEngine
+from ai.xai.dice_engine import DiceCounterfactualEngine
+from ai.xai.shap_engine import ShapContributionEngine
 
 
 def _basic_payload(result: CrawlResult) -> dict[str, Any]:
@@ -55,7 +58,15 @@ def main() -> None:
         finance_api_url=args.finance_api_url,
         finance_api_timeout=args.finance_api_timeout,
     )
-    analyzer = ExplainabilityAnalyzer(finance_profile=finance_profile or {})
+    fallback_counterfactual_engine = CounterfactualEngine()
+    analyzer = ExplainabilityAnalyzer(
+        finance_profile=finance_profile or {},
+        counterfactual_engine=fallback_counterfactual_engine,
+        dice_counterfactual_engine=DiceCounterfactualEngine(
+            fallback_engine=fallback_counterfactual_engine
+        ),
+        shap_contribution_engine=ShapContributionEngine(),
+    )
     top_k = max(1, min(int(args.xai_top_k), 4))
 
     manager = AIPipelineManager(

@@ -45,7 +45,12 @@ class MainFinanceIntegrationTest(unittest.TestCase):
             with redirect_stdout(stdout):
                 main_module.main()
 
-        analyzer_cls.assert_called_once_with(finance_profile={})
+        analyzer_cls.assert_called_once()
+        kwargs = analyzer_cls.call_args.kwargs
+        self.assertEqual(kwargs.get("finance_profile"), {})
+        self.assertIn("counterfactual_engine", kwargs)
+        self.assertIn("dice_counterfactual_engine", kwargs)
+        self.assertIn("shap_contribution_engine", kwargs)
         payload = json.loads(stdout.getvalue().strip())
         self.assertEqual(payload["schema_version"], "financial-purchase-copilot-xai-v1")
 

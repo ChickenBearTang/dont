@@ -42,6 +42,16 @@ class ExplainabilityAnalyzer:
         reasoning_module = import_module("ai.xai.reasoning")
         counterfactuals_module = import_module("ai.xai.counterfactuals")
         polisher_module = import_module("ai.xai.polisher")
+        shap_module: Any | None = None
+        dice_module: Any | None = None
+        try:
+            shap_module = import_module("ai.xai.shap_engine")
+        except Exception:
+            shap_module = None
+        try:
+            dice_module = import_module("ai.xai.dice_engine")
+        except Exception:
+            dice_module = None
         self._feature_extractor = (
             feature_extractor or features_module.FeatureExtractor()
         )
@@ -49,10 +59,16 @@ class ExplainabilityAnalyzer:
         self._rule_counterfactual_engine = (
             counterfactual_engine or counterfactuals_module.CounterfactualEngine()
         )
-        self._dice_counterfactual_engine = (
-            dice_counterfactual_engine or self._rule_counterfactual_engine
+        self._dice_counterfactual_engine = dice_counterfactual_engine or (
+            dice_module.DiceCounterfactualEngine(
+                fallback_engine=self._rule_counterfactual_engine
+            )
+            if dice_module is not None
+            else self._rule_counterfactual_engine
         )
-        self._shap_contribution_engine = shap_contribution_engine
+        self._shap_contribution_engine = shap_contribution_engine or (
+            shap_module.ShapContributionEngine() if shap_module is not None else None
+        )
         self._summary_polisher = (
             summary_polisher or polisher_module.LLMSummaryPolisher()
         )
@@ -93,6 +109,29 @@ class ExplainabilityAnalyzer:
                     features, window_stats=window_stats
                 )
                 shap_scores = dict(feature_scores)
+                if self._shap_contribution_engine is not None and hasattr(
+                    self._shap_contribution_engine, "compute"
+                ):
+                    computed, shap_meta = self._shap_contribution_engine.compute(
+                        feature_scores=shap_scores
+                    )
+                    if isinstance(computed, dict):
+                        shap_scores = {
+                            str(name): float(value)
+                            for name, value in computed.items()
+                            if isinstance(name, str)
+                        }
+                    if isinstance(shap_meta, dict):
+                        shap_engine_state = {
+                            "enabled": bool(shap_meta.get("enabled", False)),
+                            "backend": str(shap_meta.get("backend", "fallback")),
+                        }
+                        if "reason" in shap_meta:
+                            shap_engine_state["reason"] = str(shap_meta.get("reason"))
+                        if "feature_count" in shap_meta:
+                            shap_engine_state["feature_count"] = int(
+                                shap_meta.get("feature_count", len(shap_scores))
+                            )
                 reasons = self._reasoning_engine.analyze(
                     shap_scores, top_k=requested_top_k
                 )
