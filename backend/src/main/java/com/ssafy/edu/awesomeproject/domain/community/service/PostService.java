@@ -418,6 +418,8 @@ public class PostService {
                         ? PrStatus.OPEN.name()
                         : PrStatus.CLOSED.name(),
                 prPost.getResultStatus(),
+                prPost.getItemName(),
+                prPost.getPriceAmount(),
                 totalVoteCount,
                 prPost.getDeadlineAt());
     }
@@ -541,7 +543,12 @@ public class PostService {
     public record PostExtraSummary(PrSummary pr, HotdealSummary hotdeal, PollSummary poll) {}
 
     public record PrSummary(
-            String status, String resultStatus, Long totalVoteCount, LocalDateTime deadlineAt) {}
+            String status,
+            String resultStatus,
+            String itemName,
+            Long priceAmount,
+            Long totalVoteCount,
+            LocalDateTime deadlineAt) {}
 
     public record HotdealSummary(
             Long dealPriceAmount,

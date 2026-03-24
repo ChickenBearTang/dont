@@ -40,7 +40,12 @@ public record GetPostListResponseDto(
             Boolean isExpired) {}
 
     public record PrSummaryDto(
-            String status, String resultStatus, Long totalVoteCount, LocalDateTime deadlineAt) {}
+            String status,
+            String resultStatus,
+            String itemName,
+            Long priceAmount,
+            Long totalVoteCount,
+            LocalDateTime deadlineAt) {}
 
     public record PollSummaryDto(
             String question,
