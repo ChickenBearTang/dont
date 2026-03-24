@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Input, Button } from '@/shared/components';
+import { useUIStore } from '@/shared/store/useUIStore';
 import { useGetSavingsSetting, useGetMyAccounts } from '../hooks/useAccountQueries';
 import { useSaveSavingsSetting } from '../hooks/useAccountMutations';
 
@@ -12,6 +13,7 @@ export const SavingsRuleSetupPage: React.FC = () => {
   const { data: initialSetting, isLoading: isFetchingSetting } = useGetSavingsSetting();
   const { data: accounts, isLoading: isFetchingAccounts } = useGetMyAccounts();
   const { mutate: saveSetting, isPending: isSubmitting } = useSaveSavingsSetting();
+  const addToast = useUIStore((state) => state.addToast);
 
   // Identification Logic: Find real accounts
   // Primary: First non-savebox account
@@ -75,8 +77,8 @@ export const SavingsRuleSetupPage: React.FC = () => {
       },
       {
         onSuccess: () => {
-          alert('저축 설정이 성공적으로 저장되었습니다! 🎉');
-          navigate('/finance'); // 금융 홈으로 이동
+          addToast('저축 설정이 성공적으로 저장되었습니다! 🎉', 'success');
+          navigate('/finance/savebox');
         },
         onError: () => {
           setError('설정 저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
@@ -96,6 +98,22 @@ export const SavingsRuleSetupPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12 relative">
+      <button
+        onClick={() => navigate('/finance/savebox')}
+        className="flex items-center gap-2 text-gray-400 hover:text-eel font-bold mb-8 transition-colors relative z-10"
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        세이브박스로 돌아가기
+      </button>
+
       <div className="absolute inset-0 bg-pattern-dots opacity-30 z-0 pointer-events-none" />
       <div className="mb-10 text-center relative z-10">
         <div className="inline-block px-4 py-1.5 bg-accent-soft text-primary-blue rounded-full text-[13px] font-black mb-4 uppercase tracking-[0.05em] shadow-sm">
@@ -126,9 +144,6 @@ export const SavingsRuleSetupPage: React.FC = () => {
             placeholder="예: 커피, 택시, 배달의민족"
             inputClassName="pl-12 font-black"
           />
-          <div className="absolute left-9 top-[52px] text-xl z-10 group-focus-within:text-primary-blue transition-colors">
-            🔍
-          </div>
           <p className="mt-3 ml-2 text-xs text-text-subtle font-bold">
             * 입력하신 단어가 포함된 결제 내역이 생기면 저축이 실행됩니다.
           </p>
@@ -139,8 +154,14 @@ export const SavingsRuleSetupPage: React.FC = () => {
           <Input
             label="1회 저축 금액"
             type="number"
+            step="10000"
+            min="0"
             value={amount || ''}
-            onChange={(e) => setAmount(Number(e.target.value))}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (Number(val) < 0) return;
+              setAmount(Number(val));
+            }}
             placeholder="0"
             inputClassName="text-right pr-9 font-black text-2xl text-primary-blue leading-none"
             unit="원"

@@ -28,7 +28,9 @@ export default {
         'secondary-blue': 'var(--secondary-blue)',
         'blue-bg': 'var(--blue-bg)',
         eel: 'var(--eel)',
-        gray: 'var(--gray)',
+        gray: {
+          DEFAULT: 'var(--gray)',
+        },
         'light-gray': 'var(--light-gray)',
         background: 'var(--background)',
         white: 'var(--white)',

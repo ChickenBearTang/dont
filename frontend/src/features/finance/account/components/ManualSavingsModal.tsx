@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal } from '@/shared/components/Modal';
+import { useUIStore } from '@/shared/store/useUIStore';
 import { useExecuteManualSavings } from '../hooks/useAccountMutations';
 
 interface ManualSavingsModalProps {
@@ -21,6 +22,7 @@ export const ManualSavingsModal: React.FC<ManualSavingsModalProps> = ({
   const [amount, setAmount] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const { mutate: executeSavings, isPending } = useExecuteManualSavings();
+  const addToast = useUIStore((state) => state.addToast);
 
   const handleSavings = () => {
     const numericAmount = Number(amount);
@@ -35,7 +37,7 @@ export const ManualSavingsModal: React.FC<ManualSavingsModalProps> = ({
     // 시니어 디테일: 따닥 방지(isPending)은 버튼에서 처리
     executeSavings(numericAmount, {
       onSuccess: () => {
-        alert(`${numericAmount.toLocaleString()}원이 성공적으로 저축되었습니다! ✨`);
+        addToast(`${numericAmount.toLocaleString()}원이 성공적으로 저축되었습니다! ✨`, 'success');
         setAmount('');
         onClose();
       },
@@ -61,9 +63,13 @@ export const ManualSavingsModal: React.FC<ManualSavingsModalProps> = ({
           <div className="relative">
             <input
               type="number"
+              step="10000"
+              min="0"
               value={amount}
               onChange={(e) => {
-                setAmount(e.target.value);
+                const val = e.target.value;
+                if (Number(val) < 0) return; // Allow empty string but prevent negative numbers
+                setAmount(val);
                 setError(null);
               }}
               placeholder="0"

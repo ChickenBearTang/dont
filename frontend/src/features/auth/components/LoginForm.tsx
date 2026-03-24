@@ -4,7 +4,7 @@ import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { Input, Button } from '@/shared/components';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { login, mapUserProfileFromLogin } from '@/features/auth/api/authApi';
-import { fetchOnboardingStatus } from '@/features/user/api/userApi';
+import { fetchMyPage, fetchOnboardingStatus } from '@/features/user/api/userApi';
 
 interface FormErrors {
   email?: string;
@@ -57,6 +57,26 @@ export const LoginForm = () => {
         accessToken: loginData.accessToken,
         user: mapUserProfileFromLogin(loginData),
       });
+
+      // /users/me 로 닉네임 등 전체 프로필 정보 보완
+      try {
+        const meResponse = await fetchMyPage();
+        const me = meResponse.data;
+        loginSuccess({
+          accessToken: loginData.accessToken,
+          user: {
+            userId: me.userId,
+            email: me.email,
+            nickname: me.nickname,
+            onboardingCompleted: me.onboardingStatus === 'COMPLETED',
+            profileImageUrl: me.profileImageUrl ?? undefined,
+            role: mapUserProfileFromLogin(loginData).role,
+            cohortId: me.cohortId ?? undefined,
+          },
+        });
+      } catch {
+        // me 조회 실패 시 기본 프로필로 계속 진행
+      }
     } catch {
       addToast('로그인에 실패했습니다. 이메일/비밀번호를 확인해주세요.', 'error');
       setIsPending(false);
@@ -92,7 +112,7 @@ export const LoginForm = () => {
         label="이메일"
         name="email"
         type="email"
-        placeholder="example@test.com"
+        placeholder="이메일을 입력하세요."
         required
         value={email}
         onChange={(event) => setEmail(event.target.value)}
@@ -104,7 +124,7 @@ export const LoginForm = () => {
         label="비밀번호"
         name="password"
         type="password"
-        placeholder="비밀번호를 입력하세요"
+        placeholder="비밀번호를 입력하세요."
         required
         value={password}
         onChange={(event) => setPassword(event.target.value)}

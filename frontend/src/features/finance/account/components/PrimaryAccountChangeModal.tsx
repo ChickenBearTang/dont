@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal } from '@/shared/components/Modal';
+import { useUIStore } from '@/shared/store/useUIStore';
 import { useGetMyAccounts } from '../hooks/useAccountQueries';
 import { useSetPrimaryAccount } from '../hooks/useAccountMutations';
 
@@ -19,6 +20,7 @@ export const PrimaryAccountChangeModal: React.FC<PrimaryAccountChangeModalProps>
 }) => {
   const { data: accounts, isLoading } = useGetMyAccounts();
   const { mutate: setPrimary, isPending } = useSetPrimaryAccount();
+  const addToast = useUIStore((state) => state.addToast);
 
   // 세이브박스 계좌를 제외한 일반 계좌들만 필터링
   const eligibleAccounts = accounts?.filter(
@@ -33,11 +35,11 @@ export const PrimaryAccountChangeModal: React.FC<PrimaryAccountChangeModalProps>
 
     setPrimary(accountId, {
       onSuccess: () => {
-        alert('주계좌가 성공적으로 변경되었습니다. ✨');
+        addToast('주계좌가 성공적으로 변경되었습니다. ✨', 'success');
         onClose();
       },
       onError: () => {
-        alert('주계좌 변경 중 오류가 발생했습니다.');
+        addToast('주계좌 변경 중 오류가 발생했습니다.', 'error');
       },
     });
   };
