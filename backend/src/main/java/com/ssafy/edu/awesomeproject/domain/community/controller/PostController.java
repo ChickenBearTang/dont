@@ -37,110 +37,129 @@ public class PostController {
 
     @PostMapping
     @Operation(
-        summary = "게시글 작성 API",
-        description = "게시판 카테고리, 기수(cohortId), 제목, 본문을 받아 게시글을 생성하는 API입니다.")
+            summary = "게시글 작성 API",
+            description = "게시판 카테고리, 기수(cohortId), 제목, 본문을 받아 게시글을 생성하는 API입니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "생성 완료"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
         @ApiResponse(responseCode = "403", description = "접근 거부")
     })
     public CommonResponse<CreatePostResponseDto> createPost(
-        @CurrentUserId Long userId,
-        @Valid @RequestBody CreatePostRequestDto createPostRequestDto) {
+            @CurrentUserId Long userId,
+            @Valid @RequestBody CreatePostRequestDto createPostRequestDto) {
 
         PostService.CreatePostResult result =
-            postService.createPost(
-                userId,
-                createPostRequestDto.category(),
-                createPostRequestDto.generationNo(),
-                createPostRequestDto.title(),
-                createPostRequestDto.content());
+                postService.createPost(
+                        userId,
+                        createPostRequestDto.category(),
+                        createPostRequestDto.generationNo(),
+                        createPostRequestDto.title(),
+                        createPostRequestDto.content());
 
         return CommonResponse.success(
-            new CreatePostResponseDto(
-                result.postId(),
-                result.category(),
-                result.generationNo(),
-                result.createdAt()));
+                new CreatePostResponseDto(
+                        result.postId(),
+                        result.category(),
+                        result.generationNo(),
+                        result.createdAt()));
     }
 
     @GetMapping
     @Operation(
-        summary = "게시글 목록 조회 API",
-        description =
-            "category가 없으면 전체 목록, 있으면 카테고리별 게시글 목록을 페이지 번호 방식으로 조회합니다. COHORT 카테고리 조회 시에는 generationNo를 함께 보냅니다.")
+            summary = "게시글 목록 조회 API",
+            description =
+                    "category가 없으면 전체 목록, 있으면 카테고리별 게시글 목록을 페이지 번호 방식으로 조회합니다. COHORT 카테고리 조회 시에는 generationNo를 함께 보냅니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "정상 응답"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청")
     })
     public CommonResponse<GetPostListResponseDto> getPosts(
-        @CurrentUserId Long userId,
-        @RequestParam(required = false) BoardCategory category,
-        @RequestParam(required = false) Integer generationNo,
-        @RequestParam(defaultValue = "0") Integer page,
-        @RequestParam(defaultValue = "5") Integer size) {
+            @CurrentUserId Long userId,
+            @RequestParam(required = false) BoardCategory category,
+            @RequestParam(required = false) Integer generationNo,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "5") Integer size) {
 
         PostService.GetPostListResult result =
-            postService.getPostsByCategory(userId, category, generationNo, page, size);
+                postService.getPostsByCategory(userId, category, generationNo, page, size);
 
         List<GetPostListResponseDto.PostSummaryDto> content =
-            result.content().stream()
-                .map(
-                    post -> {
-                        PostService.PostExtraSummary extra = post.extraSummary();
+                result.content().stream()
+                        .map(
+                                post -> {
+                                    PostService.PostExtraSummary extra = post.extraSummary();
 
-                        return new GetPostListResponseDto.PostSummaryDto(
-                            post.postId(),
-                            post.category(),
-                            post.generationNo(),
-                            post.status(),
-                            post.title(),
-                            post.authorId(),
-                            post.authorNickname(),
-                            post.isMine(),
-                            post.likeCount(),
-                            post.commentCount(),
-                            post.createdAt(),
-                            extra == null
-                                ? null
-                                : new GetPostListResponseDto.PostExtraSummaryDto(
-                                extra.pr() == null
-                                    ? null
-                                    : new GetPostListResponseDto.PrSummaryDto(
-                                    extra.pr().status(),
-                                    extra.pr().resultStatus(),
-                                    extra.pr().totalVoteCount(),
-                                    extra.pr().deadlineAt()),
-                                extra.hotdeal() == null
-                                    ? null
-                                    : new GetPostListResponseDto.HotdealSummaryDto(
-                                    extra.hotdeal().dealPriceAmount(),
-                                    extra.hotdeal().originalPriceAmount(),
-                                    extra.hotdeal().storeName(),
-                                    extra.hotdeal().expiredAt(),
-                                    extra.hotdeal().isExpired()),
-                                extra.poll() == null
-                                    ? null
-                                    : new GetPostListResponseDto.PollSummaryDto(
-                                    extra.poll().question(),
-                                    extra.poll().optionA(),
-                                    extra.poll().optionB(),
-                                    extra.poll().deadlineAt(),
-                                    extra.poll().isClosed(),
-                                    extra.poll().optionACount(),
-                                    extra.poll().optionBCount(),
-                                    extra.poll().totalVoteCount())));
-                    })
-                .toList();
+                                    return new GetPostListResponseDto.PostSummaryDto(
+                                            post.postId(),
+                                            post.category(),
+                                            post.generationNo(),
+                                            post.status(),
+                                            post.title(),
+                                            post.authorId(),
+                                            post.authorNickname(),
+                                            post.isMine(),
+                                            post.likeCount(),
+                                            post.commentCount(),
+                                            post.createdAt(),
+                                            extra == null
+                                                    ? null
+                                                    : new GetPostListResponseDto
+                                                            .PostExtraSummaryDto(
+                                                            extra.pr() == null
+                                                                    ? null
+                                                                    : new GetPostListResponseDto
+                                                                            .PrSummaryDto(
+                                                                            extra.pr().status(),
+                                                                            extra.pr()
+                                                                                    .resultStatus(),
+                                                                            extra.pr().itemName(),
+                                                                            extra.pr()
+                                                                                    .priceAmount(),
+                                                                            extra.pr()
+                                                                                    .totalVoteCount(),
+                                                                            extra.pr()
+                                                                                    .deadlineAt()),
+                                                            extra.hotdeal() == null
+                                                                    ? null
+                                                                    : new GetPostListResponseDto
+                                                                            .HotdealSummaryDto(
+                                                                            extra.hotdeal()
+                                                                                    .dealPriceAmount(),
+                                                                            extra.hotdeal()
+                                                                                    .originalPriceAmount(),
+                                                                            extra.hotdeal()
+                                                                                    .storeName(),
+                                                                            extra.hotdeal()
+                                                                                    .expiredAt(),
+                                                                            extra.hotdeal()
+                                                                                    .isExpired()),
+                                                            extra.poll() == null
+                                                                    ? null
+                                                                    : new GetPostListResponseDto
+                                                                            .PollSummaryDto(
+                                                                            extra.poll().question(),
+                                                                            extra.poll().optionA(),
+                                                                            extra.poll().optionB(),
+                                                                            extra.poll()
+                                                                                    .deadlineAt(),
+                                                                            extra.poll().isClosed(),
+                                                                            extra.poll()
+                                                                                    .optionACount(),
+                                                                            extra.poll()
+                                                                                    .optionBCount(),
+                                                                            extra.poll()
+                                                                                    .totalVoteCount())));
+                                })
+                        .toList();
 
         return CommonResponse.success(
-            new GetPostListResponseDto(
-                content,
-                result.page(),
-                result.size(),
-                result.totalElements(),
-                result.totalPages(),
-                result.hasNext()));
+                new GetPostListResponseDto(
+                        content,
+                        result.page(),
+                        result.size(),
+                        result.totalElements(),
+                        result.totalPages(),
+                        result.hasNext()));
     }
 
     @GetMapping("/{postId}")
@@ -150,26 +169,26 @@ public class PostController {
         @ApiResponse(responseCode = "404", description = "게시글 없음")
     })
     public CommonResponse<GetPostResponseDto> getPost(
-        @CurrentUserId Long userId, @PathVariable Long postId) {
+            @CurrentUserId Long userId, @PathVariable Long postId) {
 
         PostService.GetPostResult result = postService.getPost(userId, postId);
 
         return CommonResponse.success(
-            new GetPostResponseDto(
-                result.postId(),
-                result.category(),
-                result.generationNo(),
-                result.status(),
-                result.title(),
-                result.content(),
-                result.authorId(),
-                result.authorNickname(),
-                result.isMine(),
-                result.likeCount(),
-                result.dislikeCount(),
-                result.commentCount(),
-                result.createdAt(),
-                result.updatedAt()));
+                new GetPostResponseDto(
+                        result.postId(),
+                        result.category(),
+                        result.generationNo(),
+                        result.status(),
+                        result.title(),
+                        result.content(),
+                        result.authorId(),
+                        result.authorNickname(),
+                        result.isMine(),
+                        result.likeCount(),
+                        result.dislikeCount(),
+                        result.commentCount(),
+                        result.createdAt(),
+                        result.updatedAt()));
     }
 
     @PatchMapping("/{postId}")
@@ -180,19 +199,19 @@ public class PostController {
         @ApiResponse(responseCode = "404", description = "게시글 없음")
     })
     public CommonResponse<UpdatePostResponseDto> updatePost(
-        @CurrentUserId Long userId,
-        @PathVariable Long postId,
-        @Valid @RequestBody UpdatePostRequestDto updatePostRequestDto) {
+            @CurrentUserId Long userId,
+            @PathVariable Long postId,
+            @Valid @RequestBody UpdatePostRequestDto updatePostRequestDto) {
 
         PostService.UpdatePostResult result =
-            postService.updatePost(
-                userId,
-                postId,
-                updatePostRequestDto.title(),
-                updatePostRequestDto.content());
+                postService.updatePost(
+                        userId,
+                        postId,
+                        updatePostRequestDto.title(),
+                        updatePostRequestDto.content());
 
         return CommonResponse.success(
-            new UpdatePostResponseDto(result.postId(), result.updatedAt()));
+                new UpdatePostResponseDto(result.postId(), result.updatedAt()));
     }
 
     @DeleteMapping("/{postId}")
@@ -203,11 +222,11 @@ public class PostController {
         @ApiResponse(responseCode = "404", description = "게시글 없음")
     })
     public CommonResponse<DeletePostResponseDto> deletePost(
-        @CurrentUserId Long userId, @PathVariable Long postId) {
+            @CurrentUserId Long userId, @PathVariable Long postId) {
 
         PostService.DeletePostResult result = postService.deletePost(userId, postId);
 
         return CommonResponse.success(
-            new DeletePostResponseDto(result.deleted(), result.deletedAt()));
+                new DeletePostResponseDto(result.deleted(), result.deletedAt()));
     }
 }
