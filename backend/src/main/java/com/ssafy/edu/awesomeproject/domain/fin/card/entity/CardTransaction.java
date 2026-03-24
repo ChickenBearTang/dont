@@ -10,7 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -55,9 +54,6 @@ public class CardTransaction extends BaseEntity {
     @Column(name = "description", length = 500)
     private String description;
 
-    @Transient
-    private String justification;
-
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
@@ -84,11 +80,6 @@ public class CardTransaction extends BaseEntity {
         this.description = description;
         this.userId = userId;
     }
-
-    public void updateJustification(String justification) {
-        this.justification = justification;
-    }
-
 }
 
     

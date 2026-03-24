@@ -11,5 +11,6 @@
             "path": "C:\\Program Files\\Microsoft\\jdk-17.0.17.10-hotspot"
         }
     ],
-    "java.jdt.ls.java.home": "C:\\Users\\SSAFY\\.jdks\\ms-21.0.10"
+    "java.jdt.ls.java.home": "C:\\Users\\SSAFY\\.jdks\\ms-21.0.10",
+    "java.compile.nullAnalysis.mode": "automatic"
 }

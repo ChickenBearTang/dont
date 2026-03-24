@@ -1,7 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.fin.card.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
-import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.JustificationRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardTransactionResponse;
@@ -11,8 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -73,16 +70,5 @@ public class CardController {
         CardListResponse.CardItem response =
                 cardService.getCardItem(userId, cardId, startDate, endDate);
         return ResponseEntity.ok(response);
-    }
- 
-    @PostMapping("/transactions/{transactionId}/justification")
-    @Operation(summary = "결제 내역 소명 입력/수정", description = "특정 결제 내역에 대해 유저가 소명(해명) 내용을 입력하거나 수정합니다.")
-    public ResponseEntity<Void> updateJustification(
-            @CurrentUserId Long userId,
-            @PathVariable Long transactionId,
-            @RequestBody JustificationRequest request) {
- 
-        cardService.updateJustification(userId, transactionId, request.getJustification());
-        return ResponseEntity.ok().build();
     }
 }

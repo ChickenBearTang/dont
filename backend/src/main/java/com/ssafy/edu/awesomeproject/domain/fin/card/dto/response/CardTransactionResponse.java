@@ -24,6 +24,5 @@ public class CardTransactionResponse {
         private String transactionDate;
         private String transactionTime;
         private String transactionAmount;
-        private String justification;
     }
 }

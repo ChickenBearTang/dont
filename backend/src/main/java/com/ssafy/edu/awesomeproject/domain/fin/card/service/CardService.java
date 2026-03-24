@@ -305,7 +305,6 @@ public class CardService {
                                                                                         cardTransaction
                                                                                                 .getTransactionAmount()))
                                                                 .id(cardTransaction.getId())
-                                                                .justification(cardTransaction.getJustification())
                                                                 .build())
                                         .collect(Collectors.toList()))
                 .build();
@@ -420,21 +419,6 @@ public class CardService {
             System.err.println("AI Card Recommendation failed: " + e.getMessage());
             return null;
         }
-    }
-
-    @Transactional
-    public void updateJustification(Long userId, Long transactionId, String justification) {
-        CardTransaction transaction =
-                cardTransactionRepository
-                        .findById(transactionId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException("Transaction not found: " + transactionId));
-
-        if (!transaction.getUserId().equals(userId)) {
-            throw new IllegalArgumentException("Forbidden: This transaction does not belong to the user.");
-        }
-
-        transaction.updateJustification(justification);
     }
 
     private record RefreshResult(boolean success, List<Card> cards, String message) {}
