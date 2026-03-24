@@ -2,6 +2,8 @@ import type { UserProfile } from '@/features/auth/types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotificationStore } from '@/features/community/store/useNotificationStore';
 import { useEffect, useState, useRef } from 'react';
+import bellIcon from '@/assets/logo/bell-icon.png';
+import profileIcon from '@/assets/logo/profile.png';
 
 interface HeaderProps {
   user: UserProfile | null;
@@ -167,11 +169,11 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
             <div className="relative" ref={dropdownRef}>
               <div
-                className={`relative cursor-pointer text-[20px] transition-transform hover:scale-110 ${isDropdownOpen ? 'text-primary-blue' : 'text-eel'
+                className={`relative cursor-pointer transition-transform hover:scale-110 ${isDropdownOpen ? 'opacity-70' : ''
                   }`}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                🔔
+                <img src={bellIcon} alt="Notifications" className="w-5 h-5 object-contain" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-[2px] -right-[2px] min-w-[16px] h-[16px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -264,10 +266,10 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
             <div
               onClick={() => navigate('/mypage')}
-              className="cursor-pointer text-[20px] text-eel hover:text-primary-blue transition-colors"
+              className="cursor-pointer transition-transform hover:scale-110"
               title={user?.nickname ? `${user.nickname}님의 마이페이지` : '마이페이지'}
             >
-              👤
+              <img src={profileIcon} alt="Profile" className="w-6 h-6 object-contain" />
             </div>
 
             <button
