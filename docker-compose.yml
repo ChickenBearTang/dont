@@ -24,8 +24,10 @@ services:
     env_file:
       - .env
     environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+        REDIS_HOST: redis
+        REDIS_PORT: 6379
+        API_PATH: "/api/v1"
+        DB_HIKARI_CONNECTION_TIMEOUT: "30000"
     depends_on:
       redis:
         condition: service_healthy
@@ -112,5 +114,6 @@ networks:
 
 volumes:
   redis-data:
+  jenkins_home:
   loki-data:
   grafana-data:

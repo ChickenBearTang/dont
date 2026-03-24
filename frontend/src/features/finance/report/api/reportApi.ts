@@ -1,5 +1,5 @@
 import axiosInstance from '@/shared/api/axiosInstance';
-import type { SpendingSummaryResponse, AiReportResponse } from '../types';
+import type { SpendingSummaryResponse, AiReportResponse, CardRecommendationResponse } from '../types';
 
 export const getSpendingSummary = async (
   startDate: string,
@@ -48,3 +48,11 @@ export const regenerateAiReport = async (reportMonth: string): Promise<AiReportR
     { timeout: 30000 }
   );
 };
+
+export const getCardRecommendation = async (month: string): Promise<CardRecommendationResponse> => {
+  const res: any = await axiosInstance.get('/fin/cards/recommend', {
+    params: { month },
+  });
+  return res?.data ?? res;
+};
+
