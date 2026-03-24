@@ -283,7 +283,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                       setIsDropdownOpen(false);
                     }}
                   >
-                    <span className="text-[12px] font-bold text-gray-500">전체 보기</span>
+                    <span className="text-[12px] font-bold text-gray-500">닫기</span>
                   </div>
                 </div>
               )}
