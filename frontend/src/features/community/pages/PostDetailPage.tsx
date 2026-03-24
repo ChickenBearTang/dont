@@ -243,6 +243,7 @@ const CommentItem = ({
                 >
                   저장
                 </button>
+              </div>
             </form>
           ) : (
             <LinkifiedText
