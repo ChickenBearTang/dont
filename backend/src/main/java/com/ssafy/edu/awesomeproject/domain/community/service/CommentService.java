@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.community.service;
 
+import com.ssafy.edu.awesomeproject.common.s3.service.S3AssetUrlResolver;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Board;
@@ -36,16 +37,19 @@ public class CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final ReactionRepository reactionRepository;
+    private final S3AssetUrlResolver s3AssetUrlResolver;
 
     public CommentService(
         CommentRepository commentRepository,
         PostRepository postRepository,
         UserRepository userRepository,
-        ReactionRepository reactionRepository) {
+        ReactionRepository reactionRepository,
+        S3AssetUrlResolver s3AssetUrlResolver) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.reactionRepository = reactionRepository;
+        this.s3AssetUrlResolver = s3AssetUrlResolver;
     }
 
     // 댓글 작성
@@ -127,6 +131,7 @@ public class CommentService {
                             resolveCommentContent(comment),
                             comment.getUser().getId(),
                             comment.getUser().getNickname(),
+                            s3AssetUrlResolver.resolvePublicUrlOrNull(comment.getUser().getProfileImageUrl()),
                             comment.isAuthor(userId),
                             Math.toIntExact(
                                 reactionRepository
@@ -134,7 +139,8 @@ public class CommentService {
                                         ReactionTargetType.COMMENT,
                                         comment.getId(),
                                         ReactionType.LIKE)),
-                            comment.getCreatedAt()))
+                            comment.getCreatedAt(),
+                            comment.getUpdatedAt()))
                 .toList();
 
         return new GetCommentListResult(
@@ -210,9 +216,11 @@ public class CommentService {
         String content,
         Long authorId,
         String authorNickname,
+        String authorProfileImageUrl,
         Boolean isMine,
         Integer likeCount,
-        LocalDateTime createdAt) {}
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt) {}
 
     public record GetCommentListResult(
         List<CommentSummary> content,

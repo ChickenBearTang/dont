@@ -23,6 +23,7 @@ import type {
 } from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { ReportModal } from '../components/ReportModal';
+import { UserAvatar } from '../components/UserAvatar';
 
 interface CommentNode extends CommentSummaryDto {
   children: CommentNode[];
@@ -164,9 +165,11 @@ const CommentItem = ({
       } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
     >
       <div className="flex gap-3">
-        <div className="w-[34px] h-[34px] bg-gray-100 rounded-full shrink-0 flex justify-center items-center font-bold text-gray-400 text-[14px] overflow-hidden">
-          {node.isVirtual ? '?' : (node.authorNickname || '?')[0]}
-        </div>
+        <UserAvatar
+          profileImageUrl={node.isVirtual ? null : node.authorProfileImageUrl}
+          nickname={node.isVirtual ? '?' : node.authorNickname}
+          className="h-[34px] w-[34px] shrink-0 text-[14px]"
+        />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
@@ -993,11 +996,11 @@ export const PostDetailPage = () => {
 
       <div className="w-full overflow-y-auto">
         <div className="px-5 pt-6 flex items-start gap-3 w-full">
-          <div
-            className={`w-[42px] h-[42px] rounded-full flex items-center justify-center text-white font-bold text-[18px] shrink-0 ${getCategoryDot(post.category)}`}
-          >
-            {(post.authorNickname || '?')[0]}
-          </div>
+          <UserAvatar
+            profileImageUrl={post.authorProfileImageUrl}
+            nickname={post.authorNickname}
+            className={`h-[42px] w-[42px] shrink-0 text-[18px] ${getCategoryDot(post.category)} text-white`}
+          />
           <div className="pt-0.5">
             <div className="text-[15px] font-bold text-gray-900 leading-tight">
               {post.authorNickname || '알 수 없음'}
@@ -1030,6 +1033,51 @@ export const PostDetailPage = () => {
           >
             {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
           </div>
+          {post.status !== 'BLINDED' && post.attachments.length > 0 ? (
+            <div className="mt-5 space-y-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+              <div className="text-[13px] font-bold text-gray-700">
+                첨부파일 {post.attachments.length}개
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {post.attachments.map((attachment) => {
+                  const isImage = attachment.contentType.startsWith('image/');
+
+                  return (
+                    <a
+                      key={attachment.attachmentId}
+                      href={attachment.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:border-blue-200 hover:shadow-sm"
+                    >
+                      {isImage ? (
+                        <img
+                          src={attachment.fileUrl}
+                          alt={attachment.fileName}
+                          className="h-44 w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-44 items-center justify-center bg-gray-50 text-[13px] font-semibold text-gray-400">
+                          파일 미리보기 없음
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-semibold text-gray-800">
+                            {attachment.fileName}
+                          </p>
+                          <p className="mt-1 text-[12px] text-gray-400">
+                            {Math.max(1, Math.round(attachment.fileSize / 1024))} KB
+                          </p>
+                        </div>
+                        <span className="text-[12px] font-bold text-blue-600">열기</span>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-8 px-5 flex items-center gap-2">

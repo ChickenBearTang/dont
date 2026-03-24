@@ -5,6 +5,7 @@ import { closePr, getPrDetail, submitPrVote } from '@/features/community/pr';
 import type { PrDetailResponseData } from '@/features/community/pr';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { formatRelativeTime } from '@/shared/utils/date';
+import { UserAvatar } from '@/features/community/components/UserAvatar';
 
 const formatCurrency = (value: number): string =>
   new Intl.NumberFormat('ko-KR', {
@@ -321,6 +322,7 @@ export const PrDetailPage = () => {
     detail.totalVoteCount > 0 ? (detail.agreeCount / detail.totalVoteCount) * 100 : 0;
   const timelineEvents = buildTimelineEvents(detail);
   const contentSections = parseContentSections(detail.content);
+  const primaryAttachment = detail.attachments[0] ?? null;
   const latestEventTime =
     detail.events && detail.events.length > 0
       ? detail.events[detail.events.length - 1].createdAt
@@ -340,12 +342,19 @@ export const PrDetailPage = () => {
               <span className="text-sm font-semibold text-gray-500">PR #{detail.postId}</span>
             </div>
             <h1 className="text-[32px] font-black leading-tight text-gray-900">{detail.title}</h1>
-            <p className="text-sm font-medium text-gray-500">
-              {detail.authorNickname} · 작성 {formatAbsoluteDate(detail.createdAt)}
-              {detail.updatedAt !== detail.createdAt
-                ? ` · 수정 ${formatAbsoluteDate(detail.updatedAt)}`
-                : ''}
-            </p>
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
+              <UserAvatar
+                profileImageUrl={detail.authorProfileImageUrl}
+                nickname={detail.authorNickname}
+                className="h-8 w-8 text-[12px]"
+              />
+              <p>
+                {detail.authorNickname} · 작성 {formatAbsoluteDate(detail.createdAt)}
+                {detail.updatedAt !== detail.createdAt
+                  ? ` · 수정 ${formatAbsoluteDate(detail.updatedAt)}`
+                  : ''}
+              </p>
+            </div>
           </div>
           <button
             type="button"
@@ -491,10 +500,10 @@ export const PrDetailPage = () => {
             <h3 className="text-[30px] font-black leading-none text-gray-900">대상 상품</h3>
           </div>
           <div className="space-y-3.5 p-5">
-            {detail.imageUrl ? (
+            {primaryAttachment && primaryAttachment.contentType.startsWith('image/') ? (
               <img
-                src={detail.imageUrl}
-                alt={detail.itemName}
+                src={primaryAttachment.fileUrl}
+                alt={primaryAttachment.fileName}
                 className="h-48 w-full rounded-2xl border border-gray-200 object-cover"
               />
             ) : (
@@ -523,6 +532,27 @@ export const PrDetailPage = () => {
             ) : (
               <p className="text-sm text-gray-500">구매 링크 없음</p>
             )}
+            {detail.attachments.length > 0 ? (
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                <p className="text-[12px] font-bold text-gray-600">첨부파일 {detail.attachments.length}개</p>
+                <div className="mt-2 space-y-2">
+                  {detail.attachments.map((attachment) => (
+                    <a
+                      key={attachment.attachmentId}
+                      href={attachment.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-[13px] font-medium text-gray-700 transition hover:text-blue-600"
+                    >
+                      <span className="truncate">{attachment.fileName}</span>
+                      <span className="shrink-0 text-[12px] font-bold text-gray-400">
+                        {Math.max(1, Math.round(attachment.fileSize / 1024))} KB
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </Card>
 

@@ -18,7 +18,9 @@ public record GetCommentListResponseDto(
         String content,
         Long authorId,
         String authorNickname,
+        String authorProfileImageUrl,
         Boolean isMine,
         Integer likeCount,
-        LocalDateTime createdAt) {}
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt) {}
 }

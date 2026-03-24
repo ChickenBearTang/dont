@@ -84,9 +84,11 @@ public class CommentController {
                             comment.content(),
                             comment.authorId(),
                             comment.authorNickname(),
+                            comment.authorProfileImageUrl(),
                             comment.isMine(),
                             comment.likeCount(),
-                            comment.createdAt()))
+                            comment.createdAt(),
+                            comment.updatedAt()))
                 .toList();
 
         return CommonResponse.success(
