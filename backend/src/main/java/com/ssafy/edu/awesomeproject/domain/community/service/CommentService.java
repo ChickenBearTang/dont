@@ -63,14 +63,12 @@ public class CommentService {
         Post post =
             postRepository
                 .findByIdAndStatus(postId, PostStatus.ACTIVE)
-                .orElseThrow(
-                    () -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
 
         User user =
             userRepository
                 .findById(userId)
-                .orElseThrow(
-                    () -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
 
         validateUserCohortAccess(user, post.getBoard());
 
@@ -92,7 +90,7 @@ public class CommentService {
         Comment comment = new Comment(post, user, parentComment, content);
         Comment savedComment = commentRepository.save(comment);
 
-        sendCommentNotifications(post, parentComment, user);
+        sendCommentNotifications(post, parentComment, savedComment, user);
 
         return new CreateCommentResult(savedComment.getId(), savedComment.getCreatedAt());
     }
@@ -190,7 +188,8 @@ public class CommentService {
         return new DeleteCommentResult(true, comment.getDeletedAt());
     }
 
-    private void sendCommentNotifications(Post post, Comment parentComment, User commenter) {
+    private void sendCommentNotifications(
+        Post post, Comment parentComment, Comment savedComment, User commenter) {
         Long commenterUserId = commenter.getId();
         Long postAuthorUserId = post.getUser().getId();
 
@@ -203,9 +202,8 @@ public class CommentService {
                 NotificationType.POST_COMMENT_CREATED,
                 "새 댓글이 달렸어요",
                 commenter.getNickname() + "님이 회원님의 게시글에 댓글을 남겼습니다.",
-                NotificationReferenceType.POST,
-                post.getId()
-            );
+                NotificationReferenceType.COMMENT,
+                savedComment.getId());
             notifiedUserIds.add(postAuthorUserId);
         }
 
@@ -220,9 +218,8 @@ public class CommentService {
                     NotificationType.POST_COMMENT_CREATED,
                     "내 댓글에 답글이 달렸어요",
                     commenter.getNickname() + "님이 회원님의 댓글에 답글을 남겼습니다.",
-                    NotificationReferenceType.POST,
-                    post.getId()
-                );
+                    NotificationReferenceType.COMMENT,
+                    savedComment.getId());
             }
         }
     }
