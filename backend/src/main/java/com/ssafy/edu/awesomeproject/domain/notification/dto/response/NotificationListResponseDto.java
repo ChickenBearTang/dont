@@ -20,5 +20,7 @@ public record NotificationListResponseDto(
             Long referenceId,
             boolean isRead,
             LocalDateTime pushedAt,
-            LocalDateTime createdAt) {}
+            LocalDateTime createdAt,
+            Long postId,
+            Long commentId) {}
 }

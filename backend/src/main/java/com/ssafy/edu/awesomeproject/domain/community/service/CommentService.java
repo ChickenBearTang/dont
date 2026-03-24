@@ -15,8 +15,13 @@ import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CommentRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.ReactionRepository;
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationReferenceType;
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
+import com.ssafy.edu.awesomeproject.domain.notification.service.NotificationService;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -36,16 +41,19 @@ public class CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final ReactionRepository reactionRepository;
+    private final NotificationService notificationService;
 
     public CommentService(
-            CommentRepository commentRepository,
-            PostRepository postRepository,
-            UserRepository userRepository,
-            ReactionRepository reactionRepository) {
+        CommentRepository commentRepository,
+        PostRepository postRepository,
+        UserRepository userRepository,
+        ReactionRepository reactionRepository,
+        NotificationService notificationService) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.reactionRepository = reactionRepository;
+        this.notificationService = notificationService;
     }
 
     // 댓글 작성
@@ -53,16 +61,14 @@ public class CommentService {
             Long userId, Long postId, Long parentCommentId, String content) {
 
         Post post =
-                postRepository
-                        .findByIdAndStatus(postId, PostStatus.ACTIVE)
-                        .orElseThrow(
-                                () -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
+            postRepository
+                .findByIdAndStatus(postId, PostStatus.ACTIVE)
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
 
         User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(
-                                () -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
+            userRepository
+                .findById(userId)
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
 
         validateUserCohortAccess(user, post.getBoard());
 
@@ -83,6 +89,8 @@ public class CommentService {
 
         Comment comment = new Comment(post, user, parentComment, content);
         Comment savedComment = commentRepository.save(comment);
+
+        sendCommentNotifications(post, parentComment, savedComment, user);
 
         return new CreateCommentResult(savedComment.getId(), savedComment.getCreatedAt());
     }
@@ -178,6 +186,42 @@ public class CommentService {
         comment.delete();
 
         return new DeleteCommentResult(true, comment.getDeletedAt());
+    }
+
+    private void sendCommentNotifications(
+        Post post, Comment parentComment, Comment savedComment, User commenter) {
+        Long commenterUserId = commenter.getId();
+        Long postAuthorUserId = post.getUser().getId();
+
+        Set<Long> notifiedUserIds = new HashSet<>();
+
+        // 1. 게시글 작성자 알림
+        if (!postAuthorUserId.equals(commenterUserId)) {
+            notificationService.createNotification(
+                postAuthorUserId,
+                NotificationType.POST_COMMENT_CREATED,
+                "새 댓글이 달렸어요",
+                commenter.getNickname() + "님이 회원님의 게시글에 댓글을 남겼습니다.",
+                NotificationReferenceType.COMMENT,
+                savedComment.getId());
+            notifiedUserIds.add(postAuthorUserId);
+        }
+
+        // 2. 부모 댓글 작성자 알림 (답글인 경우)
+        if (parentComment != null) {
+            Long parentCommentAuthorUserId = parentComment.getUser().getId();
+
+            if (!parentCommentAuthorUserId.equals(commenterUserId)
+                && !notifiedUserIds.contains(parentCommentAuthorUserId)) {
+                notificationService.createNotification(
+                    parentCommentAuthorUserId,
+                    NotificationType.POST_COMMENT_CREATED,
+                    "내 댓글에 답글이 달렸어요",
+                    commenter.getNickname() + "님이 회원님의 댓글에 답글을 남겼습니다.",
+                    NotificationReferenceType.COMMENT,
+                    savedComment.getId());
+            }
+        }
     }
 
     private void validateUserCohortAccess(User user, Board board) {
