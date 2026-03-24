@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGetMyAccounts, useGetSavingsSetting } from '../hooks/useAccountQueries';
+import {
+  useGetMyAccounts,
+  useGetSavingsSetting,
+  useGetAccountTransactions,
+} from '../hooks/useAccountQueries';
 import { ManualSavingsModal } from '../components/ManualSavingsModal';
 import { PrimaryAccountChangeModal } from '../components/PrimaryAccountChangeModal';
 
@@ -24,6 +28,33 @@ export const SaveboxDetailPage: React.FC = () => {
 
   // Find the linked primary account
   const primaryAccount = accounts?.find((a) => a.id === setting?.primaryAccountId);
+
+  // Get recent transactions for the savebox
+  const now = new Date();
+  const past = new Date();
+  past.setDate(now.getDate() - 30);
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}${m}${day}`;
+  };
+
+  const { data: allTransactions } = useGetAccountTransactions(savebox?.id || 0, {
+    startDate: formatDate(past),
+    endDate: formatDate(now),
+  });
+
+  const recentTransactions = React.useMemo(() => {
+    if (!allTransactions) return [];
+    return [...allTransactions]
+      .sort((a, b) => {
+        const dateA = new Date(`${a.transactionDate} ${a.transactionTime}`).getTime();
+        const dateB = new Date(`${b.transactionDate} ${b.transactionTime}`).getTime();
+        return dateB - dateA;
+      })
+      .slice(0, 3);
+  }, [allTransactions]);
 
   if (isLoadingAccounts || isLoadingSetting) {
     return (
@@ -58,9 +89,25 @@ export const SaveboxDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-16">
+      <button
+        onClick={() => navigate('/finance')}
+        className="flex items-center gap-2 text-gray-400 hover:text-eel font-bold mb-8 transition-colors"
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        금융 홈으로
+      </button>
+
       <div className="mb-14 text-left">
         <h1 className="text-5xl font-black text-eel tracking-tight mb-4">
-          나의 <span className="text-primary-blue">세이브박스</span> 🎁
+          나의 <span className="text-primary-blue">세이브박스</span>
         </h1>
         <p className="text-gray-400 text-lg font-medium opacity-80">
           티끌 모아 태산! 당신의 소중한 꿈이 차곡차곡 쌓이고 있어요.
@@ -73,9 +120,19 @@ export const SaveboxDetailPage: React.FC = () => {
           <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-blue-50 to-transparent opacity-40 rounded-bl-[120px] transition-transform group-hover:scale-110" />
 
           <div className="relative z-10">
-            <span className="text-sm font-black text-primary-blue bg-blue-50/50 px-4 py-2 rounded-full uppercase tracking-tighter">
-              금액
-            </span>
+            <div className="flex flex-col items-start gap-3">
+              <span className="text-sm font-black text-primary-blue bg-blue-50/50 px-4 py-2 rounded-full tracking-tighter">
+                세이브박스 잔액
+              </span>
+              <div className="flex items-center gap-2 ml-1">
+                <span className="text-[11px] font-black text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md tracking-tight">
+                  {savebox.bankName}
+                </span>
+                <span className="text-[14px] font-bold text-gray-400 font-mono tracking-tight">
+                  {savebox.accountNo}
+                </span>
+              </div>
+            </div>
             <div className="mt-10 flex items-baseline gap-2">
               <span className="text-6xl font-black text-eel tracking-tighter">
                 {Number(savebox.accountBalance).toLocaleString()}
@@ -84,10 +141,46 @@ export const SaveboxDetailPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative z-10 mt-12">
+          <div className="relative z-10 mt-10 mb-4 flex flex-col flex-1">
+            <h3 className="text-[14px] font-bold text-gray-800 mb-3 ml-1 flex items-center gap-1.5 opacity-80">
+              최근 이체 내역
+            </h3>
+            {recentTransactions.length > 0 ? (
+              <div className="space-y-2.5 flex-1">
+                {recentTransactions.map((tx, idx) => (
+                  <div
+                    key={tx.transactionUniqueNo || idx}
+                    className="flex justify-between items-center bg-gray-50/60 p-4 rounded-2xl border border-gray-100/50 hover:bg-white hover:shadow-sm transition-all"
+                  >
+                    <div>
+                      <div className="font-bold text-gray-700 text-sm tracking-tight">
+                        {tx.transactionSummary}
+                      </div>
+                      <div className="text-[11px] text-gray-400 font-mono mt-0.5 ml-0.5">
+                        {tx.transactionDate.substring(4, 6)}.{tx.transactionDate.substring(6, 8)}{' '}
+                        {tx.transactionTime.substring(0, 2)}:{tx.transactionTime.substring(2, 4)}
+                      </div>
+                    </div>
+                    <div
+                      className={`font-black text-sm ${tx.transactionType === '1' ? 'text-primary-blue' : 'text-red-500'}`}
+                    >
+                      {tx.transactionType === '1' ? '+' : '-'}
+                      {Number(tx.transactionAmount).toLocaleString()}원
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center flex-1 min-h-[180px] text-sm font-medium text-gray-400 bg-gray-50/50 rounded-3xl border border-gray-50 shadow-inner">
+                최근 이체 내역이 없습니다.
+              </div>
+            )}
+          </div>
+
+          <div className="relative z-10 mt-auto pt-4">
             <button
               onClick={() => setIsManualModalOpen(true)}
-              className="w-full py-6 bg-eel text-white rounded-[28px] font-black text-lg hover:bg-black active:scale-95 transition-all shadow-2xl shadow-gray-200 flex items-center justify-center gap-3 group"
+              className="w-full py-4 bg-eel text-white rounded-2xl font-bold text-[16px] hover:bg-black active:scale-95 transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-2 group"
             >
               <span>지금 바로 저축하기</span>
               <svg
@@ -112,21 +205,30 @@ export const SaveboxDetailPage: React.FC = () => {
           {/* Primary Account Mini Card (주거래 통장) */}
           <div className="bg-white p-8 rounded-[36px] border border-gray-100 shadow-sm flex items-center justify-between group hover:border-primary-blue/20 transition-all">
             <div className="flex items-center gap-5">
-              <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-2xl group-hover:rotate-6 transition-transform">
-                🏦
-              </div>
-              <div>
-                <span className="text-[10px] font-black text-amber-600 bg-amber-50/50 px-3 py-1 rounded-full uppercase tracking-tighter mb-1 inline-block">
-                  주거래 통장
-                </span>
-                <h4 className="text-xl font-black text-eel">
-                  {primaryAccount ? primaryAccount.accountName : '연결된 계좌 없음'}
-                </h4>
+              <div className="min-w-0 flex flex-col items-start gap-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-amber-600 bg-amber-50/50 px-3 py-1.5 rounded-full uppercase tracking-tighter">
+                    주거래 통장
+                  </span>
+                  <h4 className="text-[16px] font-extrabold text-eel truncate mt-0.5">
+                    {primaryAccount ? primaryAccount.accountName : '연결된 계좌 없음'}
+                  </h4>
+                </div>
+                {primaryAccount && (
+                  <div className="flex items-center gap-2 ml-1">
+                    <span className="text-[11px] font-black text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md tracking-tight">
+                      {primaryAccount.bankName}
+                    </span>
+                    <span className="text-[14px] font-bold text-gray-400 font-mono tracking-tight">
+                      {primaryAccount.accountNo}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <button
               onClick={() => setIsPrimaryModalOpen(true)}
-              className="px-5 py-2.5 bg-gray-50 text-gray-400 hover:bg-primary-blue hover:text-white rounded-2xl text-xs font-black transition-all"
+              className="px-4 py-2 bg-gray-100 text-eel rounded-xl text-[13px] font-bold hover:bg-gray-200 active:scale-95 transition-all outline-none"
             >
               변경
             </button>
@@ -152,8 +254,8 @@ export const SaveboxDetailPage: React.FC = () => {
                     🔍
                   </div>
                   <div>
-                    <h3 className="font-black text-2xl text-eel mb-1">
-                      '{setting.keyword}' 입금 시
+                    <h3 className="font-black text-2xl text-eel mb-1 break-keep">
+                      <span className="text-primary-blue">'{setting.keyword}'</span> 입금 시
                     </h3>
                     <p className="text-gray-400 text-sm font-medium">
                       지정된 키워드 입금 자동 감지
@@ -179,9 +281,9 @@ export const SaveboxDetailPage: React.FC = () => {
 
             <button
               onClick={() => navigate('/savings-rule-setup')}
-              className="w-full mt-10 py-5 bg-white border-2 border-primary-blue/10 text-primary-blue rounded-[24px] font-black hover:bg-primary-blue/5 active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="w-full mt-8 py-4 bg-eel text-white rounded-2xl font-bold text-[16px] hover:bg-black active:scale-95 transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-2 group"
             >
-              📊 설정하기
+              <span> {setting ? '설정하기' : '설정하기'}</span>
             </button>
           </div>
         </div>

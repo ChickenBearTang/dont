@@ -145,7 +145,7 @@ export const ForgotPasswordPage = () => {
             error={email.length > 0 && !isValidEmail}
             errorMessage="올바른 이메일 형식을 입력해주세요."
           />
-          <Button onClick={handleRequestCode} disabled={isRequesting} className="mt-2">
+          <Button onClick={handleRequestCode} disabled={isRequesting} className="mt-8">
             {isRequesting ? '요청 중...' : '재설정 코드 요청'}
           </Button>
         </div>
