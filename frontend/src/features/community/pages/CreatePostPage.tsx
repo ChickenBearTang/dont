@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { createHotdeal, createPoll, createPost } from '../api/communityApi';
-import type { BoardCategory } from '../types';
+import { AttachmentUploader } from '../components/AttachmentUploader';
+import { toAttachmentRequests } from '../api/attachmentApi';
+import type { BoardCategory, PostAttachmentDto } from '../types';
 import { createPr } from '@/features/community/pr';
 
 const CATEGORY_OPTIONS: Array<{ value: BoardCategory; label: string }> = [
@@ -67,11 +69,11 @@ export const CreatePostPage = () => {
   const [priceAmount, setPriceAmount] = useState('');
   const [prCategory, setPrCategory] = useState('');
   const [purchaseUrl, setPurchaseUrl] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [deadlineAt, setDeadlineAt] = useState('');
   const [reason, setReason] = useState('');
   const [budgetReason, setBudgetReason] = useState('');
   const [alternativeComparison, setAlternativeComparison] = useState('');
+  const [attachments, setAttachments] = useState<PostAttachmentDto[]>([]);
 
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptionA, setPollOptionA] = useState('');
@@ -143,11 +145,6 @@ export const CreatePostPage = () => {
       setErrorMessage('구매 링크는 http 또는 https URL이어야 합니다.');
       return false;
     }
-    if (imageUrl.trim() && !isValidUrl(imageUrl.trim())) {
-      setErrorMessage('이미지 링크는 http 또는 https URL이어야 합니다.');
-      return false;
-    }
-
     return true;
   };
 
@@ -243,8 +240,8 @@ export const CreatePostPage = () => {
           priceAmount: Number(priceAmount),
           category: prCategory.trim() || undefined,
           purchaseUrl: purchaseUrl.trim() || undefined,
-          imageUrl: imageUrl.trim() || undefined,
           deadlineAt: deadlineAt || undefined,
+          attachments: toAttachmentRequests(attachments),
         });
       } else if (isPollCategory) {
         await createPoll({
@@ -254,6 +251,7 @@ export const CreatePostPage = () => {
           optionA: pollOptionA.trim(),
           optionB: pollOptionB.trim(),
           deadlineAt: pollDeadlineAt,
+          attachments: toAttachmentRequests(attachments),
         });
       } else if (isHotdealCategory) {
         await createHotdeal({
@@ -266,12 +264,14 @@ export const CreatePostPage = () => {
           dealUrl: dealUrl.trim() || undefined,
           shippingInfo: shippingInfo.trim() || undefined,
           expiredAt: expiredAt || undefined,
+          attachments: toAttachmentRequests(attachments),
         });
       } else {
         await createPost({
           category,
           title: trimmedTitle,
           content: trimmedContent,
+          attachments: toAttachmentRequests(attachments),
         });
       }
 
@@ -358,6 +358,8 @@ export const CreatePostPage = () => {
           <div className="text-right text-[12px] text-gray-300">{title.length}/200</div>
         </div>
 
+        <AttachmentUploader attachments={attachments} onChange={setAttachments} />
+
         {isPrCategory ? (
           <>
             <div className="rounded-2xl border border-gray-100 bg-gray-50/70 px-5 py-5">
@@ -429,19 +431,6 @@ export const CreatePostPage = () => {
                     type="url"
                     value={purchaseUrl}
                     onChange={(event) => setPurchaseUrl(event.target.value)}
-                    placeholder="https://..."
-                    className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 md:col-span-2">
-                  <label htmlFor="imageUrl" className="text-[13px] font-semibold text-gray-700">
-                    이미지 링크
-                  </label>
-                  <input
-                    id="imageUrl"
-                    type="url"
-                    value={imageUrl}
-                    onChange={(event) => setImageUrl(event.target.value)}
                     placeholder="https://..."
                     className="h-12 rounded-xl border border-gray-200 bg-white px-4 text-[14px] text-gray-800 outline-none transition focus:border-primary-blue"
                   />

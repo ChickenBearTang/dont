@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.community.service;
 
+import com.ssafy.edu.awesomeproject.common.s3.service.S3AssetUrlResolver;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.HotdealCreateRequestDto;
@@ -26,16 +27,22 @@ public class HotdealPostService {
     private final BoardRepository boardRepository;
     private final PostRepository postRepository;
     private final HotdealPostRepository hotdealPostRepository;
+    private final PostAttachmentService postAttachmentService;
+    private final S3AssetUrlResolver s3AssetUrlResolver;
 
     public HotdealPostService(
             UserRepository userRepository,
             BoardRepository boardRepository,
             PostRepository postRepository,
-            HotdealPostRepository hotdealPostRepository) {
+            HotdealPostRepository hotdealPostRepository,
+            PostAttachmentService postAttachmentService,
+            S3AssetUrlResolver s3AssetUrlResolver) {
         this.userRepository = userRepository;
         this.boardRepository = boardRepository;
         this.postRepository = postRepository;
         this.hotdealPostRepository = hotdealPostRepository;
+        this.postAttachmentService = postAttachmentService;
+        this.s3AssetUrlResolver = s3AssetUrlResolver;
     }
 
     @Transactional
@@ -59,6 +66,7 @@ public class HotdealPostService {
                                 user,
                                 hotdealCreateRequestDto.title(),
                                 hotdealCreateRequestDto.content()));
+        postAttachmentService.syncAttachments(savedPost, hotdealCreateRequestDto.attachments());
 
         hotdealPostRepository.save(toEntity(savedPost, hotdealCreateRequestDto));
 
@@ -77,7 +85,9 @@ public class HotdealPostService {
                 post.getId(),
                 post.getTitle(),
                 post.getContent(),
+                post.getUser().getId(),
                 post.getUser().getNickname(),
+                s3AssetUrlResolver.resolvePublicUrlOrNull(post.getUser().getProfileImageUrl()),
                 hotdealPost.getProductName(),
                 hotdealPost.getStoreName(),
                 hotdealPost.getDealPriceAmount(),
@@ -85,6 +95,7 @@ public class HotdealPostService {
                 hotdealPost.getDealUrl(),
                 hotdealPost.getShippingInfo(),
                 hotdealPost.getExpiredAt(),
+                postAttachmentService.getAttachments(post.getId()),
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }
@@ -104,6 +115,7 @@ public class HotdealPostService {
         }
 
         post.update(hotdealUpdateRequestDto.title(), hotdealUpdateRequestDto.content());
+        postAttachmentService.syncAttachments(post, hotdealUpdateRequestDto.attachments());
         hotdealPost.update(
                 hotdealUpdateRequestDto.productName(),
                 hotdealUpdateRequestDto.storeName(),
