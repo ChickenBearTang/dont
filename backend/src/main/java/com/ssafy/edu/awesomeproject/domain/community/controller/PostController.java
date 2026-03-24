@@ -54,7 +54,8 @@ public class PostController {
                         createPostRequestDto.category(),
                         createPostRequestDto.generationNo(),
                         createPostRequestDto.title(),
-                        createPostRequestDto.content());
+                        createPostRequestDto.content(),
+                        createPostRequestDto.attachments());
 
         return CommonResponse.success(
                 new CreatePostResponseDto(
@@ -97,9 +98,11 @@ public class PostController {
                                             post.title(),
                                             post.authorId(),
                                             post.authorNickname(),
+                                            post.authorProfileImageUrl(),
                                             post.isMine(),
                                             post.likeCount(),
                                             post.commentCount(),
+                                            post.attachmentCount(),
                                             post.createdAt(),
                                             extra == null
                                                     ? null
@@ -183,10 +186,12 @@ public class PostController {
                         result.content(),
                         result.authorId(),
                         result.authorNickname(),
+                        result.authorProfileImageUrl(),
                         result.isMine(),
                         result.likeCount(),
                         result.dislikeCount(),
                         result.commentCount(),
+                        result.attachments(),
                         result.createdAt(),
                         result.updatedAt()));
     }
@@ -208,7 +213,8 @@ public class PostController {
                         userId,
                         postId,
                         updatePostRequestDto.title(),
-                        updatePostRequestDto.content());
+                        updatePostRequestDto.content(),
+                        updatePostRequestDto.attachments());
 
         return CommonResponse.success(
                 new UpdatePostResponseDto(result.postId(), result.updatedAt()));

@@ -9,7 +9,9 @@ import {
   updatePoll,
   updatePost,
 } from '../api/communityApi';
-import type { BoardCategory } from '../types';
+import { AttachmentUploader } from '../components/AttachmentUploader';
+import { toAttachmentRequests } from '../api/attachmentApi';
+import type { BoardCategory, PostAttachmentDto } from '../types';
 
 const getCategoryLabel = (category: BoardCategory | undefined) => {
   switch (category) {
@@ -44,6 +46,7 @@ export const EditPostPage = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<BoardCategory | undefined>();
+  const [attachments, setAttachments] = useState<PostAttachmentDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -81,6 +84,7 @@ export const EditPostPage = () => {
         setTitle(res.data.title);
         setContent(res.data.content);
         setCategory(res.data.category);
+        setAttachments(res.data.attachments ?? []);
 
         if (res.data.category === 'POLL') {
           const pollRes = await getPollDetail(Number(postId));
@@ -192,6 +196,7 @@ export const EditPostPage = () => {
           optionA: pollOptionA.trim(),
           optionB: pollOptionB.trim(),
           deadlineAt: pollDeadlineAt,
+          attachments: toAttachmentRequests(attachments),
         });
       } else if (isHotdealCategory) {
         await updateHotdeal(Number(postId), {
@@ -204,11 +209,13 @@ export const EditPostPage = () => {
           dealUrl: dealUrl.trim() || undefined,
           shippingInfo: shippingInfo.trim() || undefined,
           expiredAt: expiredAt || undefined,
+          attachments: toAttachmentRequests(attachments),
         });
       } else {
         await updatePost(Number(postId), {
           title: trimmedTitle,
           content: trimmedContent,
+          attachments: toAttachmentRequests(attachments),
         });
       }
 
@@ -276,6 +283,8 @@ export const EditPostPage = () => {
           />
           <div className="text-right text-[12px] text-gray-300">{title.length}/200</div>
         </div>
+
+        <AttachmentUploader attachments={attachments} onChange={setAttachments} />
 
         {isPollCategory ? (
           <>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getPosts } from '../api/communityApi';
 import type { BoardCategory, GetPostListResponseDto, PostSummaryDto } from '../types';
+import { UserAvatar } from '../components/UserAvatar';
 
 const PAGE_SIZE = 12;
 const PR_STATUS_FILTERS = ['OPEN', 'MERGED', 'CLOSED'] as const;
@@ -162,6 +163,24 @@ const EmptyBoardState = ({ message }: { message: string }) => (
   </div>
 );
 
+const AttachmentCountChip = ({ count }: { count: number }) =>
+  count > 0 ? (
+    <span className="rounded-full bg-amber-50 px-3 py-1 text-[12px] font-semibold text-amber-700">
+      첨부 {count}
+    </span>
+  ) : null;
+
+const AuthorMeta = ({ post }: { post: PostSummaryDto }) => (
+  <div className="flex items-center gap-2 min-w-0">
+    <UserAvatar
+      profileImageUrl={post.authorProfileImageUrl}
+      nickname={post.authorNickname}
+      className="h-7 w-7 shrink-0 text-[12px]"
+    />
+    <span className="truncate">{post.authorNickname || '작성자 없음'}</span>
+  </div>
+);
+
 const HotdealBoardList = ({
   posts,
   loading,
@@ -265,6 +284,7 @@ const HotdealBoardList = ({
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-semibold text-slate-600">
                     좋아요 {post.likeCount || 0}
                   </span>
+                  <AttachmentCountChip count={post.attachmentCount} />
                   {post.commentCount > 0 ? (
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-600">
                       댓글 {post.commentCount}
@@ -273,7 +293,7 @@ const HotdealBoardList = ({
                 </div>
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
-                  <span>{post.authorNickname || '작성자 없음'}</span>
+                  <AuthorMeta post={post} />
                   <span>{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
@@ -399,6 +419,7 @@ const PollBoardList = ({
                   <span className="rounded-full bg-rose-50 px-3 py-1 text-[12px] font-semibold text-rose-500">
                     좋아요 {post.likeCount || 0}
                   </span>
+                  <AttachmentCountChip count={post.attachmentCount} />
                   {post.commentCount > 0 ? (
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-600">
                       댓글 {post.commentCount}
@@ -407,7 +428,7 @@ const PollBoardList = ({
                 </div>
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
-                  <span>{post.authorNickname || '작성자 없음'}</span>
+                  <AuthorMeta post={post} />
                   <span>{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
@@ -535,6 +556,7 @@ const PrBoardList = ({
                   <span className="rounded-full bg-rose-50 px-3 py-1 text-[12px] font-semibold text-rose-500">
                     좋아요 {post.likeCount || 0}
                   </span>
+                  <AttachmentCountChip count={post.attachmentCount} />
                   {post.commentCount > 0 ? (
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-600">
                       댓글 {post.commentCount}
@@ -543,7 +565,7 @@ const PrBoardList = ({
                 </div>
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
-                  <span>{post.authorNickname || '작성자 없음'}</span>
+                  <AuthorMeta post={post} />
                   <span>{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
@@ -892,6 +914,11 @@ export const CommunityPage = () => {
                           [{post.commentCount}]
                         </span>
                       )}
+                      {post.attachmentCount > 0 && (
+                        <span className="text-[12px] font-semibold text-amber-600 shrink-0">
+                          [첨부 {post.attachmentCount}]
+                        </span>
+                      )}
 
                       <div className="flex items-center gap-0.5 ml-1 shrink-0 text-rose-400">
                         <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -901,8 +928,8 @@ export const CommunityPage = () => {
                       </div>
                     </div>
 
-                    <div className="col-span-2 text-center text-gray-500 text-[13px] font-medium truncate">
-                      {post.authorNickname || '작성자 없음'}
+                    <div className="col-span-2 flex justify-center text-gray-500 text-[13px] font-medium min-w-0">
+                      <AuthorMeta post={post} />
                     </div>
 
                     <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium">
