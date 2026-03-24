@@ -1,50 +1,182 @@
-// Temporary Mock Components
-const ExpenditureCard = () => (
-  <Card className="p-8 flex flex-col h-full hover:shadow-md transition-shadow">
-    <h3 className="text-gray-900 font-black text-[20px] mb-4">이번 달 지출 현황</h3>
-    <div className="flex-1 flex flex-col items-center justify-center">
-      <div className="text-4xl font-black text-gray-800 mb-2">₩ 450,000</div>
-      <p className="text-gray-400 font-medium text-sm">목표 예산의 45% 사용</p>
-    </div>
-  </Card>
-);
-
-const GoalProgressWidget = () => (
-  <Card className="p-8 flex flex-col h-full hover:shadow-md transition-shadow">
-    <h3 className="text-gray-900 font-black text-[20px] mb-4">저축 목표 달성률</h3>
-    <div className="flex-1 flex flex-col items-center justify-center">
-      <div className="w-full bg-gray-100 rounded-full h-4 mb-4 overflow-hidden">
-        <div className="bg-blue-600 h-4 rounded-full" style={{ width: '60%' }}></div>
-      </div>
-      <p className="text-gray-500 font-semibold">맥북 프로 구매 (60%)</p>
-    </div>
-  </Card>
-);
 import { Card } from '@/shared/components';
-import { Mascot } from '@/shared/components/Mascot';
+import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import {
+  useGetMyAccounts,
+  useGetSavingsSetting,
+} from '@/features/finance/account/hooks/useAccountQueries';
+import { useCurrentMonthSpending } from '@/features/finance/report/hooks/useReportQueries';
+
+const CATEGORY_COLORS = ['#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#10B981'];
+
+const ExpenditureCard = () => {
+  const now = new Date();
+  const monthLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월`;
+  const { data, isLoading, isError } = useCurrentMonthSpending();
+
+  // totalAmount 추출 — axios interceptor 구조에 따라 중첩된 data 처리
+  const totalAmount: number =
+    (data as { data?: { totalAmount?: number }; totalAmount?: number } | undefined)?.data
+      ?.totalAmount ??
+    (data as { totalAmount?: number } | undefined)?.totalAmount ??
+    0;
+
+  const rankList: { categoryName: string; amount: number; percentage: number }[] =
+    (
+      data as
+        | {
+            data?: {
+              rankColumList?: { categoryName: string; amount: number; percentage: number }[];
+            };
+            rankColumList?: { categoryName: string; amount: number; percentage: number }[];
+          }
+        | undefined
+    )?.data?.rankColumList ??
+    (
+      data as
+        | { rankColumList?: { categoryName: string; amount: number; percentage: number }[] }
+        | undefined
+    )?.rankColumList ??
+    [];
+
+  const top3 = [...rankList].sort((a, b) => b.amount - a.amount).slice(0, 3);
+
+  return (
+    <Card className="p-8 flex flex-col h-full">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-eel font-black text-[20px] tracking-tight flex items-center gap-2">
+          <span>💸</span> 이번 달 지출 현황
+        </h3>
+        <span className="text-[13px] font-bold text-primary-blue bg-primary-blue/10 px-3 py-1 rounded-full">
+          {monthLabel}
+        </span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-surface-soft border-t-primary-blue rounded-full animate-spin" />
+        </div>
+      ) : isError ? (
+        <div className="flex-1 flex items-center justify-center text-text-muted text-[14px] font-bold bg-surface-soft/50 rounded-2xl">
+          데이터를 불러올 수 없습니다.
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col">
+          {/* 총 지출 */}
+          <div className="flex flex-col items-center justify-center py-6 bg-gradient-to-b from-surface-soft/40 to-transparent rounded-[24px] border border-line-soft shadow-inner mb-6">
+            <p className="text-[13px] font-bold text-text-muted mb-2">이번 달 총 지출액</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[2.5rem] font-black tracking-tighter text-primary-blue leading-none">
+                {totalAmount.toLocaleString()}
+              </span>
+              <span className="text-[1.25rem] font-bold text-eel">원</span>
+            </div>
+          </div>
+
+          {/* 카테고리 TOP3 */}
+          <div className="flex-1 flex flex-col justify-end">
+            <h4 className="text-[14px] font-extrabold text-eel mb-3">많이 쓴 카테고리 TOP 3</h4>
+            {top3.length > 0 ? (
+              <div className="flex flex-col gap-2.5">
+                {top3.map((item, idx) => {
+                  const pct = item.percentage > 1 ? item.percentage : item.percentage * 100;
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-3 p-3.5 bg-white rounded-2xl border border-line-soft shadow-sm hover:border-primary-blue/30 hover:shadow-md transition-all group"
+                    >
+                      <div
+                        className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-white text-[13px] font-black shadow-inner group-hover:scale-105 transition-transform"
+                        style={{ backgroundColor: CATEGORY_COLORS[idx] }}
+                      >
+                        {idx + 1}위
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[14px] font-bold text-eel truncate mb-0.5">
+                          {item.categoryName}
+                        </div>
+                        <div className="text-[11px] font-bold text-text-muted">
+                          전체 지출의 {pct.toFixed(1)}%
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[15px] font-black tracking-tight text-eel">
+                          {item.amount.toLocaleString()}원
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-6 bg-surface-soft/30 rounded-2xl border border-line-soft border-dashed">
+                <p className="text-center text-[13px] font-bold text-text-muted">
+                  이번 달 지출 내역이 없어요!
+                  <br />
+                  아주 훌륭합니다 👍
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+};
 
 export const DashboardPage = () => {
+  const { user } = useAuthStore();
+  const { data: accounts, isLoading: isLoadingAccounts } = useGetMyAccounts();
+  const { data: setting, isLoading: isLoadingSetting } = useGetSavingsSetting();
+
+  const savebox =
+    accounts?.find((a) => a.id === setting?.saveboxAccountId) ||
+    accounts?.find(
+      (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
+    );
+
+  const isLoadingSavebox = isLoadingAccounts || isLoadingSetting;
+  const balance = savebox ? Number(savebox.accountBalance) : 0;
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 max-w-[1200px] mx-auto pb-10">
       {/* 상단 환영 영역 */}
-      <section className="flex flex-col md:flex-row items-center justify-between gap-8 bg-white p-10 rounded-[40px] border border-gray-100 shadow-sm">
-        <div className="space-y-4 text-center md:text-left">
-          <h2 className="text-3xl font-black text-gray-900 leading-tight">
+      <div className="relative bg-glass rounded-[40px] p-10 lg:p-14 flex flex-row items-center justify-between gap-8 overflow-hidden transition-all duration-300 hover:shadow-[0_12px_44px_rgba(31,38,135,0.08)]">
+        {/* 배경 텍스처 */}
+        <div className="absolute inset-0 bg-pattern-dots opacity-[0.6] pointer-events-none mix-blend-overlay"></div>
+
+        {/* Left: Greeting text */}
+        <div className="flex-1 min-w-0 relative z-10 text-left">
+          <h2 className="text-[1.75rem] lg:text-[2.25rem] font-black text-eel leading-[1.3] tracking-tight">
             안녕하세요,{' '}
-            <span className="text-primary-blue underline underline-offset-8">김싸피</span>님!
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent">
+              {user?.nickname || '회원'}
+            </span>
+            님!
             <br />
             오늘도 현명한 소비 중이시네요.
           </h2>
-          <p className="text-gray-500 font-medium text-lg italic">
+          <p className="text-text-muted font-bold text-[1rem] mt-3">
             "작은 아낌이 모여 당신의 큰 꿈을 만듭니다."
           </p>
         </div>
-        <Mascot
-          src="/assets/mascot_happy.png"
-          speech="벌써 목표의 60%를 넘으셨어요! 대단해요!"
-          className="w-full max-w-[300px]"
-        />
-      </section>
+
+        {/* Right: Savebox Balance Widget */}
+        <div className="shrink-0 w-[320px] lg:w-[500px] relative z-10">
+          <div className="flex flex-col items-center text-center bg-white px-8 py-7 rounded-[28px] border border-line-soft shadow-[0_12px_40px_rgba(15,23,42,0.06)] hover:border-line-strong transition-all duration-300">
+            <div className="flex items-center gap-3 mb-5">
+              <span className="text-[0.9rem] font-black tracking-tight text-text-muted">
+                현재 세이브박스 잔액
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[2.5rem] lg:text-[3rem] font-black tracking-tighter text-primary-blue leading-none">
+                {isLoadingSavebox ? '...' : balance.toLocaleString()}
+              </span>
+              <span className="text-[1.25rem] font-bold text-eel">원</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* 메인 위젯 그리드 */}
       <div className="grid lg:grid-cols-3 gap-8">
@@ -53,65 +185,226 @@ export const DashboardPage = () => {
           <ExpenditureCard />
         </div>
 
-        {/* 목표 달성 위젯 */}
+        {/* 최근 알림 -> 랭킹 위젯 */}
         <div className="lg:col-span-1">
-          <GoalProgressWidget />
+          <RankingWidget />
         </div>
 
-        {/* 최근 알림/활동 (Mock) */}
-        <Card className="lg:col-span-1 p-8 flex flex-col hover:shadow-md transition-shadow">
-          <h3 className="text-gray-900 font-black text-[20px] mb-6">최근 알림</h3>
-          <div className="space-y-4">
-            {[
-              {
-                id: 1,
-                title: '커피 값 4,500원 절약!',
-                desc: '오늘의 무지출 챌린지 성공!',
-                time: '방금 전',
-                icon: '☕',
-              },
-              {
-                id: 2,
-                title: '식비 예산 주의',
-                desc: '목표 예산의 80%를 사용했어요.',
-                time: '2시간 전',
-                icon: '⚠️',
-              },
-              {
-                id: 3,
-                title: '포인트 적립 완료',
-                desc: '어제 절약 보상 500P가 입금되었습니다.',
-                time: '어제',
-                icon: '💰',
-              },
-            ].map((item) => (
-              <div
-                key={item.id}
-                className="flex gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
-              >
-                <div className="w-12 h-12 bg-white shadow-sm border border-gray-50 rounded-xl flex items-center justify-center text-2xl">
-                  {item.icon}
-                </div>
-                <div className="flex-1">
-                  <p className="text-[15px] font-bold text-gray-900">{item.title}</p>
-                  <p className="text-[13px] text-gray-500 font-medium">{item.desc}</p>
-                  <p className="text-[11px] text-gray-400 mt-1">{item.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+        {/* 빈 칸 -> 토론 위젯 */}
+        <div className="lg:col-span-1">
+          <PollWidget />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- 신규 위젯 컴포넌트 추가 ---
+import { useQuery } from '@tanstack/react-query';
+import axiosInstance from '@/shared/api/axiosInstance';
+import { getPosts } from '@/features/community/api/communityApi';
+import { useNavigate } from 'react-router-dom';
+
+interface RankingUser {
+  userId: number;
+  nickname: string | null;
+  rank: number;
+  score: number;
+}
+
+const RankingWidget = () => {
+  const navigate = useNavigate();
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['dashboard', 'ranking'],
+    queryFn: async () => {
+      const res = await axiosInstance.get('/ranking/cohort');
+      return res.data; // { data: { top10: [], myRanking: {} } }
+    },
+  });
+
+  const myRanking = data?.data?.myRanking;
+  const top3 = data?.data?.top10?.slice(0, 3) || [];
+
+  return (
+    <Card className="p-8 flex flex-col h-full border border-indigo-50 shadow-sm relative overflow-hidden group">
+      {/* 장식용 배경 */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100 rounded-full blur-[60px] opacity-60 -mr-10 -mt-10 pointer-events-none" />
+
+      <div className="flex items-center justify-between mb-6 relative z-10">
+        <h3 className="text-eel font-black text-[18px] tracking-tight flex items-center gap-2">
+          <span>🏆</span> 우리 기수 랭킹
+        </h3>
+        <button
+          onClick={() => navigate('/ranking')}
+          className="text-[12px] font-bold text-indigo-500 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors"
+        >
+          전체보기
+        </button>
       </div>
 
-      {/* 하단 상세 차트 섹션 (Placeholder) */}
-      <section className="bg-[#F1F5F9] p-10 rounded-[40px] border border-gray-200 border-dashed">
-        <div className="text-center space-y-2">
-          <h3 className="text-2xl font-black text-gray-400">카테고리별 상세 분석</h3>
-          <p className="text-gray-400 font-medium">
-            데이터 분석 기능은 현재 준비 중입니다. 곧 만나보실 수 있어요!
-          </p>
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-indigo-100 border-t-indigo-500 rounded-full animate-spin" />
         </div>
-      </section>
-    </div>
+      ) : isError ? (
+        <div className="flex-1 flex items-center justify-center text-text-muted text-[13px] font-bold">
+          랭킹 정보를 불러오지 못했습니다.
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col justify-between relative z-10">
+          {/* 내 랭킹 */}
+          <div className="flex flex-col items-center justify-center py-5 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-md mb-5 text-white">
+            <p className="text-[12px] font-bold text-indigo-100 mb-1">내 현재 순위</p>
+            {myRanking && myRanking.rank !== -1 ? (
+              <div className="flex items-baseline gap-1">
+                <span className="text-[2rem] font-black tracking-tighter leading-none">
+                  {myRanking.rank}
+                </span>
+                <span className="text-[1rem] font-bold text-indigo-100">위</span>
+              </div>
+            ) : (
+              <p className="text-[14px] font-bold mt-1">랭킹 산정 중</p>
+            )}
+          </div>
+
+          {/* TOP 3 리스트 */}
+          <div className="flex-1 flex flex-col justify-end gap-2">
+            {top3.length > 0 ? (
+              top3.map((user: RankingUser) => (
+                <div
+                  key={user.userId}
+                  className="flex items-center justify-between p-3 bg-white border border-line-soft rounded-xl shadow-sm"
+                >
+                  <div className="flex items-center gap-3 w-full">
+                    <span
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                        user.rank === 1
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : user.rank === 2
+                            ? 'bg-slate-100 text-slate-600'
+                            : 'bg-orange-50 text-orange-600'
+                      }`}
+                    >
+                      {user.rank}
+                    </span>
+                    <span className="text-[13px] font-bold text-eel truncate max-w-[100px]">
+                      {user.nickname || `유저 ${user.userId}`}
+                    </span>
+                    <span className="ml-auto text-[13px] font-black text-indigo-600 shrink-0">
+                      {user.score.toLocaleString()}원
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-[13px] text-text-muted font-bold py-4">
+                기수에 등록된 랭커가 없습니다.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+};
+
+const PollWidget = () => {
+  const navigate = useNavigate();
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['dashboard', 'poll'],
+    queryFn: async () => {
+      const res = await getPosts('POLL', undefined, 0, 1);
+      return res.data;
+    },
+  });
+
+  const pollPost = data?.content?.[0];
+  const pollInfo = pollPost?.extraSummary?.poll;
+
+  return (
+    <Card className="p-8 flex flex-col h-full border border-amber-50 shadow-sm relative overflow-hidden group">
+      {/* 장식용 배경 */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-amber-100 rounded-full blur-[60px] opacity-50 -mr-10 -mt-10 pointer-events-none" />
+
+      <div className="flex items-center justify-between mb-6 relative z-10">
+        <h3 className="text-eel font-black text-[18px] tracking-tight flex items-center gap-2">
+          <span>🔥</span> 핫한 절약 논쟁
+        </h3>
+        <button
+          onClick={() => navigate('/community?category=POLL')}
+          className="text-[12px] font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full hover:bg-amber-100 transition-colors"
+        >
+          투표하기
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-amber-100 border-t-amber-500 rounded-full animate-spin" />
+        </div>
+      ) : isError || !pollPost || !pollInfo ? (
+        <div className="flex-1 flex items-center justify-center text-text-muted text-[13px] font-bold bg-surface-soft/50 rounded-2xl">
+          진행 중인 토론이 없습니다.
+        </div>
+      ) : (
+        <div
+          onClick={() => navigate(`/community/${pollPost.postId}`)}
+          className="flex-1 flex flex-col justify-between relative z-10 cursor-pointer group/card"
+        >
+          {/* 폴 질문 */}
+          <div className="bg-white p-5 rounded-2xl border border-line-soft shadow-sm mb-4 group-hover/card:border-amber-300 transition-colors">
+            <h4 className="text-[15px] font-extrabold text-eel mb-2 leading-snug line-clamp-2 gap-1.5 flex">
+              <span className="text-amber-500 shrink-0">Q.</span>
+              <span>{pollInfo.question || pollPost.title}</span>
+            </h4>
+            <div className="flex items-center gap-2 text-[11px] font-bold text-text-muted mt-3">
+              <span className="bg-surface-soft px-2 py-1 rounded-md">
+                {pollPost.authorNickname}
+              </span>
+              <span>참여자 {pollInfo.totalVoteCount?.toLocaleString() || 0}명</span>
+            </div>
+          </div>
+
+          {/* 옵션 VS */}
+          <div className="flex flex-col gap-2 mt-auto">
+            <div className="flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-100 relative overflow-hidden">
+              <div
+                className="absolute left-0 top-0 bottom-0 bg-blue-100 opacity-40 transition-all duration-1000"
+                style={{
+                  width: `${pollInfo.totalVoteCount > 0 ? (pollInfo.optionACount / pollInfo.totalVoteCount) * 100 : 50}%`,
+                }}
+              />
+              <span className="text-[13px] font-bold text-eel z-10 relative truncate max-w-[70%]">
+                A. {pollInfo.optionA}
+              </span>
+              <span className="text-[12px] font-black text-blue-600 z-10 relative">
+                {pollInfo.totalVoteCount > 0
+                  ? Math.round((pollInfo.optionACount / pollInfo.totalVoteCount) * 100)
+                  : 0}
+                %
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-100 relative overflow-hidden">
+              <div
+                className="absolute left-0 top-0 bottom-0 bg-red-100 opacity-40 transition-all duration-1000"
+                style={{
+                  width: `${pollInfo.totalVoteCount > 0 ? (pollInfo.optionBCount / pollInfo.totalVoteCount) * 100 : 50}%`,
+                }}
+              />
+              <span className="text-[13px] font-bold text-eel z-10 relative truncate max-w-[70%]">
+                B. {pollInfo.optionB}
+              </span>
+              <span className="text-[12px] font-black text-red-500 z-10 relative">
+                {pollInfo.totalVoteCount > 0
+                  ? Math.round((pollInfo.optionBCount / pollInfo.totalVoteCount) * 100)
+                  : 0}
+                %
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 };

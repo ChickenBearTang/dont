@@ -25,6 +25,7 @@ import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { ReportModal } from '../components/ReportModal';
 import { UserAvatar } from '../components/UserAvatar';
 import { LinkifiedText } from '../components/LinkifiedText';
+import { Card, Button } from '@/shared/components';
 
 interface CommentNode extends CommentSummaryDto {
   children: CommentNode[];
@@ -161,9 +162,8 @@ const CommentItem = ({
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col transition-all duration-1000 ${
-        isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
-      } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
+      className={`flex flex-col transition-all duration-1000 ${isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
+        } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
     >
       <div className="flex gap-3">
         <UserAvatar
@@ -426,13 +426,12 @@ const PollVotePanel = ({
               type="button"
               disabled={detail.isClosed || isSubmittingVote}
               onClick={() => onVote(option.voteOption)}
-              className={`rounded-2xl border px-5 py-5 text-left transition ${
-                detail.isClosed
-                  ? 'cursor-not-allowed border-gray-200 bg-gray-50'
-                  : isSelected
-                    ? option.selectedClass
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-              }`}
+              className={`rounded-2xl border px-5 py-5 text-left transition ${detail.isClosed
+                ? 'cursor-not-allowed border-gray-200 bg-gray-50'
+                : isSelected
+                  ? option.selectedClass
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                }`}
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[16px] font-bold text-gray-900">{option.label}</p>
@@ -462,26 +461,16 @@ const PollVotePanel = ({
 };
 
 const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
-  const [currentTimeMs, setCurrentTimeMs] = useState(0);
-
-  useEffect(() => {
-    const updateNow = () => setCurrentTimeMs(Date.now());
-    updateNow();
-
-    const intervalId = window.setInterval(updateNow, 60_000);
-    return () => window.clearInterval(intervalId);
-  }, []);
-
   const discountRate =
     detail.originalPriceAmount && detail.originalPriceAmount > 0
       ? Math.max(
-          0,
-          Math.round(
-            ((detail.originalPriceAmount - detail.dealPriceAmount) / detail.originalPriceAmount) * 100
-          )
+        0,
+        Math.round(
+          ((detail.originalPriceAmount - detail.dealPriceAmount) / detail.originalPriceAmount) * 100
         )
+      )
       : null;
-  const isExpired = detail.expiredAt ? new Date(detail.expiredAt).getTime() <= currentTimeMs : false;
+  const isExpired = detail.expiredAt ? new Date(detail.expiredAt).getTime() <= Date.now() : false;
 
   return (
     <div className="mt-6 rounded-[28px] border border-gray-200 bg-white p-6">
@@ -498,11 +487,10 @@ const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
           </p>
         </div>
         <span
-          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${
-            isExpired
-              ? 'border-slate-200 bg-slate-100 text-slate-700'
-              : 'border-rose-200 bg-rose-50 text-rose-700'
-          }`}
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${isExpired
+            ? 'border-slate-200 bg-slate-100 text-slate-700'
+            : 'border-rose-200 bg-rose-50 text-rose-700'
+            }`}
         >
           {isExpired ? 'EXPIRED' : 'LIVE'}
         </span>
@@ -783,11 +771,11 @@ export const PostDetailPage = () => {
         setPollDetail((prev) =>
           prev
             ? {
-                ...prev,
-                optionACount: res.data.optionACount,
-                optionBCount: res.data.optionBCount,
-                totalVoteCount: res.data.totalVoteCount,
-              }
+              ...prev,
+              optionACount: res.data.optionACount,
+              optionBCount: res.data.optionBCount,
+              totalVoteCount: res.data.totalVoteCount,
+            }
             : prev
         );
         setSelectedPollVote(voteOption);
@@ -818,10 +806,10 @@ export const PostDetailPage = () => {
           setPost((prev) =>
             prev
               ? {
-                  ...prev,
-                  likeCount: resOpp.data!.likeCount,
-                  dislikeCount: resOpp.data!.dislikeCount,
-                }
+                ...prev,
+                likeCount: resOpp.data!.likeCount,
+                dislikeCount: resOpp.data!.dislikeCount,
+              }
               : null
           );
           setSelectedReaction(null);
@@ -904,28 +892,25 @@ export const PostDetailPage = () => {
 
   if (loading)
     return (
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden min-h-[600px] flex items-center justify-center p-12">
-        <div className="w-8 h-8 border-4 border-gray-100 border-t-blue-500 rounded-full animate-spin mb-4" />
-      </div>
+      <Card className="!p-0 min-h-[600px] overflow-hidden flex items-center justify-center p-12">
+        <div className="w-8 h-8 border-4 border-primary-blue border-t-transparent rounded-full animate-spin mb-4" />
+      </Card>
     );
   if (error || !post)
     return (
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px] items-center justify-center p-12">
+      <Card className="!p-0 min-h-[600px] overflow-hidden flex flex-col items-center justify-center p-12">
         <p className="text-gray-700 font-bold text-[18px] mb-2">
           {error || '게시글을 찾을 수 없습니다.'}
         </p>
-        <button
-          onClick={() => navigate('/community')}
-          className="mt-4 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm text-[14px]"
-        >
+        <Button onClick={() => navigate('/community')} className="mt-4 !px-6 !py-2.5">
           목록으로 돌아가기
-        </button>
-      </div>
+        </Button>
+      </Card>
     );
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col">
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-4 h-14 flex items-center justify-between border-b border-gray-100">
+    <Card className="!p-0 flex flex-col min-h-[600px] overflow-hidden">
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 h-14 flex items-center justify-between border-b border-gray-100">
         <button
           onClick={() => navigate('/community')}
           className="p-2 -ml-2 text-gray-800 hover:text-black transition-colors"
@@ -1017,7 +1002,7 @@ export const PostDetailPage = () => {
             <div className="text-[15px] font-bold text-gray-900 leading-tight">
               {post.authorNickname || '알 수 없음'}
             </div>
-            <div className="text-[12px] text-gray-400 font-medium mt-0.5">
+            <div className="text-[13px] text-text-muted font-bold mt-1">
               {formatDate(post.createdAt)}
             </div>
           </div>
@@ -1091,7 +1076,7 @@ export const PostDetailPage = () => {
           ) : null}
         </div>
 
-        <div className="mt-8 px-5 flex items-center gap-2">
+        <div className="mt-10 px-5 flex items-center gap-2">
           <button
             onClick={() => handleToggleReaction('LIKE')}
             disabled={post.status === 'BLINDED'}
@@ -1102,7 +1087,7 @@ export const PostDetailPage = () => {
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth="2.5"
             >
               <path
                 strokeLinecap="round"
@@ -1209,6 +1194,7 @@ export const PostDetailPage = () => {
         targetType={reportModalState.targetType}
         targetId={reportModalState.targetId}
       />
-    </div>
+    </Card>
   );
 };
+

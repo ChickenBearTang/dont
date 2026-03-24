@@ -87,12 +87,12 @@ export const LoginForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <Input
         label="이메일"
         name="email"
         type="email"
-        placeholder="example@test.com"
+        placeholder="이메일을 입력하세요."
         required
         value={email}
         onChange={(event) => setEmail(event.target.value)}
@@ -104,7 +104,7 @@ export const LoginForm = () => {
         label="비밀번호"
         name="password"
         type="password"
-        placeholder="비밀번호를 입력하세요"
+        placeholder="비밀번호를 입력하세요."
         required
         value={password}
         onChange={(event) => setPassword(event.target.value)}
@@ -122,7 +122,7 @@ export const LoginForm = () => {
         </button>
       </div>
 
-      <Button type="submit" className="mt-8" disabled={isPending}>
+      <Button type="submit" className="mt-6" disabled={isPending}>
         {isPending ? '로그인 중...' : '로그인'}
       </Button>
     </form>
