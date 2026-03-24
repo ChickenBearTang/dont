@@ -461,16 +461,6 @@ const PollVotePanel = ({
 };
 
 const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
-  const [currentTimeMs, setCurrentTimeMs] = useState(0);
-
-  useEffect(() => {
-    const updateNow = () => setCurrentTimeMs(Date.now());
-    updateNow();
-
-    const intervalId = window.setInterval(updateNow, 60_000);
-    return () => window.clearInterval(intervalId);
-  }, []);
-
   const discountRate =
     detail.originalPriceAmount && detail.originalPriceAmount > 0
       ? Math.max(
@@ -480,7 +470,7 @@ const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
         )
       )
       : null;
-  const isExpired = detail.expiredAt ? new Date(detail.expiredAt).getTime() <= currentTimeMs : false;
+  const isExpired = detail.expiredAt ? new Date(detail.expiredAt).getTime() <= Date.now() : false;
 
   return (
     <div className="mt-6 rounded-[28px] border border-gray-200 bg-white p-6">

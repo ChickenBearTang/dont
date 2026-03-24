@@ -46,21 +46,19 @@ export const RankingPage = () => {
         <h1 className="text-xl font-bold mb-4">🏆 실시간 세이브박스 랭킹</h1>
         <div className="flex justify-center space-x-2 bg-gray-100 p-1 py-1 px-1 rounded-full w-full max-w-sm">
           <button
-            className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all ${
-              activeTab === 'total'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
+            className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all ${activeTab === 'total'
+              ? 'bg-indigo-600 text-white shadow-md'
+              : 'text-gray-500 hover:text-gray-800'
+              }`}
             onClick={() => setActiveTab('total')}
           >
             전체 랭킹
           </button>
           <button
-            className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all ${
-              activeTab === 'cohort'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
+            className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all ${activeTab === 'cohort'
+              ? 'bg-indigo-600 text-white shadow-md'
+              : 'text-gray-500 hover:text-gray-800'
+              }`}
             onClick={() => setActiveTab('cohort')}
           >
             기수별 랭킹
@@ -120,27 +118,25 @@ export const RankingPage = () => {
           {top10.map((user) => (
             <li
               key={user.userId}
-              className={`flex items-center justify-between p-5 bg-white rounded-[24px] shadow-[0_4px_12px_rgba(0,0,0,0.03)] border transition-all hover:scale-[1.02] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] group cursor-default ${
-                user.rank === 1
-                  ? 'border-yellow-200'
-                  : user.rank === 2
-                    ? 'border-gray-200'
-                    : user.rank === 3
-                      ? 'border-orange-200'
-                      : 'border-gray-50'
-              }`}
+              className={`flex items-center justify-between p-5 bg-white rounded-[24px] shadow-[0_4px_12px_rgba(0,0,0,0.03)] border transition-all hover:scale-[1.02] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] group cursor-default ${user.rank === 1
+                ? 'border-yellow-200'
+                : user.rank === 2
+                  ? 'border-gray-200'
+                  : user.rank === 3
+                    ? 'border-orange-200'
+                    : 'border-gray-50'
+                }`}
             >
               <div className="flex items-center space-x-5">
                 <span
-                  className={`w-10 h-10 flex items-center justify-center rounded-[14px] font-black text-[15px] shadow-sm ${
-                    user.rank === 1
-                      ? 'bg-yellow-400 text-yellow-900 ring-4 ring-yellow-50'
-                      : user.rank === 2
-                        ? 'bg-slate-200 text-slate-800 ring-4 ring-slate-50'
-                        : user.rank === 3
-                          ? 'bg-orange-500 text-white ring-4 ring-orange-50'
-                          : 'bg-gray-100 text-gray-400'
-                  }`}
+                  className={`w-10 h-10 flex items-center justify-center rounded-[14px] font-black text-[15px] shadow-sm ${user.rank === 1
+                    ? 'bg-yellow-400 text-yellow-900 ring-4 ring-yellow-50'
+                    : user.rank === 2
+                      ? 'bg-slate-200 text-slate-800 ring-4 ring-slate-50'
+                      : user.rank === 3
+                        ? 'bg-orange-500 text-white ring-4 ring-orange-50'
+                        : 'bg-gray-100 text-gray-400'
+                    }`}
                 >
                   {user.rank}
                 </span>
