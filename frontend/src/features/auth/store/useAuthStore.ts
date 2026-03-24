@@ -1,10 +1,7 @@
 import { create } from 'zustand';
 import type { UserProfile } from '@/features/auth/types';
 import { clearAuthUser, loadAuthUser, saveAuthUser } from '@/features/auth/utils/authStorage';
-<<<<<<< HEAD
-=======
 import { queryClient } from '@/shared/api/queryClient';
->>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
 
 interface AuthState {
   accessToken: string | null;
@@ -65,13 +62,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-<<<<<<< HEAD
-    clearAuthUser();
-=======
     // 1. 보안을 위한 스토리지 및 전역 캐시 즉시 소거
     clearAuthUser();
     queryClient.clear();
->>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
 
     set({
       accessToken: null,
