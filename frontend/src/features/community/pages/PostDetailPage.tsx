@@ -161,190 +161,216 @@ const CommentItem = ({
 
   return (
     <div
-      ref={containerRef}
-      className={`flex flex-col transition-all duration-1000 ${isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
-        } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
+      className={`flex flex-col ${depth > 0
+          ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4'
+          : 'mt-6 pb-6 border-b border-gray-50 last:border-0'
+        }`}
     >
-      <div className="flex gap-3">
-        <UserAvatar
-          profileImageUrl={node.isVirtual ? null : node.authorProfileImageUrl}
-          nickname={node.isVirtual ? '?' : node.authorNickname}
-          className="h-[34px] w-[34px] shrink-0 text-[14px]"
-        />
+      <div
+        ref={containerRef}
+        className={`transition-all duration-1000 ${isHighlighted
+            ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm'
+            : ''
+          }`}
+      >
+        <div className="flex gap-3">
+          <UserAvatar
+            profileImageUrl={node.isVirtual ? null : node.authorProfileImageUrl}
+            nickname={node.isVirtual ? '?' : node.authorNickname}
+            className="h-[34px] w-[34px] shrink-0 text-[14px]"
+          />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span
-                className={`font-bold text-[13.5px] truncate ${node.isVirtual ? 'text-gray-400' : 'text-gray-900'}`}
-              >
-                {node.isVirtual ? '알 수 없음' : node.authorNickname || '알 수 없음'}
-              </span>
-              {!node.isVirtual && (
-                <span className="text-[12px] text-gray-400 font-medium tracking-tight">
-                  {formatDate(node.createdAt)}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className={`font-bold text-[13.5px] truncate ${node.isVirtual ? 'text-gray-400' : 'text-gray-900'
+                    }`}
+                >
+                  {node.isVirtual ? '알 수 없음' : node.authorNickname || '알 수 없음'}
                 </span>
+                {!node.isVirtual && (
+                  <span className="text-[12px] text-gray-400 font-medium tracking-tight">
+                    {formatDate(node.createdAt)}
+                  </span>
+                )}
+              </div>
+
+              {!node.isVirtual && isCommentAuthor && (
+                <div className="flex items-center gap-2 shrink-0">
+                  {node.status !== 'BLINDED' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditing(!isEditing);
+                        setEditContent(node.content);
+                      }}
+                      className="text-[12px] font-medium text-gray-400 hover:text-gray-700"
+                    >
+                      {isEditing ? '취소' : '수정'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteComment(node.commentId)}
+                    className="text-[12px] font-medium text-red-400 hover:text-red-600"
+                  >
+                    삭제
+                  </button>
+                </div>
+              )}
+
+              {!node.isVirtual && !isCommentAuthor && node.status !== 'BLINDED' && (
+                <button
+                  type="button"
+                  onClick={() => onReport('COMMENT', node.commentId)}
+                  className="text-[12px] font-medium text-gray-300 hover:text-rose-400 transition-colors"
+                >
+                  신고
+                </button>
               )}
             </div>
 
-            {!node.isVirtual && isCommentAuthor && (
-              <div className="flex items-center gap-2 shrink-0">
+            {isEditing ? (
+              <form onSubmit={handleEditSubmit} className="mt-2 flex flex-col gap-2">
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full min-h-[80px] p-3 text-[14px] border border-gray-200 rounded-xl focus:border-blue-500 outline-none resize-none"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="px-3 py-1.5 text-[12px] font-bold text-gray-500 hover:bg-gray-100 rounded-lg"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!editContent.trim() || submittingEdit}
+                    className="px-3 py-1.5 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
+                  >
+                    저장
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <LinkifiedText
+                text={
+                  node.status === 'BLINDED'
+                    ? '신고 처리된 댓글입니다.'
+                    : node.isVirtual
+                      ? '삭제된 댓글입니다.'
+                      : node.content
+                }
+                className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual || node.status === 'BLINDED'
+                    ? 'text-gray-400 italic'
+                    : 'text-gray-800'
+                  }`}
+              />
+            )}
+
+            {!node.isVirtual && (
+              <div className="mt-2.5 flex items-center gap-3">
+                <button
+                  onClick={handleToggleCommentReaction}
+                  disabled={node.status === 'BLINDED'}
+                  className={`group flex items-center gap-1.5 transition-colors ${node.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                >
+                  {isLiked ? (
+                    <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className={`w-4 h-4 ${node.status === 'BLINDED'
+                          ? 'text-gray-200'
+                          : 'text-gray-300 group-hover:text-rose-400'
+                        }`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+                      />
+                    </svg>
+                  )}
+                  <span
+                    className={`text-[12px] font-bold transition-colors ${node.status === 'BLINDED'
+                        ? 'text-gray-300'
+                        : isLiked
+                          ? 'text-rose-600'
+                          : 'text-gray-400 group-hover:text-gray-600'
+                      }`}
+                  >
+                    {node.likeCount || 0}
+                  </span>
+                </button>
+
                 {node.status !== 'BLINDED' && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsEditing(!isEditing);
-                      setEditContent(node.content);
-                    }}
-                    className="text-[12px] font-medium text-gray-400 hover:text-gray-700"
+                    onClick={() => setIsReplying(!isReplying)}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-bold transition-colors ${isReplying
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-[#EBF5FF] text-[#007AFF] hover:bg-[#D1E9FF]'
+                      }`}
                   >
-                    {isEditing ? '취소' : '수정'}
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                      />
+                    </svg>
+                    <span>답글</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => handleDeleteComment(node.commentId)}
-                  className="text-[12px] font-medium text-red-400 hover:text-red-600"
-                >
-                  삭제
-                </button>
               </div>
             )}
-            {!node.isVirtual && !isCommentAuthor && node.status !== 'BLINDED' && (
-              <button
-                type="button"
-                onClick={() => onReport('COMMENT', node.commentId)}
-                className="text-[12px] font-medium text-gray-300 hover:text-rose-400 transition-colors"
-              >
-                신고
-              </button>
-            )}
-          </div>
 
-          {isEditing ? (
-            <form onSubmit={handleEditSubmit} className="mt-2 flex flex-col gap-2">
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="w-full min-h-[80px] p-3 text-[14px] border border-gray-200 rounded-xl focus:border-blue-500 outline-none resize-none"
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 text-[12px] font-bold text-gray-500 hover:bg-gray-100 rounded-lg"
-                >
-                  취소
-                </button>
+            {isReplying && (
+              <form onSubmit={handleReplySubmit} className="mt-3 flex gap-2">
+                <input
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  placeholder="답글을 입력하세요..."
+                  className="flex-1 h-9 px-3 rounded-lg bg-gray-50 text-[13px] outline-none border border-gray-100"
+                />
                 <button
                   type="submit"
-                  disabled={!editContent.trim() || submittingEdit}
-                  className="px-3 py-1.5 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
+                  disabled={!replyContent.trim() || submittingReply}
+                  className="px-3 h-9 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
                 >
-                  저장
+                  등록
                 </button>
-              </div>
-            </form>
-          ) : (
-            <LinkifiedText
-              text={
-                node.status === 'BLINDED'
-                  ? '신고 처리된 댓글입니다.'
-                  : node.isVirtual
-                    ? '삭제된 댓글입니다.'
-                    : node.content
-              }
-              className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual || node.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
-            />
-          )}
+              </form>
+            )}
 
-          {!node.isVirtual && (
-            <div className="mt-2.5 flex items-center gap-3">
-              <button
-                onClick={handleToggleCommentReaction}
-                disabled={node.status === 'BLINDED'}
-                className={`group flex items-center gap-1.5 transition-colors ${node.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isLiked ? (
-                  <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" />
-                  </svg>
-                ) : (
-                  <svg
-                    className={`w-4 h-4 ${node.status === 'BLINDED' ? 'text-gray-200' : 'text-gray-300 group-hover:text-rose-400'}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-                    />
-                  </svg>
-                )}
-                <span
-                  className={`text-[12px] font-bold transition-colors ${node.status === 'BLINDED' ? 'text-gray-300' : isLiked ? 'text-rose-600' : 'text-gray-400 group-hover:text-gray-600'}`}
-                >
-                  {node.likeCount || 0}
-                </span>
-              </button>
-
-              {node.status !== 'BLINDED' && (
+            {node.children.length > 0 && (
+              <div className="mt-2">
                 <button
                   type="button"
-                  onClick={() => setIsReplying(!isReplying)}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-bold transition-colors ${isReplying ? 'bg-blue-600 text-white' : 'bg-[#EBF5FF] text-[#007AFF] hover:bg-[#D1E9FF]'}`}
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="text-[12px] font-bold text-blue-500"
                 >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  <span>답글</span>
+                  {isExpanded ? '답글 숨기기' : `답글 ${node.children.length}개 보기`}
                 </button>
-              )}
-            </div>
-          )}
-
-          {isReplying && (
-            <form onSubmit={handleReplySubmit} className="mt-3 flex gap-2">
-              <input
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="답글을 입력하세요..."
-                className="flex-1 h-9 px-3 rounded-lg bg-gray-50 text-[13px] outline-none border border-gray-100"
-              />
-              <button
-                type="submit"
-                disabled={!replyContent.trim() || submittingReply}
-                className="px-3 h-9 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
-              >
-                등록
-              </button>
-            </form>
-          )}
-
-          {node.children.length > 0 && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="text-[12px] font-bold text-blue-500"
-              >
-                {isExpanded ? '답글 숨기기' : `답글 ${node.children.length}개 보기`}
-              </button>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
