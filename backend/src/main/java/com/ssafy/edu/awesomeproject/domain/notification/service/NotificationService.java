@@ -12,13 +12,12 @@ import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
 import com.ssafy.edu.awesomeproject.domain.notification.error.NotificationErrorCode;
 import com.ssafy.edu.awesomeproject.domain.notification.error.NotificationException;
 import com.ssafy.edu.awesomeproject.domain.notification.repository.NotificationRepository;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Transactional
@@ -44,10 +43,10 @@ public class NotificationService {
         int pageSize = (size == null || size <= 0) ? 20 : size;
 
         PageRequest pageRequest =
-            PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "id"));
+                PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "id"));
 
         Page<Notification> notificationPage =
-            notificationRepository.findByUserIdOrderByIdDesc(userId, pageRequest);
+                notificationRepository.findByUserIdOrderByIdDesc(userId, pageRequest);
 
         List<NotificationListResponseDto.NotificationSummaryDto> content =
             notificationPage.getContent().stream()
@@ -73,12 +72,12 @@ public class NotificationService {
                 .toList();
 
         return new NotificationListResponseDto(
-            content,
-            notificationPage.getNumber(),
-            notificationPage.getSize(),
-            notificationPage.getTotalElements(),
-            notificationPage.getTotalPages(),
-            notificationPage.hasNext());
+                content,
+                notificationPage.getNumber(),
+                notificationPage.getSize(),
+                notificationPage.getTotalElements(),
+                notificationPage.getTotalPages(),
+                notificationPage.hasNext());
     }
 
     @Transactional(readOnly = true)
@@ -124,14 +123,8 @@ public class NotificationService {
             throw new NotificationException(NotificationErrorCode.INVALID_NOTIFICATION_REQUEST);
         }
 
-        Notification notification = new Notification(
-            userId,
-            notificationType,
-            title,
-            body,
-            referenceType,
-            referenceId
-        );
+        Notification notification =
+                new Notification(userId, notificationType, title, body, referenceType, referenceId);
 
         notificationRepository.save(notification);
     }

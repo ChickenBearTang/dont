@@ -9,7 +9,7 @@ import { formatNumber } from '@/shared/utils';
 const KDT_MONTHLY_INCOME = 1_300_000;
 const DEFAULT_MONTHLY_INCOME = 1_000_000;
 const RECOMMEND_RATIO = 0.3;
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
 const FIXED_COST_OPTIONS = [50000, 100000, 150000, 200000, 250000, 300000, 400000, 500000];
 const VARIABLE_COST_OPTIONS = [50000, 100000, 150000, 200000, 250000, 300000, 400000, 500000];
 
@@ -23,6 +23,16 @@ export const OnboardingPage = () => {
   const [isKdt, setIsKdt] = useState<boolean | null>(null);
   const [fixedCostInput, setFixedCostInput] = useState('');
   const [variableCostInput, setVariableCostInput] = useState('');
+
+  const resolveErrorMessage = (error: unknown) => {
+    if (typeof error !== 'object' || error === null || !('response' in error)) {
+      return undefined;
+    }
+
+    const response = (error as { response?: { data?: { message?: string } } }).response;
+    const message = response?.data?.message;
+    return typeof message === 'string' && message.trim() ? message : undefined;
+  };
 
   useEffect(() => {
     const loadOnboardingStatus = async () => {
@@ -40,7 +50,7 @@ export const OnboardingPage = () => {
         }
       } catch (error) {
         console.error('Failed to load onboarding data:', error);
-        toast.error('온보딩 정보를 불러오지 못했습니다.');
+        toast.error(resolveErrorMessage(error) ?? '온보딩 정보를 불러오지 못했습니다.');
       } finally {
         setIsLoading(false);
       }
@@ -91,7 +101,7 @@ export const OnboardingPage = () => {
       }
     } catch (error) {
       console.error('Failed to submit onboarding:', error);
-      toast.error('정보 저장에 실패했습니다. 다시 시도해주세요.');
+      toast.error(resolveErrorMessage(error) ?? '정보 저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
     }

@@ -48,8 +48,7 @@ public class NotificationController {
     @ApiCommonResponses
     @Operation(summary = "알림 읽음 처리 API", description = "특정 알림을 읽음 처리합니다.")
     public CommonResponse<NotificationReadResponseDto> markAsRead(
-            @CurrentUserId Long userId,
-            @PathVariable Long notificationId) {
+            @CurrentUserId Long userId, @PathVariable Long notificationId) {
         return CommonResponse.success(notificationService.markAsRead(userId, notificationId));
     }
 
