@@ -69,20 +69,40 @@ services:
     networks:
       - app-net
 
-  jenkins:
-    build:
-      context: ./infra/jenkins
-      dockerfile: Dockerfile
-    image: s14p21a605/jenkins:lts-jdk21-docker
+  loki:
+    image: grafana/loki:2.9.10
     restart: unless-stopped
-    profiles: ["ci"]
-    user: root
-    ports:
-      - "8081:8080"
-      - "50000:50000"
+    command: ["-config.file=/etc/loki/local-config.yaml"]
     volumes:
-      - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ./infra/observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    expose:
+      - "3100"
+    networks:
+      - app-net
+
+  alloy:
+    image: grafana/alloy:v1.9.2
+    restart: unless-stopped
+    command: ["run", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./infra/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - app-net
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    restart: unless-stopped
+    depends_on:
+      - loki
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
     networks:
       - app-net
 
@@ -92,4 +112,5 @@ networks:
 
 volumes:
   redis-data:
-  jenkins_home:
+  loki-data:
+  grafana-data:
