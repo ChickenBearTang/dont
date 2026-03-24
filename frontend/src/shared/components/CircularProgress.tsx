@@ -5,18 +5,21 @@ interface CircularProgressProps {
   className?: string;
 }
 
-export const CircularProgress = ({ 
-  progress, 
-  size = 120, 
-  strokeWidth = 8, 
-  className = '' 
+export const CircularProgress = ({
+  progress,
+  size = 120,
+  strokeWidth = 8,
+  className = '',
 }: CircularProgressProps) => {
   const radius = 50 - strokeWidth / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className={`relative flex items-center justify-center ${className}`} style={{ width: size, height: size }}>
+    <div
+      className={`relative flex items-center justify-center ${className}`}
+      style={{ width: size, height: size }}
+    >
       <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
         <circle
           className="fill-none stroke-gray-100"

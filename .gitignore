@@ -324,6 +324,7 @@ opencode.jsonc
 .env
 .env2
 .env.local
+.env.example
 
 # Deployment packaging artifacts
 release_out/

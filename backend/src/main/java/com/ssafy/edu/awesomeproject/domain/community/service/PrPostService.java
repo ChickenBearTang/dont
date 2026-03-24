@@ -56,6 +56,7 @@ public class PrPostService {
     private final PrVoteRepository prVoteRepository;
     private final PrReviewRepository prReviewRepository;
     private final PrEventRepository prEventRepository;
+    private final PostAttachmentService postAttachmentService;
     private final ObjectMapper objectMapper;
     private final S3AssetUrlResolver s3AssetUrlResolver;
 
@@ -67,6 +68,9 @@ public class PrPostService {
             PrVoteRepository prVoteRepository,
             PrReviewRepository prReviewRepository,
             PrEventRepository prEventRepository,
+
+            PostAttachmentService postAttachmentService,
+
             ObjectMapper objectMapper,
             S3AssetUrlResolver s3AssetUrlResolver) {
         this.userRepository = userRepository;
@@ -76,6 +80,7 @@ public class PrPostService {
         this.prVoteRepository = prVoteRepository;
         this.prReviewRepository = prReviewRepository;
         this.prEventRepository = prEventRepository;
+        this.postAttachmentService = postAttachmentService;
         this.objectMapper = objectMapper;
         this.s3AssetUrlResolver = s3AssetUrlResolver;
     }
@@ -92,6 +97,7 @@ public class PrPostService {
                                 user,
                                 prCreateRequestDto.title(),
                                 prCreateRequestDto.content()));
+        postAttachmentService.syncAttachments(savedPost, prCreateRequestDto.attachments());
 
         PrPost savedPrPost = prPostRepository.save(toEntity(savedPost, prCreateRequestDto));
         prEventRepository.save(
@@ -240,15 +246,16 @@ public class PrPostService {
                 post.getTitle(),
                 post.getUser().getId(),
                 post.getUser().getNickname(),
+                s3AssetUrlResolver.resolvePublicUrlOrNull(post.getUser().getProfileImageUrl()),
                 prPost.getItemName(),
                 prPost.getPriceAmount(),
                 prPost.getCategory(),
                 post.getContent(),
                 prPost.getPurchaseUrl(),
-                prPost.getImageUrl(),
                 prPost.getDeadlineAt(),
                 prPost.getResultStatusEnum().name(),
                 prPost.getResultStatus(),
+                postAttachmentService.getAttachments(postId),
                 post.getCreatedAt(),
                 post.getUpdatedAt(),
                 agreeCount,
@@ -418,7 +425,6 @@ public class PrPostService {
                 prCreateRequestDto.priceAmount(),
                 prCreateRequestDto.category(),
                 prCreateRequestDto.purchaseUrl(),
-                prCreateRequestDto.imageUrl(),
                 prCreateRequestDto.deadlineAt());
     }
 }

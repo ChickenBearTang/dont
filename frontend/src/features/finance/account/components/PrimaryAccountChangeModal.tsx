@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal } from '@/shared/components/Modal';
+import { useUIStore } from '@/shared/store/useUIStore';
 import { useGetMyAccounts } from '../hooks/useAccountQueries';
 import { useSetPrimaryAccount } from '../hooks/useAccountMutations';
 
@@ -19,6 +20,7 @@ export const PrimaryAccountChangeModal: React.FC<PrimaryAccountChangeModalProps>
 }) => {
   const { data: accounts, isLoading } = useGetMyAccounts();
   const { mutate: setPrimary, isPending } = useSetPrimaryAccount();
+  const addToast = useUIStore((state) => state.addToast);
 
   // 세이브박스 계좌를 제외한 일반 계좌들만 필터링
   const eligibleAccounts = accounts?.filter(
@@ -33,11 +35,11 @@ export const PrimaryAccountChangeModal: React.FC<PrimaryAccountChangeModalProps>
 
     setPrimary(accountId, {
       onSuccess: () => {
-        alert('주계좌가 성공적으로 변경되었습니다. ✨');
+        addToast('주계좌가 성공적으로 변경되었습니다. ✨', 'success');
         onClose();
       },
       onError: () => {
-        alert('주계좌 변경 중 오류가 발생했습니다.');
+        addToast('주계좌 변경 중 오류가 발생했습니다.', 'error');
       },
     });
   };
@@ -62,11 +64,10 @@ export const PrimaryAccountChangeModal: React.FC<PrimaryAccountChangeModalProps>
                 key={account.id}
                 onClick={() => handleSelect(account.id)}
                 disabled={isPending}
-                className={`w-full p-5 rounded-2xl border-2 transition-all flex items-center justify-between group ${
-                  account.id === currentPrimaryAccountId
-                    ? 'border-primary-blue bg-blue-50/30'
-                    : 'border-gray-50 bg-white hover:border-primary-blue/30 hover:bg-gray-50/50'
-                }`}
+                className={`w-full p-5 rounded-2xl border-2 transition-all flex items-center justify-between group ${account.id === currentPrimaryAccountId
+                  ? 'border-primary-blue bg-blue-50/30'
+                  : 'border-gray-50 bg-white hover:border-primary-blue/30 hover:bg-gray-50/50'
+                  }`}
               >
                 <div className="text-left">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter block mb-1">

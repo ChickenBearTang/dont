@@ -4,6 +4,9 @@ import { Button, Card, Input } from '@/shared/components';
 import { createPr } from '@/features/community/pr';
 import type { PrCreateRequestPayload } from '@/features/community/pr';
 import { useUIStore } from '@/shared/store/useUIStore';
+import { AttachmentUploader } from '@/features/community/components/AttachmentUploader';
+import { toAttachmentRequests } from '@/features/community/api/attachmentApi';
+import type { PostAttachmentDto } from '@/features/community/types';
 
 const isValidUrl = (value: string): boolean => {
   try {
@@ -25,12 +28,12 @@ export const PrCreatePage = () => {
     priceAmount: '',
     category: '',
     purchaseUrl: '',
-    imageUrl: '',
     deadlineAt: '',
     reason: '',
     budgetReason: '',
     alternativeComparison: '',
   });
+  const [attachments, setAttachments] = useState<PostAttachmentDto[]>([]);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
@@ -48,9 +51,6 @@ export const PrCreatePage = () => {
     if (!form.alternativeComparison.trim()) return '대체재 비교 내용을 입력해주세요.';
     if (form.purchaseUrl.trim() && !isValidUrl(form.purchaseUrl.trim())) {
       return '구매 링크는 http 또는 https URL이어야 합니다.';
-    }
-    if (form.imageUrl.trim() && !isValidUrl(form.imageUrl.trim())) {
-      return '이미지 링크는 http 또는 https URL이어야 합니다.';
     }
     return null;
   };
@@ -84,8 +84,8 @@ export const PrCreatePage = () => {
       priceAmount: Number(form.priceAmount),
       category: form.category.trim() || undefined,
       purchaseUrl: form.purchaseUrl.trim() || undefined,
-      imageUrl: form.imageUrl.trim() || undefined,
       deadlineAt: form.deadlineAt || undefined,
+      attachments: toAttachmentRequests(attachments),
     };
 
     setIsSubmitting(true);
@@ -157,20 +157,13 @@ export const PrCreatePage = () => {
             placeholder="https://..."
           />
           <Input
-            label="이미지 링크 (선택)"
-            name="imageUrl"
-            value={form.imageUrl}
-            onChange={handleChange}
-            placeholder="https://..."
-            maxLength={255}
-          />
-          <Input
             label="마감 시각 (선택)"
             name="deadlineAt"
             type="datetime-local"
             value={form.deadlineAt}
             onChange={handleChange}
           />
+          <AttachmentUploader attachments={attachments} onChange={setAttachments} />
         </section>
 
         <section className="space-y-4">

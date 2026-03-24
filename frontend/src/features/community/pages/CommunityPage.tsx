@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Card, Button } from '@/shared/components';
 import { getPosts } from '../api/communityApi';
 import type { BoardCategory, GetPostListResponseDto, PostSummaryDto } from '../types';
+import { UserAvatar } from '../components/UserAvatar';
 
 const PAGE_SIZE = 12;
 const PR_STATUS_FILTERS = ['OPEN', 'MERGED', 'CLOSED'] as const;
@@ -126,11 +128,10 @@ const BoardStatusFilterBar = ({
     <button
       type="button"
       onClick={onSelectAllStatuses}
-      className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${
-        selectedStatuses.length === BOARD_STATUS_FILTERS.length
+      className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${selectedStatuses.length === BOARD_STATUS_FILTERS.length
           ? 'border-slate-300 bg-slate-900 text-white'
           : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
-      }`}
+        }`}
     >
       전체
     </button>
@@ -142,11 +143,10 @@ const BoardStatusFilterBar = ({
           key={status}
           type="button"
           onClick={() => onToggleStatus(status)}
-          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${
-            isSelected
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${isSelected
               ? getBoardFilterTone(status, category)
               : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
-          }`}
+            }`}
         >
           {status}
         </button>
@@ -159,6 +159,24 @@ const EmptyBoardState = ({ message }: { message: string }) => (
   <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
     <p className="text-[14px] font-semibold text-gray-600">{message}</p>
     <p className="mt-1 text-[12px] text-gray-400">필터를 조정하거나 전체 보기를 눌러 보세요.</p>
+  </div>
+);
+
+const AttachmentCountChip = ({ count }: { count: number }) =>
+  count > 0 ? (
+    <span className="rounded-full bg-amber-50 px-3 py-1 text-[12px] font-semibold text-amber-700">
+      첨부 {count}
+    </span>
+  ) : null;
+
+const AuthorMeta = ({ post }: { post: PostSummaryDto }) => (
+  <div className="flex items-center gap-2 min-w-0">
+    <UserAvatar
+      profileImageUrl={post.authorProfileImageUrl}
+      nickname={post.authorNickname}
+      className="h-7 w-7 shrink-0 text-[12px]"
+    />
+    <span className="truncate">{post.authorNickname || '작성자 없음'}</span>
   </div>
 );
 
@@ -265,6 +283,7 @@ const HotdealBoardList = ({
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-[12px] font-semibold text-slate-600">
                     좋아요 {post.likeCount || 0}
                   </span>
+                  <AttachmentCountChip count={post.attachmentCount} />
                   {post.commentCount > 0 ? (
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-600">
                       댓글 {post.commentCount}
@@ -273,7 +292,7 @@ const HotdealBoardList = ({
                 </div>
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
-                  <span>{post.authorNickname || '작성자 없음'}</span>
+                  <AuthorMeta post={post} />
                   <span>{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
@@ -399,6 +418,7 @@ const PollBoardList = ({
                   <span className="rounded-full bg-rose-50 px-3 py-1 text-[12px] font-semibold text-rose-500">
                     좋아요 {post.likeCount || 0}
                   </span>
+                  <AttachmentCountChip count={post.attachmentCount} />
                   {post.commentCount > 0 ? (
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-600">
                       댓글 {post.commentCount}
@@ -407,7 +427,7 @@ const PollBoardList = ({
                 </div>
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
-                  <span>{post.authorNickname || '작성자 없음'}</span>
+                  <AuthorMeta post={post} />
                   <span>{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
@@ -449,11 +469,10 @@ const PrBoardList = ({
         <button
           type="button"
           onClick={onSelectAllStatuses}
-          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${
-            selectedStatuses.length === PR_STATUS_FILTERS.length
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${selectedStatuses.length === PR_STATUS_FILTERS.length
               ? 'border-slate-300 bg-slate-900 text-white'
               : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
-          }`}
+            }`}
         >
           전체
         </button>
@@ -465,11 +484,10 @@ const PrBoardList = ({
               key={status}
               type="button"
               onClick={() => onToggleStatus(status)}
-              className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${
-                isSelected
+              className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${isSelected
                   ? getPrStatusTone(status)
                   : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
-              }`}
+                }`}
             >
               {status}
             </button>
@@ -535,6 +553,7 @@ const PrBoardList = ({
                   <span className="rounded-full bg-rose-50 px-3 py-1 text-[12px] font-semibold text-rose-500">
                     좋아요 {post.likeCount || 0}
                   </span>
+                  <AttachmentCountChip count={post.attachmentCount} />
                   {post.commentCount > 0 ? (
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-[12px] font-semibold text-blue-600">
                       댓글 {post.commentCount}
@@ -543,7 +562,7 @@ const PrBoardList = ({
                 </div>
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
-                  <span>{post.authorNickname || '작성자 없음'}</span>
+                  <AuthorMeta post={post} />
                   <span>{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
@@ -751,8 +770,8 @@ export const CommunityPage = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px]">
-      <div className="px-7 pt-7 pb-5 flex justify-between items-start">
+    <Card className="!p-0 flex flex-col min-h-[600px] overflow-hidden">
+      <div className="px-7 pt-7 pb-5 flex justify-between items-start relative z-10 w-full">
         <div>
           <h1 className="text-[22px] font-bold text-gray-900 tracking-[-0.02em]">{categoryTitle}</h1>
           <p className="text-gray-400 mt-1 text-[13px] font-medium tracking-[-0.01em]">
@@ -780,7 +799,7 @@ export const CommunityPage = () => {
             />
           </form>
 
-          <button
+          <Button
             type="button"
             onClick={() => navigate(getWritePath())}
             className="inline-flex items-center gap-2 rounded-xl border border-blue-600 bg-blue-600 px-4 py-2.5 text-[14px] font-bold text-white shadow-sm transition hover:border-blue-700 hover:bg-blue-700 focus:outline-none"
@@ -789,13 +808,13 @@ export const CommunityPage = () => {
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
             </svg>
             <span>글쓰기</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="mx-7 border-t border-gray-100" />
 
-      <div className="px-7 pb-6 flex-1 flex flex-col">
+      <div className="px-7 pb-6 flex-1 flex flex-col relative z-10">
         <div className="flex items-center justify-between py-3">
           <div className="text-[12px] text-gray-400 font-medium">
             총 <span className="font-bold text-gray-700">{listCount}</span>개
@@ -867,9 +886,8 @@ export const CommunityPage = () => {
                   <div
                     key={post.postId}
                     onClick={() => navigate(getPostDetailPath(post))}
-                    className={`grid grid-cols-12 gap-3 py-3.5 text-[13.5px] items-center hover:bg-gray-50/60 transition-colors cursor-pointer group ${
-                      idx !== filteredPosts.length - 1 ? 'border-b border-gray-50' : ''
-                    }`}
+                    className={`grid grid-cols-12 gap-3 py-3.5 text-[13.5px] items-center hover:bg-gray-50/60 transition-colors cursor-pointer group ${idx !== filteredPosts.length - 1 ? 'border-b border-gray-50' : ''
+                      }`}
                   >
                     <div className="col-span-1 flex items-center gap-0">
                       <span className={`w-1.5 h-1.5 rounded-full ${getCategoryDot(post.category)} flex-shrink-0`} />
@@ -880,9 +898,8 @@ export const CommunityPage = () => {
 
                     <div className="col-span-7 flex items-center gap-2 min-w-0">
                       <span
-                        className={`truncate font-medium ${
-                          post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800 group-hover:text-gray-900'
-                        }`}
+                        className={`truncate font-medium ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800 group-hover:text-gray-900'
+                          }`}
                       >
                         {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
                       </span>
@@ -890,6 +907,11 @@ export const CommunityPage = () => {
                       {post.commentCount > 0 && (
                         <span className="text-[12px] font-semibold text-blue-500 shrink-0">
                           [{post.commentCount}]
+                        </span>
+                      )}
+                      {post.attachmentCount > 0 && (
+                        <span className="text-[12px] font-semibold text-amber-600 shrink-0">
+                          [첨부 {post.attachmentCount}]
                         </span>
                       )}
 
@@ -901,8 +923,8 @@ export const CommunityPage = () => {
                       </div>
                     </div>
 
-                    <div className="col-span-2 text-center text-gray-500 text-[13px] font-medium truncate">
-                      {post.authorNickname || '작성자 없음'}
+                    <div className="col-span-2 flex justify-center text-gray-500 text-[13px] font-medium min-w-0">
+                      <AuthorMeta post={post} />
                     </div>
 
                     <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium">
@@ -916,12 +938,12 @@ export const CommunityPage = () => {
         )}
 
         {!loading && totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-1.5">
+          <div className="mt-8 flex items-center justify-center gap-1.5">
             <button
               type="button"
               onClick={() => moveToListPage(currentPage - 1)}
               disabled={currentPage <= 1}
-              className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="px-3 py-2 rounded-lg border border-line-soft text-[13px] font-bold text-text-muted disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-soft transition-colors"
             >
               이전
             </button>
@@ -931,9 +953,8 @@ export const CommunityPage = () => {
                 key={pageNumber}
                 type="button"
                 onClick={() => moveToListPage(pageNumber)}
-                className={`min-w-[36px] h-[36px] rounded-lg text-[13px] font-semibold transition ${
-                  pageNumber === currentPage ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'
-                }`}
+                className={`min-w-[36px] h-[36px] rounded-lg text-[13px] font-semibold transition ${pageNumber === currentPage ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'
+                  }`}
               >
                 {pageNumber}
               </button>
@@ -943,13 +964,13 @@ export const CommunityPage = () => {
               type="button"
               onClick={() => moveToListPage(currentPage + 1)}
               disabled={currentPage >= totalPages}
-              className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="px-3 py-2 rounded-lg border border-line-soft text-[13px] font-bold text-text-muted disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-soft transition-colors"
             >
               다음
             </button>
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 };
