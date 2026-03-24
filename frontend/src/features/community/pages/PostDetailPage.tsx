@@ -24,6 +24,7 @@ import type {
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { ReportModal } from '../components/ReportModal';
 import { UserAvatar } from '../components/UserAvatar';
+import { LinkifiedText } from '../components/LinkifiedText';
 
 interface CommentNode extends CommentSummaryDto {
   children: CommentNode[];
@@ -245,15 +246,16 @@ const CommentItem = ({
               </div>
             </form>
           ) : (
-            <div
+            <LinkifiedText
+              text={
+                node.status === 'BLINDED'
+                  ? '신고 처리된 댓글입니다.'
+                  : node.isVirtual
+                    ? '삭제된 댓글입니다.'
+                    : node.content
+              }
               className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual || node.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
-            >
-              {node.status === 'BLINDED'
-                ? '신고 처리된 댓글입니다.'
-                : node.isVirtual
-                  ? '삭제된 댓글입니다.'
-                  : node.content}
-            </div>
+            />
           )}
 
           {!node.isVirtual && (
@@ -1028,11 +1030,10 @@ export const PostDetailPage = () => {
           {post.status !== 'BLINDED' && post.category === 'HOTDEAL' && hotdealDetail ? (
             <HotdealInfoPanel detail={hotdealDetail} />
           ) : null}
-          <div
+          <LinkifiedText
+            text={post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
             className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
-          >
-            {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
-          </div>
+          />
           {post.status !== 'BLINDED' && post.attachments.length > 0 ? (
             <div className="mt-5 space-y-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
               <div className="text-[13px] font-bold text-gray-700">
