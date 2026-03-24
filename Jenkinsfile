@@ -42,7 +42,7 @@ pipeline {
                     set +x
 
                     test -f "${ENV_FILE}" || {
-                      echo "Missing ${ENV_FILE}. Copy .env.example to .env and set RDS/Redis/JWT values."
+                      echo "Missing ${ENV_FILE}. Provide required runtime env values (RDS/Redis/JWT, etc.)."
                       exit 1
                     }
 
