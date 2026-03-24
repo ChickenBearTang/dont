@@ -23,6 +23,8 @@ import type {
 } from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { ReportModal } from '../components/ReportModal';
+import { UserAvatar } from '../components/UserAvatar';
+import { LinkifiedText } from '../components/LinkifiedText';
 
 interface CommentNode extends CommentSummaryDto {
   children: CommentNode[];
@@ -72,10 +74,9 @@ const CommentItem = ({
     if (isHighlighted && containerRef.current) {
       setTimeout(() => {
         containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 500);
+      }, 500); // Give some time for the comments to render/load
     }
   }, [isHighlighted]);
-
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
@@ -140,8 +141,11 @@ const CommentItem = ({
       else localStorage.removeItem(commentLikeKey);
       await refreshComments();
     } catch (err: unknown) {
+      // Handle potential sync issues with older comments
       const axiosError = err as { response?: { status: number } };
       if (axiosError.response?.status === 400 || axiosError.response?.status === 409) {
+        // If it failed, it might be already in the target state.
+        // Try to force sync the local state and refresh to get the true count.
         setIsLiked(!isLiked);
         if (!isLiked) localStorage.setItem(commentLikeKey, 'true');
         else localStorage.removeItem(commentLikeKey);
@@ -156,220 +160,190 @@ const CommentItem = ({
 
   return (
     <div
-      className={`flex flex-col ${
-        depth > 0
-          ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4'
-          : 'mt-6 pb-6 border-b border-gray-50 last:border-0'
-      }`}
+      ref={containerRef}
+      className={`flex flex-col transition-all duration-1000 ${
+        isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
+      } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
     >
-      <div
-        ref={containerRef}
-        className={`transition-all duration-1000 ${
-          isHighlighted
-            ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm'
-            : ''
-        }`}
-      >
-        <div className="flex gap-3">
-          <div className="w-[34px] h-[34px] bg-gray-100 rounded-full shrink-0 flex justify-center items-center font-bold text-gray-400 text-[14px] overflow-hidden">
-            {node.isVirtual ? '?' : (node.authorNickname || '?')[0]}
-          </div>
+      <div className="flex gap-3">
+        <UserAvatar
+          profileImageUrl={node.isVirtual ? null : node.authorProfileImageUrl}
+          nickname={node.isVirtual ? '?' : node.authorNickname}
+          className="h-[34px] w-[34px] shrink-0 text-[14px]"
+        />
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span
-                  className={`font-bold text-[13.5px] truncate ${
-                    node.isVirtual ? 'text-gray-400' : 'text-gray-900'
-                  }`}
-                >
-                  {node.isVirtual ? '알 수 없음' : node.authorNickname || '알 수 없음'}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className={`font-bold text-[13.5px] truncate ${node.isVirtual ? 'text-gray-400' : 'text-gray-900'}`}
+              >
+                {node.isVirtual ? '알 수 없음' : node.authorNickname || '알 수 없음'}
+              </span>
+              {!node.isVirtual && (
+                <span className="text-[12px] text-gray-400 font-medium tracking-tight">
+                  {formatDate(node.createdAt)}
                 </span>
-                {!node.isVirtual && (
-                  <span className="text-[12px] text-gray-400 font-medium tracking-tight">
-                    {formatDate(node.createdAt)}
-                  </span>
-                )}
-              </div>
-
-              {!node.isVirtual && isCommentAuthor && (
-                <div className="flex items-center gap-2 shrink-0">
-                  {node.status !== 'BLINDED' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsEditing(!isEditing);
-                        setEditContent(node.content);
-                      }}
-                      className="text-[12px] font-medium text-gray-400 hover:text-gray-700"
-                    >
-                      {isEditing ? '취소' : '수정'}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteComment(node.commentId)}
-                    className="text-[12px] font-medium text-red-400 hover:text-red-600"
-                  >
-                    삭제
-                  </button>
-                </div>
-              )}
-              {!node.isVirtual && !isCommentAuthor && node.status !== 'BLINDED' && (
-                <button
-                  type="button"
-                  onClick={() => onReport('COMMENT', node.commentId)}
-                  className="text-[12px] font-medium text-gray-300 hover:text-rose-400 transition-colors"
-                >
-                  신고
-                </button>
               )}
             </div>
 
-            {isEditing ? (
-              <form onSubmit={handleEditSubmit} className="mt-2 flex flex-col gap-2">
-                <textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full min-h-[80px] p-3 text-[14px] border border-gray-200 rounded-xl focus:border-blue-500 outline-none resize-none"
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(false)}
-                    className="px-3 py-1.5 text-[12px] font-bold text-gray-500 hover:bg-gray-100 rounded-lg"
-                  >
-                    취소
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!editContent.trim() || submittingEdit}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
-                  >
-                    저장
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div
-                className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${
-                  node.isVirtual || node.status === 'BLINDED'
-                    ? 'text-gray-400 italic'
-                    : 'text-gray-800'
-                }`}
-              >
-                {node.status === 'BLINDED'
-                  ? '신고 처리된 댓글입니다.'
-                  : node.isVirtual
-                    ? '삭제된 댓글입니다.'
-                    : node.content}
-              </div>
-            )}
-
-            {!node.isVirtual && (
-              <div className="mt-2.5 flex items-center gap-3">
-                <button
-                  onClick={handleToggleCommentReaction}
-                  disabled={node.status === 'BLINDED'}
-                  className={`group flex items-center gap-1.5 transition-colors ${
-                    node.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  {isLiked ? (
-                    <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" />
-                    </svg>
-                  ) : (
-                    <svg
-                      className={`w-4 h-4 ${
-                        node.status === 'BLINDED'
-                          ? 'text-gray-200'
-                          : 'text-gray-300 group-hover:text-rose-400'
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-                      />
-                    </svg>
-                  )}
-                  <span
-                    className={`text-[12px] font-bold transition-colors ${
-                      node.status === 'BLINDED'
-                        ? 'text-gray-300'
-                        : isLiked
-                          ? 'text-rose-600'
-                          : 'text-gray-400 group-hover:text-gray-600'
-                    }`}
-                  >
-                    {node.likeCount || 0}
-                  </span>
-                </button>
-
+            {!node.isVirtual && isCommentAuthor && (
+              <div className="flex items-center gap-2 shrink-0">
                 {node.status !== 'BLINDED' && (
                   <button
                     type="button"
-                    onClick={() => setIsReplying(!isReplying)}
-                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-bold transition-colors ${
-                      isReplying
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-[#EBF5FF] text-[#007AFF] hover:bg-[#D1E9FF]'
-                    }`}
+                    onClick={() => {
+                      setIsEditing(!isEditing);
+                      setEditContent(node.content);
+                    }}
+                    className="text-[12px] font-medium text-gray-400 hover:text-gray-700"
                   >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                      />
-                    </svg>
-                    <span>답글</span>
+                    {isEditing ? '취소' : '수정'}
                   </button>
                 )}
-              </div>
-            )}
-
-            {isReplying && (
-              <form onSubmit={handleReplySubmit} className="mt-3 flex gap-2">
-                <input
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="답글을 입력하세요..."
-                  className="flex-1 h-9 px-3 rounded-lg bg-gray-50 text-[13px] outline-none border border-gray-100"
-                />
-                <button
-                  type="submit"
-                  disabled={!replyContent.trim() || submittingReply}
-                  className="px-3 h-9 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
-                >
-                  등록
-                </button>
-              </form>
-            )}
-
-            {node.children.length > 0 && (
-              <div className="mt-2">
                 <button
                   type="button"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="text-[12px] font-bold text-blue-500"
+                  onClick={() => handleDeleteComment(node.commentId)}
+                  className="text-[12px] font-medium text-red-400 hover:text-red-600"
                 >
-                  {isExpanded ? '답글 숨기기' : `답글 ${node.children.length}개 보기`}
+                  삭제
                 </button>
               </div>
             )}
+            {!node.isVirtual && !isCommentAuthor && node.status !== 'BLINDED' && (
+              <button
+                type="button"
+                onClick={() => onReport('COMMENT', node.commentId)}
+                className="text-[12px] font-medium text-gray-300 hover:text-rose-400 transition-colors"
+              >
+                신고
+              </button>
+            )}
           </div>
+
+          {isEditing ? (
+            <form onSubmit={handleEditSubmit} className="mt-2 flex flex-col gap-2">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="w-full min-h-[80px] p-3 text-[14px] border border-gray-200 rounded-xl focus:border-blue-500 outline-none resize-none"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="px-3 py-1.5 text-[12px] font-bold text-gray-500 hover:bg-gray-100 rounded-lg"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={!editContent.trim() || submittingEdit}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
+                >
+                  저장
+                </button>
+              </form>
+          ) : (
+            <LinkifiedText
+              text={
+                node.status === 'BLINDED'
+                  ? '신고 처리된 댓글입니다.'
+                  : node.isVirtual
+                    ? '삭제된 댓글입니다.'
+                    : node.content
+              }
+              className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual || node.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
+            />
+          )}
+
+          {!node.isVirtual && (
+            <div className="mt-2.5 flex items-center gap-3">
+              <button
+                onClick={handleToggleCommentReaction}
+                disabled={node.status === 'BLINDED'}
+                className={`group flex items-center gap-1.5 transition-colors ${node.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isLiked ? (
+                  <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" />
+                  </svg>
+                ) : (
+                  <svg
+                    className={`w-4 h-4 ${node.status === 'BLINDED' ? 'text-gray-200' : 'text-gray-300 group-hover:text-rose-400'}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+                    />
+                  </svg>
+                )}
+                <span
+                  className={`text-[12px] font-bold transition-colors ${node.status === 'BLINDED' ? 'text-gray-300' : isLiked ? 'text-rose-600' : 'text-gray-400 group-hover:text-gray-600'}`}
+                >
+                  {node.likeCount || 0}
+                </span>
+              </button>
+
+              {node.status !== 'BLINDED' && (
+                <button
+                  type="button"
+                  onClick={() => setIsReplying(!isReplying)}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-bold transition-colors ${isReplying ? 'bg-blue-600 text-white' : 'bg-[#EBF5FF] text-[#007AFF] hover:bg-[#D1E9FF]'}`}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                  <span>답글</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {isReplying && (
+            <form onSubmit={handleReplySubmit} className="mt-3 flex gap-2">
+              <input
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="답글을 입력하세요..."
+                className="flex-1 h-9 px-3 rounded-lg bg-gray-50 text-[13px] outline-none border border-gray-100"
+              />
+              <button
+                type="submit"
+                disabled={!replyContent.trim() || submittingReply}
+                className="px-3 h-9 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
+              >
+                등록
+              </button>
+            </form>
+          )}
+
+          {node.children.length > 0 && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-[12px] font-bold text-blue-500"
+              >
+                {isExpanded ? '답글 숨기기' : `답글 ${node.children.length}개 보기`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -585,31 +559,15 @@ const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
 export const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
   const [searchParams] = useSearchParams();
+  const highlightedCommentId = searchParams.get('commentId')
+    ? Number(searchParams.get('commentId'))
+    : null;
   const navigate = useNavigate();
-
-  const [highlightedCommentId, setHighlightedCommentId] = useState<number | null>(() => {
-    const raw = searchParams.get('commentId');
-    if (!raw) return null;
-
-    const parsed = Number(raw);
-    return Number.isNaN(parsed) || parsed <= 0 ? null : parsed;
-  });
 
   const [post, setPost] = useState<GetPostResponseDto | null>(null);
   const [comments, setComments] = useState<CommentSummaryDto[]>([]);
   const [commentPage, setCommentPage] = useState(0);
   const [hasMoreComments, setHasMoreComments] = useState(false);
-
-  useEffect(() => {
-    const raw = searchParams.get('commentId');
-    if (!raw) {
-      setHighlightedCommentId(null);
-      return;
-    }
-
-    const parsed = Number(raw);
-    setHighlightedCommentId(Number.isNaN(parsed) || parsed <= 0 ? null : parsed);
-  }, [searchParams]);
 
   const [commentInput, setCommentInput] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -800,7 +758,7 @@ export const PostDetailPage = () => {
         setCommentPage(nextPage);
       }
     } catch {
-      // ignore
+      // Failed to load more comments
     }
   };
 
@@ -906,7 +864,6 @@ export const PostDetailPage = () => {
         return '전체';
     }
   };
-
   const getCategoryDot = (cat: BoardCategory | undefined) => {
     switch (cat) {
       case 'FREE':
@@ -923,7 +880,6 @@ export const PostDetailPage = () => {
         return 'bg-gray-300';
     }
   };
-
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleString('ko-KR', {
@@ -941,7 +897,6 @@ export const PostDetailPage = () => {
         <div className="w-8 h-8 border-4 border-gray-100 border-t-blue-500 rounded-full animate-spin mb-4" />
       </div>
     );
-
   if (error || !post)
     return (
       <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px] items-center justify-center p-12">
@@ -1042,11 +997,11 @@ export const PostDetailPage = () => {
 
       <div className="w-full overflow-y-auto">
         <div className="px-5 pt-6 flex items-start gap-3 w-full">
-          <div
-            className={`w-[42px] h-[42px] rounded-full flex items-center justify-center text-white font-bold text-[18px] shrink-0 ${getCategoryDot(post.category)}`}
-          >
-            {(post.authorNickname || '?')[0]}
-          </div>
+          <UserAvatar
+            profileImageUrl={post.authorProfileImageUrl}
+            nickname={post.authorNickname}
+            className={`h-[42px] w-[42px] shrink-0 text-[18px] ${getCategoryDot(post.category)} text-white`}
+          />
           <div className="pt-0.5">
             <div className="text-[15px] font-bold text-gray-900 leading-tight">
               {post.authorNickname || '알 수 없음'}
@@ -1059,9 +1014,7 @@ export const PostDetailPage = () => {
 
         <div className="px-5 mt-5">
           <h1
-            className={`text-[20px] font-bold leading-snug tracking-[-0.01em] whitespace-pre-wrap ${
-              post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-900'
-            }`}
+            className={`text-[20px] font-bold leading-snug tracking-[-0.01em] whitespace-pre-wrap ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-900'}`}
           >
             {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
           </h1>
@@ -1076,35 +1029,65 @@ export const PostDetailPage = () => {
           {post.status !== 'BLINDED' && post.category === 'HOTDEAL' && hotdealDetail ? (
             <HotdealInfoPanel detail={hotdealDetail} />
           ) : null}
-          <div
-            className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${
-              post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'
-            }`}
-          >
-            {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
-          </div>
+          <LinkifiedText
+            text={post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
+            className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
+          />
+          {post.status !== 'BLINDED' && post.attachments.length > 0 ? (
+            <div className="mt-5 space-y-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+              <div className="text-[13px] font-bold text-gray-700">
+                첨부파일 {post.attachments.length}개
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {post.attachments.map((attachment) => {
+                  const isImage = attachment.contentType.startsWith('image/');
+
+                  return (
+                    <a
+                      key={attachment.attachmentId}
+                      href={attachment.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:border-blue-200 hover:shadow-sm"
+                    >
+                      {isImage ? (
+                        <img
+                          src={attachment.fileUrl}
+                          alt={attachment.fileName}
+                          className="h-44 w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-44 items-center justify-center bg-gray-50 text-[13px] font-semibold text-gray-400">
+                          파일 미리보기 없음
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-semibold text-gray-800">
+                            {attachment.fileName}
+                          </p>
+                          <p className="mt-1 text-[12px] text-gray-400">
+                            {Math.max(1, Math.round(attachment.fileSize / 1024))} KB
+                          </p>
+                        </div>
+                        <span className="text-[12px] font-bold text-blue-600">열기</span>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-8 px-5 flex items-center gap-2">
           <button
             onClick={() => handleToggleReaction('LIKE')}
             disabled={post.status === 'BLINDED'}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${
-              post.status === 'BLINDED'
-                ? 'opacity-50 cursor-not-allowed border-gray-100'
-                : selectedReaction === 'LIKE'
-                  ? 'border border-blue-500 bg-blue-50'
-                  : 'border border-gray-200 hover:bg-gray-50'
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'LIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${
-                post.status === 'BLINDED'
-                  ? 'text-gray-300'
-                  : selectedReaction === 'LIKE'
-                    ? 'text-blue-600'
-                    : 'text-gray-800'
-              }`}
+              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'LIKE' ? 'text-blue-600' : 'text-gray-800'}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1117,13 +1100,7 @@ export const PostDetailPage = () => {
               />
             </svg>
             <span
-              className={`text-[13px] font-medium ${
-                post.status === 'BLINDED'
-                  ? 'text-gray-400'
-                  : selectedReaction === 'LIKE'
-                    ? 'text-blue-700'
-                    : 'text-gray-700'
-              }`}
+              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'LIKE' ? 'text-blue-700' : 'text-gray-700'}`}
             >
               좋아요 {post.likeCount}
             </span>
@@ -1131,22 +1108,10 @@ export const PostDetailPage = () => {
           <button
             onClick={() => handleToggleReaction('DISLIKE')}
             disabled={post.status === 'BLINDED'}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${
-              post.status === 'BLINDED'
-                ? 'opacity-50 cursor-not-allowed border-gray-100'
-                : selectedReaction === 'DISLIKE'
-                  ? 'border border-blue-500 bg-blue-50'
-                  : 'border border-gray-200 hover:bg-gray-50'
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'DISLIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${
-                post.status === 'BLINDED'
-                  ? 'text-gray-300'
-                  : selectedReaction === 'DISLIKE'
-                    ? 'text-blue-600'
-                    : 'text-gray-800'
-              }`}
+              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'DISLIKE' ? 'text-blue-600' : 'text-gray-800'}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1159,13 +1124,7 @@ export const PostDetailPage = () => {
               />
             </svg>
             <span
-              className={`text-[13px] font-medium ${
-                post.status === 'BLINDED'
-                  ? 'text-gray-400'
-                  : selectedReaction === 'DISLIKE'
-                    ? 'text-blue-700'
-                    : 'text-gray-700'
-              }`}
+              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'DISLIKE' ? 'text-blue-700' : 'text-gray-700'}`}
             >
               싫어요 {post.dislikeCount}
             </span>

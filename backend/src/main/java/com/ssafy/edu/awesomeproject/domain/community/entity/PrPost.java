@@ -42,9 +42,6 @@ public class PrPost {
     @Column(name = "purchase_url", columnDefinition = "TEXT")
     private String purchaseUrl;
 
-    @Column(name = "image_url", length = 255)
-    private String imageUrl;
-
     @Column(name = "deadline_at")
     private LocalDateTime deadlineAt;
 
@@ -77,14 +74,12 @@ public class PrPost {
             Long priceAmount,
             String category,
             String purchaseUrl,
-            String imageUrl,
             LocalDateTime deadlineAt) {
         this.post = post;
         this.itemName = itemName;
         this.priceAmount = priceAmount;
         this.category = category;
         this.purchaseUrl = purchaseUrl;
-        this.imageUrl = imageUrl;
         this.deadlineAt = deadlineAt;
         this.resultStatus = PrStatus.OPEN;
     }

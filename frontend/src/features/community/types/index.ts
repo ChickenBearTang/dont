@@ -2,11 +2,47 @@ export type BoardCategory = 'FREE' | 'COHORT' | 'PR' | 'POLL' | 'HOTDEAL';
 
 export type ReactionType = 'LIKE' | 'DISLIKE';
 
+export interface PostAttachmentRequestDto {
+  key: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+}
+
+export interface PostAttachmentDto {
+  attachmentId?: number;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  fileUrl: string;
+  key?: string;
+}
+
+export interface AttachmentPresignFileRequestDto {
+  fileName: string;
+  contentType: string;
+  contentLength: number;
+}
+
+export interface AttachmentPresignFileResponseDto {
+  uploadUrl: string;
+  method: 'PUT';
+  headers: Record<string, string>;
+  key: string;
+  expiresAt: string;
+  fileUrl: string;
+}
+
+export interface AttachmentPresignResponseDto {
+  files: AttachmentPresignFileResponseDto[];
+}
+
 export interface CreatePostRequestDto {
   category: BoardCategory;
   generationNo?: number;
   title: string;
   content: string;
+  attachments?: PostAttachmentRequestDto[];
 }
 
 export interface CreatePostResponseDto {
@@ -19,6 +55,7 @@ export interface CreatePostResponseDto {
 export interface UpdatePostRequestDto {
   title: string;
   content: string;
+  attachments?: PostAttachmentRequestDto[];
 }
 
 export interface UpdatePostResponseDto {
@@ -35,10 +72,12 @@ export interface GetPostResponseDto {
   content: string;
   authorId: number;
   authorNickname: string;
+  authorProfileImageUrl?: string | null;
   isMine: boolean;
   likeCount: number;
   dislikeCount: number;
   commentCount: number;
+  attachments: PostAttachmentDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +123,7 @@ export interface PollCreateRequestDto {
   optionA: string;
   optionB: string;
   deadlineAt: string;
+  attachments?: PostAttachmentRequestDto[];
 }
 
 export interface PollCreateResponseDto {
@@ -95,7 +135,9 @@ export interface PollDetailResponseDto {
   postId: number;
   title: string;
   content: string;
+  authorId: number;
   authorNickname: string;
+  authorProfileImageUrl?: string | null;
   question: string;
   optionA: string;
   optionB: string;
@@ -104,6 +146,7 @@ export interface PollDetailResponseDto {
   optionACount: number;
   optionBCount: number;
   totalVoteCount: number;
+  attachments: PostAttachmentDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -115,6 +158,7 @@ export interface PollUpdateRequestDto {
   optionA: string;
   optionB: string;
   deadlineAt: string;
+  attachments?: PostAttachmentRequestDto[];
 }
 
 export interface PollUpdateResponseDto {
@@ -146,6 +190,7 @@ export interface HotdealCreateRequestDto {
   dealUrl?: string;
   shippingInfo?: string;
   expiredAt?: string;
+  attachments?: PostAttachmentRequestDto[];
 }
 
 export interface HotdealCreateResponseDto {
@@ -157,7 +202,9 @@ export interface HotdealDetailResponseDto {
   postId: number;
   title: string;
   content: string;
+  authorId: number;
   authorNickname: string;
+  authorProfileImageUrl?: string | null;
   productName: string;
   storeName: string | null;
   dealPriceAmount: number;
@@ -165,6 +212,7 @@ export interface HotdealDetailResponseDto {
   dealUrl: string | null;
   shippingInfo: string | null;
   expiredAt: string | null;
+  attachments: PostAttachmentDto[];
   createdAt: string;
   updatedAt: string;
 }
@@ -179,6 +227,7 @@ export interface HotdealUpdateRequestDto {
   dealUrl?: string;
   shippingInfo?: string;
   expiredAt?: string;
+  attachments?: PostAttachmentRequestDto[];
 }
 
 export interface HotdealUpdateResponseDto {
@@ -194,10 +243,12 @@ export interface PostSummaryDto {
   status: 'ACTIVE' | 'DELETED' | 'BLINDED';
   authorId: number;
   authorNickname: string;
+  authorProfileImageUrl?: string | null;
   isMine: boolean;
   likeCount: number;
   dislikeCount: number;
   commentCount: number;
+  attachmentCount: number;
   createdAt: string;
   extraSummary: PostExtraSummaryDto | null;
 }
@@ -238,6 +289,7 @@ export interface CommentSummaryDto {
   parentCommentId: number | null;
   authorId: number;
   authorNickname: string;
+  authorProfileImageUrl?: string | null;
   content: string;
   status: 'ACTIVE' | 'DELETED' | 'BLINDED';
   likeCount: number;
