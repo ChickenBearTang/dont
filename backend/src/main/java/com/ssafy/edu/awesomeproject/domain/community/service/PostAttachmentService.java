@@ -146,6 +146,7 @@ public class PostAttachmentService {
     private PostAttachmentResponseDto toResponse(PostAttachment attachment) {
         return new PostAttachmentResponseDto(
                 attachment.getId(),
+                attachment.getFileKey(),
                 attachment.getOriginalFileName(),
                 attachment.getContentType(),
                 attachment.getFileSize(),
