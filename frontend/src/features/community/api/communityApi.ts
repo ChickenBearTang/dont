@@ -6,6 +6,18 @@ import type {
   CreatePostRequestDto,
   CreatePostResponseDto,
   GetPostResponseDto,
+  PollCreateRequestDto,
+  PollCreateResponseDto,
+  PollDetailResponseDto,
+  PollUpdateRequestDto,
+  PollUpdateResponseDto,
+  PollVoteSubmitRequestDto,
+  PollVoteSubmitResponseDto,
+  HotdealCreateRequestDto,
+  HotdealCreateResponseDto,
+  HotdealDetailResponseDto,
+  HotdealUpdateRequestDto,
+  HotdealUpdateResponseDto,
   GetCommentListResponseDto,
   CreateCommentRequestDto,
   CreateCommentResponseDto,
@@ -54,6 +66,49 @@ export const updatePost = async (
 
 export const deletePost = async (postId: number): Promise<ApiResponse<void>> => {
   return await axiosInstance.delete(`/community/posts/${postId}`);
+};
+
+export const createPoll = async (
+  data: PollCreateRequestDto
+): Promise<ApiResponse<PollCreateResponseDto>> => {
+  return await axiosInstance.post('/community/polls', data);
+};
+
+export const getPollDetail = async (postId: number): Promise<ApiResponse<PollDetailResponseDto>> => {
+  return await axiosInstance.get(`/community/polls/${postId}`);
+};
+
+export const updatePoll = async (
+  postId: number,
+  data: PollUpdateRequestDto
+): Promise<ApiResponse<PollUpdateResponseDto>> => {
+  return await axiosInstance.patch(`/community/polls/${postId}`, data);
+};
+
+export const submitPollVote = async (
+  postId: number,
+  data: PollVoteSubmitRequestDto
+): Promise<ApiResponse<PollVoteSubmitResponseDto>> => {
+  return await axiosInstance.post(`/community/polls/${postId}/votes`, data);
+};
+
+export const createHotdeal = async (
+  data: HotdealCreateRequestDto
+): Promise<ApiResponse<HotdealCreateResponseDto>> => {
+  return await axiosInstance.post('/community/hotdeals', data);
+};
+
+export const getHotdealDetail = async (
+  postId: number
+): Promise<ApiResponse<HotdealDetailResponseDto>> => {
+  return await axiosInstance.get(`/community/hotdeals/${postId}`);
+};
+
+export const updateHotdeal = async (
+  postId: number,
+  data: HotdealUpdateRequestDto
+): Promise<ApiResponse<HotdealUpdateResponseDto>> => {
+  return await axiosInstance.patch(`/community/hotdeals/${postId}`, data);
 };
 
 export const getComments = async (
