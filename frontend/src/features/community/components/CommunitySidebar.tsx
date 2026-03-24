@@ -145,7 +145,7 @@ export const CommunitySidebar = () => {
         );
       })}
 
-      {user?.role?.includes('ADMIN') && (
+      {user?.role === 'ADMIN' && (
         <>
           <div className="h-px bg-line-soft my-2 mx-3" />
           <NavLink
