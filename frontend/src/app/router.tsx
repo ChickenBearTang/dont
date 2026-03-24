@@ -98,6 +98,14 @@ export const router = createBrowserRouter([
                 },
               },
               {
+                path: 'admin/reports',
+                async lazy() {
+                  const { default: AdminReportPage } =
+                    await import('@/features/community/pages/AdminReportPage');
+                  return { Component: AdminReportPage };
+                },
+              },
+              {
                 path: ':postId',
                 async lazy() {
                   const { PostDetailPage } =
