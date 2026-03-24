@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router-dom';
 import type { UserProfile } from '@/features/auth/types';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotificationStore } from '@/features/community/store/useNotificationStore';
-import { fetchMyPage } from '@/features/user/api/userApi';
+import { useEffect, useState, useRef } from 'react';
 import bellIcon from '@/assets/logo/bell-icon.png';
+import profileIcon from '@/assets/logo/profile.png';
 
 interface HeaderProps {
   user: UserProfile | null;
@@ -12,26 +11,13 @@ interface HeaderProps {
   isAuthenticated: boolean;
 }
 
-const NAV_TABS = [
-  { label: '금융', path: '/finance' },
-  { label: '소비리포트', path: '/finance/report' },
-  { label: '랭킹', path: '/ranking' },
-  { label: '커뮤니티', path: '/community' },
-];
-
+/**
+ * 전역 상단 네비게이션바 컴포넌트
+ */
 const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const { data: myPageData } = useQuery({
-    queryKey: ['myPage'],
-    queryFn: fetchMyPage,
-    enabled: isAuthenticated,
-    staleTime: 60 * 1000,
-    select: (response) => response.data,
-  });
 
   const {
     unreadCount,
@@ -44,10 +30,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
     stopPolling,
   } = useNotificationStore();
 
-  const displayEmail = myPageData?.email ?? user?.email ?? '';
-  const displayNickname = myPageData?.nickname ?? user?.nickname ?? '사용자';
-  const displayProfileImageUrl = myPageData?.profileImageUrl ?? user?.profileImageUrl ?? null;
-  const profileInitial = (displayNickname.trim()[0] ?? displayEmail.trim()[0] ?? 'U').toUpperCase();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -55,7 +38,6 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
     } else {
       stopPolling();
     }
-
     return () => stopPolling();
   }, [isAuthenticated, startPolling, stopPolling]);
 
@@ -71,7 +53,6 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
         setIsDropdownOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -95,6 +76,11 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
     if (notif.referenceType === 'COMMENT' && notif.postId && notif.referenceId) {
       navigate(`/community/${notif.postId}?commentId=${notif.referenceId}`);
+      return;
+    }
+
+    if (notif.notificationType.includes('REPORT_PROCESSED') && user?.role?.includes('ADMIN')) {
+      return;
     }
   };
 
@@ -113,36 +99,41 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex h-[64px] w-full justify-center border-b border-gray-100 bg-white/80 backdrop-blur-md transition-all">
-      <div className="flex h-full w-full max-w-7xl items-center justify-between px-6 lg:px-10">
+    <header className="fixed top-0 left-0 right-0 h-[64px] bg-white/80 backdrop-blur-md border-b border-gray-100 z-50 flex justify-center w-full transition-all">
+      <div className="w-full max-w-7xl h-full flex items-center justify-between px-6 lg:px-10">
         <div
-          className="flex cursor-pointer items-center gap-2"
+          className="flex items-center gap-2 cursor-pointer"
           onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
         >
-          <div className="text-[24px] font-black text-primary-blue">DON&apos;T</div>
+          <div className="text-[24px] font-black text-primary-blue">DON'T</div>
         </div>
 
         {isAuthenticated && (
-          <nav className="ml-12 hidden h-full flex-1 gap-1 font-bold md:flex">
-            {NAV_TABS.map((tab, _, allTabs) => {
+          <nav className="hidden md:flex ml-12 flex-1 h-full font-bold gap-1">
+            {[
+              { label: '홈', path: '/dashboard' },
+              { label: '금융', path: '/finance' },
+              { label: '소비리포트', path: '/finance/report' },
+              { label: '랭킹', path: '/ranking' },
+              { label: '커뮤니티', path: '/community' },
+            ].map((tab, _, allTabs) => {
               const isActive =
                 location.pathname.startsWith(tab.path) &&
                 !allTabs.some(
-                  (candidate) =>
-                    candidate.path !== tab.path &&
-                    candidate.path.startsWith(tab.path) &&
-                    location.pathname.startsWith(candidate.path)
+                  (t) =>
+                    t.path !== tab.path &&
+                    t.path.startsWith(tab.path) &&
+                    location.pathname.startsWith(t.path)
                 );
 
               return (
                 <div
                   key={tab.label}
                   onClick={() => navigate(tab.path)}
-                  className={`flex cursor-pointer items-center justify-center border-b-[3px] px-5 text-[15px] transition-all duration-300 hover:text-primary-blue ${
-                    isActive
-                      ? 'border-primary-blue text-primary-blue'
-                      : 'border-transparent text-gray-500 hover:border-gray-200'
-                  }`}
+                  className={`flex items-center justify-center px-5 cursor-pointer text-[15px] border-b-[3px] transition-all duration-300 hover:text-primary-blue ${isActive
+                    ? 'border-primary-blue text-primary-blue'
+                    : 'border-transparent text-gray-500 hover:border-gray-200'
+                    }`}
                 >
                   {tab.label}
                 </div>
@@ -152,13 +143,12 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
         )}
 
         {isAuthenticated ? (
-          <div className="flex items-center gap-4">
-            {user?.role === 'ADMIN' && (
-              <button
-                type="button"
-                className="cursor-pointer text-gray-400 transition-all hover:scale-110 hover:text-red-500"
-                onClick={() => navigate('/admin/reports')}
-                title="신고 관리"
+          <div className="flex gap-5 items-center">
+            {user?.role?.includes('ADMIN') && (
+              <div
+                className="cursor-pointer transition-all hover:scale-110 text-gray-400 hover:text-red-500"
+                onClick={() => navigate('/community/admin/reports')}
+                title="신고 관리 (관리자)"
               >
                 <svg
                   width="24"
@@ -174,34 +164,31 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                   <path d="M12 8v4" />
                   <path d="M12 16h.01" />
                 </svg>
-              </button>
+              </div>
             )}
 
             <div className="relative" ref={dropdownRef}>
-              <button
-                type="button"
-                className={`relative cursor-pointer transition-transform hover:scale-110 ${
-                  isDropdownOpen ? 'opacity-70' : ''
-                }`}
-                onClick={() => setIsDropdownOpen((prev) => !prev)}
+              <div
+                className={`relative cursor-pointer transition-transform hover:scale-110 ${isDropdownOpen ? 'opacity-70' : ''
+                  }`}
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                <img src={bellIcon} alt="Notifications" className="h-5 w-5 object-contain" />
+                <img src={bellIcon} alt="Notifications" className="w-5 h-5 object-contain" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-[2px] -right-[2px] flex h-[16px] min-w-[16px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold text-white">
+                  <span className="absolute -top-[2px] -right-[2px] min-w-[16px] h-[16px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
-              </button>
+              </div>
 
               {isDropdownOpen && (
-                <div className="animate-dropdown absolute right-0 mt-3 w-80 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
-                  <div className="flex items-center justify-between border-b border-gray-50 bg-gray-50/50 px-4 py-3">
+                <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-dropdown">
+                  <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
                     <span className="text-[14px] font-bold text-gray-900">알림</span>
                     {unreadCount > 0 && (
                       <button
-                        type="button"
                         onClick={() => markAllAsRead()}
-                        className="text-[12px] font-semibold text-primary-blue hover:underline"
+                        className="text-[12px] text-primary-blue font-semibold hover:underline"
                       >
                         모두 읽음
                       </button>
@@ -210,44 +197,44 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
                   <div className="max-h-96 overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <div className="py-10 text-center text-[13px] text-gray-400">
+                      <div className="py-10 text-center text-gray-400 text-[13px]">
                         새로운 알림이 없습니다.
                       </div>
                     ) : (
                       notifications.map((notif) => (
                         <div
                           key={notif.notificationId}
-                          className={`group relative flex cursor-pointer flex-col gap-0.5 border-b border-gray-50 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${
-                            !notif.isRead ? 'bg-blue-50/30' : ''
-                          }`}
-                          onClick={() => void handleNotificationClick(notif)}
+                          className={`group px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col gap-0.5 border-b border-gray-50 last:border-0 relative ${!notif.isRead ? 'bg-blue-50/30' : ''
+                            }`}
+                          onClick={() => handleNotificationClick(notif)}
                         >
-                          <div className="flex items-start justify-between gap-2 pr-5">
-                            <span className="line-clamp-1 text-[13px] font-bold text-gray-900">
+                          <div className="flex justify-between items-start gap-2 pr-5">
+                            <span className="text-[13px] font-bold text-gray-900 line-clamp-1">
                               {notif.title}
                             </span>
-                            <span className="shrink-0 text-[11px] text-gray-400">
+                            <span className="text-[11px] text-gray-400 shrink-0">
                               {formatTime(notif.createdAt)}
                             </span>
                           </div>
 
-                          <p className="line-clamp-2 pr-5 text-[12px] leading-relaxed text-gray-600">
+                          <p className="text-[12px] text-gray-600 line-clamp-2 leading-relaxed pr-5">
                             {notif.body}
                           </p>
 
-                          {!notif.isRead && <div className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500" />}
+                          {!notif.isRead && (
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1"></div>
+                          )}
 
                           <button
-                            type="button"
-                            onClick={async (event) => {
-                              event.stopPropagation();
+                            onClick={async (e) => {
+                              e.stopPropagation();
                               await dismissNotification(notif.notificationId);
                             }}
-                            className="absolute top-2.5 right-2 p-1 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-gray-600"
+                            className="absolute top-2.5 right-2 p-1 text-gray-300 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
                             title="알림 지우기"
                           >
                             <svg
-                              className="h-3 w-3"
+                              className="w-3 h-3"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -266,46 +253,27 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                   </div>
 
                   <div
-                    className="cursor-pointer border-t border-gray-50 bg-gray-50/30 px-4 py-2.5 text-center transition-colors hover:bg-gray-50"
-                    onClick={() => setIsDropdownOpen(false)}
+                    className="px-4 py-2.5 text-center border-t border-gray-50 bg-gray-50/30 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                    }}
                   >
-                    <span className="text-[12px] font-bold text-gray-500">닫기</span>
+                    <span className="text-[12px] font-bold text-gray-500">전체 보기</span>
                   </div>
                 </div>
               )}
             </div>
 
-            <button
-              type="button"
+            <div
               onClick={() => navigate('/mypage')}
-              className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-blue hover:shadow-md"
-              title={`${displayNickname}의 마이페이지`}
+              className="cursor-pointer transition-transform hover:scale-110"
+              title={user?.nickname ? `${user.nickname}님의 마이페이지` : '마이페이지'}
             >
-              {displayProfileImageUrl ? (
-                <img
-                  src={displayProfileImageUrl}
-                  alt={`${displayNickname} 프로필 이미지`}
-                  className="h-10 w-10 rounded-xl border border-gray-100 object-cover"
-                />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-sm font-black text-primary-blue">
-                  {profileInitial}
-                </div>
-              )}
-
-              <div className="min-w-0">
-                <p className="max-w-[180px] truncate text-[11px] font-semibold text-gray-400">
-                  {displayEmail}
-                </p>
-                <p className="max-w-[180px] truncate text-[14px] font-bold text-eel">
-                  {displayNickname}
-                </p>
-              </div>
-            </button>
+              <img src={profileIcon} alt="Profile" className="w-6 h-6 object-contain" />
+            </div>
 
             <button
-              type="button"
-              className="ml-1 px-3 py-1.5 text-[13px] font-bold text-eel transition-colors hover:border-primary-blue hover:text-primary-blue"
+              className="px-3 py-1.5 text-[13px] font-bold text-eel border-b-2 border-eel hover:text-primary-blue hover:border-primary-blue transition-colors ml-2.5"
               onClick={onLogout}
             >
               로그아웃
@@ -314,8 +282,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
         ) : (
           <div className="flex gap-2.5">
             <button
-              type="button"
-              className="px-4 py-2 text-[13px] font-bold text-eel transition-colors hover:text-primary-blue"
+              className="px-4 py-2 text-[13px] font-bold text-eel border-b-2 border-eel hover:text-primary-blue hover:border-primary-blue transition-colors"
               onClick={() => navigate('/login')}
             >
               로그인
