@@ -1,9 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
-<<<<<<< HEAD
 import { Card } from '@/shared/components';
-=======
->>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
 
 const CategoryIcon = ({ type }: { type: string | null }) => {
   const base = 'w-[18px] h-[18px] flex items-center justify-center flex-shrink-0';
@@ -136,10 +133,9 @@ export const CommunitySidebar = () => {
             key={link.label}
             to={to}
             className={() =>
-              `px-3 py-2.5 rounded-xl text-[13.5px] font-bold transition-all duration-300 flex items-center gap-2.5 ${
-                isActive
-                  ? 'bg-primary-blue/10 text-primary-blue shadow-sm'
-                  : 'text-text-muted hover:bg-surface-soft hover:text-eel'
+              `px-3 py-2.5 rounded-xl text-[13.5px] font-bold transition-all duration-300 flex items-center gap-2.5 ${isActive
+                ? 'bg-primary-blue/10 text-primary-blue shadow-sm'
+                : 'text-text-muted hover:bg-surface-soft hover:text-eel'
               }`
             }
           >
@@ -151,25 +147,13 @@ export const CommunitySidebar = () => {
 
       {user?.role?.includes('ADMIN') && (
         <>
-<<<<<<< HEAD
           <div className="h-px bg-line-soft my-2 mx-3" />
           <NavLink
             to="/community/admin/reports"
             className={({ isActive }) =>
-              `px-3 py-2.5 rounded-xl text-[13.5px] font-bold transition-all duration-300 flex items-center gap-2.5 ${
-                isActive
-                  ? 'bg-error-red/10 text-error-red shadow-sm'
-                  : 'text-error-red hover:bg-error-red/5'
-=======
-          <div className="h-px bg-gray-100 my-2 mx-3" />
-          <NavLink
-            to="/community/admin/reports"
-            className={({ isActive }) =>
-              `px-3 py-2.5 rounded-lg text-[13.5px] font-semibold transition-all duration-150 flex items-center gap-2.5 ${
-                isActive
-                  ? 'bg-red-50 text-red-600 font-bold'
-                  : 'text-red-500 hover:bg-red-50 transition-colors'
->>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
+              `px-3 py-2.5 rounded-xl text-[13.5px] font-bold transition-all duration-300 flex items-center gap-2.5 ${isActive
+                ? 'bg-error-red/10 text-error-red shadow-sm'
+                : 'text-error-red hover:bg-error-red/5'
               }`
             }
           >
@@ -177,10 +161,6 @@ export const CommunitySidebar = () => {
           </NavLink>
         </>
       )}
-<<<<<<< HEAD
     </Card>
-=======
-    </nav>
->>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
   );
 };
