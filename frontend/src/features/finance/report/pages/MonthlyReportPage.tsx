@@ -9,6 +9,7 @@ import {
 // types import
 import type { SpendingSummaryResponse, SpendingSummaryRank, AiReportPayload } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import mascotAnalyze from '@/assets/character/mascot_analyze.png';
 import mascotJust from '@/assets/character/mascot_just.png';
 
@@ -103,6 +104,7 @@ const AIAnalysisCard = ({
   generating: boolean;
   onGenerate: () => void;
 }) => {
+  const { user } = useAuthStore();
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-20 bg-gray-50/50 rounded-[32px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] min-h-[450px]">
@@ -150,7 +152,7 @@ const AIAnalysisCard = ({
             {generating ? '리포트를 생성 중입니다...' : '아직 분석된 리포트가 없어요!'}
           </span>
           <span className="text-[13px] text-gray-500 mb-6 block leading-relaxed">
-            AI가 회원님의 소비 데이터를 분석하여
+            AI가 {user?.nickname ? `${user.nickname}님` : '회원님'}의 소비 데이터를 분석하여
             <br />
             맞춤형 절약 솔루션을 알려드립니다.
           </span>
@@ -182,7 +184,7 @@ const AIAnalysisCard = ({
           <span>✨</span> AI 심층 분석 리포트
         </h1>
         <p className="text-[13px] font-medium text-gray-400 mt-1">
-          회원님의 소비 패턴을 AI가 다각도로 분석하여 맞춤 솔루션을 제공합니다.
+          {user?.nickname ? `${user.nickname}님` : '회원님'}의 소비 패턴을 AI가 다각도로 분석하여 맞춤 솔루션을 제공합니다.
         </p>
       </div>
 
@@ -476,6 +478,7 @@ const ReportChatbot = ({
 
 export const MonthlyReportPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [currentDate, setCurrentDate] = useState(new Date());
 
 
@@ -677,7 +680,7 @@ export const MonthlyReportPage = () => {
               <span>💳</span> 이달의 소비 리포트
             </h1>
             <p className="text-[13px] font-medium text-gray-400 mt-1">
-              회원님의 카테고리별 주요 소비패턴을 분석합니다.
+              {user?.nickname ? `${user.nickname}님` : '회원님'}의 카테고리별 주요 소비패턴을 분석합니다.
             </p>
           </div>
 
