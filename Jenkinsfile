@@ -10,7 +10,7 @@ pipeline {
     environment {
         COMPOSE_FILE = 'docker-compose.yml'
         ENV_FILE = '.env'
-        APP_SERVICES = 'redis backend frontend edge-nginx'
+        APP_SERVICES = 'redis backend frontend edge-nginx loki alloy grafana'
     }
 
     stages {

@@ -1,95 +1,116 @@
 services:
-    redis:
-        image: redis:7-alpine
-        restart: unless-stopped
-        command:
-          ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
-        ports:
-            - "127.0.0.1:${REDIS_PORT:-6379}:6379"
-        volumes:
-            - redis-data:/data
-        healthcheck:
-            test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-            interval: 10s
-            timeout: 5s
-            retries: 10
-        networks:
-            - app-net
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-net
 
-    backend:
-        build:
-            context: ./backend
-            dockerfile: Dockerfile
-        restart: unless-stopped
-        env_file:
-            - .env
-        environment:
-            REDIS_HOST: redis
-            REDIS_PORT: 6379
-        depends_on:
-            redis:
-                condition: service_healthy
-        expose:
-            - "8080"
-        networks:
-            - app-net
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "8080"
+    networks:
+      - app-net
 
-    frontend:
-        build:
-            context: ./frontend
-            dockerfile: Dockerfile
-            args:
-                VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
-        restart: unless-stopped
-        expose:
-            - "80"
-        depends_on:
-            - backend
-        networks:
-            - app-net
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - app-net
 
-    edge-nginx:
-        build:
-            context: ./infra/nginx
-            dockerfile: Dockerfile
-        image: jenkincicd-edge-nginx
-        restart: unless-stopped
-        depends_on:
-            - backend
-            - frontend
-        ports:
-            - "80:80"
-            - "443:443"
-        volumes:
-            - ${SSL_CERT_PATH:-/dev/null}:/etc/nginx/certs/fullchain.pem:ro
-            - ${SSL_KEY_PATH:-/dev/null}:/etc/nginx/certs/privkey.pem:ro
-        command: ["sh", "/entrypoint-nginx.sh"]
-        environment:
-            SSL_ENABLED: ${SSL_ENABLED:-false}
-        networks:
-            - app-net
+  edge-nginx:
+    build:
+      context: ./infra/nginx
+      dockerfile: Dockerfile
+    image: jenkincicd-edge-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${SSL_CERT_PATH:-/dev/null}:/etc/nginx/certs/fullchain.pem:ro
+      - ${SSL_KEY_PATH:-/dev/null}:/etc/nginx/certs/privkey.pem:ro
+    command: ["sh", "/entrypoint-nginx.sh"]
+    environment:
+      SSL_ENABLED: ${SSL_ENABLED:-false}
+    networks:
+      - app-net
 
-    jenkins:
-        build:
-            context: ./infra/jenkins
-            dockerfile: Dockerfile
-        image: s14p21a605/jenkins:lts-jdk21-docker
-        restart: unless-stopped
-        profiles: ["ci"]
-        user: root
-        ports:
-            - "8081:8080"
-            - "50000:50000"
-        volumes:
-            - jenkins_home:/var/jenkins_home
-            - /var/run/docker.sock:/var/run/docker.sock
-        networks:
-            - app-net
+  loki:
+    image: grafana/loki:2.9.10
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./infra/observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    expose:
+      - "3100"
+    networks:
+      - app-net
+
+  alloy:
+    image: grafana/alloy:v1.9.2
+    restart: unless-stopped
+    command: ["run", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./infra/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - app-net
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    restart: unless-stopped
+    depends_on:
+      - loki
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - app-net
 
 networks:
-    app-net:
-        driver: bridge
+  app-net:
+    driver: bridge
 
 volumes:
-    redis-data:
-    jenkins_home:
+  redis-data:
+  loki-data:
+  grafana-data:
