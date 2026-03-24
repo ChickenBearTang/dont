@@ -21,12 +21,17 @@ export const ToastContainer = () => {
             className={`${bgColors[toast.type]} text-white px-5 py-4 rounded-xl shadow-lg flex items-center justify-between pointer-events-auto transform transition-all duration-300 animate-slide-down`}
           >
             <span className="font-semibold text-[15px]">{toast.message}</span>
-            <button 
+            <button
               onClick={() => removeToast(toast.id)}
               className="ml-4 opacity-70 hover:opacity-100 transition-opacity"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>

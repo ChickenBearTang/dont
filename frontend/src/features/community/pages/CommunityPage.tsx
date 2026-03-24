@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Card, Button } from '@/shared/components';
 import { getPosts } from '../api/communityApi';
 import type { BoardCategory, GetPostListResponseDto, PostSummaryDto } from '../types';
 import { UserAvatar } from '../components/UserAvatar';
@@ -127,11 +128,10 @@ const BoardStatusFilterBar = ({
     <button
       type="button"
       onClick={onSelectAllStatuses}
-      className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${
-        selectedStatuses.length === BOARD_STATUS_FILTERS.length
+      className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${selectedStatuses.length === BOARD_STATUS_FILTERS.length
           ? 'border-slate-300 bg-slate-900 text-white'
           : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
-      }`}
+        }`}
     >
       전체
     </button>
@@ -143,11 +143,10 @@ const BoardStatusFilterBar = ({
           key={status}
           type="button"
           onClick={() => onToggleStatus(status)}
-          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${
-            isSelected
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${isSelected
               ? getBoardFilterTone(status, category)
               : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
-          }`}
+            }`}
         >
           {status}
         </button>
@@ -470,11 +469,10 @@ const PrBoardList = ({
         <button
           type="button"
           onClick={onSelectAllStatuses}
-          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${
-            selectedStatuses.length === PR_STATUS_FILTERS.length
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${selectedStatuses.length === PR_STATUS_FILTERS.length
               ? 'border-slate-300 bg-slate-900 text-white'
               : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
-          }`}
+            }`}
         >
           전체
         </button>
@@ -486,11 +484,10 @@ const PrBoardList = ({
               key={status}
               type="button"
               onClick={() => onToggleStatus(status)}
-              className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${
-                isSelected
+              className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${isSelected
                   ? getPrStatusTone(status)
                   : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
-              }`}
+                }`}
             >
               {status}
             </button>
@@ -773,8 +770,8 @@ export const CommunityPage = () => {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-gray-100/80 overflow-hidden flex flex-col min-h-[600px]">
-      <div className="px-7 pt-7 pb-5 flex justify-between items-start">
+    <Card className="!p-0 flex flex-col min-h-[600px] overflow-hidden">
+      <div className="px-7 pt-7 pb-5 flex justify-between items-start relative z-10 w-full">
         <div>
           <h1 className="text-[22px] font-bold text-gray-900 tracking-[-0.02em]">{categoryTitle}</h1>
           <p className="text-gray-400 mt-1 text-[13px] font-medium tracking-[-0.01em]">
@@ -802,7 +799,7 @@ export const CommunityPage = () => {
             />
           </form>
 
-          <button
+          <Button
             type="button"
             onClick={() => navigate(getWritePath())}
             className="inline-flex items-center gap-2 rounded-xl border border-blue-600 bg-blue-600 px-4 py-2.5 text-[14px] font-bold text-white shadow-sm transition hover:border-blue-700 hover:bg-blue-700 focus:outline-none"
@@ -811,13 +808,13 @@ export const CommunityPage = () => {
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
             </svg>
             <span>글쓰기</span>
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="mx-7 border-t border-gray-100" />
 
-      <div className="px-7 pb-6 flex-1 flex flex-col">
+      <div className="px-7 pb-6 flex-1 flex flex-col relative z-10">
         <div className="flex items-center justify-between py-3">
           <div className="text-[12px] text-gray-400 font-medium">
             총 <span className="font-bold text-gray-700">{listCount}</span>개
@@ -889,9 +886,8 @@ export const CommunityPage = () => {
                   <div
                     key={post.postId}
                     onClick={() => navigate(getPostDetailPath(post))}
-                    className={`grid grid-cols-12 gap-3 py-3.5 text-[13.5px] items-center hover:bg-gray-50/60 transition-colors cursor-pointer group ${
-                      idx !== filteredPosts.length - 1 ? 'border-b border-gray-50' : ''
-                    }`}
+                    className={`grid grid-cols-12 gap-3 py-3.5 text-[13.5px] items-center hover:bg-gray-50/60 transition-colors cursor-pointer group ${idx !== filteredPosts.length - 1 ? 'border-b border-gray-50' : ''
+                      }`}
                   >
                     <div className="col-span-1 flex items-center gap-0">
                       <span className={`w-1.5 h-1.5 rounded-full ${getCategoryDot(post.category)} flex-shrink-0`} />
@@ -902,9 +898,8 @@ export const CommunityPage = () => {
 
                     <div className="col-span-7 flex items-center gap-2 min-w-0">
                       <span
-                        className={`truncate font-medium ${
-                          post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800 group-hover:text-gray-900'
-                        }`}
+                        className={`truncate font-medium ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800 group-hover:text-gray-900'
+                          }`}
                       >
                         {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
                       </span>
@@ -943,12 +938,12 @@ export const CommunityPage = () => {
         )}
 
         {!loading && totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-1.5">
+          <div className="mt-8 flex items-center justify-center gap-1.5">
             <button
               type="button"
               onClick={() => moveToListPage(currentPage - 1)}
               disabled={currentPage <= 1}
-              className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="px-3 py-2 rounded-lg border border-line-soft text-[13px] font-bold text-text-muted disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-soft transition-colors"
             >
               이전
             </button>
@@ -958,9 +953,8 @@ export const CommunityPage = () => {
                 key={pageNumber}
                 type="button"
                 onClick={() => moveToListPage(pageNumber)}
-                className={`min-w-[36px] h-[36px] rounded-lg text-[13px] font-semibold transition ${
-                  pageNumber === currentPage ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'
-                }`}
+                className={`min-w-[36px] h-[36px] rounded-lg text-[13px] font-semibold transition ${pageNumber === currentPage ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'
+                  }`}
               >
                 {pageNumber}
               </button>
@@ -970,13 +964,13 @@ export const CommunityPage = () => {
               type="button"
               onClick={() => moveToListPage(currentPage + 1)}
               disabled={currentPage >= totalPages}
-              className="px-3 py-2 rounded-lg border border-gray-100 text-[13px] font-medium text-gray-500 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+              className="px-3 py-2 rounded-lg border border-line-soft text-[13px] font-bold text-text-muted disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-soft transition-colors"
             >
               다음
             </button>
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 };

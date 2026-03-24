@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
 import { ForgotPasswordPage, SignUpPage, LoginPage } from '@/features/auth';
 import { FinanceConnectPage, MyPagePage, OnboardingPage } from '@/features/user';
+
 import {
   AuthenticatedLayoutRoute,
   DashboardRoute,
@@ -98,14 +99,6 @@ export const router = createBrowserRouter([
                 },
               },
               {
-                path: 'admin/reports',
-                async lazy() {
-                  const { default: AdminReportPage } =
-                    await import('@/features/community/pages/AdminReportPage');
-                  return { Component: AdminReportPage };
-                },
-              },
-              {
                 path: ':postId',
                 async lazy() {
                   const { PostDetailPage } =
@@ -118,14 +111,6 @@ export const router = createBrowserRouter([
                 async lazy() {
                   const { EditPostPage } = await import('@/features/community/pages/EditPostPage');
                   return { Component: EditPostPage };
-                },
-              },
-              {
-                path: 'admin/reports',
-                async lazy() {
-                  const { default: AdminReportPage } =
-                    await import('@/features/community/pages/AdminReportPage');
-                  return { Component: AdminReportPage };
                 },
               },
             ],
@@ -199,6 +184,14 @@ export const router = createBrowserRouter([
               const { SavingsRuleSetupPage } =
                 await import('@/features/finance/account/pages/SavingsRuleSetupPage');
               return { Component: SavingsRuleSetupPage };
+            },
+          },
+          {
+            path: 'admin/reports',
+            async lazy() {
+              const { default: AdminReportPage } =
+                await import('@/features/community/pages/AdminReportPage');
+              return { Component: AdminReportPage };
             },
           },
           {

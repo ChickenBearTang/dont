@@ -34,7 +34,7 @@ const AdminReportPage: React.FC = () => {
     reportId: 0,
   });
 
-  // Robust admin check
+
   const isAdmin = user?.role?.includes('ADMIN');
   const prevUserRef = useRef(user);
 
@@ -183,11 +183,10 @@ const AdminReportPage: React.FC = () => {
                 setFilterStatus(filterStatus === status ? undefined : status);
                 setCurrentPage(0);
               }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filterStatus === status
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterStatus === status
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
             >
               {status === 'RECEIVED' ? '대기중' : status === 'BLINDED' ? '블라인드' : '기각됨'}
             </button>
