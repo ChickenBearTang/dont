@@ -74,13 +74,15 @@ public class RankingService {
             }
         }
 
-        Map<Long, String> nicknameMap = userRepository.findAllById(userIds).stream()
-                .collect(Collectors.toMap(User::getId, User::getNickname));
+        Map<Long, String> nicknameMap =
+                userRepository.findAllById(userIds).stream()
+                        .collect(Collectors.toMap(User::getId, User::getNickname));
 
         for (int i = 0; i < userIds.size(); i++) {
             Long userId = userIds.get(i);
             String nickname = nicknameMap.getOrDefault(userId, "탈퇴한 유저");
-            result.add(RankingUserDto.of(userId, nickname, scores.get(i).longValue(), currentRank++));
+            result.add(
+                    RankingUserDto.of(userId, nickname, scores.get(i).longValue(), currentRank++));
         }
 
         return result;
@@ -99,11 +101,12 @@ public class RankingService {
             return RankingUserDto.of(userId, null, 0L, -1L);
         }
 
-        String nickname = userRepository.findById(userId)
-                .map(User::getNickname)
-                .orElse("탈퇴한 유저");
+        String nickname = userRepository.findById(userId).map(User::getNickname).orElse("탈퇴한 유저");
 
         return RankingUserDto.of(
-                userId, nickname, scoreDouble.longValue(), rank + 1); // Redis ZSET Rank는 0부터 시작하므로 +1
+                userId,
+                nickname,
+                scoreDouble.longValue(),
+                rank + 1); // Redis ZSET Rank는 0부터 시작하므로 +1
     }
 }
