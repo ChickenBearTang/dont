@@ -40,27 +40,25 @@ export const RankingPage = () => {
   const myRanking = data?.data?.myRanking;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-gray-800 font-sans">
+    <div className="flex flex-col bg-white text-gray-800 font-sans max-w-3xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-gray-100 mb-10 transition-all">
       {/* --- 상단: 탭 전환 (전체 랭킹 / 우리 기수 랭킹) --- */}
-      <header className="p-4 bg-white shadow-sm flex flex-col items-center">
+      <header className="p-6 pb-4 bg-white flex flex-col items-center border-b border-gray-50">
         <h1 className="text-xl font-bold mb-4">🏆 실시간 세이브박스 랭킹</h1>
         <div className="flex justify-center space-x-2 bg-gray-100 p-1 py-1 px-1 rounded-full w-full max-w-sm">
           <button
-            className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all ${
-              activeTab === 'total'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
+            className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all ${activeTab === 'total'
+              ? 'bg-indigo-600 text-white shadow-md'
+              : 'text-gray-500 hover:text-gray-800'
+              }`}
             onClick={() => setActiveTab('total')}
           >
             전체 랭킹
           </button>
           <button
-            className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all ${
-              activeTab === 'cohort'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-gray-500 hover:text-gray-800'
-            }`}
+            className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all ${activeTab === 'cohort'
+              ? 'bg-indigo-600 text-white shadow-md'
+              : 'text-gray-500 hover:text-gray-800'
+              }`}
             onClick={() => setActiveTab('cohort')}
           >
             기수별 랭킹
@@ -93,65 +91,65 @@ export const RankingPage = () => {
       </section>
 
       {/* --- 하단: Top 10 리스트 --- */}
-      <section className="flex-1 overflow-y-auto px-4 pb-10">
-        <h3 className="text-sm font-bold text-gray-500 mb-3 ml-1 uppercase tracking-wider">
+      <section className="flex-1 px-8 pb-10 bg-white">
+        <h3 className="text-[13px] font-black text-gray-400 mb-5 mt-6 uppercase tracking-widest text-center">
           Top 10 랭커 리스트
         </h3>
 
         {isLoading && (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-100 border-t-indigo-600 shadow-sm"></div>
           </div>
         )}
 
         {isError && (
-          <p className="text-center text-red-500 my-10 bg-red-50 p-4 rounded-xl text-sm">
+          <p className="text-center text-red-500 my-10 bg-red-50 p-6 rounded-[24px] text-sm font-bold border border-red-100 animate-shake">
             데이터를 불러오지 못했습니다.
           </p>
         )}
 
         {!isLoading && !isError && top10.length === 0 && (
-          <p className="text-center text-gray-500 my-10 py-10 bg-white rounded-xl shadow-sm">
+          <div className="text-center text-gray-400 my-10 py-16 bg-gray-50/50 rounded-[32px] border-2 border-dashed border-gray-100 italic">
             아직 랭킹에 등록된 유저가 없습니다.
-          </p>
+          </div>
         )}
 
-        <ul className="space-y-3">
+        <ul className="flex flex-col space-y-4">
           {top10.map((user) => (
             <li
               key={user.userId}
-              className={`flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border ${
-                user.rank === 1
-                  ? 'border-yellow-400 bg-yellow-50/50'
-                  : user.rank === 2
-                    ? 'border-gray-300 bg-gray-50/50'
-                    : user.rank === 3
-                      ? 'border-amber-600 bg-amber-50/50'
-                      : 'border-transparent'
-              } transition-transform hover:scale-[1.01]`}
+              className={`flex items-center justify-between p-5 bg-white rounded-[24px] shadow-[0_4px_12px_rgba(0,0,0,0.03)] border transition-all hover:scale-[1.02] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] group cursor-default ${user.rank === 1
+                ? 'border-yellow-200'
+                : user.rank === 2
+                  ? 'border-gray-200'
+                  : user.rank === 3
+                    ? 'border-orange-200'
+                    : 'border-gray-50'
+                }`}
             >
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-5">
                 <span
-                  className={`w-8 h-8 flex items-center justify-center rounded-xl font-bold text-sm ${
-                    user.rank === 1
-                      ? 'bg-yellow-400 text-yellow-900'
-                      : user.rank === 2
-                        ? 'bg-gray-300 text-gray-800'
-                        : user.rank === 3
-                          ? 'bg-amber-600 text-orange-100'
-                          : 'bg-gray-100 text-gray-500'
-                  }`}
+                  className={`w-10 h-10 flex items-center justify-center rounded-[14px] font-black text-[15px] shadow-sm ${user.rank === 1
+                    ? 'bg-yellow-400 text-yellow-900 ring-4 ring-yellow-50'
+                    : user.rank === 2
+                      ? 'bg-slate-200 text-slate-800 ring-4 ring-slate-50'
+                      : user.rank === 3
+                        ? 'bg-orange-500 text-white ring-4 ring-orange-50'
+                        : 'bg-gray-100 text-gray-400'
+                    }`}
                 >
                   {user.rank}
                 </span>
-                <span className="font-semibold text-gray-800">
+                <span className="font-extrabold text-gray-900 text-base group-hover:text-indigo-600 transition-colors">
                   {user.nickname || `유저 ${user.userId}`}
                 </span>
               </div>
-              <span className="font-bold text-indigo-600">
-                {user.score.toLocaleString()}
-                <span className="text-xs font-normal text-gray-500 ml-1">원</span>
-              </span>
+              <div className="text-right">
+                <span className="text-[17px] font-black tabular-nums text-gray-900 group-hover:text-indigo-600 transition-colors">
+                  {user.score.toLocaleString()}
+                </span>
+                <span className="text-xs font-bold text-gray-400 ml-1">원</span>
+              </div>
             </li>
           ))}
         </ul>

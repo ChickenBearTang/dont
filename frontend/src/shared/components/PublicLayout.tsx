@@ -41,8 +41,8 @@ const PublicLayout = () => {
           </button>
         )}
       </header>
-      <main className="flex-1 flex flex-col items-center justify-center animate-[fadeInEffect_0.5s_ease-out_forwards] py-10">
-        <div className="w-full max-w-[1200px] px-6">
+      <main className="flex-1 flex flex-col w-full animate-[fadeInEffect_0.5s_ease-out_forwards]">
+        <div className="w-full h-full flex flex-col flex-1 justify-center">
           <Outlet />
         </div>
       </main>

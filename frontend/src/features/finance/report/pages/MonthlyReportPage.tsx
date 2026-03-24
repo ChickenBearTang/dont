@@ -7,8 +7,12 @@ import {
   sendAiJustification,
   regenerateAiReport,
 } from '../api/reportApi';
+
+// types import
 import type { SpendingSummaryResponse, SpendingSummaryRank, AiReportPayload, CardRecommendationResponse } from '../types';
 import { useNavigate } from 'react-router-dom';
+import mascotAnalyze from '@/assets/character/mascot_analyze.png';
+import mascotJust from '@/assets/character/mascot_just.png';
 
 const CATEGORY_COLORS = [
   '#3B82F6', // Blue
@@ -54,7 +58,7 @@ const DonutChart = ({ data }: { data: SpendingSummaryRank[] }) => {
   let strokeDashoffset = 0;
 
   return (
-    <div className="relative w-52 h-52 mx-auto filter drop-shadow hover:drop-shadow-md transition-all">
+    <div className="relative w-44 h-44 lg:w-40 lg:h-40 mx-auto filter drop-shadow hover:drop-shadow-md transition-all">
       <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
         {data.length === 0 ? (
           <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#F3F4F6" strokeWidth="16" />
@@ -109,7 +113,7 @@ const AIAnalysisCard = ({
 }) => {
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-20 bg-gray-50/50 rounded-[32px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] min-h-[600px]">
+      <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-20 bg-gray-50/50 rounded-[32px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] min-h-[450px]">
         <div className="w-8 h-8 border-4 border-gray-100 border-t-purple-500 rounded-full animate-spin mb-4" />
         <span className="text-[13px] font-semibold text-gray-500">
           AI가 소비 내역을 심층 분석하고 있습니다...
@@ -121,10 +125,15 @@ const AIAnalysisCard = ({
   if (!analysis) {
     if (isCurrentMonth) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-20 bg-gray-50/50 rounded-[32px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] min-h-[600px]">
-          <div className="bg-white p-8 rounded-[24px] shadow-sm text-center border border-gray-100">
-            <span className="text-4xl mb-4 block">🐶</span>
-            <span className="text-[16px] font-bold text-gray-800 block mb-2">
+        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-8 bg-gray-50/50 rounded-[32px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] min-h-[450px]">
+          <div className="bg-white p-4 rounded-[24px] shadow-sm text-center border border-gray-100">
+            <img
+              src={mascotAnalyze}
+              alt="분석 중인 깐지"
+              className="w-[280px] h-[280px] object-contain mx-auto -mb-4 animate-bounce"
+              style={{ animationDuration: '2s' }}
+            />
+            <span className="text-[16px] font-bold text-gray-800 block mb-2 relative z-10">
               깐지가 열심히 모니터링 중이에요! 🐾
             </span>
             <span className="text-[14px] text-gray-500 mt-2 block leading-relaxed">
@@ -138,10 +147,14 @@ const AIAnalysisCard = ({
     }
 
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-20 bg-gray-50/50 rounded-[32px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] min-h-[600px]">
-        <div className="bg-white p-8 rounded-[24px] shadow-sm text-center max-w-sm w-full mx-4 border border-gray-100">
-          <span className="text-4xl mb-4 block">📊</span>
-          <span className="text-[16px] font-bold text-gray-800 block mb-2">
+      <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-8 bg-gray-50/50 rounded-[32px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)] min-h-[450px]">
+        <div className="bg-white p-4 rounded-[24px] shadow-sm text-center max-w-sm w-full mx-4 border border-gray-100">
+          <img
+            src={mascotAnalyze}
+            alt="리포트 준비 중인 깐지"
+            className="w-[240px] h-[240px] object-contain mx-auto -mb-4 pt-2"
+          />
+          <span className="text-[16px] font-bold text-gray-800 block mb-2 relative z-10">
             {generating ? '리포트를 생성 중입니다...' : '아직 분석된 리포트가 없어요!'}
           </span>
           <span className="text-[13px] text-gray-500 mb-6 block leading-relaxed">
@@ -171,9 +184,9 @@ const AIAnalysisCard = ({
   }
 
   return (
-    <div className="w-full bg-gray-50/30 rounded-[32px] overflow-hidden flex flex-col min-h-[600px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <div className="bg-white px-7 pt-7 pb-5 rounded-t-[32px]">
-        <h1 className="text-[22px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 tracking-[-0.02em] flex items-center gap-2">
+    <div className="w-full bg-gray-50/30 rounded-[32px] overflow-hidden flex flex-col min-h-[450px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <div className="bg-white px-5 pt-6 pb-4 rounded-t-[32px]">
+        <h1 className="text-[20px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 tracking-[-0.02em] flex items-center gap-2">
           <span>✨</span> AI 심층 분석 리포트
         </h1>
         <p className="text-[13px] font-medium text-gray-400 mt-1">
@@ -181,6 +194,7 @@ const AIAnalysisCard = ({
         </p>
       </div>
 
+<<<<<<< frontend/src/features/finance/report/pages/MonthlyReportPage.tsx
       <div className="flex-1 p-7 flex flex-col gap-6">
 
         {/* AI 기반 소비 유형 및 카드 추천 결과 */}
@@ -234,9 +248,15 @@ const AIAnalysisCard = ({
         <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
           <h3 className="text-[18px] font-extrabold text-gray-900 mb-5 flex items-center gap-2">
             <span className="text-xl">📊</span>
+=======
+      <div className="flex-1 p-5 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
+          <h3 className="text-[16px] font-extrabold text-gray-900 mb-3 flex items-center gap-2">
+            <span className="text-lg">📊</span>
+>>>>>>> frontend/src/features/finance/report/pages/MonthlyReportPage.tsx
             <span>이달의 소비 패턴</span>
           </h3>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {analysis.consumption_patterns?.map((text: string, idx: number) => (
               <div key={idx} className="flex gap-3 text-[14px] text-gray-700 font-medium">
                 <span className="text-blue-500 font-bold shrink-0 mt-0.5">•</span>
@@ -251,18 +271,18 @@ const AIAnalysisCard = ({
           </div>
         </div>
 
-        <div className="bg-white rounded-[24px] p-7 border border-purple-100 shadow-sm transition-shadow hover:shadow-md ring-1 ring-purple-50">
-          <h3 className="text-[18px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-5 flex items-center gap-2">
-            <span className="text-xl">💡</span>
+        <div className="bg-white rounded-2xl p-5 border border-purple-100 shadow-sm transition-shadow hover:shadow-md ring-1 ring-purple-50">
+          <h3 className="text-[16px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-blue-600 mb-3 flex items-center gap-2">
+            <span className="text-lg">💡</span>
             <span>AI 맞춤 솔루션</span>
           </h3>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {analysis.actionable_solutions?.map((text: string, idx: number) => (
               <div
                 key={idx}
-                className="flex gap-3 text-[14px] text-gray-800 font-semibold bg-gradient-to-br from-purple-50 to-blue-50 p-5 rounded-2xl border border-blue-100/30"
+                className="flex gap-3 text-[13px] text-gray-800 font-semibold bg-gradient-to-br from-purple-50 to-blue-50 p-4 rounded-xl border border-blue-100/30"
               >
-                <span className="text-blue-500 text-[16px] shrink-0 mt-0.5">✅</span>
+                <span className="text-blue-500 text-[15px] shrink-0 mt-0.5">✅</span>
                 <p className="leading-relaxed">{text}</p>
               </div>
             ))}
@@ -274,12 +294,12 @@ const AIAnalysisCard = ({
           </div>
         </div>
 
-        <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
-          <h3 className="text-[18px] font-extrabold text-gray-900 mb-5 flex items-center gap-2">
-            <span className="text-xl">🔍</span>
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
+          <h3 className="text-[16px] font-extrabold text-gray-900 mb-3 flex items-center gap-2">
+            <span className="text-lg">🔍</span>
             <span>소비 특이사항</span>
           </h3>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
             {analysis.anomaly_explanations?.map((text: string, idx: number) => (
               <div key={idx} className="flex gap-3 text-[14px] text-gray-700 font-medium">
                 <span className="text-orange-400 font-bold shrink-0 mt-0.5">•</span>
@@ -313,6 +333,7 @@ const ReportChatbot = ({
   const [loading, setLoading] = useState(false);
   const [isValidated, setIsValidated] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -395,13 +416,37 @@ const ReportChatbot = ({
 
   if (!isOpen) {
     return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center text-white text-3xl z-50 ring-4 ring-purple-100 animate-bounce"
-        aria-label="AI 반박하기"
-      >
-        💬
-      </button>
+      <div className="fixed bottom-8 right-8 flex flex-col items-end z-50 pointer-events-none">
+        <div
+          className={`mb-2 mr-2 flex flex-col items-end transition-all duration-500 ease-out z-50 ${isHovered
+            ? 'opacity-100 translate-y-0 scale-100'
+            : 'opacity-0 translate-y-4 scale-90 pointer-events-none'
+            }`}
+        >
+          <div className="bg-white px-4 py-2.5 rounded-2xl shadow-xl border border-gray-100 text-[13px] font-black text-eel mb-2 relative pointer-events-auto">
+            리포트에 대해 불만이 있냐루?
+            <div className="absolute -bottom-1 right-6 w-2.5 h-2.5 bg-white border-r border-b border-gray-100 rotate-45" />
+          </div>
+          <img
+            src={mascotJust}
+            alt="질문하는 깐지"
+            className={`w-24 h-24 object-contain pointer-events-auto transition-transform duration-700 ${isHovered ? '-rotate-[30deg]' : 'rotate-0'
+              } origin-bottom-right`}
+          />
+        </div>
+        <button
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onClick={() => {
+            setIsOpen(true);
+            setIsHovered(false);
+          }}
+          className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center text-white text-3xl ring-4 ring-purple-100 animate-bounce pointer-events-auto"
+          aria-label="AI 반박하기"
+        >
+          💬
+        </button>
+      </div>
     );
   }
 
@@ -509,8 +554,10 @@ const ReportChatbot = ({
 };
 
 export const MonthlyReportPage = () => {
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
+
 
   const [summary, setSummary] = useState<SpendingSummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -588,7 +635,6 @@ export const MonthlyReportPage = () => {
       setCardRecommendLoading(false);
     }
   };
-
   useEffect(() => {
     const fetchSummary = async () => {
       try {
@@ -643,52 +689,65 @@ export const MonthlyReportPage = () => {
   };
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto min-h-screen px-4 py-8 pb-16">
-      <div className="flex flex-col items-center mb-8 bg-white/60 p-5 rounded-[24px] border border-gray-100/80 shadow-sm max-w-lg mx-auto backdrop-blur-sm">
-        <div className="flex items-center justify-between w-full max-w-[300px] bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
-          <button
-            onClick={handlePrevMonth}
-            className="p-3 rounded-xl text-gray-400 hover:bg-gray-50 hover:text-gray-800 transition active:scale-95"
+    <div className="w-full max-w-[1280px] mx-auto min-h-screen px-4 py-4 pb-16">
+      <button
+        onClick={() => navigate('/finance')}
+        className="flex items-center gap-2 text-gray-400 hover:text-gray-800 font-bold mb-4 ml-4 transition-colors"
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        금융 홈으로
+      </button>
+      <div className="flex items-center justify-between w-full max-w-[260px] mx-auto bg-white/80 p-1.5 mb-6 rounded-2xl shadow-sm border border-gray-100/80 backdrop-blur-sm">
+        <button
+          onClick={handlePrevMonth}
+          className="p-2.5 rounded-xl text-gray-400 hover:bg-gray-50 hover:text-gray-800 transition active:scale-95"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.5"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div className="text-center font-black text-gray-900 text-[20px] tracking-tight">
-            {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
-          </div>
-          <button
-            onClick={handleNextMonth}
-            disabled={
-              currentDate.getMonth() === new Date().getMonth() &&
-              currentDate.getFullYear() === new Date().getFullYear()
-            }
-            className="p-3 rounded-xl text-gray-400 hover:bg-gray-50 hover:text-gray-800 transition disabled:opacity-20 disabled:hover:bg-transparent disabled:active:scale-100 active:scale-95"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <div className="text-center font-black text-gray-900 text-[18px] tracking-tight">
+          {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
         </div>
+        <button
+          onClick={handleNextMonth}
+          disabled={
+            currentDate.getMonth() === new Date().getMonth() &&
+            currentDate.getFullYear() === new Date().getFullYear()
+          }
+          className="p-2.5 rounded-xl text-gray-400 hover:bg-gray-50 hover:text-gray-800 transition disabled:opacity-20 disabled:hover:bg-transparent disabled:active:scale-100 active:scale-95"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.5"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
         {/* 왼쪽 패널: 기존 소비 리포트 */}
-        <div className="w-full bg-gray-50/30 rounded-[32px] overflow-hidden flex flex-col min-h-[600px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-          <div className="bg-white px-7 pt-7 pb-5 rounded-t-[32px]">
-            <h1 className="text-[22px] font-bold text-gray-900 tracking-[-0.02em] flex items-center gap-2">
+        <div className="w-full bg-gray-50/30 rounded-[32px] overflow-hidden flex flex-col min-h-[450px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="bg-white px-5 pt-6 pb-4 rounded-t-[32px]">
+            <h1 className="text-[20px] font-bold text-gray-900 tracking-[-0.02em] flex items-center gap-2">
               <span>💳</span> 이달의 소비 리포트
             </h1>
             <p className="text-[13px] font-medium text-gray-400 mt-1">
@@ -696,36 +755,36 @@ export const MonthlyReportPage = () => {
             </p>
           </div>
 
-          <div className="flex-1 p-7 flex flex-col">
+          <div className="flex-1 p-5 flex flex-col">
             {summaryLoading ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-20">
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-10">
                 <div className="w-8 h-8 border-4 border-gray-100 border-t-blue-600 rounded-full animate-spin mb-4" />
                 <span className="text-[13px] font-semibold">리포트를 분석 중입니다...</span>
               </div>
             ) : summary ? (
-              <div className="flex flex-col gap-6">
-                <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm flex flex-col items-center">
-                  <h3 className="text-[16px] font-extrabold text-gray-900 mb-8 w-full text-center">
+              <div className="flex flex-col gap-4">
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col items-center">
+                  <h3 className="text-[15px] font-extrabold text-gray-900 mb-6 w-full text-center tracking-tight">
                     전체 소비 요약
                   </h3>
 
                   <DonutChart data={summary.rankColumList} />
 
-                  <div className="mt-8 text-center flex flex-col items-center">
-                    <p className="text-[14px] text-gray-400 font-bold mb-1 tracking-tight">
+                  <div className="mt-4 text-center flex flex-col items-center">
+                    <p className="text-[13px] text-gray-400 font-bold mb-1 tracking-tight">
                       총 이용 금액
                     </p>
                     <div className="flex items-baseline justify-center">
-                      <span className="text-[34px] font-black tracking-tighter text-blue-600">
+                      <span className="text-[28px] font-black tracking-tighter text-blue-600">
                         {summary.totalAmount?.toLocaleString() || 0}
                       </span>
-                      <span className="text-[18px] font-bold text-gray-800 ml-1">원</span>
+                      <span className="text-[16px] font-bold text-gray-800 ml-1">원</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm">
-                  <h3 className="text-[16px] font-extrabold text-gray-900 mb-5">
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <h3 className="text-[15px] font-extrabold text-gray-900 mb-4 tracking-tight">
                     어디에 가장 많이 썼을까요?
                   </h3>
                   {summary.rankColumList.length === 0 ? (
@@ -741,33 +800,33 @@ export const MonthlyReportPage = () => {
                         return (
                           <div
                             key={idx}
-                            className="flex items-center justify-between p-5 bg-white border border-gray-100 rounded-2xl hover:border-blue-100 hover:shadow-sm transition-all group cursor-pointer"
+                            className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-blue-100 hover:shadow-sm transition-all group cursor-pointer"
                           >
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
                               <div
-                                className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 shadow-inner"
+                                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-inner"
                                 style={{
                                   backgroundColor: `${CATEGORY_COLORS[idx % CATEGORY_COLORS.length]}15`,
                                 }}
                               >
                                 <span
-                                  className="text-[15px] font-black group-hover:scale-110 transition-transform"
+                                  className="text-[13px] font-black group-hover:scale-110 transition-transform"
                                   style={{ color: CATEGORY_COLORS[idx % CATEGORY_COLORS.length] }}
                                 >
                                   {idx + 1}위
                                 </span>
                               </div>
                               <div>
-                                <div className="text-[16px] font-extrabold text-gray-800 mb-0.5">
+                                <div className="text-[15px] font-extrabold text-gray-800 mb-0.5">
                                   {rank.categoryName}
                                 </div>
-                                <div className="text-[12px] font-bold text-gray-400">
+                                <div className="text-[11px] font-bold text-gray-400">
                                   전체 지출의 {displayPercent}% 차지
                                 </div>
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-[18px] font-black tracking-tight text-gray-900 group-hover:text-blue-600 transition-colors">
+                              <div className="text-[16px] font-black tracking-tight text-gray-900 group-hover:text-blue-600 transition-colors">
                                 {rank.amount?.toLocaleString() || 0}원
                               </div>
                               {rank.amount_prv > 0 && (

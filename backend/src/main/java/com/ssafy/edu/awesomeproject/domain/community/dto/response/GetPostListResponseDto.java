@@ -22,9 +22,11 @@ public record GetPostListResponseDto(
             String title,
             Long authorId,
             String authorNickname,
+            String authorProfileImageUrl,
             Boolean isMine,
             Integer likeCount,
             Integer commentCount,
+            Integer attachmentCount,
             LocalDateTime createdAt,
             PostExtraSummaryDto extraSummary) {}
 

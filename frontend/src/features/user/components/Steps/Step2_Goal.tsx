@@ -20,14 +20,14 @@ export const Step2_Goal = ({ onNext, onBack }: Step2Props) => {
 
   return (
     <div className="flex flex-col items-center animate-in fade-in slide-in-from-right-4 duration-500">
-      <Mascot 
+      <Mascot
         src="/assets/mascot_happy.png"
         speech="멋져요! 이제 한 달 동안 얼마나 아끼고 싶으신지 목표 금액을 알려주세요."
         className="mb-10"
       />
 
       <div className="w-full max-w-[400px] mb-10">
-        <Input 
+        <Input
           label="절약 목표 금액"
           placeholder="예: 300,000"
           value={amount ? formatNumber(Number(amount)) : ''}
@@ -43,10 +43,7 @@ export const Step2_Goal = ({ onNext, onBack }: Step2Props) => {
         <Button variant="outline" onClick={onBack}>
           이전
         </Button>
-        <Button 
-          disabled={!isValid}
-          onClick={() => onNext(Number(amount))}
-        >
+        <Button disabled={!isValid} onClick={() => onNext(Number(amount))}>
           설정 완료
         </Button>
       </div>

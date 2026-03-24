@@ -30,7 +30,7 @@ export const AccountList: React.FC = () => {
   // 1. 로딩 상태 처리
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1">
         {[1, 2, 3, 4].map((i) => (
           <AccountSkeleton key={i} />
         ))}
@@ -84,7 +84,7 @@ export const AccountList: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1">
         {accounts.map((account) => (
           <AccountCard key={account.accountNo} account={account} />
         ))}
