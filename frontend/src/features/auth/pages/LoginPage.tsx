@@ -1,4 +1,4 @@
-﻿import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '@/features/auth/components/LoginForm';
 import { Mascot } from '@/shared/components/Mascot';
 

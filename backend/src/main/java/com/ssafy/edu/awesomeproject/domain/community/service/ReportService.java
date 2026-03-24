@@ -151,14 +151,42 @@ public class ReportService {
         Report report = getReport(reportId);
         if (report.getTargetType() == ReportTargetType.POST) {
             Post post =
-                postRepository
-                    .findById(report.getTargetId())
-                    .orElseThrow(
-                        () ->
-                            new CommunityException(
-                                CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+                    postRepository
+                            .findById(report.getTargetId())
+                            .orElseThrow(
+                                    () ->
+                                            new CommunityException(
+                                                    CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
 
             return new AdminReportDetailResponseDto(
+                    report.getId(),
+                    report.getReporterUserId(),
+                    report.getTargetType().name(),
+                    report.getTargetId(),
+                    report.getReasonCode().name(),
+                    report.getDetailText(),
+                    report.getReportStatus().name(),
+                    report.getProcessedByUserId(),
+                    report.getProcessNote(),
+                    report.getProcessedAt(),
+                    report.getCreatedAt(),
+                    report.getUpdatedAt(),
+                    post.getUser().getNickname(),
+                    post.getTitle(),
+                    post.getContent(),
+                    post.getStatus().name(),
+                    post.getId());
+        }
+
+        Comment comment =
+                commentRepository
+                        .findById(report.getTargetId())
+                        .orElseThrow(
+                                () ->
+                                        new CommunityException(
+                                                CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+
+        return new AdminReportDetailResponseDto(
                 report.getId(),
                 report.getReporterUserId(),
                 report.getTargetType().name(),
@@ -171,39 +199,11 @@ public class ReportService {
                 report.getProcessedAt(),
                 report.getCreatedAt(),
                 report.getUpdatedAt(),
-                post.getUser().getNickname(),
-                post.getTitle(),
-                post.getContent(),
-                post.getStatus().name(),
-                post.getId());
-        }
-
-        Comment comment =
-            commentRepository
-                .findById(report.getTargetId())
-                .orElseThrow(
-                    () ->
-                        new CommunityException(
-                            CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
-
-        return new AdminReportDetailResponseDto(
-            report.getId(),
-            report.getReporterUserId(),
-            report.getTargetType().name(),
-            report.getTargetId(),
-            report.getReasonCode().name(),
-            report.getDetailText(),
-            report.getReportStatus().name(),
-            report.getProcessedByUserId(),
-            report.getProcessNote(),
-            report.getProcessedAt(),
-            report.getCreatedAt(),
-            report.getUpdatedAt(),
-            comment.getUser().getNickname(),
-            null,
-            comment.getContent(),
-            comment.getStatus().name(),
-            comment.getPost().getId());
+                comment.getUser().getNickname(),
+                null,
+                comment.getContent(),
+                comment.getStatus().name(),
+                comment.getPost().getId());
     }
 
     @Transactional
@@ -306,22 +306,25 @@ public class ReportService {
     private void blindTarget(Report report) {
         if (report.getTargetType() == ReportTargetType.POST) {
             Post post =
-                postRepository
-                    .findById(report.getTargetId())
-                    .orElseThrow(() -> new CommunityException(CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
-                validateBlindable(post);
+                    postRepository
+                            .findById(report.getTargetId())
+                            .orElseThrow(
+                                    () ->
+                                            new CommunityException(
+                                                    CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+            validateBlindable(post);
             post.blind();
             postRepository.save(post);
             return;
         }
 
         Comment comment =
-            commentRepository
-                .findById(report.getTargetId())
-                .orElseThrow(
-                    () ->
-                        new CommunityException(
-                            CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+                commentRepository
+                        .findById(report.getTargetId())
+                        .orElseThrow(
+                                () ->
+                                        new CommunityException(
+                                                CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
 
         validateBlindable(comment);
         comment.blind();
@@ -337,11 +340,10 @@ public class ReportService {
 
     private void validateBlindable(Comment comment) {
         if (comment.getStatus() == CommentStatus.DELETED
-            || comment.getStatus() == CommentStatus.BLINDED) {
+                || comment.getStatus() == CommentStatus.BLINDED) {
             throw new CommunityException(CommunityErrorCode.REPORT_ALREADY_PROCESSED);
         }
     }
-
 
     private Report getReport(Long reportId) {
         return reportRepository
