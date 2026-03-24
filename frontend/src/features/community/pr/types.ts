@@ -17,20 +17,26 @@ export interface PrCreateRequestPayload {
 
 export interface PrCreateResponseData {
   postId: number;
-  resultStatus: string;
-  deadlineAt: string;
+  resultStatus: PrStatus;
+  deadlineAt: string | null;
 }
 
 export interface PrDetailResponseData {
   postId: number;
+  title: string;
+  authorId: number;
+  authorNickname: string;
   itemName: string;
   priceAmount: number;
   category: string | null;
   content: string;
   purchaseUrl: string | null;
   imageUrl: string | null;
+  deadlineAt: string | null;
   status: PrStatus;
   resultStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
   agreeCount: number;
   disagreeCount: number;
   totalVoteCount: number;
