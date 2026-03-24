@@ -20,6 +20,10 @@ import com.ssafy.edu.awesomeproject.domain.community.repository.CommentRepositor
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.ReportRepository;
 import java.util.List;
+
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationReferenceType;
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
+import com.ssafy.edu.awesomeproject.domain.notification.service.NotificationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -31,14 +35,17 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
+    private final NotificationService notificationService;
 
     public ReportService(
             ReportRepository reportRepository,
             PostRepository postRepository,
-            CommentRepository commentRepository) {
+            CommentRepository commentRepository,
+            NotificationService notificationService) {
         this.reportRepository = reportRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -59,6 +66,8 @@ public class ReportService {
                                 requestDto.targetId(),
                                 requestDto.reasonCode(),
                                 requestDto.detailText()));
+
+        sendReportReceivedNotification(report, targetAuthorId);
 
         return new ReportCreateResponseDto(
                 report.getId(), report.getReportStatus().name(), report.getCreatedAt());
@@ -142,14 +151,42 @@ public class ReportService {
         Report report = getReport(reportId);
         if (report.getTargetType() == ReportTargetType.POST) {
             Post post =
-                postRepository
-                    .findById(report.getTargetId())
-                    .orElseThrow(
-                        () ->
-                            new CommunityException(
-                                CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+                    postRepository
+                            .findById(report.getTargetId())
+                            .orElseThrow(
+                                    () ->
+                                            new CommunityException(
+                                                    CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
 
             return new AdminReportDetailResponseDto(
+                    report.getId(),
+                    report.getReporterUserId(),
+                    report.getTargetType().name(),
+                    report.getTargetId(),
+                    report.getReasonCode().name(),
+                    report.getDetailText(),
+                    report.getReportStatus().name(),
+                    report.getProcessedByUserId(),
+                    report.getProcessNote(),
+                    report.getProcessedAt(),
+                    report.getCreatedAt(),
+                    report.getUpdatedAt(),
+                    post.getUser().getNickname(),
+                    post.getTitle(),
+                    post.getContent(),
+                    post.getStatus().name(),
+                    post.getId());
+        }
+
+        Comment comment =
+                commentRepository
+                        .findById(report.getTargetId())
+                        .orElseThrow(
+                                () ->
+                                        new CommunityException(
+                                                CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+
+        return new AdminReportDetailResponseDto(
                 report.getId(),
                 report.getReporterUserId(),
                 report.getTargetType().name(),
@@ -162,39 +199,11 @@ public class ReportService {
                 report.getProcessedAt(),
                 report.getCreatedAt(),
                 report.getUpdatedAt(),
-                post.getUser().getNickname(),
-                post.getTitle(),
-                post.getContent(),
-                post.getStatus().name(),
-                post.getId());
-        }
-
-        Comment comment =
-            commentRepository
-                .findById(report.getTargetId())
-                .orElseThrow(
-                    () ->
-                        new CommunityException(
-                            CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
-
-        return new AdminReportDetailResponseDto(
-            report.getId(),
-            report.getReporterUserId(),
-            report.getTargetType().name(),
-            report.getTargetId(),
-            report.getReasonCode().name(),
-            report.getDetailText(),
-            report.getReportStatus().name(),
-            report.getProcessedByUserId(),
-            report.getProcessNote(),
-            report.getProcessedAt(),
-            report.getCreatedAt(),
-            report.getUpdatedAt(),
-            comment.getUser().getNickname(),
-            null,
-            comment.getContent(),
-            comment.getStatus().name(),
-            comment.getPost().getId());
+                comment.getUser().getNickname(),
+                null,
+                comment.getContent(),
+                comment.getStatus().name(),
+                comment.getPost().getId());
     }
 
     @Transactional
@@ -208,6 +217,8 @@ public class ReportService {
         report.blind(adminUserId, requestDto.processNote());
         reportRepository.save(report);
 
+        sendReportProcessedNotification(report);
+
         return toProcessResponse(report);
     }
 
@@ -220,28 +231,100 @@ public class ReportService {
         report.reject(adminUserId, requestDto.processNote());
         reportRepository.save(report);
 
+        sendReportProcessedNotification(report);
+
         return toProcessResponse(report);
+    }
+
+    private void sendReportReceivedNotification(Report report, Long targetAuthorId) {
+        if (report.getTargetType() == ReportTargetType.POST) {
+            notificationService.createNotification(
+                targetAuthorId,
+                NotificationType.POST_REPORTED,
+                "게시물이 신고됐어요.",
+                "회원님의 게시물이 신고 접수되었습니다. 관리자 검토 후 처리될 예정입니다.",
+                NotificationReferenceType.POST,
+                report.getTargetId()
+            );
+            return;
+        }
+
+        Long postId = resolvePostIdForCommentTarget(report.getTargetId());
+
+        notificationService.createNotification(
+            targetAuthorId,
+            NotificationType.COMMENT_REPORTED,
+            "댓글이 신고됐어요",
+            "회원님의 댓글이 신고 접수되었습니다. 관리자 검토 후 처리될 예정입니다.",
+            NotificationReferenceType.POST,
+            postId
+        );
+    }
+
+    private void sendReportProcessedNotification(Report report) {
+        boolean blinded = report.getReportStatus() == ReportStatus.BLINDED;
+
+        NotificationType notificationType =
+            blinded
+                ? NotificationType.REPORT_PROCESSED_BLINDED
+                : NotificationType.REPORT_PROCESSED_REJECTED;
+
+        String title = blinded ? "신고가 처리됐어요" : "신고 검토가 완료됐어요";
+        String body =
+            blinded
+                ? "회원님이 신고한 내용이 검토 후 반영되었습니다."
+                : "회원님이 신고한 내용이 검토 완료되었습니다.";
+
+        notificationService.createNotification(
+            report.getReporterUserId(),
+            notificationType,
+            title,
+            body,
+            NotificationReferenceType.POST,
+            resolveReferencePostId(report)
+        );
+    }
+
+    private Long resolveReferencePostId(Report report) {
+        if (report.getTargetType() == ReportTargetType.POST) {
+            return report.getTargetId();
+        }
+        return resolvePostIdForCommentTarget(report.getTargetId());
+    }
+
+    private Long resolvePostIdForCommentTarget(Long commentId) {
+        Comment comment =
+            commentRepository
+                .findById(commentId)
+                .orElseThrow(
+                    () ->
+                        new CommunityException(
+                            CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+        return comment.getPost().getId();
     }
 
     private void blindTarget(Report report) {
         if (report.getTargetType() == ReportTargetType.POST) {
             Post post =
-                postRepository
-                    .findById(report.getTargetId())
-                    .orElseThrow(() -> new CommunityException(CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
-                validateBlindable(post);
+                    postRepository
+                            .findById(report.getTargetId())
+                            .orElseThrow(
+                                    () ->
+                                            new CommunityException(
+                                                    CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+            validateBlindable(post);
             post.blind();
             postRepository.save(post);
             return;
         }
 
         Comment comment =
-            commentRepository
-                .findById(report.getTargetId())
-                .orElseThrow(
-                    () ->
-                        new CommunityException(
-                            CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
+                commentRepository
+                        .findById(report.getTargetId())
+                        .orElseThrow(
+                                () ->
+                                        new CommunityException(
+                                                CommunityErrorCode.REPORT_TARGET_NOT_FOUND));
 
         validateBlindable(comment);
         comment.blind();
@@ -257,11 +340,10 @@ public class ReportService {
 
     private void validateBlindable(Comment comment) {
         if (comment.getStatus() == CommentStatus.DELETED
-            || comment.getStatus() == CommentStatus.BLINDED) {
+                || comment.getStatus() == CommentStatus.BLINDED) {
             throw new CommunityException(CommunityErrorCode.REPORT_ALREADY_PROCESSED);
         }
     }
-
 
     private Report getReport(Long reportId) {
         return reportRepository

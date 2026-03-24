@@ -62,7 +62,7 @@ public class User extends BaseEntity {
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cohort_id", nullable = false)
     private Cohort cohort;

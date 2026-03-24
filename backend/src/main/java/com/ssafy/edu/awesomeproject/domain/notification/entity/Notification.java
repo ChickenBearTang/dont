@@ -9,12 +9,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Entity
@@ -57,12 +56,12 @@ public class Notification {
     private LocalDateTime createdAt;
 
     public Notification(
-        Long userId,
-        NotificationType notificationType,
-        String title,
-        String body,
-        NotificationReferenceType referenceType,
-        Long referenceId) {
+            Long userId,
+            NotificationType notificationType,
+            String title,
+            String body,
+            NotificationReferenceType referenceType,
+            Long referenceId) {
         this.userId = userId;
         this.notificationType = notificationType;
         this.title = title;

@@ -22,23 +22,23 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findByStatusIn(Collection<PostStatus> statuses, Pageable pageable);
 
     Page<Post> findByBoard_CategoryAndStatus(
-        BoardCategory category, PostStatus status, Pageable pageable);
+            BoardCategory category, PostStatus status, Pageable pageable);
 
     Page<Post> findByBoard_CategoryAndStatusIn(
-        BoardCategory category, Collection<PostStatus> statuses, Pageable pageable);
+            BoardCategory category, Collection<PostStatus> statuses, Pageable pageable);
 
     // 기수별 목록 조회용
     Page<Post> findByBoard_CategoryAndBoard_Cohort_GenerationNoAndStatus(
-        BoardCategory category, Integer generationNo, PostStatus status, Pageable pageable);
+            BoardCategory category, Integer generationNo, PostStatus status, Pageable pageable);
 
     Page<Post> findByBoard_CategoryAndBoard_Cohort_GenerationNoAndStatusIn(
-        BoardCategory category,
-        Integer generationNo,
-        Collection<PostStatus> statuses,
-        Pageable pageable);
+            BoardCategory category,
+            Integer generationNo,
+            Collection<PostStatus> statuses,
+            Pageable pageable);
 
     @Query(
-        """
+            """
     select p
     from Post p
     join p.board b
@@ -50,8 +50,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
           )
     """)
     Page<Post> findVisiblePostsForUser(
-        @Param("statuses") Collection<PostStatus> statuses,
-        @Param("cohortCategory") BoardCategory cohortCategory,
-        @Param("generationNo") Integer generationNo,
-        Pageable pageable);
+            @Param("statuses") Collection<PostStatus> statuses,
+            @Param("cohortCategory") BoardCategory cohortCategory,
+            @Param("generationNo") Integer generationNo,
+            Pageable pageable);
 }

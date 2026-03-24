@@ -68,9 +68,7 @@ public class PasswordResetService {
                             }
                         });
 
-        return new RequestResult(
-                "입력한 이메일로 비밀번호 재설정 코드를 전송했습니다.",
-                resetCodeTimeToLive.getSeconds());
+        return new RequestResult("입력한 이메일로 비밀번호 재설정 코드를 전송했습니다.", resetCodeTimeToLive.getSeconds());
     }
 
     @Transactional

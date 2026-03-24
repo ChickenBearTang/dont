@@ -43,19 +43,19 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "게시글/댓글 없음")
     })
     public CommonResponse<CreateCommentResponseDto> createComment(
-        @CurrentUserId Long userId,
-        @PathVariable Long postId,
-        @Valid @RequestBody CreateCommentRequestDto createCommentRequestDto) {
+            @CurrentUserId Long userId,
+            @PathVariable Long postId,
+            @Valid @RequestBody CreateCommentRequestDto createCommentRequestDto) {
 
         CommentService.CreateCommentResult result =
-            commentService.createComment(
-                userId,
-                postId,
-                createCommentRequestDto.parentCommentId(),
-                createCommentRequestDto.content());
+                commentService.createComment(
+                        userId,
+                        postId,
+                        createCommentRequestDto.parentCommentId(),
+                        createCommentRequestDto.content());
 
         return CommonResponse.success(
-            new CreateCommentResponseDto(result.commentId(), result.createdAt()));
+                new CreateCommentResponseDto(result.commentId(), result.createdAt()));
     }
 
     @GetMapping("/posts/{postId}/comments")
@@ -65,40 +65,40 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "게시글 없음")
     })
     public CommonResponse<GetCommentListResponseDto> getComments(
-        @CurrentUserId Long userId,
-        @PathVariable Long postId,
-        @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size) {
+            @CurrentUserId Long userId,
+            @PathVariable Long postId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
 
         CommentService.GetCommentListResult result =
-            commentService.getComments(userId, postId, page, size);
+                commentService.getComments(userId, postId, page, size);
 
         List<GetCommentListResponseDto.CommentSummaryDto> content =
-            result.content().stream()
-                .map(
-                    comment ->
-                        new GetCommentListResponseDto.CommentSummaryDto(
-                            comment.commentId(),
-                            comment.parentCommentId(),
-                            comment.status(),
-                            comment.content(),
-                            comment.authorId(),
-                            comment.authorNickname(),
-                            comment.authorProfileImageUrl(),
-                            comment.isMine(),
-                            comment.likeCount(),
-                            comment.createdAt(),
-                            comment.updatedAt()))
-                .toList();
+                result.content().stream()
+                        .map(
+                                comment ->
+                                        new GetCommentListResponseDto.CommentSummaryDto(
+                                                comment.commentId(),
+                                                comment.parentCommentId(),
+                                                comment.status(),
+                                                comment.content(),
+                                                comment.authorId(),
+                                                comment.authorNickname(),
+                                                comment.authorProfileImageUrl(),
+                                                comment.isMine(),
+                                                comment.likeCount(),
+                                                comment.createdAt(),
+                                                comment.updatedAt()))
+                        .toList();
 
         return CommonResponse.success(
-            new GetCommentListResponseDto(
-                content,
-                result.page(),
-                result.size(),
-                result.totalElements(),
-                result.totalPages(),
-                result.hasNext()));
+                new GetCommentListResponseDto(
+                        content,
+                        result.page(),
+                        result.size(),
+                        result.totalElements(),
+                        result.totalPages(),
+                        result.hasNext()));
     }
 
     @PatchMapping("/comments/{commentId}")
@@ -110,15 +110,15 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "댓글 없음")
     })
     public CommonResponse<UpdateCommentResponseDto> updateComment(
-        @CurrentUserId Long userId,
-        @PathVariable Long commentId,
-        @Valid @RequestBody UpdateCommentRequestDto updateCommentRequestDto) {
+            @CurrentUserId Long userId,
+            @PathVariable Long commentId,
+            @Valid @RequestBody UpdateCommentRequestDto updateCommentRequestDto) {
 
         CommentService.UpdateCommentResult result =
-            commentService.updateComment(userId, commentId, updateCommentRequestDto.content());
+                commentService.updateComment(userId, commentId, updateCommentRequestDto.content());
 
         return CommonResponse.success(
-            new UpdateCommentResponseDto(result.commentId(), result.updatedAt()));
+                new UpdateCommentResponseDto(result.commentId(), result.updatedAt()));
     }
 
     @DeleteMapping("/comments/{commentId}")
@@ -130,11 +130,11 @@ public class CommentController {
         @ApiResponse(responseCode = "404", description = "댓글 없음")
     })
     public CommonResponse<DeleteCommentResponseDto> deleteComment(
-        @CurrentUserId Long userId, @PathVariable Long commentId) {
+            @CurrentUserId Long userId, @PathVariable Long commentId) {
 
         CommentService.DeleteCommentResult result = commentService.deleteComment(userId, commentId);
 
         return CommonResponse.success(
-            new DeleteCommentResponseDto(result.deleted(), result.deletedAt()));
+                new DeleteCommentResponseDto(result.deleted(), result.deletedAt()));
     }
 }

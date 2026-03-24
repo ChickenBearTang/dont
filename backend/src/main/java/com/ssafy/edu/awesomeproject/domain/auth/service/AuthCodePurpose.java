@@ -17,9 +17,7 @@ public enum AuthCodePurpose {
     private final AuthErrorCode verifyLimitErrorCode;
 
     AuthCodePurpose(
-            String key,
-            AuthErrorCode sendLimitErrorCode,
-            AuthErrorCode verifyLimitErrorCode) {
+            String key, AuthErrorCode sendLimitErrorCode, AuthErrorCode verifyLimitErrorCode) {
         this.key = key;
         this.sendLimitErrorCode = sendLimitErrorCode;
         this.verifyLimitErrorCode = verifyLimitErrorCode;

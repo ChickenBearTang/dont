@@ -16,8 +16,13 @@ import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CommentRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.ReactionRepository;
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationReferenceType;
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
+import com.ssafy.edu.awesomeproject.domain.notification.service.NotificationService;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -28,9 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class CommentService {
     private static final List<PostStatus> READABLE_POST_STATUSES =
-        List.of(PostStatus.ACTIVE, PostStatus.BLINDED);
+            List.of(PostStatus.ACTIVE, PostStatus.BLINDED);
     private static final List<CommentStatus> READABLE_COMMENT_STATUSES =
-        List.of(CommentStatus.ACTIVE, CommentStatus.BLINDED);
+            List.of(CommentStatus.ACTIVE, CommentStatus.BLINDED);
     private static final String BLINDED_COMMENT_MESSAGE = "신고 처리된 댓글입니다.";
 
     private final CommentRepository commentRepository;
@@ -38,47 +43,48 @@ public class CommentService {
     private final UserRepository userRepository;
     private final ReactionRepository reactionRepository;
     private final S3AssetUrlResolver s3AssetUrlResolver;
+    private final NotificationService notificationService;
 
     public CommentService(
         CommentRepository commentRepository,
         PostRepository postRepository,
         UserRepository userRepository,
         ReactionRepository reactionRepository,
-        S3AssetUrlResolver s3AssetUrlResolver) {
+        S3AssetUrlResolver s3AssetUrlResolver,
+        NotificationService notificationService) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.reactionRepository = reactionRepository;
         this.s3AssetUrlResolver = s3AssetUrlResolver;
+        this.notificationService = notificationService;
     }
 
     // 댓글 작성
     public CreateCommentResult createComment(
-        Long userId, Long postId, Long parentCommentId, String content) {
+            Long userId, Long postId, Long parentCommentId, String content) {
 
         Post post =
             postRepository
                 .findByIdAndStatus(postId, PostStatus.ACTIVE)
-                .orElseThrow(
-                    () -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
 
         User user =
             userRepository
                 .findById(userId)
-                .orElseThrow(
-                    () -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
 
         validateUserCohortAccess(user, post.getBoard());
 
         Comment parentComment = null;
         if (parentCommentId != null) {
             parentComment =
-                commentRepository
-                    .findByIdAndStatus(parentCommentId, CommentStatus.ACTIVE)
-                    .orElseThrow(
-                        () ->
-                            new CommunityException(
-                                CommunityErrorCode.COMMENT_NOT_FOUND));
+                    commentRepository
+                            .findByIdAndStatus(parentCommentId, CommentStatus.ACTIVE)
+                            .orElseThrow(
+                                    () ->
+                                            new CommunityException(
+                                                    CommunityErrorCode.COMMENT_NOT_FOUND));
 
             if (!parentComment.getPost().getId().equals(postId)) {
                 throw new CommunityException(CommunityErrorCode.INVALID_PARENT_COMMENT);
@@ -88,6 +94,8 @@ public class CommentService {
         Comment comment = new Comment(post, user, parentComment, content);
         Comment savedComment = commentRepository.save(comment);
 
+        sendCommentNotifications(post, parentComment, savedComment, user);
+
         return new CreateCommentResult(savedComment.getId(), savedComment.getCreatedAt());
     }
 
@@ -95,16 +103,16 @@ public class CommentService {
     @Transactional(readOnly = true)
     public GetCommentListResult getComments(Long userId, Long postId, Integer page, Integer size) {
         Post post =
-            postRepository
-                .findByIdAndStatusIn(postId, READABLE_POST_STATUSES)
-                .orElseThrow(
-                    () -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
+                postRepository
+                        .findByIdAndStatusIn(postId, READABLE_POST_STATUSES)
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.POST_NOT_FOUND));
 
         User user =
-            userRepository
-                .findById(userId)
-                .orElseThrow(
-                    () -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.USER_NOT_FOUND));
 
         validateUserCohortAccess(user, post.getBoard());
 
@@ -112,53 +120,54 @@ public class CommentService {
         int pageSize = (size == null || size <= 0) ? 10 : size;
 
         PageRequest pageRequest =
-            PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "id"));
+                PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "id"));
 
         Page<Comment> commentPage =
-            commentRepository.findByPost_IdAndStatusIn(
-                postId, READABLE_COMMENT_STATUSES, pageRequest);
+                commentRepository.findByPost_IdAndStatusIn(
+                        postId, READABLE_COMMENT_STATUSES, pageRequest);
 
         List<CommentSummary> content =
-            commentPage.getContent().stream()
-                .map(
-                    comment ->
-                        new CommentSummary(
-                            comment.getId(),
-                            comment.getParentComment() != null
-                                ? comment.getParentComment().getId()
-                                : null,
-                            comment.getStatus().name(),
-                            resolveCommentContent(comment),
-                            comment.getUser().getId(),
-                            comment.getUser().getNickname(),
-                            s3AssetUrlResolver.resolvePublicUrlOrNull(comment.getUser().getProfileImageUrl()),
-                            comment.isAuthor(userId),
-                            Math.toIntExact(
-                                reactionRepository
-                                    .countByTargetTypeAndTargetIdAndReactionType(
-                                        ReactionTargetType.COMMENT,
-                                        comment.getId(),
-                                        ReactionType.LIKE)),
-                            comment.getCreatedAt(),
-                            comment.getUpdatedAt()))
-                .toList();
+                commentPage.getContent().stream()
+                        .map(
+                                comment ->
+                                        new CommentSummary(
+                                                comment.getId(),
+                                                comment.getParentComment() != null
+                                                        ? comment.getParentComment().getId()
+                                                        : null,
+                                                comment.getStatus().name(),
+                                                resolveCommentContent(comment),
+                                                comment.getUser().getId(),
+                                                comment.getUser().getNickname(),
+                                                s3AssetUrlResolver.resolvePublicUrlOrNull(
+                                                        comment.getUser().getProfileImageUrl()),
+                                                comment.isAuthor(userId),
+                                                Math.toIntExact(
+                                                        reactionRepository
+                                                                .countByTargetTypeAndTargetIdAndReactionType(
+                                                                        ReactionTargetType.COMMENT,
+                                                                        comment.getId(),
+                                                                        ReactionType.LIKE)),
+                                                comment.getCreatedAt(),
+                                                comment.getUpdatedAt()))
+                        .toList();
 
         return new GetCommentListResult(
-            content,
-            commentPage.getNumber(),
-            commentPage.getSize(),
-            commentPage.getTotalElements(),
-            commentPage.getTotalPages(),
-            commentPage.hasNext());
+                content,
+                commentPage.getNumber(),
+                commentPage.getSize(),
+                commentPage.getTotalElements(),
+                commentPage.getTotalPages(),
+                commentPage.hasNext());
     }
 
     // 댓글 수정
     public UpdateCommentResult updateComment(Long userId, Long commentId, String content) {
         Comment comment =
-            commentRepository
-                .findByIdAndStatus(commentId, CommentStatus.ACTIVE)
-                .orElseThrow(
-                    () -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
+                commentRepository
+                        .findByIdAndStatus(commentId, CommentStatus.ACTIVE)
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
 
         if (!comment.isAuthor(userId)) {
             throw new CommunityException(CommunityErrorCode.COMMENT_FORBIDDEN);
@@ -172,10 +181,10 @@ public class CommentService {
     // 댓글 삭제
     public DeleteCommentResult deleteComment(Long userId, Long commentId) {
         Comment comment =
-            commentRepository
-                .findByIdAndStatus(commentId, CommentStatus.ACTIVE)
-                .orElseThrow(
-                    () -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
+                commentRepository
+                        .findByIdAndStatus(commentId, CommentStatus.ACTIVE)
+                        .orElseThrow(
+                                () -> new CommunityException(CommunityErrorCode.COMMENT_NOT_FOUND));
 
         if (!comment.isAuthor(userId)) {
             throw new CommunityException(CommunityErrorCode.COMMENT_FORBIDDEN);
@@ -184,6 +193,42 @@ public class CommentService {
         comment.delete();
 
         return new DeleteCommentResult(true, comment.getDeletedAt());
+    }
+
+    private void sendCommentNotifications(
+        Post post, Comment parentComment, Comment savedComment, User commenter) {
+        Long commenterUserId = commenter.getId();
+        Long postAuthorUserId = post.getUser().getId();
+
+        Set<Long> notifiedUserIds = new HashSet<>();
+
+        // 1. 게시글 작성자 알림
+        if (!postAuthorUserId.equals(commenterUserId)) {
+            notificationService.createNotification(
+                postAuthorUserId,
+                NotificationType.POST_COMMENT_CREATED,
+                "새 댓글이 달렸어요",
+                commenter.getNickname() + "님이 회원님의 게시글에 댓글을 남겼습니다.",
+                NotificationReferenceType.COMMENT,
+                savedComment.getId());
+            notifiedUserIds.add(postAuthorUserId);
+        }
+
+        // 2. 부모 댓글 작성자 알림 (답글인 경우)
+        if (parentComment != null) {
+            Long parentCommentAuthorUserId = parentComment.getUser().getId();
+
+            if (!parentCommentAuthorUserId.equals(commenterUserId)
+                && !notifiedUserIds.contains(parentCommentAuthorUserId)) {
+                notificationService.createNotification(
+                    parentCommentAuthorUserId,
+                    NotificationType.POST_COMMENT_CREATED,
+                    "내 댓글에 답글이 달렸어요",
+                    commenter.getNickname() + "님이 회원님의 댓글에 답글을 남겼습니다.",
+                    NotificationReferenceType.COMMENT,
+                    savedComment.getId());
+            }
+        }
     }
 
     private void validateUserCohortAccess(User user, Board board) {
@@ -210,25 +255,25 @@ public class CommentService {
     public record CreateCommentResult(Long commentId, LocalDateTime createdAt) {}
 
     public record CommentSummary(
-        Long commentId,
-        Long parentCommentId,
-        String status,
-        String content,
-        Long authorId,
-        String authorNickname,
-        String authorProfileImageUrl,
-        Boolean isMine,
-        Integer likeCount,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt) {}
+            Long commentId,
+            Long parentCommentId,
+            String status,
+            String content,
+            Long authorId,
+            String authorNickname,
+            String authorProfileImageUrl,
+            Boolean isMine,
+            Integer likeCount,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt) {}
 
     public record GetCommentListResult(
-        List<CommentSummary> content,
-        int page,
-        int size,
-        long totalElements,
-        int totalPages,
-        boolean hasNext) {}
+            List<CommentSummary> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages,
+            boolean hasNext) {}
 
     public record UpdateCommentResult(Long commentId, LocalDateTime updatedAt) {}
 
