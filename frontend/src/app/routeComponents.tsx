@@ -1,13 +1,11 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import AppLayout from '@/shared/components/AppLayout';
 import { LoginPage } from '@/features/auth';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { logout as logoutApi } from '@/features/auth/api/authApi';
-import { PrCreatePage, PrDetailPage } from '@/features/community/pr';
+import { PrDetailPage } from '@/features/community/pr';
 import { fetchOnboardingStatus } from '@/features/user/api/userApi';
 
 export const HomeRoute = () => {
