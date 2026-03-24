@@ -1,8 +1,10 @@
 package com.ssafy.edu.awesomeproject.domain.community.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record HotdealUpdateRequestDto(
         @Size(max = 200) String title,
@@ -13,4 +15,5 @@ public record HotdealUpdateRequestDto(
         @Positive Long originalPriceAmount,
         @Size(max = 2000) String dealUrl,
         @Size(max = 255) String shippingInfo,
-        LocalDateTime expiredAt) {}
+        LocalDateTime expiredAt,
+        List<@Valid PostAttachmentRequestDto> attachments) {}

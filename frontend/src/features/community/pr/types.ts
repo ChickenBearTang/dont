@@ -1,3 +1,5 @@
+import type { PostAttachmentDto, PostAttachmentRequestDto } from '@/features/community/types';
+
 export type PrVoteValue = 'AGREE' | 'DISAGREE';
 
 export type PrStatus = 'OPEN' | 'MERGED' | 'CLOSED';
@@ -11,8 +13,8 @@ export interface PrCreateRequestPayload {
   priceAmount: number;
   category?: string;
   purchaseUrl?: string;
-  imageUrl?: string;
   deadlineAt?: string;
+  attachments?: PostAttachmentRequestDto[];
 }
 
 export interface PrCreateResponseData {
@@ -26,15 +28,16 @@ export interface PrDetailResponseData {
   title: string;
   authorId: number;
   authorNickname: string;
+  authorProfileImageUrl?: string | null;
   itemName: string;
   priceAmount: number;
   category: string | null;
   content: string;
   purchaseUrl: string | null;
-  imageUrl: string | null;
   deadlineAt: string | null;
   status: PrStatus;
   resultStatus: string | null;
+  attachments: PostAttachmentDto[];
   createdAt: string;
   updatedAt: string;
   agreeCount: number;

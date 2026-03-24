@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.community.service;
 
+import com.ssafy.edu.awesomeproject.common.s3.service.S3AssetUrlResolver;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PollCreateRequestDto;
@@ -34,18 +35,24 @@ public class PollPostService {
     private final PostRepository postRepository;
     private final PollPostRepository pollPostRepository;
     private final PollVoteRepository pollVoteRepository;
+    private final PostAttachmentService postAttachmentService;
+    private final S3AssetUrlResolver s3AssetUrlResolver;
 
     public PollPostService(
             UserRepository userRepository,
             BoardRepository boardRepository,
             PostRepository postRepository,
             PollPostRepository pollPostRepository,
-            PollVoteRepository pollVoteRepository) {
+            PollVoteRepository pollVoteRepository,
+            PostAttachmentService postAttachmentService,
+            S3AssetUrlResolver s3AssetUrlResolver) {
         this.userRepository = userRepository;
         this.boardRepository = boardRepository;
         this.postRepository = postRepository;
         this.pollPostRepository = pollPostRepository;
         this.pollVoteRepository = pollVoteRepository;
+        this.postAttachmentService = postAttachmentService;
+        this.s3AssetUrlResolver = s3AssetUrlResolver;
     }
 
     @Transactional
@@ -68,6 +75,7 @@ public class PollPostService {
                                 user,
                                 pollCreateRequestDto.title(),
                                 pollCreateRequestDto.content()));
+        postAttachmentService.syncAttachments(savedPost, pollCreateRequestDto.attachments());
 
         pollPostRepository.save(
                 new PollPost(
@@ -99,7 +107,9 @@ public class PollPostService {
                 post.getId(),
                 post.getTitle(),
                 post.getContent(),
+                post.getUser().getId(),
                 post.getUser().getNickname(),
+                s3AssetUrlResolver.resolvePublicUrlOrNull(post.getUser().getProfileImageUrl()),
                 pollPost.getQuestion(),
                 pollPost.getOptionA(),
                 pollPost.getOptionB(),
@@ -108,6 +118,7 @@ public class PollPostService {
                 optionACount,
                 optionBCount,
                 totalVoteCount,
+                postAttachmentService.getAttachments(post.getId()),
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }
@@ -127,6 +138,7 @@ public class PollPostService {
         }
 
         post.update(pollUpdateRequestDto.title(), pollUpdateRequestDto.content());
+        postAttachmentService.syncAttachments(post, pollUpdateRequestDto.attachments());
         pollPost.update(
                 pollUpdateRequestDto.question(),
                 pollUpdateRequestDto.optionA(),
