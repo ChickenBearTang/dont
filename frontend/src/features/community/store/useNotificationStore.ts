@@ -13,7 +13,7 @@ interface NotificationState {
   fetchUnreadCount: () => Promise<void>;
   markAsRead: (notificationId: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
-  dismissNotification: (notificationId: number) => void;
+  dismissNotification: (notificationId: number) => Promise<void>;
   startPolling: (intervalMs?: number) => void;
   stopPolling: () => void;
 }
@@ -30,16 +30,11 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   fetchNotifications: async () => {
     set({ loading: true });
     try {
-      // - [x] Backend: Restore stable versions of `CommentService`, `ReportService`, `NotificationController`, `CommentController` (Fixed 500 errors)
-      // - [x] Frontend: Implement notification dismissal UI ('X' button in Header)
-      // - [x] Frontend: Implement notification dismissal logic (Local storage fallback)
-      // - [x] Frontend: Improve notification navigation to posts
-      // - [ ] Frontend: (Optional) Highlight target comments (Restricted by current backend state)
-      const res = await notificationApi.getNotifications(0, 30); // Get more to account for dismissals
+      const res = await notificationApi.getNotifications(0, 30);
       if (res.data) {
         const { dismissedIds } = get();
         const filtered = res.data.content.filter((n) => !dismissedIds.has(n.notificationId));
-        set({ notifications: filtered.slice(0, 10) }); // Keep only top 10
+        set({ notifications: filtered.slice(0, 10) });
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
@@ -60,9 +55,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   markAsRead: async (notificationId: number) => {
+    const target = get().notifications.find((n) => n.notificationId === notificationId);
+    if (!target || target.isRead) {
+      return;
+    }
+
     try {
       await notificationApi.markAsRead(notificationId);
-      // Optimistic update
       set((state) => ({
         notifications: state.notifications.map((n) =>
           n.notificationId === notificationId ? { ...n, isRead: true } : n
@@ -86,22 +85,36 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }
   },
 
-  dismissNotification: (notificationId: number) => {
-    set((state) => {
-      const nextDismissed = new Set(state.dismissedIds).add(notificationId);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(nextDismissed)));
-      return {
-        dismissedIds: nextDismissed,
-        notifications: state.notifications.filter((n) => n.notificationId !== notificationId),
-      };
-    });
+  dismissNotification: async (notificationId: number) => {
+    const target = get().notifications.find((n) => n.notificationId === notificationId);
+    if (!target) {
+      return;
+    }
+
+    try {
+      if (!target.isRead) {
+        await notificationApi.markAsRead(notificationId);
+      }
+
+      set((state) => {
+        const nextDismissed = new Set(state.dismissedIds).add(notificationId);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(nextDismissed)));
+
+        return {
+          dismissedIds: nextDismissed,
+          notifications: state.notifications.filter((n) => n.notificationId !== notificationId),
+          unreadCount: target.isRead ? state.unreadCount : Math.max(0, state.unreadCount - 1),
+        };
+      });
+    } catch (error) {
+      console.error('Failed to dismiss notification:', error);
+    }
   },
 
   startPolling: (intervalMs = 30000) => {
     const { pollingInterval } = get();
     if (pollingInterval) return;
 
-    // Initial fetch
     get().fetchUnreadCount();
 
     const interval = window.setInterval(() => {

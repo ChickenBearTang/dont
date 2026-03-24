@@ -8,6 +8,7 @@ export type NotificationType =
   | 'COMMENT_BLINDED'
   | 'FINANCE_GENERIC'
   | string;
+
 export type NotificationReferenceType = 'POST' | 'COMMENT' | string;
 
 export interface NotificationSummaryDto {
@@ -20,6 +21,8 @@ export interface NotificationSummaryDto {
   isRead: boolean;
   pushedAt: string;
   createdAt: string;
+  postId?: number | null;
+  commentId?: number | null;
 }
 
 export interface NotificationListResponseDto {

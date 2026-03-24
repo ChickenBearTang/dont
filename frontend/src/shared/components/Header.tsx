@@ -56,28 +56,29 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   }, []);
 
   const handleNotificationClick = async (notif: (typeof notifications)[0]) => {
-    // 1. Mark as read
     if (!notif.isRead) {
       await markAsRead(notif.notificationId);
     }
 
-    // 2. Close dropdown
     setIsDropdownOpen(false);
 
-    // 3. Navigation
-    if (notif.referenceType === 'POST') {
+    if (notif.postId && notif.commentId) {
+      navigate(`/community/${notif.postId}?commentId=${notif.commentId}`);
+      return;
+    }
+
+    if (notif.referenceType === 'POST' && notif.referenceId) {
       navigate(`/community/${notif.referenceId}`);
-    } else if (notif.referenceType === 'COMMENT') {
-      // Backend currently sends referenceId as postId for new comments
-      // If it ever sends commentId, we'd need an API to resolve postId.
-      // For now, let's navigate to the post and highlight the newest comment.
-      navigate(`/community/${notif.referenceId}?highlightNewest=true`);
-    } else if (
-      notif.notificationType.includes('REPORT_PROCESSED') &&
-      user?.role?.includes('ADMIN')
-    ) {
-      // Admins might want to see the report list too, but user asked for the content.
-      // If we have a referenceId (which is likely postId), it will be handled above by 'POST'.
+      return;
+    }
+
+    if (notif.referenceType === 'COMMENT' && notif.postId && notif.referenceId) {
+      navigate(`/community/${notif.postId}?commentId=${notif.referenceId}`);
+      return;
+    }
+
+    if (notif.notificationType.includes('REPORT_PROCESSED') && user?.role?.includes('ADMIN')) {
+      return;
     }
   };
 
@@ -122,6 +123,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                     t.path.startsWith(tab.path) &&
                     location.pathname.startsWith(t.path)
                 );
+
               return (
                 <div
                   key={tab.label}
@@ -163,9 +165,12 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                 </svg>
               </div>
             )}
+
             <div className="relative" ref={dropdownRef}>
               <div
-                className={`relative cursor-pointer text-[20px] transition-transform hover:scale-110 ${isDropdownOpen ? 'text-primary-blue' : 'text-eel'}`}
+                className={`relative cursor-pointer text-[20px] transition-transform hover:scale-110 ${
+                  isDropdownOpen ? 'text-primary-blue' : 'text-eel'
+                }`}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
                 🔔
@@ -189,6 +194,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                       </button>
                     )}
                   </div>
+
                   <div className="max-h-96 overflow-y-auto">
                     {notifications.length === 0 ? (
                       <div className="py-10 text-center text-gray-400 text-[13px]">
@@ -198,7 +204,9 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                       notifications.map((notif) => (
                         <div
                           key={notif.notificationId}
-                          className={`group px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col gap-0.5 border-b border-gray-50 last:border-0 relative ${!notif.isRead ? 'bg-blue-50/30' : ''}`}
+                          className={`group px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col gap-0.5 border-b border-gray-50 last:border-0 relative ${
+                            !notif.isRead ? 'bg-blue-50/30' : ''
+                          }`}
                           onClick={() => handleNotificationClick(notif)}
                         >
                           <div className="flex justify-between items-start gap-2 pr-5">
@@ -209,17 +217,19 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                               {formatTime(notif.createdAt)}
                             </span>
                           </div>
+
                           <p className="text-[12px] text-gray-600 line-clamp-2 leading-relaxed pr-5">
                             {notif.body}
                           </p>
+
                           {!notif.isRead && (
                             <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1"></div>
                           )}
 
                           <button
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              dismissNotification(notif.notificationId);
+                              await dismissNotification(notif.notificationId);
                             }}
                             className="absolute top-2.5 right-2 p-1 text-gray-300 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
                             title="알림 지우기"
@@ -242,10 +252,10 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                       ))
                     )}
                   </div>
+
                   <div
                     className="px-4 py-2.5 text-center border-t border-gray-50 bg-gray-50/30 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => {
-                      /* navigate to a full notification page if exists */
                       setIsDropdownOpen(false);
                     }}
                   >
@@ -254,12 +264,14 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                 </div>
               )}
             </div>
+
             <div
               className="cursor-pointer text-[20px] text-eel hover:text-primary-blue transition-colors"
               title={user?.nickname ? `${user.nickname}님의 마이페이지` : '마이페이지'}
             >
               👤
             </div>
+
             <button
               className="px-3 py-1.5 text-[13px] font-bold text-eel border-b-2 border-eel hover:text-primary-blue hover:border-primary-blue transition-colors ml-2.5"
               onClick={onLogout}
