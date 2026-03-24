@@ -1,5 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import AppLayout from '@/shared/components/AppLayout';
 import { LoginPage } from '@/features/auth';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -84,6 +86,10 @@ export const AuthenticatedLayoutRoute = () => {
     return <Navigate to="/login" replace />;
   }
 
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
   return <AppLayout user={user} onLogout={handleLogout} isAuthenticated={isAuthenticated} />;
 };
 
@@ -99,5 +105,5 @@ export const PrDetailRoute = () => {
 
 export const PrCreateRoute = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <PrCreatePage /> : <Navigate to="/" replace />;
+  return isAuthenticated ? <Navigate to="/community/write?category=PR" replace /> : <Navigate to="/" replace />;
 };

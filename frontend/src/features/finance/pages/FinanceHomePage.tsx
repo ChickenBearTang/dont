@@ -5,6 +5,7 @@ import { useCurrentMonthSpending } from '../report/hooks/useReportQueries';
 import { useGetMyAccounts, useGetSavingsSetting } from '../account/hooks/useAccountQueries';
 import { ManualSavingsModal } from '../account/components/ManualSavingsModal';
 
+
 /**
  * 금융 카테고리 카드 컴포넌트
  * 크기를 줄여 한 화면에 들어오도록 최적화

@@ -1,6 +1,10 @@
 package com.ssafy.edu.awesomeproject.domain.notification.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+<<<<<<< HEAD
+=======
+import com.ssafy.edu.awesomeproject.domain.community.repository.CommentRepository;
+>>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
 import com.ssafy.edu.awesomeproject.domain.notification.dto.response.NotificationListResponseDto;
 import com.ssafy.edu.awesomeproject.domain.notification.dto.response.NotificationReadAllResponseDto;
 import com.ssafy.edu.awesomeproject.domain.notification.dto.response.NotificationReadResponseDto;
@@ -23,11 +27,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+<<<<<<< HEAD
 
     public NotificationService(
             NotificationRepository notificationRepository, UserRepository userRepository) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
+=======
+    private final CommentRepository commentRepository;
+
+    public NotificationService(
+            NotificationRepository notificationRepository,
+            UserRepository userRepository,
+            CommentRepository commentRepository) {
+        this.notificationRepository = notificationRepository;
+        this.userRepository = userRepository;
+        this.commentRepository = commentRepository;
+>>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
     }
 
     @Transactional(readOnly = true)
@@ -44,6 +60,7 @@ public class NotificationService {
                 notificationRepository.findByUserIdOrderByIdDesc(userId, pageRequest);
 
         List<NotificationListResponseDto.NotificationSummaryDto> content =
+<<<<<<< HEAD
                 notificationPage.getContent().stream()
                         .map(
                                 notification ->
@@ -60,6 +77,29 @@ public class NotificationService {
                                                 notification.getPushedAt(),
                                                 notification.getCreatedAt()))
                         .toList();
+=======
+            notificationPage.getContent().stream()
+                .map(
+                    notification -> {
+                        NotificationTarget target = resolveTarget(notification);
+
+                        return new NotificationListResponseDto.NotificationSummaryDto(
+                            notification.getId(),
+                            notification.getNotificationType().name(),
+                            notification.getTitle(),
+                            notification.getBody(),
+                            notification.getReferenceType() == null
+                                ? null
+                                : notification.getReferenceType().name(),
+                            notification.getReferenceId(),
+                            notification.isRead(),
+                            notification.getPushedAt(),
+                            notification.getCreatedAt(),
+                            target.postId(),
+                            target.commentId());
+                    })
+                .toList();
+>>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
 
         return new NotificationListResponseDto(
                 content,
@@ -85,9 +125,15 @@ public class NotificationService {
                 notificationRepository
                         .findByIdAndUserId(notificationId, userId)
                         .orElseThrow(
+<<<<<<< HEAD
                                 () ->
                                         new NotificationException(
                                                 NotificationErrorCode.NOTIFICATION_NOT_FOUND));
+=======
+                            () ->
+                                    new NotificationException(
+                                            NotificationErrorCode.NOTIFICATION_NOT_FOUND));
+>>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
 
         notification.markAsRead();
 
@@ -119,9 +165,37 @@ public class NotificationService {
         notificationRepository.save(notification);
     }
 
+<<<<<<< HEAD
+=======
+    private NotificationTarget resolveTarget(Notification notification) {
+        if (notification.getReferenceType() == NotificationReferenceType.COMMENT
+            && notification.getReferenceId() != null) {
+            return commentRepository
+                .findById(notification.getReferenceId())
+                .map(
+                    comment ->
+                        new NotificationTarget(
+                            comment.getPost().getId(), comment.getId()))
+                .orElseGet(() -> new NotificationTarget(null, notification.getReferenceId()));
+        }
+
+        if (notification.getReferenceType() == NotificationReferenceType.POST
+            && notification.getReferenceId() != null) {
+            return new NotificationTarget(notification.getReferenceId(), null);
+        }
+
+        return new NotificationTarget(null, null);
+    }
+
+>>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
     private void validateUserExists(Long userId) {
         if (userId == null || !userRepository.existsById(userId)) {
             throw new NotificationException(NotificationErrorCode.USER_NOT_FOUND);
         }
     }
+<<<<<<< HEAD
+=======
+
+    private record NotificationTarget(Long postId, Long commentId) {}
+>>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
 }

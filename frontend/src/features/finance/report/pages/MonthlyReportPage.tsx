@@ -339,11 +339,10 @@ const ReportChatbot = ({
     return (
       <div className="fixed bottom-8 right-8 flex flex-col items-end z-50 pointer-events-none">
         <div
-          className={`mb-2 mr-2 flex flex-col items-end transition-all duration-500 ease-out z-50 ${
-            isHovered
-              ? 'opacity-100 translate-y-0 scale-100'
-              : 'opacity-0 translate-y-4 scale-90 pointer-events-none'
-          }`}
+          className={`mb-2 mr-2 flex flex-col items-end transition-all duration-500 ease-out z-50 ${isHovered
+            ? 'opacity-100 translate-y-0 scale-100'
+            : 'opacity-0 translate-y-4 scale-90 pointer-events-none'
+            }`}
         >
           <div className="bg-white px-4 py-2.5 rounded-2xl shadow-xl border border-gray-100 text-[13px] font-black text-eel mb-2 relative pointer-events-auto">
             리포트에 대해 불만이 있냐루?
@@ -352,9 +351,8 @@ const ReportChatbot = ({
           <img
             src={mascotJust}
             alt="질문하는 깐지"
-            className={`w-24 h-24 object-contain pointer-events-auto transition-transform duration-700 ${
-              isHovered ? '-rotate-[30deg]' : 'rotate-0'
-            } origin-bottom-right`}
+            className={`w-24 h-24 object-contain pointer-events-auto transition-transform duration-700 ${isHovered ? '-rotate-[30deg]' : 'rotate-0'
+              } origin-bottom-right`}
           />
         </div>
         <button
@@ -403,11 +401,10 @@ const ReportChatbot = ({
         {messages.map((m, idx) => (
           <div
             key={idx}
-            className={`max-w-[85%] rounded-2xl p-3 text-[14px] leading-relaxed shadow-sm ${
-              m.sender === 'user'
-                ? 'bg-blue-600 text-white self-end rounded-tr-sm'
-                : 'bg-white text-gray-800 self-start rounded-tl-sm border border-gray-100'
-            }`}
+            className={`max-w-[85%] rounded-2xl p-3 text-[14px] leading-relaxed shadow-sm ${m.sender === 'user'
+              ? 'bg-blue-600 text-white self-end rounded-tr-sm'
+              : 'bg-white text-gray-800 self-start rounded-tl-sm border border-gray-100'
+              }`}
           >
             {m.text}
           </div>
@@ -480,6 +477,7 @@ const ReportChatbot = ({
 export const MonthlyReportPage = () => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
+
 
   const [summary, setSummary] = useState<SpendingSummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -558,7 +556,6 @@ export const MonthlyReportPage = () => {
       setAiLoading(false);
     }
   };
-
   useEffect(() => {
     const fetchSummary = async () => {
       try {

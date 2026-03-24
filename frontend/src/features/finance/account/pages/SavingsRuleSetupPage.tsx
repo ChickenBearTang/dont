@@ -181,16 +181,14 @@ export const SavingsRuleSetupPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsActive(!isActive)}
-            className={`w-[60px] h-[32px] rounded-full transition-all duration-300 relative shadow-inner ${
-              isActive
-                ? 'bg-gradient-to-r from-primary-blue to-accent shadow-blue-200/50'
-                : 'bg-surface-soft border border-line-soft'
-            }`}
+            className={`w-[60px] h-[32px] rounded-full transition-all duration-300 relative shadow-inner ${isActive
+              ? 'bg-gradient-to-r from-primary-blue to-accent shadow-blue-200/50'
+              : 'bg-surface-soft border border-line-soft'
+              }`}
           >
             <div
-              className={`absolute top-[3px] w-[24px] h-[24px] bg-white rounded-full transition-all duration-300 shadow-sm ${
-                isActive ? 'left-[33px]' : 'left-[3px]'
-              }`}
+              className={`absolute top-[3px] w-[24px] h-[24px] bg-white rounded-full transition-all duration-300 shadow-sm ${isActive ? 'left-[33px]' : 'left-[3px]'
+                }`}
             />
           </button>
         </Card>

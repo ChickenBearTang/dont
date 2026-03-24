@@ -51,11 +51,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             aria-invalid={error ? 'true' : 'false'}
-            className={`${baseInputClassName} ${
-              error
-                ? 'bg-error-red/5 ring-2 ring-error-red focus:bg-white focus:shadow-[0_4px_24px_rgba(255,59,48,0.15)]'
-                : 'bg-[#eaeff5] shadow-[inset_0_2px_8px_rgba(15,23,42,0.06)] focus:bg-white focus:ring-1 focus:ring-primary-blue focus:border-primary-blue focus:shadow-[0_4px_24px_rgba(10,101,255,0.08)] hover:bg-[#dfe5f0]'
-            } ${inputClassName}`}
+            className={`${baseInputClassName} ${error
+              ? 'bg-error-red/5 ring-2 ring-error-red focus:bg-white focus:shadow-[0_4px_24px_rgba(255,59,48,0.15)]'
+              : 'bg-[#eaeff5] shadow-[inset_0_2px_8px_rgba(15,23,42,0.06)] focus:bg-white focus:ring-1 focus:ring-primary-blue focus:border-primary-blue focus:shadow-[0_4px_24px_rgba(10,101,255,0.08)] hover:bg-[#dfe5f0]'
+              } ${inputClassName}`}
             {...props}
             style={hasTrailingAdornment ? { paddingRight: '3.5rem' } : undefined}
           />
@@ -72,9 +71,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         </div>
         {message && (
           <p
-            className={`mt-1 text-[13px] font-bold ml-1 ${
-              error ? 'text-error-red' : hintTone === 'success' ? 'text-success' : 'text-text-muted'
-            }`}
+            className={`mt-1 text-[13px] font-bold ml-1 ${error ? 'text-error-red' : hintTone === 'success' ? 'text-success' : 'text-text-muted'
+              }`}
           >
             {message}
           </p>
@@ -83,5 +81,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     );
   }
 );
+
+Input.displayName = 'Input';
 
 Input.displayName = 'Input';

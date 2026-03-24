@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { useToast } from '@/shared/hooks';
 import {
   getAdminReports,
   getAdminReportDetail,
@@ -12,6 +13,7 @@ import { ReportProcessModal } from '@/features/community/components/ReportProces
 
 const AdminReportPage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const { user, isAuthInitializing } = useAuthStore();
   const [reports, setReports] = useState<AdminReportSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ const AdminReportPage: React.FC = () => {
     reportId: 0,
   });
 
-  // Robust admin check
+
   const isAdmin = user?.role?.includes('ADMIN');
   const prevUserRef = useRef(user);
 
@@ -43,14 +45,14 @@ const AdminReportPage: React.FC = () => {
       // If the user was never an admin or was null, it's an unauthorized access attempt -> alert
       const wasAdmin = prevUserRef.current?.role?.includes('ADMIN');
       if (!wasAdmin) {
-        alert('관리자 권한이 없습니다.');
+        toast.error('관리자 권한이 없습니다.');
       }
       navigate('/community');
     }
     prevUserRef.current = user;
-  }, [user, isAdmin, navigate, isAuthInitializing]);
+  }, [user, isAdmin, navigate, isAuthInitializing, toast]);
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getAdminReports(filterStatus, currentPage);
@@ -63,13 +65,13 @@ const AdminReportPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, filterStatus]);
 
   useEffect(() => {
     if (isAdmin) {
-      fetchReports();
+      void fetchReports();
     }
-  }, [currentPage, filterStatus, isAdmin]);
+  }, [fetchReports, isAdmin]);
 
   const handleViewDetail = async (reportId: number) => {
     try {
@@ -81,11 +83,11 @@ const AdminReportPage: React.FC = () => {
         }
         navigate(url);
       } else {
-        alert('게시물 정보를 찾을 수 없습니다.');
+        toast.error('게시물 정보를 찾을 수 없습니다.');
       }
     } catch (error) {
       console.error('Failed to fetch report detail:', error);
-      alert('상세 정보를 불러오는 중 오류가 발생했습니다.');
+      toast.error('상세 정보를 불러오는 중 오류가 발생했습니다.');
     }
   };
 
@@ -113,7 +115,7 @@ const AdminReportPage: React.FC = () => {
       });
     } catch (error) {
       console.error('Failed to fetch report detail for processing:', error);
-      alert('상세 정보를 불러오는 데 실패했습니다.');
+      toast.error('상세 정보를 불러오는 데 실패했습니다.');
     }
   };
 
@@ -126,11 +128,11 @@ const AdminReportPage: React.FC = () => {
       } else {
         await processReportReject(reportId, { processNote: note });
       }
-      alert(`${actionName} 처리가 완료되었습니다.`);
-      fetchReports();
+      toast.success(`${actionName} 처리가 완료되었습니다.`);
+      void fetchReports();
     } catch (error) {
       console.error(`Failed to ${type} report:`, error);
-      alert('처리 중 오류가 발생했습니다.');
+      toast.error('처리 중 오류가 발생했습니다.');
       throw error; // Let the modal handle the loading state
     }
   };
@@ -181,11 +183,10 @@ const AdminReportPage: React.FC = () => {
                 setFilterStatus(filterStatus === status ? undefined : status);
                 setCurrentPage(0);
               }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filterStatus === status
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterStatus === status
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
             >
               {status === 'RECEIVED' ? '대기중' : status === 'BLINDED' ? '블라인드' : '기각됨'}
             </button>

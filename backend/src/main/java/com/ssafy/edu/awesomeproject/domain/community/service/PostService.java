@@ -1,8 +1,11 @@
 package com.ssafy.edu.awesomeproject.domain.community.service;
 
+import com.ssafy.edu.awesomeproject.common.s3.service.S3AssetUrlResolver;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.error.AuthException;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.community.dto.request.PostAttachmentRequestDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.PostAttachmentResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Board;
 import com.ssafy.edu.awesomeproject.domain.community.entity.BoardCategory;
 import com.ssafy.edu.awesomeproject.domain.community.entity.CommentStatus;
@@ -58,6 +61,8 @@ public class PostService {
     private final PollVoteRepository pollVoteRepository;
     private final ReactionRepository reactionRepository;
     private final CommentRepository commentRepository;
+    private final PostAttachmentService postAttachmentService;
+    private final S3AssetUrlResolver s3AssetUrlResolver;
 
     public PostService(
             PostRepository postRepository,
@@ -70,7 +75,9 @@ public class PostService {
             PollPostRepository pollPostRepository,
             PollVoteRepository pollVoteRepository,
             ReactionRepository reactionRepository,
-            CommentRepository commentRepository) {
+            CommentRepository commentRepository,
+            PostAttachmentService postAttachmentService,
+            S3AssetUrlResolver s3AssetUrlResolver) {
         this.postRepository = postRepository;
         this.boardRepository = boardRepository;
         this.cohortRepository = cohortRepository;
@@ -82,6 +89,8 @@ public class PostService {
         this.pollVoteRepository = pollVoteRepository;
         this.reactionRepository = reactionRepository;
         this.commentRepository = commentRepository;
+        this.postAttachmentService = postAttachmentService;
+        this.s3AssetUrlResolver = s3AssetUrlResolver;
     }
 
     public CreatePostResult createPost(
@@ -89,7 +98,8 @@ public class PostService {
             BoardCategory category,
             Integer generationNo,
             String title,
-            String content) {
+            String content,
+            List<PostAttachmentRequestDto> attachments) {
 
         User user =
                 userRepository
@@ -115,6 +125,7 @@ public class PostService {
 
         Post post = new Post(board, user, title, content);
         Post savedPost = postRepository.save(post);
+        postAttachmentService.syncAttachments(savedPost, attachments);
 
         return new CreatePostResult(
                 savedPost.getId(),
@@ -147,6 +158,7 @@ public class PostService {
                 resolvePostContent(post),
                 post.getUser().getId(),
                 post.getUser().getNickname(),
+                s3AssetUrlResolver.resolvePublicUrlOrNull(post.getUser().getProfileImageUrl()),
                 post.isAuthor(userId),
                 Math.toIntExact(
                         reactionRepository.countByTargetTypeAndTargetIdAndReactionType(
@@ -157,6 +169,10 @@ public class PostService {
                 Math.toIntExact(
                         commentRepository.countByPost_IdAndStatusIn(
                                 post.getId(), READABLE_COMMENT_STATUSES)),
+<<<<<<< HEAD
+=======
+                postAttachmentService.getAttachments(post.getId()),
+>>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }
@@ -216,6 +232,9 @@ public class PostService {
         Map<Long, PollPost> pollByPostId = getPollByPostId(postPage.getContent(), category);
         Map<Long, PollVoteSummary> pollVoteSummaryByPostId =
                 getPollVoteSummaryByPostId(postPage.getContent(), category);
+        Set<Long> postIds = postPage.getContent().stream().map(Post::getId).collect(Collectors.toSet());
+        Map<Long, Integer> attachmentCountByPostId =
+                postAttachmentService.getAttachmentCountByPostIds(postIds);
 
         List<PostSummary> content =
                 postPage.getContent().stream()
@@ -254,6 +273,8 @@ public class PostService {
                                             resolvePostTitle(post),
                                             post.getUser().getId(),
                                             post.getUser().getNickname(),
+                                            s3AssetUrlResolver.resolvePublicUrlOrNull(
+                                                    post.getUser().getProfileImageUrl()),
                                             post.isAuthor(userId),
                                             Math.toIntExact(
                                                     reactionRepository
@@ -261,6 +282,7 @@ public class PostService {
                                                                     ReactionTargetType.POST,
                                                                     post.getId(),
                                                                     ReactionType.LIKE)),
+                                            attachmentCountByPostId.getOrDefault(post.getId(), 0),
                                             Math.toIntExact(
                                                     commentRepository.countByPost_IdAndStatusIn(
                                                             post.getId(),
@@ -279,7 +301,12 @@ public class PostService {
                 postPage.hasNext());
     }
 
-    public UpdatePostResult updatePost(Long userId, Long postId, String title, String content) {
+    public UpdatePostResult updatePost(
+            Long userId,
+            Long postId,
+            String title,
+            String content,
+            List<PostAttachmentRequestDto> attachments) {
         Post post =
                 postRepository
                         .findByIdAndStatus(postId, PostStatus.ACTIVE)
@@ -291,6 +318,7 @@ public class PostService {
         }
 
         post.update(title, content);
+        postAttachmentService.syncAttachments(post, attachments);
         return new UpdatePostResult(post.getId(), post.getUpdatedAt());
     }
 
@@ -418,6 +446,8 @@ public class PostService {
                         ? PrStatus.OPEN.name()
                         : PrStatus.CLOSED.name(),
                 prPost.getResultStatus(),
+                prPost.getItemName(),
+                prPost.getPriceAmount(),
                 totalVoteCount,
                 prPost.getDeadlineAt());
     }
@@ -513,10 +543,12 @@ public class PostService {
             String content,
             Long authorId,
             String authorNickname,
+            String authorProfileImageUrl,
             Boolean isMine,
             Integer likeCount,
             Integer dislikeCount,
             Integer commentCount,
+            List<PostAttachmentResponseDto> attachments,
             LocalDateTime createdAt,
             LocalDateTime updatedAt) {}
 
@@ -528,8 +560,10 @@ public class PostService {
             String title,
             Long authorId,
             String authorNickname,
+            String authorProfileImageUrl,
             Boolean isMine,
             Integer likeCount,
+            Integer attachmentCount,
             Integer commentCount,
             LocalDateTime createdAt,
             PostExtraSummary extraSummary) {}
@@ -541,7 +575,12 @@ public class PostService {
     public record PostExtraSummary(PrSummary pr, HotdealSummary hotdeal, PollSummary poll) {}
 
     public record PrSummary(
-            String status, String resultStatus, Long totalVoteCount, LocalDateTime deadlineAt) {}
+            String status,
+            String resultStatus,
+            String itemName,
+            Long priceAmount,
+            Long totalVoteCount,
+            LocalDateTime deadlineAt) {}
 
     public record HotdealSummary(
             Long dealPriceAmount,
