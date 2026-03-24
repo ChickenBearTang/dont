@@ -68,10 +68,9 @@ public class PrPostService {
             PrVoteRepository prVoteRepository,
             PrReviewRepository prReviewRepository,
             PrEventRepository prEventRepository,
-<<<<<<< HEAD
-=======
+
             PostAttachmentService postAttachmentService,
->>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
+
             ObjectMapper objectMapper,
             S3AssetUrlResolver s3AssetUrlResolver) {
         this.userRepository = userRepository;

@@ -217,11 +217,8 @@ public class ReportService {
         report.blind(adminUserId, requestDto.processNote());
         reportRepository.save(report);
 
-<<<<<<< HEAD
-=======
         sendReportProcessedNotification(report);
 
->>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
         return toProcessResponse(report);
     }
 
@@ -234,11 +231,6 @@ public class ReportService {
         report.reject(adminUserId, requestDto.processNote());
         reportRepository.save(report);
 
-<<<<<<< HEAD
-        return toProcessResponse(report);
-    }
-
-=======
         sendReportProcessedNotification(report);
 
         return toProcessResponse(report);
@@ -311,7 +303,6 @@ public class ReportService {
         return comment.getPost().getId();
     }
 
->>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
     private void blindTarget(Report report) {
         if (report.getTargetType() == ReportTargetType.POST) {
             Post post =
