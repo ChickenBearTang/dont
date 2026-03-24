@@ -1,10 +1,13 @@
 import { Card } from '@/shared/components';
+import { useEffect } from 'react';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import {
   useGetMyAccounts,
   useGetSavingsSetting,
 } from '@/features/finance/account/hooks/useAccountQueries';
 import { useCurrentMonthSpending } from '@/features/finance/report/hooks/useReportQueries';
+import { fetchMyPage } from '@/features/user/api/userApi';
+import { useQuery } from '@tanstack/react-query';
 
 const CATEGORY_COLORS = ['#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#10B981'];
 
@@ -124,9 +127,22 @@ const ExpenditureCard = () => {
 };
 
 export const DashboardPage = () => {
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const { data: accounts, isLoading: isLoadingAccounts } = useGetMyAccounts();
   const { data: setting, isLoading: isLoadingSetting } = useGetSavingsSetting();
+
+  const { data: profile } = useQuery({
+    queryKey: ['myPage'],
+    queryFn: () => fetchMyPage().then((res) => res.data),
+    staleTime: 1000 * 60 * 30, // 30분 동안은 캐시 유지
+  });
+
+  // 닉네임이 스토어에 없으면 업데이트
+  useEffect(() => {
+    if (profile?.nickname && user && !user.nickname) {
+      updateUser({ nickname: profile.nickname });
+    }
+  }, [profile?.nickname, user, updateUser]);
 
   const savebox =
     accounts?.find((a) => a.id === setting?.saveboxAccountId) ||
@@ -149,7 +165,7 @@ export const DashboardPage = () => {
           <h2 className="text-[1.75rem] lg:text-[2.25rem] font-black text-eel leading-[1.3] tracking-tight">
             안녕하세요,{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent">
-              {user?.nickname || '회원'}
+              {profile?.nickname || user?.nickname || '회원'}
             </span>
             님!
             <br />
@@ -200,7 +216,6 @@ export const DashboardPage = () => {
 };
 
 // --- 신규 위젯 컴포넌트 추가 ---
-import { useQuery } from '@tanstack/react-query';
 import axiosInstance from '@/shared/api/axiosInstance';
 import { getPosts } from '@/features/community/api/communityApi';
 import { useNavigate } from 'react-router-dom';

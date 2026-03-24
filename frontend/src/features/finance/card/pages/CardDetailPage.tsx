@@ -84,12 +84,14 @@ export const CardDetailPage = () => {
 
   const formatTransactionDate = (dateStr: string, timeStr: string) => {
     if (!dateStr) return '';
-    // Format YYYYMMDD and HHMMSS
+    // Format YYYYMMDD and HHMMSS (handle both raw digits and HH:mm:ss)
     const year = dateStr.slice(0, 4);
     const month = dateStr.slice(4, 6);
     const day = dateStr.slice(6, 8);
-    const hour = timeStr ? timeStr.slice(0, 2) : '00';
-    const min = timeStr ? timeStr.slice(2, 4) : '00';
+    
+    const cleanTime = timeStr ? timeStr.replace(/:/g, '') : '000000';
+    const hour = cleanTime.slice(0, 2).padStart(2, '0');
+    const min = cleanTime.slice(2, 4).padStart(2, '0');
 
     return `${year}년 ${parseInt(month, 10)}월 ${parseInt(day, 10)}일 ${hour}:${min}`;
   };
