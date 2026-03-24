@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/shared/hooks';
 import {
@@ -14,7 +14,7 @@ const FILTER_STATUSES = ['RECEIVED', 'BLINDED', 'REJECTED'] as const;
 
 const AdminReportPage: React.FC = () => {
   const navigate = useNavigate();
-  const toast = useToast();
+  const { success, error } = useToast();
   const [reports, setReports] = useState<AdminReportSummaryDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
@@ -34,7 +34,7 @@ const AdminReportPage: React.FC = () => {
     reportId: 0,
   });
 
-  const fetchReports = useCallback(async () => {
+  const loadReports = async () => {
     setLoading(true);
     try {
       const response = await getAdminReports(filterStatus, currentPage);
@@ -42,17 +42,19 @@ const AdminReportPage: React.FC = () => {
         setReports(response.data.content);
         setTotalPages(response.data.totalPages);
       }
-    } catch (error) {
-      console.error('Failed to fetch reports:', error);
-      toast.error('신고 목록을 불러오지 못했습니다.');
+    } catch (loadError) {
+      console.error('Failed to fetch reports:', loadError);
+      error('신고 목록을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
-  }, [currentPage, filterStatus, toast]);
+  };
 
   useEffect(() => {
-    void fetchReports();
-  }, [fetchReports]);
+    void loadReports();
+    // Deliberately keyed only to paging/filter state to avoid effect loops from toast object identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, filterStatus]);
 
   const handleViewDetail = async (reportId: number) => {
     try {
@@ -66,10 +68,10 @@ const AdminReportPage: React.FC = () => {
         return;
       }
 
-      toast.error('게시물 정보를 찾을 수 없습니다.');
-    } catch (error) {
-      console.error('Failed to fetch report detail:', error);
-      toast.error('상세 정보를 불러오는 중 오류가 발생했습니다.');
+      error('게시물 정보를 찾을 수 없습니다.');
+    } catch (detailError) {
+      console.error('Failed to fetch report detail:', detailError);
+      error('상세 정보를 불러오는 중 오류가 발생했습니다.');
     }
   };
 
@@ -93,9 +95,9 @@ const AdminReportPage: React.FC = () => {
         reasonLabel: reasonLabels[detail?.reasonCode || ''] || detail?.reasonCode,
         detailText: detail?.detailText,
       });
-    } catch (error) {
-      console.error('Failed to fetch report detail for processing:', error);
-      toast.error('상세 정보를 불러오지 못했습니다.');
+    } catch (detailError) {
+      console.error('Failed to fetch report detail for processing:', detailError);
+      error('상세 정보를 불러오지 못했습니다.');
     }
   };
 
@@ -110,12 +112,12 @@ const AdminReportPage: React.FC = () => {
         await processReportReject(reportId, { processNote: note });
       }
 
-      toast.success(`${actionLabel} 처리가 완료되었습니다.`);
-      await fetchReports();
-    } catch (error) {
-      console.error(`Failed to ${type} report:`, error);
-      toast.error('처리 중 오류가 발생했습니다.');
-      throw error;
+      success(`${actionLabel} 처리가 완료되었습니다.`);
+      await loadReports();
+    } catch (submitError) {
+      console.error(`Failed to ${type} report:`, submitError);
+      error('처리 중 오류가 발생했습니다.');
+      throw submitError;
     }
   };
 
@@ -229,7 +231,6 @@ const AdminReportPage: React.FC = () => {
                       >
                         상세보기
                       </button>
-
                       {report.reportStatus === 'RECEIVED' && (
                         <>
                           <button

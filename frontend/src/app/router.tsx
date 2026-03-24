@@ -114,19 +114,6 @@ export const router = createBrowserRouter([
                   return { Component: EditPostPage };
                 },
               },
-              {
-                element: <RequireAdminRoute />,
-                children: [
-                  {
-                    path: 'admin/reports',
-                    async lazy() {
-                      const { default: AdminReportPage } =
-                        await import('@/features/community/pages/AdminReportPage');
-                      return { Component: AdminReportPage };
-                    },
-                  },
-                ],
-              },
             ],
           },
           {
@@ -199,6 +186,19 @@ export const router = createBrowserRouter([
                 await import('@/features/finance/account/pages/SavingsRuleSetupPage');
               return { Component: SavingsRuleSetupPage };
             },
+          },
+          {
+            element: <RequireAdminRoute />,
+            children: [
+              {
+                path: '/admin/reports',
+                async lazy() {
+                  const { default: AdminReportPage } =
+                    await import('@/features/community/pages/AdminReportPage');
+                  return { Component: AdminReportPage };
+                },
+              },
+            ],
           },
           {
             path: '/ranking',

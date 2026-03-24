@@ -157,7 +157,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
               <button
                 type="button"
                 className="cursor-pointer text-gray-400 transition-all hover:scale-110 hover:text-red-500"
-                onClick={() => navigate('/community/admin/reports')}
+                onClick={() => navigate('/admin/reports')}
                 title="신고 관리"
               >
                 <svg

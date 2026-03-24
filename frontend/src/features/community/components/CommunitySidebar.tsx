@@ -149,7 +149,7 @@ export const CommunitySidebar = () => {
         <>
           <div className="h-px bg-line-soft my-2 mx-3" />
           <NavLink
-            to="/community/admin/reports"
+            to="/admin/reports"
             className={({ isActive }) =>
               `px-3 py-2.5 rounded-xl text-[13.5px] font-bold transition-all duration-300 flex items-center gap-2.5 ${isActive
                 ? 'bg-error-red/10 text-error-red shadow-sm'
