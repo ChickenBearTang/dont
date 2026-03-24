@@ -7,9 +7,10 @@ export type NotificationType =
   | 'POST_BLINDED'
   | 'COMMENT_BLINDED'
   | 'FINANCE_GENERIC'
+  | 'CONSUMPTION_REPORT_READY'
   | string;
 
-export type NotificationReferenceType = 'POST' | 'COMMENT' | string;
+export type NotificationReferenceType = 'POST' | 'COMMENT' | 'FINANCE' | string;
 
 export interface NotificationSummaryDto {
   notificationId: number;

@@ -11,6 +11,17 @@ interface HeaderProps {
   isAuthenticated: boolean;
 }
 
+const formatReferenceMonth = (referenceId?: number | null) => {
+  if (!referenceId) return null;
+
+  const raw = String(referenceId);
+  if (!/^\d{6}$/.test(raw)) return null;
+
+  const year = raw.slice(0, 4);
+  const month = raw.slice(4, 6);
+  return `${year}-${month}`;
+};
+
 /**
  * 전역 상단 네비게이션바 컴포넌트
  */
@@ -63,6 +74,20 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
     }
 
     setIsDropdownOpen(false);
+
+    if (
+      notif.notificationType === 'CONSUMPTION_REPORT_READY' ||
+      (notif.notificationType === 'FINANCE_GENERIC' && notif.referenceType === 'FINANCE')
+    ) {
+      const targetMonth = formatReferenceMonth(notif.referenceId);
+
+      if (targetMonth) {
+        navigate(`/finance/report?reportMonth=${targetMonth}`);
+      } else {
+        navigate('/finance/report');
+      }
+      return;
+    }
 
     if (notif.postId && notif.commentId) {
       navigate(`/community/${notif.postId}?commentId=${notif.commentId}`);
