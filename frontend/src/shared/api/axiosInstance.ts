@@ -1,4 +1,4 @@
-﻿import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import type { ApiResponse } from '@/shared/types';
 import type { TokenReissueResponseData } from '@/features/auth/types';

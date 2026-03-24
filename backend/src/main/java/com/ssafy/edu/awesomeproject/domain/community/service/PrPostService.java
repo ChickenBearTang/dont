@@ -56,6 +56,7 @@ public class PrPostService {
     private final PrVoteRepository prVoteRepository;
     private final PrReviewRepository prReviewRepository;
     private final PrEventRepository prEventRepository;
+    private final PostAttachmentService postAttachmentService;
     private final ObjectMapper objectMapper;
     private final S3AssetUrlResolver s3AssetUrlResolver;
 
@@ -67,6 +68,10 @@ public class PrPostService {
             PrVoteRepository prVoteRepository,
             PrReviewRepository prReviewRepository,
             PrEventRepository prEventRepository,
+<<<<<<< HEAD
+=======
+            PostAttachmentService postAttachmentService,
+>>>>>>> 729f51fe1c1d02ebf2139bb96d47f748323db339
             ObjectMapper objectMapper,
             S3AssetUrlResolver s3AssetUrlResolver) {
         this.userRepository = userRepository;
@@ -76,6 +81,7 @@ public class PrPostService {
         this.prVoteRepository = prVoteRepository;
         this.prReviewRepository = prReviewRepository;
         this.prEventRepository = prEventRepository;
+        this.postAttachmentService = postAttachmentService;
         this.objectMapper = objectMapper;
         this.s3AssetUrlResolver = s3AssetUrlResolver;
     }
@@ -92,6 +98,7 @@ public class PrPostService {
                                 user,
                                 prCreateRequestDto.title(),
                                 prCreateRequestDto.content()));
+        postAttachmentService.syncAttachments(savedPost, prCreateRequestDto.attachments());
 
         PrPost savedPrPost = prPostRepository.save(toEntity(savedPost, prCreateRequestDto));
         prEventRepository.save(
@@ -115,7 +122,8 @@ public class PrPostService {
     public PrVoteSubmitResponseDto vote(
             Long postId, Long userId, PrVoteSubmitRequestDto prVoteSubmitRequestDto) {
         PrPost prPost = getPurchaseRequestOrThrow(postId);
-        validatePurchaseRequestOpen(prPost, true);
+        syncDeadlineExpiration(prPost);
+        validatePurchaseRequestOpen(prPost);
         validateNotPurchaseRequestOwner(prPost, userId);
         validateNotAlreadyReacted(postId, userId);
 
@@ -155,8 +163,9 @@ public class PrPostService {
     @Transactional
     public PrCloseResponseDto close(Long postId, Long userId, PrCloseRequestDto prCloseRequestDto) {
         PrPost prPost = getPurchaseRequestOrThrow(postId);
+        syncDeadlineExpiration(prPost);
         validatePurchaseRequestOwner(prPost, userId);
-        validatePurchaseRequestOpen(prPost, true);
+        validatePurchaseRequestOpen(prPost);
 
         PrStatus targetStatus = mapCloseTargetStatus(prCloseRequestDto.resultStatus());
         prPost.close(targetStatus, PrCloseReason.USER_ACTION);
@@ -178,7 +187,7 @@ public class PrPostService {
 
         return new PrCloseResponseDto(
                 prPost.getPostId(),
-                PrStatus.CLOSED.name(),
+                prPost.getResultStatusEnum().name(),
                 prPost.getResultStatus(),
                 agreeCount,
                 disagreeCount,
@@ -186,8 +195,10 @@ public class PrPostService {
                 prPost.getClosedAt());
     }
 
+    @Transactional
     public PrDetailResponseDto detail(Long postId, Long currentUserId) {
         PrPost prPost = getPurchaseRequestOrThrow(postId);
+        syncDeadlineExpiration(prPost);
 
         long agreeCount = prVoteRepository.countByPostIdAndVoteValue(postId, PrVoteValue.AGREE);
         long disagreeCount =
@@ -224,27 +235,30 @@ public class PrPostService {
                         .toList();
         List<PrDetailEventDto> events = buildEventDtos(postId);
 
-        boolean deadlineExpired = isDeadlineExpired(prPost.getDeadlineAt());
-        boolean isOpen = prPost.getResultStatusEnum() == PrStatus.OPEN && !deadlineExpired;
-        String status =
-                prPost.getResultStatusEnum() == PrStatus.OPEN && deadlineExpired
-                        ? PrStatus.CLOSED.name()
-                        : prPost.getResultStatusEnum().name();
+        boolean isOpen = prPost.getResultStatusEnum() == PrStatus.OPEN;
         boolean isAuthor = prPost.getPost().isAuthor(currentUserId);
         boolean alreadyVoted = prVoteRepository.existsByPostIdAndUserId(postId, currentUserId);
         boolean canVote = isOpen && !isAuthor && !alreadyVoted;
         boolean canClose = isOpen && isAuthor;
+        Post post = prPost.getPost();
 
         return new PrDetailResponseDto(
                 prPost.getPostId(),
+                post.getTitle(),
+                post.getUser().getId(),
+                post.getUser().getNickname(),
+                s3AssetUrlResolver.resolvePublicUrlOrNull(post.getUser().getProfileImageUrl()),
                 prPost.getItemName(),
                 prPost.getPriceAmount(),
                 prPost.getCategory(),
-                prPost.getPost().getContent(),
+                post.getContent(),
                 prPost.getPurchaseUrl(),
-                prPost.getImageUrl(),
-                status,
-                status,
+                prPost.getDeadlineAt(),
+                prPost.getResultStatusEnum().name(),
+                prPost.getResultStatus(),
+                postAttachmentService.getAttachments(postId),
+                post.getCreatedAt(),
+                post.getUpdatedAt(),
                 agreeCount,
                 disagreeCount,
                 totalVoteCount,
@@ -339,16 +353,29 @@ public class PrPostService {
         }
     }
 
-    private void validatePurchaseRequestOpen(PrPost prPost, boolean autoCloseOnDeadlineExpired) {
-        if (autoCloseOnDeadlineExpired
-                && prPost.getResultStatusEnum() == PrStatus.OPEN
-                && isDeadlineExpired(prPost.getDeadlineAt())) {
-            prPost.close(PrStatus.CLOSED, PrCloseReason.DEADLINE_EXPIRED);
-        }
-
+    private void validatePurchaseRequestOpen(PrPost prPost) {
         if (prPost.getResultStatusEnum() != PrStatus.OPEN) {
             throw new CommunityException(CommunityErrorCode.PURCHASE_REQUEST_NOT_OPEN);
         }
+    }
+
+    private void syncDeadlineExpiration(PrPost prPost) {
+        if (prPost.getResultStatusEnum() != PrStatus.OPEN
+                || !isDeadlineExpired(prPost.getDeadlineAt())) {
+            return;
+        }
+
+        prPost.close(PrStatus.CLOSED, PrCloseReason.DEADLINE_EXPIRED);
+        prEventRepository.save(
+                new PrEvent(
+                        prPost.getPostId(),
+                        null,
+                        PrEventType.STATUS_CHANGED,
+                        writePayload(
+                                Map.of(
+                                        "before", PrStatus.OPEN.name(),
+                                        "after", PrStatus.CLOSED.name(),
+                                        "closeReason", PrCloseReason.DEADLINE_EXPIRED.name()))));
     }
 
     private boolean isDeadlineExpired(LocalDateTime deadlineAt) {
@@ -399,7 +426,6 @@ public class PrPostService {
                 prCreateRequestDto.priceAmount(),
                 prCreateRequestDto.category(),
                 prCreateRequestDto.purchaseUrl(),
-                prCreateRequestDto.imageUrl(),
                 prCreateRequestDto.deadlineAt());
     }
 }

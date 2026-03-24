@@ -64,11 +64,10 @@ export const PrimaryAccountChangeModal: React.FC<PrimaryAccountChangeModalProps>
                 key={account.id}
                 onClick={() => handleSelect(account.id)}
                 disabled={isPending}
-                className={`w-full p-5 rounded-2xl border-2 transition-all flex items-center justify-between group ${
-                  account.id === currentPrimaryAccountId
-                    ? 'border-primary-blue bg-blue-50/30'
-                    : 'border-gray-50 bg-white hover:border-primary-blue/30 hover:bg-gray-50/50'
-                }`}
+                className={`w-full p-5 rounded-2xl border-2 transition-all flex items-center justify-between group ${account.id === currentPrimaryAccountId
+                  ? 'border-primary-blue bg-blue-50/30'
+                  : 'border-gray-50 bg-white hover:border-primary-blue/30 hover:bg-gray-50/50'
+                  }`}
               >
                 <div className="text-left">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter block mb-1">

@@ -4,8 +4,11 @@ import {
   createComment,
   deleteComment,
   deletePost,
+  getHotdealDetail,
   getComments,
+  getPollDetail,
   getPost,
+  submitPollVote,
   toggleReaction,
   updateComment,
 } from '../api/communityApi';
@@ -13,11 +16,15 @@ import type {
   BoardCategory,
   CommentSummaryDto,
   GetPostResponseDto,
+  HotdealDetailResponseDto,
+  PollDetailResponseDto,
   ReactionType,
   ReportTargetType,
 } from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { ReportModal } from '../components/ReportModal';
+import { UserAvatar } from '../components/UserAvatar';
+import { LinkifiedText } from '../components/LinkifiedText';
 import { Card, Button } from '@/shared/components';
 
 interface CommentNode extends CommentSummaryDto {
@@ -36,6 +43,17 @@ interface CommentItemProps {
   formatDate: (dateStr: string) => string;
   onReport: (type: ReportTargetType, id: number) => void;
   highlightedCommentId: number | null;
+}
+
+interface PollVotePanelProps {
+  detail: PollDetailResponseDto;
+  selectedVote: 'OPTION_A' | 'OPTION_B' | null;
+  isSubmittingVote: boolean;
+  onVote: (voteOption: 'OPTION_A' | 'OPTION_B') => void;
+}
+
+interface HotdealInfoPanelProps {
+  detail: HotdealDetailResponseDto;
 }
 
 const CommentItem = ({
@@ -144,14 +162,15 @@ const CommentItem = ({
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col transition-all duration-1000 ${
-        isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
-      } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
+      className={`flex flex-col transition-all duration-1000 ${isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
+        } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
     >
       <div className="flex gap-3">
-        <div className="w-[34px] h-[34px] bg-gray-100 rounded-full shrink-0 flex justify-center items-center font-bold text-gray-400 text-[14px] overflow-hidden">
-          {node.isVirtual ? '?' : (node.authorNickname || '?')[0]}
-        </div>
+        <UserAvatar
+          profileImageUrl={node.isVirtual ? null : node.authorProfileImageUrl}
+          nickname={node.isVirtual ? '?' : node.authorNickname}
+          className="h-[34px] w-[34px] shrink-0 text-[14px]"
+        />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
@@ -224,18 +243,18 @@ const CommentItem = ({
                 >
                   저장
                 </button>
-              </div>
             </form>
           ) : (
-            <div
+            <LinkifiedText
+              text={
+                node.status === 'BLINDED'
+                  ? '신고 처리된 댓글입니다.'
+                  : node.isVirtual
+                    ? '삭제된 댓글입니다.'
+                    : node.content
+              }
               className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual || node.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
-            >
-              {node.status === 'BLINDED'
-                ? '신고 처리된 댓글입니다.'
-                : node.isVirtual
-                  ? '삭제된 댓글입니다.'
-                  : node.content}
-            </div>
+            />
           )}
 
           {!node.isVirtual && (
@@ -348,6 +367,193 @@ const CommentItem = ({
   );
 };
 
+const PollVotePanel = ({
+  detail,
+  selectedVote,
+  isSubmittingVote,
+  onVote,
+}: PollVotePanelProps) => {
+  const totalVotes = detail.totalVoteCount || 0;
+  const optionARate = totalVotes > 0 ? Math.round((detail.optionACount / totalVotes) * 100) : 0;
+  const optionBRate = totalVotes > 0 ? Math.round((detail.optionBCount / totalVotes) * 100) : 0;
+
+  return (
+    <div className="mt-6 rounded-[28px] border border-gray-200 bg-white p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-700">
+            POLL
+          </span>
+          <h2 className="mt-3 text-[24px] font-black leading-tight text-gray-900">
+            {detail.question}
+          </h2>
+          <p className="mt-2 text-[13px] font-medium text-gray-500">
+            마감 {detail.deadlineAt ? new Date(detail.deadlineAt).toLocaleString('ko-KR') : '-'}
+          </p>
+        </div>
+        <span
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${detail.isClosed ? 'border-slate-200 bg-slate-100 text-slate-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}
+        >
+          {detail.isClosed ? 'CLOSED' : 'OPEN'}
+        </span>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {[
+          {
+            voteOption: 'OPTION_A' as const,
+            label: detail.optionA,
+            count: detail.optionACount,
+            rate: optionARate,
+            tone: 'bg-emerald-500',
+            selectedClass: 'border-emerald-300 bg-emerald-50',
+          },
+          {
+            voteOption: 'OPTION_B' as const,
+            label: detail.optionB,
+            count: detail.optionBCount,
+            rate: optionBRate,
+            tone: 'bg-teal-500',
+            selectedClass: 'border-teal-300 bg-teal-50',
+          },
+        ].map((option) => {
+          const isSelected = selectedVote === option.voteOption;
+
+          return (
+            <button
+              key={option.voteOption}
+              type="button"
+              disabled={detail.isClosed || isSubmittingVote}
+              onClick={() => onVote(option.voteOption)}
+              className={`rounded-2xl border px-5 py-5 text-left transition ${detail.isClosed
+                ? 'cursor-not-allowed border-gray-200 bg-gray-50'
+                : isSelected
+                  ? option.selectedClass
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[16px] font-bold text-gray-900">{option.label}</p>
+                <span className="text-[13px] font-bold text-gray-500">{option.count}표</span>
+              </div>
+              <div className="mt-4 h-2 rounded-full bg-white/90">
+                <div
+                  className={`h-2 rounded-full ${option.tone}`}
+                  style={{ width: `${option.rate}%` }}
+                />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[12px] font-medium text-gray-500">
+                <span>{option.rate}%</span>
+                <span>{isSelected ? '내 선택' : '선택하기'}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between text-[13px] font-medium text-gray-500">
+        <span>총 {totalVotes}명 참여</span>
+        <span>{detail.isClosed ? '마감된 토론입니다.' : '마감 전까지 선택을 변경할 수 있습니다.'}</span>
+      </div>
+    </div>
+  );
+};
+
+const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
+  const discountRate =
+    detail.originalPriceAmount && detail.originalPriceAmount > 0
+      ? Math.max(
+        0,
+        Math.round(
+          ((detail.originalPriceAmount - detail.dealPriceAmount) / detail.originalPriceAmount) * 100
+        )
+      )
+      : null;
+  const isExpired = detail.expiredAt ? new Date(detail.expiredAt).getTime() <= Date.now() : false;
+
+  return (
+    <div className="mt-6 rounded-[28px] border border-gray-200 bg-white p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <span className="inline-flex rounded-full bg-rose-100 px-3 py-1 text-[11px] font-bold text-rose-700">
+            HOTDEAL
+          </span>
+          <h2 className="mt-3 text-[24px] font-black leading-tight text-gray-900">
+            {detail.productName}
+          </h2>
+          <p className="mt-2 text-[13px] font-medium text-gray-500">
+            {detail.storeName || '판매처 미정'}
+          </p>
+        </div>
+        <span
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${isExpired
+            ? 'border-slate-200 bg-slate-100 text-slate-700'
+            : 'border-rose-200 bg-rose-50 text-rose-700'
+            }`}
+        >
+          {isExpired ? 'EXPIRED' : 'LIVE'}
+        </span>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+          <p className="text-[12px] font-semibold text-gray-400">구매 정보</p>
+          <div className="mt-4 space-y-3">
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400">딜 가격</p>
+              <p className="mt-1 text-[28px] font-black leading-none text-gray-900">
+                {new Intl.NumberFormat('ko-KR', {
+                  style: 'currency',
+                  currency: 'KRW',
+                  maximumFractionDigits: 0,
+                }).format(detail.dealPriceAmount)}
+              </p>
+            </div>
+            {detail.originalPriceAmount ? (
+              <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold">
+                <span className="text-gray-400 line-through">
+                  {new Intl.NumberFormat('ko-KR', {
+                    style: 'currency',
+                    currency: 'KRW',
+                    maximumFractionDigits: 0,
+                  }).format(detail.originalPriceAmount)}
+                </span>
+                {discountRate != null ? <span className="text-rose-600">{discountRate}% 할인</span> : null}
+              </div>
+            ) : null}
+            {detail.shippingInfo ? (
+              <div className="rounded-xl bg-white px-4 py-3 text-[13px] font-medium text-gray-600">
+                배송: {detail.shippingInfo}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-5">
+          <p className="text-[12px] font-semibold text-gray-400">구매 링크</p>
+          <div className="mt-4 space-y-3 text-[13px] font-medium text-gray-600">
+            <p>종료 {detail.expiredAt ? new Date(detail.expiredAt).toLocaleString('ko-KR') : '-'}</p>
+            {detail.dealUrl ? (
+              <a
+                href={detail.dealUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-slate-900 px-4 text-[14px] font-bold text-white transition hover:bg-slate-800"
+              >
+                구매처에서 보기
+              </a>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-200 px-4 py-3 text-center text-[13px] text-gray-400">
+                등록된 딜 링크가 없습니다.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
   const [searchParams] = useSearchParams();
@@ -365,8 +571,13 @@ export const PostDetailPage = () => {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [pollDetail, setPollDetail] = useState<PollDetailResponseDto | null>(null);
+  const [hotdealDetail, setHotdealDetail] = useState<HotdealDetailResponseDto | null>(null);
+  const [selectedPollVote, setSelectedPollVote] = useState<'OPTION_A' | 'OPTION_B' | null>(null);
+  const [submittingPollVote, setSubmittingPollVote] = useState(false);
 
   const reactionStorageKey = `post_reaction_${postId}`;
+  const pollVoteStorageKey = `poll_vote_${postId}`;
   const [selectedReaction, setSelectedReaction] = useState<ReactionType | null>(() => {
     const saved = localStorage.getItem(reactionStorageKey);
     return saved === 'LIKE' || saved === 'DISLIKE' ? (saved as ReactionType) : null;
@@ -455,6 +666,26 @@ export const PostDetailPage = () => {
           setSelectedReaction(
             saved === 'LIKE' || saved === 'DISLIKE' ? (saved as ReactionType) : null
           );
+          if (postRes.data.category === 'POLL') {
+            const pollRes = await getPollDetail(Number(postId));
+            setPollDetail(pollRes.data ?? null);
+            const savedPollVote = localStorage.getItem(pollVoteStorageKey);
+            setSelectedPollVote(
+              savedPollVote === 'OPTION_A' || savedPollVote === 'OPTION_B'
+                ? (savedPollVote as 'OPTION_A' | 'OPTION_B')
+                : null
+            );
+            setHotdealDetail(null);
+          } else if (postRes.data.category === 'HOTDEAL') {
+            const hotdealRes = await getHotdealDetail(Number(postId));
+            setHotdealDetail(hotdealRes.data ?? null);
+            setPollDetail(null);
+            setSelectedPollVote(null);
+          } else {
+            setPollDetail(null);
+            setHotdealDetail(null);
+            setSelectedPollVote(null);
+          }
         } else {
           setError('게시글을 찾을 수 없습니다.');
         }
@@ -465,7 +696,7 @@ export const PostDetailPage = () => {
       }
     };
     fetchPostDetail();
-  }, [postId, reactionStorageKey]);
+  }, [pollVoteStorageKey, postId, reactionStorageKey]);
 
   const refreshComments = async () => {
     if (!postId) return;
@@ -529,6 +760,33 @@ export const PostDetailPage = () => {
     }
   };
 
+  const handlePollVote = async (voteOption: 'OPTION_A' | 'OPTION_B') => {
+    if (!postId || !pollDetail || pollDetail.isClosed || submittingPollVote) return;
+
+    setSubmittingPollVote(true);
+    try {
+      const res = await submitPollVote(Number(postId), { voteOption });
+      if (res.data) {
+        setPollDetail((prev) =>
+          prev
+            ? {
+              ...prev,
+              optionACount: res.data.optionACount,
+              optionBCount: res.data.optionBCount,
+              totalVoteCount: res.data.totalVoteCount,
+            }
+            : prev
+        );
+        setSelectedPollVote(voteOption);
+        localStorage.setItem(pollVoteStorageKey, voteOption);
+      }
+    } catch {
+      alert('토론 투표에 실패했습니다.');
+    } finally {
+      setSubmittingPollVote(false);
+    }
+  };
+
   const handleToggleReaction = async (rType: ReactionType) => {
     if (!postId || !post || post.status === 'BLINDED') return;
     const oppositeType: ReactionType = rType === 'LIKE' ? 'DISLIKE' : 'LIKE';
@@ -547,10 +805,10 @@ export const PostDetailPage = () => {
           setPost((prev) =>
             prev
               ? {
-                  ...prev,
-                  likeCount: resOpp.data!.likeCount,
-                  dislikeCount: resOpp.data!.dislikeCount,
-                }
+                ...prev,
+                likeCount: resOpp.data!.likeCount,
+                dislikeCount: resOpp.data!.dislikeCount,
+              }
               : null
           );
           setSelectedReaction(null);
@@ -732,15 +990,15 @@ export const PostDetailPage = () => {
         </div>
       </div>
 
-      <div className="w-full overflow-y-auto relative z-10 pb-10">
-        <div className="px-5 pt-6 flex items-start gap-4 w-full">
-          <div
-            className={`w-[48px] h-[48px] rounded-full flex items-center justify-center text-white font-black text-[20px] shrink-0 ${getCategoryDot(post.category)} shadow-sm`}
-          >
-            {(post.authorNickname || '?')[0]}
-          </div>
-          <div className="pt-1">
-            <div className="text-[16px] font-black text-eel leading-tight tracking-tight">
+      <div className="w-full overflow-y-auto">
+        <div className="px-5 pt-6 flex items-start gap-3 w-full">
+          <UserAvatar
+            profileImageUrl={post.authorProfileImageUrl}
+            nickname={post.authorNickname}
+            className={`h-[42px] w-[42px] shrink-0 text-[18px] ${getCategoryDot(post.category)} text-white`}
+          />
+          <div className="pt-0.5">
+            <div className="text-[15px] font-bold text-gray-900 leading-tight">
               {post.authorNickname || '알 수 없음'}
             </div>
             <div className="text-[13px] text-text-muted font-bold mt-1">
@@ -749,33 +1007,82 @@ export const PostDetailPage = () => {
           </div>
         </div>
 
-        <div className="px-5 mt-6">
+        <div className="px-5 mt-5">
           <h1
-            className={`text-[24px] font-black leading-[1.4] tracking-tight whitespace-pre-wrap ${post.status === 'BLINDED' ? 'text-text-muted italic' : 'text-eel'}`}
+            className={`text-[20px] font-bold leading-snug tracking-[-0.01em] whitespace-pre-wrap ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-900'}`}
           >
             {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
           </h1>
-          <div
-            className={`mt-6 text-[15.5px] leading-[1.8] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-text-muted italic' : 'text-text-strong'}`}
-          >
-            {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
-          </div>
+          {post.status !== 'BLINDED' && post.category === 'POLL' && pollDetail ? (
+            <PollVotePanel
+              detail={pollDetail}
+              selectedVote={selectedPollVote}
+              isSubmittingVote={submittingPollVote}
+              onVote={handlePollVote}
+            />
+          ) : null}
+          {post.status !== 'BLINDED' && post.category === 'HOTDEAL' && hotdealDetail ? (
+            <HotdealInfoPanel detail={hotdealDetail} />
+          ) : null}
+          <LinkifiedText
+            text={post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
+            className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
+          />
+          {post.status !== 'BLINDED' && post.attachments.length > 0 ? (
+            <div className="mt-5 space-y-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+              <div className="text-[13px] font-bold text-gray-700">
+                첨부파일 {post.attachments.length}개
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {post.attachments.map((attachment) => {
+                  const isImage = attachment.contentType.startsWith('image/');
+
+                  return (
+                    <a
+                      key={attachment.attachmentId}
+                      href={attachment.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:border-blue-200 hover:shadow-sm"
+                    >
+                      {isImage ? (
+                        <img
+                          src={attachment.fileUrl}
+                          alt={attachment.fileName}
+                          className="h-44 w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-44 items-center justify-center bg-gray-50 text-[13px] font-semibold text-gray-400">
+                          파일 미리보기 없음
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-semibold text-gray-800">
+                            {attachment.fileName}
+                          </p>
+                          <p className="mt-1 text-[12px] text-gray-400">
+                            {Math.max(1, Math.round(attachment.fileSize / 1024))} KB
+                          </p>
+                        </div>
+                        <span className="text-[12px] font-bold text-blue-600">열기</span>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-10 px-5 flex items-center gap-2">
           <button
             onClick={() => handleToggleReaction('LIKE')}
             disabled={post.status === 'BLINDED'}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 transition-all duration-300 font-bold ${
-              post.status === 'BLINDED'
-                ? 'opacity-50 cursor-not-allowed border flex-1 border-line-soft bg-surface-soft text-text-muted shrink-0'
-                : selectedReaction === 'LIKE'
-                  ? 'border border-primary-blue bg-primary-blue/5 text-primary-blue shadow-sm'
-                  : 'border border-line-soft hover:bg-surface-soft text-text-muted'
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'LIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-text-muted' : selectedReaction === 'LIKE' ? 'text-primary-blue' : 'text-text-muted'}`}
+              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'LIKE' ? 'text-blue-600' : 'text-gray-800'}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -787,21 +1094,19 @@ export const PostDetailPage = () => {
                 d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
               />
             </svg>
-            <span className="text-[13px]">좋아요 {post.likeCount}</span>
+            <span
+              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'LIKE' ? 'text-blue-700' : 'text-gray-700'}`}
+            >
+              좋아요 {post.likeCount}
+            </span>
           </button>
           <button
             onClick={() => handleToggleReaction('DISLIKE')}
             disabled={post.status === 'BLINDED'}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 transition-all duration-300 font-bold ${
-              post.status === 'BLINDED'
-                ? 'opacity-50 cursor-not-allowed border border-line-soft bg-surface-soft text-text-muted shrink-0'
-                : selectedReaction === 'DISLIKE'
-                  ? 'border border-error-red bg-error-red/5 text-error-red shadow-sm'
-                  : 'border border-line-soft hover:bg-surface-soft text-text-muted'
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'DISLIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-text-muted' : selectedReaction === 'DISLIKE' ? 'text-error-red' : 'text-text-muted'}`}
+              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'DISLIKE' ? 'text-blue-600' : 'text-gray-800'}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -813,7 +1118,11 @@ export const PostDetailPage = () => {
                 d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"
               />
             </svg>
-            <span className="text-[13px]">싫어요 {post.dislikeCount}</span>
+            <span
+              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'DISLIKE' ? 'text-blue-700' : 'text-gray-700'}`}
+            >
+              싫어요 {post.dislikeCount}
+            </span>
           </button>
         </div>
 
@@ -858,22 +1167,22 @@ export const PostDetailPage = () => {
       {post.status !== 'BLINDED' && (
         <form
           onSubmit={handleCommentSubmit}
-          className="sticky bottom-0 bg-white/80 backdrop-blur-md border-t border-line-soft px-4 py-3 z-30"
+          className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-3"
         >
           <div className="flex items-center gap-2">
             <input
               value={commentInput}
               onChange={(e) => setCommentInput(e.target.value)}
               placeholder="댓글을 입력하세요."
-              className="flex-1 h-11 px-4 rounded-full bg-surface-soft border-line-soft font-bold text-eel text-[14px] outline-none placeholder:text-text-muted focus:border-primary-blue focus:bg-white transition-all shadow-sm"
+              className="flex-1 h-11 px-4 rounded-full bg-gray-100 text-[14px] outline-none placeholder:text-gray-400"
             />
-            <Button
+            <button
               type="submit"
               disabled={submittingComment || !commentInput.trim()}
-              className="!rounded-full !px-6"
+              className="h-11 px-4 rounded-full bg-blue-600 text-white text-[14px] font-bold disabled:bg-gray-300 transition-colors"
             >
               등록
-            </Button>
+            </button>
           </div>
         </form>
       )}
@@ -887,3 +1196,4 @@ export const PostDetailPage = () => {
     </Card>
   );
 };
+

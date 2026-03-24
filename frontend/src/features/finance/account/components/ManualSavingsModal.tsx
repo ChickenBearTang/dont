@@ -95,11 +95,10 @@ export const ManualSavingsModal: React.FC<ManualSavingsModalProps> = ({
           <button
             onClick={handleSavings}
             disabled={isPending}
-            className={`py-4 rounded-2xl font-black transition-all active:scale-95 shadow-lg ${
-              isPending
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-primary-blue text-white shadow-blue-100 hover:bg-blue-600'
-            }`}
+            className={`py-4 rounded-2xl font-black transition-all active:scale-95 shadow-lg ${isPending
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-primary-blue text-white shadow-blue-100 hover:bg-blue-600'
+              }`}
           >
             {isPending ? '처리 중...' : '저축하기'}
           </button>
