@@ -19,6 +19,12 @@ const formatFileSize = (fileSize: number) => {
   return `${fileSize}B`;
 };
 
+const isImageAttachment = (attachment: PostAttachmentDto) =>
+  attachment.contentType.startsWith('image/');
+
+const isPdfAttachment = (attachment: PostAttachmentDto) =>
+  attachment.contentType === 'application/pdf';
+
 export const AttachmentUploader = ({
   attachments,
   onChange,
@@ -89,15 +95,54 @@ export const AttachmentUploader = ({
           {attachments.map((attachment, index) => (
             <div
               key={`${attachment.fileName}-${attachment.fileSize}-${index}`}
-              className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 last:border-0"
+              className="flex items-center justify-between gap-4 border-b border-gray-100 px-4 py-4 last:border-0"
             >
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-semibold text-gray-800">
-                  {attachment.fileName}
-                </p>
-                <p className="mt-0.5 text-[12px] text-gray-400">
-                  {attachment.contentType} · {formatFileSize(attachment.fileSize)}
-                </p>
+              <div className="flex min-w-0 items-center gap-4">
+                {isImageAttachment(attachment) ? (
+                  <a
+                    href={attachment.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-white"
+                  >
+                    <img
+                      src={attachment.fileUrl}
+                      alt={attachment.fileName}
+                      className="h-full w-full object-cover"
+                    />
+                  </a>
+                ) : (
+                  <a
+                    href={attachment.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-white"
+                  >
+                    <div className="text-center">
+                      <div className="text-[22px] font-black text-rose-500">
+                        {isPdfAttachment(attachment) ? 'PDF' : 'FILE'}
+                      </div>
+                      <div className="mt-1 text-[11px] font-semibold text-gray-400">열기</div>
+                    </div>
+                  </a>
+                )}
+
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-semibold text-gray-800">
+                    {attachment.fileName}
+                  </p>
+                  <p className="mt-1 text-[12px] text-gray-400">
+                    {attachment.contentType} · {formatFileSize(attachment.fileSize)}
+                  </p>
+                  <a
+                    href={attachment.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex text-[12px] font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    새 탭에서 보기
+                  </a>
+                </div>
               </div>
               <button
                 type="button"
