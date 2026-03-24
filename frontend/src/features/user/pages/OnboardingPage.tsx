@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components';
 import { Mascot } from '@/shared/components/Mascot';
 import { fetchOnboardingStatus, submitOnboarding } from '../api/userApi';
+import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/shared/hooks';
 import { formatNumber } from '@/shared/utils';
 
@@ -16,6 +17,7 @@ const VARIABLE_COST_OPTIONS = [50000, 100000, 150000, 200000, 250000, 300000, 40
 export const OnboardingPage = () => {
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,6 +25,22 @@ export const OnboardingPage = () => {
   const [isKdt, setIsKdt] = useState<boolean | null>(null);
   const [fixedCostInput, setFixedCostInput] = useState('');
   const [variableCostInput, setVariableCostInput] = useState('');
+
+  // Handle browser back button: always return to Step 1
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      // Prevent actual back navigation if we want to stay in onboarding step 1
+      if (step > 1) {
+        e.preventDefault();
+        setStep(1);
+        // Push state back to keep the user in the onboarding flow
+        window.history.pushState(null, '', window.location.pathname);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [step]);
 
   const resolveErrorMessage = (error: unknown) => {
     if (typeof error !== 'object' || error === null || !('response' in error)) {
@@ -97,6 +115,8 @@ export const OnboardingPage = () => {
         response.success &&
         (response.data.onboardingStatus === 'IN_PROGRESS' || response.data.onboardingCompleted)
       ) {
+        // Invalidate the query so the recommended amount is fresh in the next page
+        void queryClient.invalidateQueries({ queryKey: ['onboardingStatus'] });
         setStep(4);
       }
     } catch (error) {
@@ -127,14 +147,16 @@ export const OnboardingPage = () => {
 
         {step <= TOTAL_STEPS && (
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-6">
-              <button
-                type="button"
-                onClick={() => (step === 1 ? navigate(-1) : setStep((prev) => prev - 1))}
-                className="h-10 w-10 rounded-full border border-line-soft bg-surface-base text-text-muted hover:text-text-strong hover:border-line-strong transition-colors"
-              >
-                ←
-              </button>
+            <div className={`flex items-center gap-3 mb-6 ${step === 1 ? 'justify-end' : ''}`}>
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStep((prev) => prev - 1)}
+                  className="h-10 w-10 rounded-full border border-line-soft bg-surface-base text-text-muted hover:text-text-strong hover:border-line-strong transition-colors"
+                >
+                  ←
+                </button>
+              )}
               <div className="flex-1 h-3 rounded-full bg-surface-soft overflow-hidden">
                 <div
                   className="h-full rounded-full bg-accent transition-all duration-300"
@@ -200,7 +222,7 @@ export const OnboardingPage = () => {
                 </p>
               </div>
 
-              <div className="w-full max-w-[720px] mx-auto mb-4">
+              <div className="w-full max-w-[720px] mx-auto mb-4 flex justify-start">
                 <Button
                   variant="outline"
                   fullWidth={false}
@@ -212,7 +234,7 @@ export const OnboardingPage = () => {
               </div>
 
               <div
-                className="w-full max-w-[720px] mx-auto mb-8 grid gap-3"
+                className="w-full max-w-[720px] mx-auto mb-10 grid gap-3"
                 style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
               >
                 {FIXED_COST_OPTIONS.map((preset) => (
@@ -231,6 +253,36 @@ export const OnboardingPage = () => {
                   </Button>
                 ))}
               </div>
+
+              <div className="w-full max-w-[720px] mx-auto pt-6 border-t border-line-soft">
+                <p className="text-center text-[13px] font-bold text-text-muted mb-4 uppercase tracking-wider">
+                  또는 직접 입력하기
+                </p>
+                <div className="flex flex-col gap-4">
+                  <div className="relative group">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={fixedCostInput ? Number(fixedCostInput).toLocaleString() : ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setFixedCostInput(val);
+                      }}
+                      className="w-full h-[80px] rounded-[24px] border-2 border-line-soft bg-surface-base px-8 text-[32px] font-black outline-none transition-all focus:border-accent text-text-strong pr-16"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[24px] font-black text-text-muted">원</span>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!fixedCostInput || Number(fixedCostInput) <= 0}
+                    onClick={() => setStep(3)}
+                    className="h-[64px] rounded-[22px] text-lg"
+                  >
+                    입력 완료
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -246,7 +298,7 @@ export const OnboardingPage = () => {
                 </p>
               </div>
 
-              <div className="w-full max-w-[720px] mx-auto mb-4">
+              <div className="w-full max-w-[720px] mx-auto mb-4 flex justify-start">
                 <Button
                   variant="outline"
                   fullWidth={false}
@@ -258,7 +310,7 @@ export const OnboardingPage = () => {
               </div>
 
               <div
-                className="w-full max-w-[720px] mx-auto mb-8 grid gap-3"
+                className="w-full max-w-[720px] mx-auto mb-10 grid gap-3"
                 style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
               >
                 {VARIABLE_COST_OPTIONS.map((preset) => (
@@ -275,6 +327,36 @@ export const OnboardingPage = () => {
                   </Button>
                 ))}
               </div>
+
+              <div className="w-full max-w-[720px] mx-auto pt-6 border-t border-line-soft">
+                <p className="text-center text-[13px] font-bold text-text-muted mb-4 uppercase tracking-wider">
+                  또는 직접 입력하기
+                </p>
+                <div className="flex flex-col gap-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={variableCostInput ? Number(variableCostInput).toLocaleString() : ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setVariableCostInput(val);
+                      }}
+                      className="w-full h-[80px] rounded-[24px] border-2 border-line-soft bg-surface-base px-8 text-[32px] font-black outline-none transition-all focus:border-accent text-text-strong pr-16"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[24px] font-black text-text-muted">원</span>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!variableCostInput || Number(variableCostInput) <= 0 || isSubmitting}
+                    onClick={() => void handleCompleteOnboarding()}
+                    className="h-[64px] rounded-[22px] text-lg"
+                  >
+                    {isSubmitting ? '저장 중...' : '계산하기'}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -288,7 +370,7 @@ export const OnboardingPage = () => {
 
               <div className="w-full bg-surface-base rounded-[30px] p-8 border border-line-soft shadow-[0_14px_30px_rgba(15,23,42,0.08)] mb-8">
                 <p className="text-[12px] text-text-subtle font-black tracking-[0.08em] mb-2">
-                  RECOMMENDED SAVING
+                  추천 저축액
                 </p>
                 <p className="text-5xl font-black text-accent tracking-tight">
                   {formatNumber(recommendedAmount)}원

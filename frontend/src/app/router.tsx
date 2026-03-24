@@ -45,6 +45,22 @@ export const router = createBrowserRouter([
             element: <FinanceConnectPage />,
           },
           {
+            path: '/finance/savebox-setup',
+            async lazy() {
+              const { SaveboxSetupPage } =
+                await import('@/features/finance/account/pages/SaveboxSetupPage');
+              return { Component: SaveboxSetupPage };
+            },
+          },
+          {
+            path: '/finance/savings-rule-setup',
+            async lazy() {
+              const { SavingsRuleSetupPage } =
+                await import('@/features/finance/account/pages/SavingsRuleSetupPage');
+              return { Component: SavingsRuleSetupPage };
+            },
+          },
+          {
             path: '/loading',
             element: <div>LoadingScreen Placeholder</div>,
           },
@@ -163,27 +179,11 @@ export const router = createBrowserRouter([
             element: <MyPagePage />,
           },
           {
-            path: '/savebox-setup',
-            async lazy() {
-              const { SaveboxSetupPage } =
-                await import('@/features/finance/account/pages/SaveboxSetupPage');
-              return { Component: SaveboxSetupPage };
-            },
-          },
-          {
             path: '/finance/savebox',
             async lazy() {
               const { SaveboxDetailPage } =
                 await import('@/features/finance/account/pages/SaveboxDetailPage');
               return { Component: SaveboxDetailPage };
-            },
-          },
-          {
-            path: '/savings-rule-setup',
-            async lazy() {
-              const { SavingsRuleSetupPage } =
-                await import('@/features/finance/account/pages/SavingsRuleSetupPage');
-              return { Component: SavingsRuleSetupPage };
             },
           },
           {

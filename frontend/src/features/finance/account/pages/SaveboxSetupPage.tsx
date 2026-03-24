@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useGetMyAccounts } from '../hooks/useAccountQueries';
-import { useSetPrimaryAccount, useCreateSaveBox } from '../hooks/useAccountMutations';
+import { useSetPrimaryAccount, useCreateSaveBox, useLinkFinanceAccount } from '../hooks/useAccountMutations';
+import { Button } from '@/shared/components';
 import type { AccountDetail } from '../types';
 
 /**
@@ -49,10 +51,46 @@ const SelectableAccountCard: React.FC<{
  * 세이브박스 개설 및 주계좌 설정 온보딩 페이지
  */
 export const SaveboxSetupPage: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  
+  // Finance Linking States
+  const [userKey, setUserKey] = useState('');
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const { mutate: linkAccount, isPending: isLinking } = useLinkFinanceAccount();
+
+  // Handle browser back button: always return to onboarding start
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      navigate('/onboarding', { replace: true });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate]);
 
   // 데이터 조회
   const { data: accounts, isLoading, isError } = useGetMyAccounts();
+
+  // 금융 계좌 연동 핸들러
+  const handleLinkAccount = () => {
+    if (!userKey.trim()) return;
+    setLinkError(null);
+    linkAccount(userKey, {
+      onSuccess: () => {
+        setUserKey('');
+        // account 관련 쿼리 무효화로 인해 자동으로 계좌 목록이 새로고침됨
+      },
+      onError: (err: any) => {
+        const errorData = err.response?.data;
+        if (errorData?.code === 'ACC_409_1') {
+          setLinkError('중복된 API 키입니다. 이미 다른 계정에 연동되어 있습니다.');
+        } else {
+          setLinkError('연동 중 오류가 발생했습니다. 키를 다시 확인해 주세요.');
+        }
+      }
+    });
+  };
 
   // Mutations
   const { mutateAsync: setPrimary } = useSetPrimaryAccount();
@@ -60,6 +98,19 @@ export const SaveboxSetupPage: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Smart Skip: Check if a 세이브박스 already exists
+  useEffect(() => {
+    if (accounts && accounts.length > 0) {
+      const savebox = accounts.find(
+        (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
+      );
+      if (savebox) {
+        // Automatically skip if savebox already exists
+        navigate('/finance/savings-rule-setup');
+      }
+    }
+  }, [accounts, navigate]);
 
   const handleSetup = async () => {
     if (!selectedAccountId) return;
@@ -101,16 +152,28 @@ export const SaveboxSetupPage: React.FC = () => {
           이제 돈을 더 똑똑하게 모을 준비가 되었어요.
           <br />주 계좌와 연결되어 자동으로 저축이 시작됩니다.
         </p>
-        <button className="w-full max-w-xs py-4 bg-primary-blue text-white rounded-2xl text-lg font-bold shadow-lg hover:shadow-primary-blue/30 transition-all hover:scale-[1.02]"></button>
+        <Button
+          onClick={() => navigate('/finance/savings-rule-setup')}
+          className="max-w-[280px] h-[56px]"
+        >
+          저축 규칙 설정하러 가기
+        </Button>
       </div>
     );
   }
 
-  if (isLoading) {
+  // Find if a savebox already exists to show loading instead of the setup UI
+  const hasExistingSavebox = accounts?.some(
+    (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
+  );
+
+  if (isLoading || hasExistingSavebox) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <div className="w-12 h-12 border-4 border-primary-blue border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-gray font-medium">계좌 목록을 불러오는 중...</p>
+        <p className="text-gray font-medium">
+          {hasExistingSavebox ? '연동된 세이브박스를 확인 중입니다...' : '계좌 목록을 불러오는 중...'}
+        </p>
       </div>
     );
   }
@@ -119,7 +182,7 @@ export const SaveboxSetupPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
         <div className="text-red-500 mb-4 text-4xl">⚠️</div>
-        <h2 className="text-xl font-bold text-eel mb-2">계좌 정보를 불러올 수 없습니다.</h2>
+        <h2 className="text-xl font-bold text-eel mb-2">계좌 정보를 불러울 수 없습니다.</h2>
         <p className="text-gray mb-6">금융사 연결 상태를 확인하거나 잠시 후 다시 시도해 주세요.</p>
         <button
           onClick={() => window.location.reload()}
@@ -157,8 +220,38 @@ export const SaveboxSetupPage: React.FC = () => {
         ))}
 
         {accounts?.length === 0 && (
-          <div className="text-center py-10 bg-blue-bg rounded-2xl border-2 border-dashed border-light-gray">
-            <p className="text-gray text-sm">연결된 계좌가 없습니다.</p>
+          <div className="flex flex-col gap-6">
+            <div className="text-center py-10 bg-blue-bg rounded-2xl border-2 border-dashed border-light-gray flex flex-col items-center">
+              <p className="text-gray text-sm mb-4">연결된 계좌가 없습니다.</p>
+              <div className="w-full px-6">
+                <p className="text-xs text-secondary-blue font-bold mb-2 text-left">SSAFY Finance API Key 연동</p>
+                <input
+                  type="text"
+                  value={userKey}
+                  onChange={(e) => setUserKey(e.target.value)}
+                  placeholder="API 키를 입력해 주세요."
+                  className="w-full p-4 rounded-xl border-2 border-light-gray focus:border-primary-blue outline-none text-sm transition-all bg-white"
+                />
+                {linkError && (
+                  <p className="text-red-500 text-xs mt-2 text-left font-medium">{linkError}</p>
+                )}
+                <Button
+                  onClick={handleLinkAccount}
+                  disabled={!userKey.trim() || isLinking}
+                  className="w-full mt-4 h-12 text-sm"
+                >
+                  {isLinking ? '연동 중...' : '금융 계좌 연동하기'}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+              <h4 className="text-xs font-bold text-primary-blue mb-1">💡 안내</h4>
+              <p className="text-[11px] text-gray leading-relaxed">
+                계좌 연동을 위해 SSAFY Finance에서 발급받은 API 키를 입력해 주세요.
+                연동 시 계좌 목록과 최근 거래 내역이 자동으로 동기화됩니다.
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -178,6 +271,7 @@ export const SaveboxSetupPage: React.FC = () => {
           </button>
         </div>
       </div>
+
     </div>
   );
 };
