@@ -5,7 +5,7 @@ import { LoginPage } from '@/features/auth';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { logout as logoutApi } from '@/features/auth/api/authApi';
-import { PrCreatePage, PrDetailPage } from '@/features/community/pr';
+import { PrDetailPage } from '@/features/community/pr';
 import { fetchOnboardingStatus } from '@/features/user/api/userApi';
 
 export const HomeRoute = () => {
@@ -110,5 +110,5 @@ export const PrDetailRoute = () => {
 
 export const PrCreateRoute = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <PrCreatePage /> : <Navigate to="/" replace />;
+  return isAuthenticated ? <Navigate to="/community/write?category=PR" replace /> : <Navigate to="/" replace />;
 };

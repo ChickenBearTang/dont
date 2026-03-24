@@ -112,6 +112,9 @@ public class PostController {
                                                                             extra.pr().status(),
                                                                             extra.pr()
                                                                                     .resultStatus(),
+                                                                            extra.pr().itemName(),
+                                                                            extra.pr()
+                                                                                    .priceAmount(),
                                                                             extra.pr()
                                                                                     .totalVoteCount(),
                                                                             extra.pr()
