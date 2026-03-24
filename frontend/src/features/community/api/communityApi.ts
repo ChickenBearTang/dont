@@ -19,6 +19,7 @@ import type {
   HotdealUpdateRequestDto,
   HotdealUpdateResponseDto,
   GetCommentListResponseDto,
+  GetCommentReplyListResponseDto,
   CreateCommentRequestDto,
   CreateCommentResponseDto,
   UpdatePostRequestDto,
@@ -129,6 +130,20 @@ export const createComment = async (
   data: CreateCommentRequestDto
 ): Promise<ApiResponse<CreateCommentResponseDto>> => {
   return await axiosInstance.post(`/community/posts/${postId}/comments`, data);
+};
+
+export const getCommentReplies = async (
+  postId: number,
+  commentId: number,
+  page: number = 0,
+  size: number = 10
+): Promise<ApiResponse<GetCommentReplyListResponseDto>> => {
+  return await axiosInstance.get(`/community/posts/${postId}/comments/${commentId}/replies`, {
+    params: {
+      page,
+      size,
+    },
+  });
 };
 
 export const updateComment = async (
