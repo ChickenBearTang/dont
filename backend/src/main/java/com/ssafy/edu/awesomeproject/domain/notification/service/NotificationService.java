@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.notification.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.community.repository.CommentRepository;
 import com.ssafy.edu.awesomeproject.domain.notification.dto.response.NotificationListResponseDto;
 import com.ssafy.edu.awesomeproject.domain.notification.dto.response.NotificationReadAllResponseDto;
 import com.ssafy.edu.awesomeproject.domain.notification.dto.response.NotificationReadResponseDto;
@@ -24,12 +25,15 @@ import java.util.List;
 public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final CommentRepository commentRepository;
 
     public NotificationService(
-        NotificationRepository notificationRepository,
-        UserRepository userRepository) {
+            NotificationRepository notificationRepository,
+            UserRepository userRepository,
+            CommentRepository commentRepository) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
+        this.commentRepository = commentRepository;
     }
 
     @Transactional(readOnly = true)
@@ -46,21 +50,27 @@ public class NotificationService {
             notificationRepository.findByUserIdOrderByIdDesc(userId, pageRequest);
 
         List<NotificationListResponseDto.NotificationSummaryDto> content =
-                notificationPage.getContent().stream()
-                    .map(notification ->
-                            new NotificationListResponseDto.NotificationSummaryDto(
-                                notification.getId(),
-                                notification.getNotificationType().name(),
-                                notification.getTitle(),
-                                notification.getBody(),
-                                notification.getReferenceType() == null
-                                    ? null
-                                    : notification.getReferenceType().name(),
-                                notification.getReferenceId(),
-                                notification.isRead(),
-                                notification.getPushedAt(),
-                                notification.getCreatedAt()))
-                    .toList();
+            notificationPage.getContent().stream()
+                .map(
+                    notification -> {
+                        NotificationTarget target = resolveTarget(notification);
+
+                        return new NotificationListResponseDto.NotificationSummaryDto(
+                            notification.getId(),
+                            notification.getNotificationType().name(),
+                            notification.getTitle(),
+                            notification.getBody(),
+                            notification.getReferenceType() == null
+                                ? null
+                                : notification.getReferenceType().name(),
+                            notification.getReferenceId(),
+                            notification.isRead(),
+                            notification.getPushedAt(),
+                            notification.getCreatedAt(),
+                            target.postId(),
+                            target.commentId());
+                    })
+                .toList();
 
         return new NotificationListResponseDto(
             content,
@@ -83,9 +93,12 @@ public class NotificationService {
         validateUserExists(userId);
 
         Notification notification =
-                notificationRepository.findByIdAndUserId(notificationId, userId)
-                    .orElseThrow(() -> new NotificationException(
-                        NotificationErrorCode.NOTIFICATION_NOT_FOUND));
+                notificationRepository
+                        .findByIdAndUserId(notificationId, userId)
+                        .orElseThrow(
+                            () ->
+                                    new NotificationException(
+                                            NotificationErrorCode.NOTIFICATION_NOT_FOUND));
 
         notification.markAsRead();
 
@@ -123,9 +136,31 @@ public class NotificationService {
         notificationRepository.save(notification);
     }
 
+    private NotificationTarget resolveTarget(Notification notification) {
+        if (notification.getReferenceType() == NotificationReferenceType.COMMENT
+            && notification.getReferenceId() != null) {
+            return commentRepository
+                .findById(notification.getReferenceId())
+                .map(
+                    comment ->
+                        new NotificationTarget(
+                            comment.getPost().getId(), comment.getId()))
+                .orElseGet(() -> new NotificationTarget(null, notification.getReferenceId()));
+        }
+
+        if (notification.getReferenceType() == NotificationReferenceType.POST
+            && notification.getReferenceId() != null) {
+            return new NotificationTarget(notification.getReferenceId(), null);
+        }
+
+        return new NotificationTarget(null, null);
+    }
+
     private void validateUserExists(Long userId) {
         if (userId == null || !userRepository.existsById(userId)) {
             throw new NotificationException(NotificationErrorCode.USER_NOT_FOUND);
         }
     }
+
+    private record NotificationTarget(Long postId, Long commentId) {}
 }
