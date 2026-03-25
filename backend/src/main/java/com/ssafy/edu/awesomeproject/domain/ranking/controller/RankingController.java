@@ -11,6 +11,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,17 +31,27 @@ public class RankingController {
         return CommonResponse.success(RankingListResponse.of(top10, myRanking));
     }
 
-    /** 기수(Cohort)별 세이브박스 랭킹 Top 10 및 내 랭킹 조회 */
+    /**
+     * 기수(Cohort)별 세이브박스 랭킹 Top 10 및 내 랭킹 조회
+     *
+     * @param cohortNo 조회할 기수 번호 (없으면 로그인 유저의 기수 사용)
+     */
     @GetMapping("/cohort")
-    public CommonResponse<RankingListResponse> getCohortRanking(@CurrentUserId Long userId) {
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException("User not found: " + userId));
+    public CommonResponse<RankingListResponse> getCohortRanking(
+            @CurrentUserId Long userId,
+            @RequestParam(required = false) Integer cohortNo) {
 
-        // 유저 엔티티의 Lazy 로딩된 Cohort 객체에서 기수 번호를 안전하게 추출
-        Integer cohortNo = (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
+        // cohortNo 파라미터가 없으면 로그인 유저의 기수를 기본값으로 사용
+        if (cohortNo == null) {
+            User user =
+                    userRepository
+                            .findById(userId)
+                            .orElseThrow(
+                                    () -> new IllegalArgumentException(
+                                            "User not found: " + userId));
+            cohortNo =
+                    (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
+        }
 
         List<RankingUserDto> top10 = rankingService.getTop10Ranking(cohortNo);
         RankingUserDto myRanking = rankingService.getMyRanking(userId, cohortNo);
