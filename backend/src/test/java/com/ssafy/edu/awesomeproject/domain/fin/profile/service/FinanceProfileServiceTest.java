@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountRole;
-import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountStatus;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
@@ -37,10 +36,8 @@ class FinanceProfileServiceTest {
 
     @Test
     void getFinanceProfileAggregatesBalancesAndCardAmount() {
-        when(accountRepository.sumBalanceByUserId(1001L, AccountStatus.ACTIVE))
-                .thenReturn(new BigDecimal("2500000"));
-        when(accountRepository.sumBalanceByUserIdAndRole(
-                        1001L, AccountRole.SAVE_BOX, AccountStatus.ACTIVE))
+        when(accountRepository.sumBalanceByUserId(1001L)).thenReturn(new BigDecimal("2500000"));
+        when(accountRepository.sumBalanceByUserIdAndRole(1001L, AccountRole.SAVE_BOX))
                 .thenReturn(new BigDecimal("700000"));
         when(cardTransactionRepository.sumAmountByUserIdAndDateRange(
                         org.mockito.ArgumentMatchers.eq(1001L),
