@@ -2,7 +2,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from '@/app/router';
 import { ToastContainer } from '@/shared/components/ToastContainer';
 import StrictSecretaryModal from '@/components/StrictSecretaryModal';
-import '@/App.css';
+import '@/styles/index.css';
 
 function App() {
   return (

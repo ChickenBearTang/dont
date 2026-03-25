@@ -549,7 +549,6 @@ const ReportChatbot = ({
 };
 
 export const MonthlyReportPage = () => {
-  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [currentDate, setCurrentDate] = useState(new Date());
 
