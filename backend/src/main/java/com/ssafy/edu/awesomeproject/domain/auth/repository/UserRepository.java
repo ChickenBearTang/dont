@@ -34,6 +34,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
         return existsByIdAndStatus(id, UserStatus.ACTIVE);
     }
     boolean existsBySsafyFinanceUserKey(String ssafyFinanceUserKey);
-    
+
     List<User> findByCohortId(Long cohortId);
 }
