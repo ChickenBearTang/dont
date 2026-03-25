@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.fin.card.repository;
 
+import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
 import java.time.LocalDate;
 import java.util.List;
@@ -41,4 +42,5 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
 
         Long getTotalAmount();
     }
+
 }

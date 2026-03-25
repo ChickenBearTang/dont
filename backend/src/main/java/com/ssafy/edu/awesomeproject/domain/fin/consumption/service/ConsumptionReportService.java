@@ -3,10 +3,18 @@ package com.ssafy.edu.awesomeproject.domain.fin.consumption.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.SavingsSetting;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSettingRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiCardRecommendationDbRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardRecommendationResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.client.ConsumptionAiClient;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.GenerateMonthlyReportRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.AvgCohort;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.JustificationEvaluationResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.MonthlyReportResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.entity.FinConsumptionJustification;
@@ -27,10 +35,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,12 +48,17 @@ public class ConsumptionReportService {
 
     private final FinConsumptionMonthlyReportRepository monthlyReportRepository;
     private final FinConsumptionJustificationRepository justificationRepository;
+    private final UserRepository userRepository;
+    private final SavingsSettingRepository savingsSettingRepository;
+    private final AccountRepository accountRepository;
+    private final CardService cardService;
+
     private final ConsumptionAiClient consumptionAiClient;
     private final AiClient aiClient;
     private final ObjectMapper objectMapper;
     private final Clock applicationClock;
-    private final UserRepository userRepository;
     private final NotificationService notificationService;
+
 
     public MonthlyReportResponse generateMonthlyReport(
         Long userId,
@@ -261,5 +272,92 @@ public class ConsumptionReportService {
             return Map.of();
         }
         return objectMapper.convertValue(cardRecommendation, Map.class);
+    }
+
+
+    public AvgCohort avgCohort(Long userId) {
+        User user = userRepository.findById(userId).orElse(null);
+        Long cohortsID = user.getCohort().getId();
+
+
+        //기수에 포함되는 모든 유저의 getcardsummary를 가져와서 또 그것의 평균
+
+        List<User> userList = userRepository.findByCohortId(cohortsID);
+
+
+
+
+        long avgSaveBox = 0;
+        long avgFood = 0;
+        long avgCafe = 0;
+        long avgCulture = 0;
+        long avgMarket = 0;
+        long avgMedical = 0;
+
+        LocalDate today = LocalDate.now();
+        LocalDate firstDayOfMonth = today.withDayOfMonth(1);
+
+        String startDate = firstDayOfMonth.toString(); // "2026-03-01"
+        String endDate = today.toString();             // "2026-03-25"
+
+
+
+        for(User u : userList){
+
+            Long avgSaveBoxId = 0L;
+            CardSummaryResponse cardSummaryResponse =  cardService.getCardSummary(u.getId(),startDate,endDate);
+/*
+            System.out.println(u.getId());
+
+           avgSaveBoxId += savingsSettingRepository.findByUserIdAndIsActiveTrue(u.getId())
+               .get().getSaveboxAccountId();
+
+           System.out.println(avgSaveBoxId);
+           avgSaveBox += accountRepository.getAccountById(avgSaveBoxId)
+               .orElseThrow()
+               .getBalance()
+               .longValue();
+
+            System.out.println(u.getId() + " " + avgSaveBox);
+*/
+            for (CardSummaryResponse.RankColum rank : cardSummaryResponse.getRankColumList()) {
+
+                switch (rank.getCategoryName()){
+                    case "식사/음식":
+                        avgFood += rank.getAmount();
+                        break;
+                    case "카페/디저트":
+                        avgCafe += rank.getAmount();
+                        break;
+                    case "편의점/마트":
+                        avgMarket += rank.getAmount();
+                        break;
+                    case "문화/여가":
+                        avgCulture += rank.getAmount();
+                        break;
+                    case "의료/건강":
+                        avgMedical += rank.getAmount();
+                        break;
+                    default:
+                        break;
+                }
+
+
+            }
+
+
+        }
+
+        avgSaveBox /=  userList.size();
+        avgFood /= userList.size();
+        avgCafe /= userList.size();
+        avgCulture /= userList.size();
+        avgMarket /= userList.size();
+        avgMedical /= userList.size();
+
+
+        AvgCohort avgCohort = new AvgCohort(cohortsID,avgSaveBox,avgFood,avgCafe,avgCulture,avgMarket,avgMedical);
+        //System.out.println("avgSaveBox: " + avgSaveBox);
+        return avgCohort;
     }
 }
