@@ -61,19 +61,22 @@ public class AccountTransaction {
     @Column(name = "transaction_memo", length = 500)
     private String transactionMemo;
 
+    @Column(name = "auto_savings_processed", nullable = false)
+    private boolean autoSavingsProcessed = false;
+
     @Builder
     public AccountTransaction(
-            Account account,
-            String transactionUniqueNo,
-            LocalDate transactionDate,
-            String transactionTime,
-            String transactionType,
-            String transactionTypeName,
-            String transactionAccountNo,
-            BigDecimal transactionAmount,
-            BigDecimal afterBalance,
-            String transactionSummary,
-            String transactionMemo) {
+        Account account,
+        String transactionUniqueNo,
+        LocalDate transactionDate,
+        String transactionTime,
+        String transactionType,
+        String transactionTypeName,
+        String transactionAccountNo,
+        BigDecimal transactionAmount,
+        BigDecimal afterBalance,
+        String transactionSummary,
+        String transactionMemo) {
         this.account = account;
         this.transactionUniqueNo = transactionUniqueNo;
         this.transactionDate = transactionDate;
@@ -85,5 +88,9 @@ public class AccountTransaction {
         this.afterBalance = afterBalance;
         this.transactionSummary = transactionSummary;
         this.transactionMemo = transactionMemo;
+    }
+
+    public void markAutoSavingsProcessed() {
+        this.autoSavingsProcessed = true;
     }
 }
