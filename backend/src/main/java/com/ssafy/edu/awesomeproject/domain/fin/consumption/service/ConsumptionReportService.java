@@ -1,6 +1,8 @@
 package com.ssafy.edu.awesomeproject.domain.fin.consumption.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
+import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiCardRecommendationDbRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardRecommendationResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.client.ConsumptionAiClient;
@@ -17,6 +19,9 @@ import com.ssafy.edu.awesomeproject.domain.fin.consumption.error.ConsumptionExce
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.repository.FinConsumptionJustificationRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.repository.FinConsumptionMonthlyReportRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.AiClient;
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationReferenceType;
+import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
+import com.ssafy.edu.awesomeproject.domain.notification.service.NotificationService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -41,63 +46,70 @@ public class ConsumptionReportService {
     private final AiClient aiClient;
     private final ObjectMapper objectMapper;
     private final Clock applicationClock;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public MonthlyReportResponse generateMonthlyReport(
-            Long userId,
-            GenerateMonthlyReportRequest request,
-            MonthlyReportGenerationSource source) {
+        Long userId,
+        GenerateMonthlyReportRequest request,
+        MonthlyReportGenerationSource source) {
         LocalDate reportMonth = toMonthStart(request.reportMonth());
         return generateMonthlyReport(userId, reportMonth, source);
     }
 
     private MonthlyReportResponse generateMonthlyReport(
-            Long userId, LocalDate reportMonth, MonthlyReportGenerationSource source) {
+        Long userId, LocalDate reportMonth, MonthlyReportGenerationSource source) {
         FinConsumptionMonthlyReport latest =
-                monthlyReportRepository
-                        .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, reportMonth)
-                        .orElse(null);
+            monthlyReportRepository
+                .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, reportMonth)
+                .orElse(null);
 
         if (latest != null) {
             latest.markNotLatest();
         }
 
         int nextVersion =
-                monthlyReportRepository
-                        .findTopByUserIdAndReportMonthOrderByVersionNoDesc(userId, reportMonth)
-                        .map(existing -> existing.getVersionNo() + 1)
-                        .orElse(1);
+            monthlyReportRepository
+                .findTopByUserIdAndReportMonthOrderByVersionNoDesc(userId, reportMonth)
+                .map(existing -> existing.getVersionNo() + 1)
+                .orElse(1);
 
         ConsumptionAiClient.AiReportAnalysis aiAnalysis =
-                consumptionAiClient.analyzeMonthlyReport(userId, reportMonth.toString());
+            consumptionAiClient.analyzeMonthlyReport(userId, reportMonth.toString());
         CardRecommendationResponse cardRecommendation =
-                loadCardRecommendation(userId, reportMonth.toString());
+            loadCardRecommendation(userId, reportMonth.toString());
 
         List<Map<String, Object>> validJustifications =
-                loadValidJustificationsForReport(userId, reportMonth);
+            loadValidJustificationsForReport(userId, reportMonth);
 
         Map<String, Object> reportPayload =
-                Map.of(
-                        "justifications",
-                        validJustifications,
-                        "cardRecommendation",
-                        toMap(cardRecommendation),
-                        "aiAnalysis",
-                        aiAnalysis.analysisPayload());
+            Map.of(
+                "justifications",
+                validJustifications,
+                "cardRecommendation",
+                toMap(cardRecommendation),
+                "aiAnalysis",
+                aiAnalysis.analysisPayload());
 
         FinConsumptionMonthlyReport report =
-                FinConsumptionMonthlyReport.builder()
-                        .userId(userId)
-                        .reportMonth(reportMonth)
-                        .llmStatus(toLlmStatus(aiAnalysis.llmStatus()))
-                        .reportStatus(MonthlyReportStatus.FINAL)
-                        .generationSource(source)
-                        .reportPayload(reportPayload)
-                        .versionNo(nextVersion)
-                        .isLatest(true)
-                        .generatedAt(LocalDateTime.now(applicationClock))
-                        .build();
+            FinConsumptionMonthlyReport.builder()
+                .userId(userId)
+                .reportMonth(reportMonth)
+                .llmStatus(toLlmStatus(aiAnalysis.llmStatus()))
+                .reportStatus(MonthlyReportStatus.FINAL)
+                .generationSource(source)
+                .reportPayload(reportPayload)
+                .versionNo(nextVersion)
+                .isLatest(true)
+                .generatedAt(LocalDateTime.now(applicationClock))
+                .build();
 
         FinConsumptionMonthlyReport saved = monthlyReportRepository.save(report);
+
+        if (source == MonthlyReportGenerationSource.MANUAL) {
+            createConsumptionReportReadyNotification(userId, reportMonth);
+        }
+
         return toResponse(saved);
     }
 
@@ -105,68 +117,98 @@ public class ConsumptionReportService {
     public MonthlyReportResponse getLatestMonthlyReport(Long userId, String reportMonthText) {
         LocalDate reportMonth = toMonthStart(reportMonthText);
         FinConsumptionMonthlyReport report =
-                monthlyReportRepository
-                        .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, reportMonth)
-                        .orElseThrow(
-                                () ->
-                                        new ConsumptionException(
-                                                ConsumptionErrorCode.REPORT_NOT_FOUND));
+            monthlyReportRepository
+                .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, reportMonth)
+                .orElseThrow(
+                    () ->
+                        new ConsumptionException(
+                            ConsumptionErrorCode.REPORT_NOT_FOUND));
         return toResponse(report);
     }
 
     public JustificationEvaluationResponse evaluateAndSaveJustification(
-            Long userId, String targetMonthText, String message) {
+        Long userId, String targetMonthText, String message) {
         LocalDate targetMonth = toMonthStart(targetMonthText);
+
         ConsumptionAiClient.JustificationEvaluation evaluation =
-                consumptionAiClient.evaluateJustification(userId, targetMonth.toString(), message);
+            consumptionAiClient.evaluateJustification(userId, targetMonth.toString(), message);
 
         Map<String, Object> context =
-                monthlyReportRepository
-                        .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, targetMonth)
-                        .map(FinConsumptionMonthlyReport::getReportPayload)
-                        .orElse(Map.of());
+            monthlyReportRepository
+                .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, targetMonth)
+                .map(FinConsumptionMonthlyReport::getReportPayload)
+                .orElse(Map.of());
 
         FinConsumptionJustification saved =
-                justificationRepository.save(
-                        FinConsumptionJustification.builder()
-                                .userId(userId)
-                                .targetMonth(targetMonth)
-                                .userMessage(message)
-                                .aiResponse(evaluation.response())
-                                .isValid(evaluation.valid())
-                                .contextPayload(context)
-                                .build());
+            justificationRepository.save(
+                FinConsumptionJustification.builder()
+                    .userId(userId)
+                    .targetMonth(targetMonth)
+                    .userMessage(message)
+                    .aiResponse(evaluation.response())
+                    .isValid(evaluation.valid())
+                    .contextPayload(context)
+                    .build());
 
         MonthlyReportResponse regeneratedReport = null;
         boolean reportRegenerated = false;
         if (evaluation.valid()) {
             regeneratedReport =
-                    generateMonthlyReport(userId, targetMonth, MonthlyReportGenerationSource.RETRY);
+                generateMonthlyReport(userId, targetMonth, MonthlyReportGenerationSource.RETRY);
             reportRegenerated = true;
         }
 
         return new JustificationEvaluationResponse(
-                saved.getId(),
-                saved.getTargetMonth().toString(),
-                saved.isValid(),
-                saved.getUserMessage(),
-                saved.getAiResponse(),
-                saved.getCreatedAt(),
-                reportRegenerated,
-                regeneratedReport);
+            saved.getId(),
+            saved.getTargetMonth().toString(),
+            saved.isValid(),
+            saved.getUserMessage(),
+            saved.getAiResponse(),
+            saved.getCreatedAt(),
+            reportRegenerated,
+            regeneratedReport);
+    }
+
+    private void createConsumptionReportReadyNotification(Long userId, LocalDate reportMonth) {
+        User user =
+            userRepository
+                .findById(userId)
+                .orElseThrow(
+                    () ->
+                        new ConsumptionException(
+                            ConsumptionErrorCode.REPORT_NOT_FOUND));
+
+        String displayName =
+            user.getNickname() != null && !user.getNickname().isBlank()
+                ? user.getNickname()
+                : user.getName();
+
+        int year = reportMonth.getYear();
+        int month = reportMonth.getMonthValue();
+        long referenceMonth = Long.parseLong(String.format("%04d%02d", year, month));
+
+        notificationService.createNotification(
+            userId,
+            NotificationType.CONSUMPTION_REPORT_READY,
+            "소비리포트 도착",
+            String.format(
+                "%s님의 %d년 %d월 소비리포트가 도착했어요! 확인해보세요!",
+                displayName, year, month),
+            NotificationReferenceType.FINANCE,
+            referenceMonth);
     }
 
     private MonthlyReportResponse toResponse(FinConsumptionMonthlyReport saved) {
         return new MonthlyReportResponse(
-                saved.getId(),
-                saved.getReportMonth().toString(),
-                saved.getVersionNo(),
-                saved.isLatest(),
-                saved.getLlmStatus(),
-                saved.getReportStatus(),
-                saved.getGenerationSource(),
-                saved.getGeneratedAt(),
-                saved.getReportPayload());
+            saved.getId(),
+            saved.getReportMonth().toString(),
+            saved.getVersionNo(),
+            saved.isLatest(),
+            saved.getLlmStatus(),
+            saved.getReportStatus(),
+            saved.getGenerationSource(),
+            saved.getGeneratedAt(),
+            saved.getReportPayload());
     }
 
     private LocalDate toMonthStart(String reportMonthText) {
@@ -174,7 +216,7 @@ public class ConsumptionReportService {
             return YearMonth.parse(reportMonthText).atDay(1);
         } catch (DateTimeParseException exception) {
             throw new ConsumptionException(
-                    ConsumptionErrorCode.INVALID_REPORT_MONTH, reportMonthText);
+                ConsumptionErrorCode.INVALID_REPORT_MONTH, reportMonthText);
         }
     }
 
@@ -187,27 +229,28 @@ public class ConsumptionReportService {
     }
 
     private List<Map<String, Object>> loadValidJustificationsForReport(
-            Long userId, LocalDate targetMonth) {
+        Long userId, LocalDate targetMonth) {
         return justificationRepository
-                .findAllByUserIdAndTargetMonthOrderByCreatedAtDesc(userId, targetMonth)
-                .stream()
-                .filter(FinConsumptionJustification::isValid)
-                .sorted(Comparator.comparing(FinConsumptionJustification::getCreatedAt))
-                .map(
-                        row -> {
-                            Map<String, Object> item = new LinkedHashMap<>();
-                            item.put("id", row.getId());
-                            item.put("message", row.getUserMessage());
-                            item.put("aiResponse", row.getAiResponse());
-                            item.put("createdAt", row.getCreatedAt());
-                            return item;
-                        })
-                .toList();
+            .findAllByUserIdAndTargetMonthOrderByCreatedAtDesc(userId, targetMonth)
+            .stream()
+            .filter(FinConsumptionJustification::isValid)
+            .sorted(Comparator.comparing(FinConsumptionJustification::getCreatedAt))
+            .map(
+                row -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", row.getId());
+                    item.put("message", row.getUserMessage());
+                    item.put("aiResponse", row.getAiResponse());
+                    item.put("createdAt", row.getCreatedAt());
+                    return item;
+                })
+            .toList();
     }
 
     private CardRecommendationResponse loadCardRecommendation(Long userId, String reportMonth) {
         try {
-            return aiClient.getCardRecommendationFromDb(new AiCardRecommendationDbRequest(userId, reportMonth));
+            return aiClient.getCardRecommendationFromDb(
+                new AiCardRecommendationDbRequest(userId, reportMonth));
         } catch (Exception exception) {
             return null;
         }
