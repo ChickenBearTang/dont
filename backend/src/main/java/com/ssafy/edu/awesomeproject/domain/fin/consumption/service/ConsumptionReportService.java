@@ -1,10 +1,10 @@
 package com.ssafy.edu.awesomeproject.domain.fin.consumption.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
-import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
-import com.ssafy.edu.awesomeproject.domain.fin.consumption.analyzer.ConsumptionReportAnalyzer;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiCardRecommendationDbRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardRecommendationResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.client.ConsumptionAiClient;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.GenerateMonthlyReportRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.JustificationEvaluationResponse;
@@ -18,6 +18,7 @@ import com.ssafy.edu.awesomeproject.domain.fin.consumption.error.ConsumptionErro
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.error.ConsumptionException;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.repository.FinConsumptionJustificationRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.repository.FinConsumptionMonthlyReportRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.global.client.AiClient;
 import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationReferenceType;
 import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
 import com.ssafy.edu.awesomeproject.domain.notification.service.NotificationService;
@@ -25,7 +26,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -42,9 +42,9 @@ public class ConsumptionReportService {
 
     private final FinConsumptionMonthlyReportRepository monthlyReportRepository;
     private final FinConsumptionJustificationRepository justificationRepository;
-    private final ConsumptionReportAnalyzer consumptionReportAnalyzer;
     private final ConsumptionAiClient consumptionAiClient;
-    private final CardService cardService;
+    private final AiClient aiClient;
+    private final ObjectMapper objectMapper;
     private final Clock applicationClock;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
@@ -74,22 +74,20 @@ public class ConsumptionReportService {
                 .map(existing -> existing.getVersionNo() + 1)
                 .orElse(1);
 
-        CardSummaryResponse cardSummary = resolveCardSummary(userId, reportMonth);
-        Map<String, Object> basePayload =
-            consumptionReportAnalyzer.buildBaseMonthlyPayload(userId, reportMonth, cardSummary);
+        ConsumptionAiClient.AiReportAnalysis aiAnalysis =
+            consumptionAiClient.analyzeMonthlyReport(userId, reportMonth.toString());
+        CardRecommendationResponse cardRecommendation =
+            loadCardRecommendation(userId, reportMonth.toString());
+
         List<Map<String, Object>> validJustifications =
             loadValidJustificationsForReport(userId, reportMonth);
-        Map<String, Object> aiInputPayload =
-            Map.of("base", basePayload, "justifications", validJustifications);
-        ConsumptionAiClient.AiReportAnalysis aiAnalysis =
-            consumptionAiClient.analyzeMonthlyReport(aiInputPayload);
 
         Map<String, Object> reportPayload =
             Map.of(
-                "base",
-                basePayload,
                 "justifications",
                 validJustifications,
+                "cardRecommendation",
+                toMap(cardRecommendation),
                 "aiAnalysis",
                 aiAnalysis.analysisPayload());
 
@@ -131,18 +129,15 @@ public class ConsumptionReportService {
     public JustificationEvaluationResponse evaluateAndSaveJustification(
         Long userId, String targetMonthText, String message) {
         LocalDate targetMonth = toMonthStart(targetMonthText);
+
+        ConsumptionAiClient.JustificationEvaluation evaluation =
+            consumptionAiClient.evaluateJustification(userId, targetMonth.toString(), message);
+
         Map<String, Object> context =
             monthlyReportRepository
                 .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, targetMonth)
                 .map(FinConsumptionMonthlyReport::getReportPayload)
                 .orElse(Map.of());
-        List<Map<String, String>> history =
-            toHistory(
-                justificationRepository.findAllByUserIdAndTargetMonthOrderByCreatedAtDesc(
-                    userId, targetMonth));
-
-        ConsumptionAiClient.JustificationEvaluation evaluation =
-            consumptionAiClient.evaluateJustification(message, context, history);
 
         FinConsumptionJustification saved =
             justificationRepository.save(
@@ -233,26 +228,6 @@ public class ConsumptionReportService {
         };
     }
 
-    private CardSummaryResponse resolveCardSummary(Long userId, LocalDate reportMonth) {
-        LocalDate monthStart = reportMonth.withDayOfMonth(1);
-        LocalDate monthEnd = reportMonth.withDayOfMonth(reportMonth.lengthOfMonth());
-        String startDate = monthStart.format(DateTimeFormatter.BASIC_ISO_DATE);
-        String endDate = monthEnd.format(DateTimeFormatter.BASIC_ISO_DATE);
-        return cardService.getCardSummary(userId, startDate, endDate);
-    }
-
-    private List<Map<String, String>> toHistory(List<FinConsumptionJustification> rows) {
-        return rows.stream()
-            .sorted(Comparator.comparing(FinConsumptionJustification::getCreatedAt))
-            .flatMap(
-                row ->
-                    List.of(
-                            Map.of("role", "user", "message", row.getUserMessage()),
-                            Map.of("role", "assistant", "message", row.getAiResponse()))
-                        .stream())
-            .toList();
-    }
-
     private List<Map<String, Object>> loadValidJustificationsForReport(
         Long userId, LocalDate targetMonth) {
         return justificationRepository
@@ -270,5 +245,21 @@ public class ConsumptionReportService {
                     return item;
                 })
             .toList();
+    }
+
+    private CardRecommendationResponse loadCardRecommendation(Long userId, String reportMonth) {
+        try {
+            return aiClient.getCardRecommendationFromDb(
+                new AiCardRecommendationDbRequest(userId, reportMonth));
+        } catch (Exception exception) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> toMap(CardRecommendationResponse cardRecommendation) {
+        if (cardRecommendation == null) {
+            return Map.of();
+        }
+        return objectMapper.convertValue(cardRecommendation, Map.class);
     }
 }

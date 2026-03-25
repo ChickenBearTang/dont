@@ -2,7 +2,8 @@ import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
 import { ForgotPasswordPage, SignUpPage, LoginPage } from '@/features/auth';
 import { FinanceConnectPage, MyPagePage, OnboardingPage } from '@/features/user';
-
+import NotFoundPage from '@/shared/components/NotFoundPage';
+import ServerErrorPage from '@/shared/components/ServerErrorPage';
 import {
   AuthenticatedLayoutRoute,
   DashboardRoute,
@@ -17,6 +18,7 @@ import {
 export const router = createBrowserRouter([
   {
     element: <PublicLayout />,
+    errorElement: <ServerErrorPage />,
     children: [
       {
         path: '/',
@@ -44,6 +46,22 @@ export const router = createBrowserRouter([
           {
             path: '/finance-connect',
             element: <FinanceConnectPage />,
+          },
+          {
+            path: '/finance/savebox-setup',
+            async lazy() {
+              const { SaveboxSetupPage } =
+                await import('@/features/finance/account/pages/SaveboxSetupPage');
+              return { Component: SaveboxSetupPage };
+            },
+          },
+          {
+            path: '/finance/savings-rule-setup',
+            async lazy() {
+              const { SavingsRuleSetupPage } =
+                await import('@/features/finance/account/pages/SavingsRuleSetupPage');
+              return { Component: SavingsRuleSetupPage };
+            },
           },
           {
             path: '/loading',
@@ -131,6 +149,13 @@ export const router = createBrowserRouter([
             },
           },
           {
+            path: '/finance/cards/recommendation',
+            async lazy() {
+              const { CardRecommendationRankPage } = await import('@/features/finance/card/pages/CardRecommendationRankPage');
+              return { Component: CardRecommendationRankPage };
+            },
+          },
+          {
             path: '/account',
             async lazy() {
               const { AccountPage } = await import('@/features/finance/account/pages/AccountPage');
@@ -162,14 +187,6 @@ export const router = createBrowserRouter([
           {
             path: '/mypage',
             element: <MyPagePage />,
-          },
-          {
-            path: '/savebox-setup',
-            async lazy() {
-              const { SaveboxSetupPage } =
-                await import('@/features/finance/account/pages/SaveboxSetupPage');
-              return { Component: SaveboxSetupPage };
-            },
           },
           {
             path: '/finance/savebox',
@@ -210,5 +227,13 @@ export const router = createBrowserRouter([
         ],
       },
     ],
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />,
+  },
+  {
+    path: '/500',
+    element: <ServerErrorPage />,
   },
 ]);

@@ -75,3 +75,18 @@ export const useExecuteManualSavings = () => {
     },
   });
 };
+
+/**
+ * 금융 계좌 연동 mutation 훅
+ */
+export const useLinkFinanceAccount = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: accountApi.linkFinanceAccount,
+    onSuccess: () => {
+      // 연동 성공 시 전체 계좌 정보를 무효화하여 새로 불러옴
+      queryClient.invalidateQueries({ queryKey: accountKeys.all });
+    },
+  });
+};

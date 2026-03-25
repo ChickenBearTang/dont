@@ -43,6 +43,10 @@ export const completeOnboarding = async (): Promise<ApiResponse<OnboardingRespon
   return await axiosInstance.post('/users/onboarding/complete');
 };
 
+export const resetOnboarding = async (): Promise<ApiResponse<void>> => {
+  return await axiosInstance.delete('/users/onboarding');
+};
+
 export const fetchMyPage = async (): Promise<ApiResponse<MyPageResponse>> => {
   return await axiosInstance.get('/users/me');
 };

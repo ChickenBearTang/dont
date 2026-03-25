@@ -8,5 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface SavingsSettingRepository extends JpaRepository<SavingsSetting, Long> {
     Optional<SavingsSetting> findByUserIdAndIsActiveTrue(Long userId);
 
+    List<SavingsSetting> findAllByIsActiveTrue();
+
     List<SavingsSetting> findAllByUserId(Long userId);
+
+    void deleteAllByUserId(Long userId);
 }
