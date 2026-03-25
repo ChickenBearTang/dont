@@ -145,4 +145,5 @@ public class AccountController {
         accountService.manualSavings(userId, amount);
         return ResponseEntity.ok(AccountApiResponse.success("ACC_200_8", "저축 이체가 완료되었습니다.", null));
     }
+
 }
