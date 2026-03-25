@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.fin.profile.service;
 
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountRole;
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountStatus;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
@@ -34,11 +35,13 @@ public class FinanceProfileService {
     @Transactional(readOnly = true)
     public FinanceProfileResponse getFinanceProfile(String rawUserId) {
         Long userId = normalizeUserId(rawUserId);
-        double currentBalance = accountRepository.sumBalanceByUserId(userId).doubleValue();
+        double currentBalance =
+                accountRepository.sumBalanceByUserId(userId, AccountStatus.ACTIVE).doubleValue();
 
         double emergencyFundBalance =
                 accountRepository
-                        .sumBalanceByUserIdAndRole(userId, AccountRole.SAVE_BOX)
+                        .sumBalanceByUserIdAndRole(
+                                userId, AccountRole.SAVE_BOX, AccountStatus.ACTIVE)
                         .doubleValue();
 
         LocalDate today = LocalDate.now();
