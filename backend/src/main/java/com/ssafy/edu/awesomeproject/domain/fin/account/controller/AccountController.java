@@ -78,6 +78,17 @@ public class AccountController {
                 AccountApiResponse.success("ACC_200_3", "계좌 정보가 동기화되었습니다.", response));
     }
 
+    @Operation(summary = "금융 계좌 연동", description = "SSAFY Finance API 키를 등록하고 계좌 정보를 동기화합니다.")
+    @PostMapping("/link")
+    public ResponseEntity<AccountApiResponse<AccountListResponse>> linkFinanceAccount(
+            @CurrentUserId Long userId, @RequestParam String userKey) {
+
+        AccountListResponse response = accountService.linkFinanceAccount(userId, userKey);
+
+        return ResponseEntity.ok(
+                AccountApiResponse.success("ACC_200_9", "금융 계좌가 연동되었습니다.", response));
+    }
+
     @Operation(summary = "주 계좌 설정", description = "특정 계좌를 사용자의 '주 계좌'로 설정합니다.")
     @PatchMapping("/{accountId}/primary")
     public ResponseEntity<AccountApiResponse<AccountResponse>> setPrimaryAccount(

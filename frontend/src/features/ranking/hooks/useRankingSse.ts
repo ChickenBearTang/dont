@@ -9,6 +9,8 @@ export interface RankingUser {
   nickname?: string;
   score: number;
   rank: number;
+  cohortNo?: number;
+  profileImageUrl?: string;
 }
 
 export interface RankingListResponse {

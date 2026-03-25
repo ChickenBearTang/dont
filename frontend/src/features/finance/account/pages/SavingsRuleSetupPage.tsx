@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Card, Input, Button } from '@/shared/components';
-import { useUIStore } from '@/shared/store/useUIStore';
+import { useToast } from '@/shared/hooks';
+import { fetchOnboardingStatus, completeOnboarding } from '@/features/user/api/userApi';
 import { useGetSavingsSetting, useGetMyAccounts } from '../hooks/useAccountQueries';
 import { useSaveSavingsSetting } from '../hooks/useAccountMutations';
 
@@ -12,20 +14,15 @@ export const SavingsRuleSetupPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: initialSetting, isLoading: isFetchingSetting } = useGetSavingsSetting();
   const { data: accounts, isLoading: isFetchingAccounts } = useGetMyAccounts();
+  const { data: onboardingData, isLoading: isFetchingOnboarding } = useQuery({
+    queryKey: ['onboardingStatus'],
+    queryFn: fetchOnboardingStatus,
+    select: (res) => res.data,
+    staleTime: 0,
+  });
+
   const { mutate: saveSetting, isPending: isSubmitting } = useSaveSavingsSetting();
-  const addToast = useUIStore((state) => state.addToast);
-
-  // Identification Logic: Find real accounts
-  // Primary: First non-savebox account
-  // Savebox: First account with '세이브박스' in name or type
-  const primaryAccount = accounts?.find(
-    (a) => !a.accountName.includes('세이브박스') && !a.accountTypeName.includes('세이브박스')
-  );
-  const saveboxAccount = accounts?.find(
-    (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
-  );
-
-  const isFetching = isFetchingSetting || isFetchingAccounts;
+  const { success, error: toastError } = useToast();
 
   // Form states
   const [keyword, setKeyword] = useState('');
@@ -33,40 +30,71 @@ export const SavingsRuleSetupPage: React.FC = () => {
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load existing settings into form
+  // Initialization flag to prevent background re-fetches from overwriting user input
+  const isInitialized = useRef(false);
+
+  // Handle browser back button: always return to onboarding start
   useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      navigate('/onboarding', { replace: true });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate]);
+
+  // Load existing settings and onboarding recommendation
+  // 온보딩 추천 금액을 최우선으로 적용하고, 키워드/활성화는 기존 설정에서 불러옴
+  useEffect(() => {
+    if (isInitialized.current) return;
+    // 두 쿼리가 모두 완료될 때까지 대기 (레이스 컨디션 방지)
+    if (isFetchingOnboarding || isFetchingSetting) return;
+
+    // 1. 기존 저축 설정이 있으면 키워드와 활성화 상태를 불러옴
     if (initialSetting) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setKeyword(initialSetting.keyword || '');
-
-      setAmount(initialSetting.savingsAmount || 0);
-
       setIsActive(initialSetting.isActive ?? true);
     }
-  }, [initialSetting]);
+
+    // 2. 저축 금액: 온보딩 추천액 > 기존 설정값 순서로 적용
+    if (onboardingData?.recommendedAmount) {
+      setAmount(onboardingData.recommendedAmount);
+    } else if (initialSetting?.savingsAmount) {
+      setAmount(initialSetting.savingsAmount);
+    }
+
+    isInitialized.current = true;
+  }, [initialSetting, onboardingData, isFetchingOnboarding, isFetchingSetting]);
+
+  // Identification Logic: Find real accounts
+  const primaryAccount = accounts?.find(
+    (a) => !a.accountName.includes('세이브박스') && !a.accountTypeName.includes('세이브박스')
+  );
+  const saveboxAccount = accounts?.find(
+    (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
+  );
+
+  const isFetching = isFetchingSetting || isFetchingAccounts || isFetchingOnboarding;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Validation
     if (!keyword.trim()) {
-      setError('저축할 결제 키워드를 입력해 주세요.');
+      setError('저축할 키워드를 입력해주세요.');
       return;
     }
+
     if (amount <= 0) {
-      setError('저축 금액은 0원보다 커야 합니다.');
+      setError('저축할 금액을 입력해주세요.');
       return;
     }
 
     if (!primaryAccount || !saveboxAccount) {
-      setError(
-        '주계좌 또는 세이브박스를 찾을 수 없습니다. 세이브박스가 개설되어 있는지 확인해 주세요.'
-      );
+      toastError('연동된 계좌 정보를 찾을 수 없습니다.');
       return;
     }
 
-    // Submit with real IDs
     saveSetting(
       {
         primaryAccountId: primaryAccount.id,
@@ -76,12 +104,20 @@ export const SavingsRuleSetupPage: React.FC = () => {
         isActive,
       },
       {
-        onSuccess: () => {
-          addToast('저축 설정이 성공적으로 저장되었습니다! 🎉', 'success');
-          navigate('/finance/savebox');
+        onSuccess: async () => {
+          try {
+            await completeOnboarding();
+            success('자동 저축 규칙이 저장되었습니다! 모든 온보딩이 완료되었습니다.');
+            navigate('/dashboard');
+          } catch (err) {
+            console.error('Failed to complete onboarding status:', err);
+            // Even if completion API fails, the rule is saved, so we can still navigate
+            success('자동 저축 규칙이 저장되었습니다!');
+            navigate('/dashboard');
+          }
         },
         onError: () => {
-          setError('설정 저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+          toastError('규칙 저장 중 오류가 발생했습니다.');
         },
       }
     );
@@ -90,123 +126,101 @@ export const SavingsRuleSetupPage: React.FC = () => {
   if (isFetching) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 border-4 border-blue-100 border-t-primary-blue rounded-full animate-spin mb-4" />
-        <p className="text-text-muted font-bold">기존 설정을 불러오고 있습니다...</p>
+        <div className="w-12 h-12 border-4 border-primary-blue border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-gray font-medium">설정 정보를 불러오는 중...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 relative">
-      <button
-        onClick={() => navigate('/finance/savebox')}
-        className="flex items-center gap-2 text-gray-400 hover:text-eel font-bold mb-8 transition-colors relative z-10"
-      >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2.5}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-        세이브박스로 돌아가기
-      </button>
-
-      <div className="absolute inset-0 bg-pattern-dots opacity-30 z-0 pointer-events-none" />
-      <div className="mb-10 text-center relative z-10">
-        <div className="inline-block px-4 py-1.5 bg-accent-soft text-primary-blue rounded-full text-[13px] font-black mb-4 uppercase tracking-[0.05em] shadow-sm">
-          Auto Savings
-        </div>
-        <h1 className="text-3xl lg:text-[2.5rem] font-black text-eel mb-4 tracking-tight leading-tight">
-          어떤 결제를 할 때마다
+    <div className="max-w-md mx-auto px-6 py-12 flex flex-col min-h-screen">
+      <div className="mb-10">
+        <h1 className="text-2xl font-black text-eel mb-3 leading-tight">
+          나만의 자동 저축 규칙을
           <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent drop-shadow-sm">
-            자동으로 저축
-          </span>
-          할까요?
+          설정해볼까요?
         </h1>
-        <p className="text-text-muted font-bold">
-          자주 이용하는 결제 키워드를 등록하면,
+        <p className="text-gray text-sm leading-relaxed">
+          지정한 키워드가 포함된 입금이 발생할 때마다
           <br />
-          해당 결제가 발생할 때마다 정해진 금액을 세이브박스에 모아드려요.
+          설정한 금액이 자동으로 세이브박스에 저축됩니다.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-        {/* Keyword Card */}
-        <Card className="!p-8 !rounded-[32px]">
-          <Input
-            label="결제처 키워드"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder="예: 커피, 택시, 배달의민족"
-            inputClassName="pl-12 font-black"
-          />
-          <p className="mt-3 ml-2 text-xs text-text-subtle font-bold">
-            * 입력하신 단어가 포함된 결제 내역이 생기면 저축이 실행됩니다.
-          </p>
-        </Card>
-
-        {/* Amount Card */}
-        <Card className="!p-8 !rounded-[32px]">
-          <Input
-            label="1회 저축 금액"
-            type="number"
-            step="10000"
-            min="0"
-            value={amount || ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (Number(val) < 0) return;
-              setAmount(Number(val));
-            }}
-            placeholder="0"
-            inputClassName="text-right pr-9 font-black text-2xl text-primary-blue leading-none"
-            unit="원"
-          />
-        </Card>
-
-        {/* Toggle Card */}
-        <Card className="!p-8 !rounded-[32px] flex items-center justify-between">
-          <div>
-            <label className="block text-[14px] font-black text-eel tracking-tight ml-1">
-              저축 상태 설정
-            </label>
-            <p className="text-[13px] text-text-subtle font-bold ml-1 mt-1">
-              지금 바로 자동 저축을 시작할까요?
-            </p>
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+        <div className="space-y-8 flex-1">
+          {/* 계좌 정보 카드 (Read Only) */}
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="p-4 border-2 border-line-thin bg-surface-soft">
+              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2 block">
+                출금 계좌 (주계좌)
+              </span>
+              <p className="text-sm font-black text-text-strong truncate">
+                {primaryAccount?.accountName}
+              </p>
+            </Card>
+            <Card className="p-4 border-2 border-line-thin bg-surface-soft">
+              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2 block">
+                입금 계좌 (세이브박스)
+              </span>
+              <p className="text-sm font-black text-text-strong truncate">
+                {saveboxAccount?.accountName}
+              </p>
+            </Card>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsActive(!isActive)}
-            className={`w-[60px] h-[32px] rounded-full transition-all duration-300 relative shadow-inner ${isActive
-              ? 'bg-gradient-to-r from-primary-blue to-accent shadow-blue-200/50'
-              : 'bg-surface-soft border border-line-soft'
-              }`}
-          >
-            <div
-              className={`absolute top-[3px] w-[24px] h-[24px] bg-white rounded-full transition-all duration-300 shadow-sm ${isActive ? 'left-[33px]' : 'left-[3px]'
-                }`}
+
+          <div className="space-y-6">
+            <Input
+              label="저축 키워드"
+              placeholder="예: 월급, 보너스, 용돈"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              hint="해당 단어가 입금 내역에 포함되면 저축이 실행됩니다."
             />
-          </button>
-        </Card>
 
-        {error && (
-          <div className="p-4 bg-error-red/5 text-error-red border border-error-red/20 rounded-[20px] text-center text-[14px] font-bold animate-shake backdrop-blur-sm">
-            ⚠️ {error}
+            <Input
+              label="저축 금액"
+              type="number"
+              placeholder="저축할 금액을 입력하세요"
+              value={amount || ''}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              unit="원"
+              hint="입금될 때마다 이만큼씩 저축할게요."
+            />
+
+            <div className="flex items-center justify-between p-4 bg-surface-soft rounded-2xl border border-line-soft">
+              <div>
+                <span className="text-sm font-bold text-text-strong block">규칙 활성화</span>
+                <span className="text-[11px] text-text-muted">지금 바로 저축을 시작할까요?</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsActive(!isActive)}
+                className={`w-12 h-6 rounded-full transition-colors relative ${
+                  isActive ? 'bg-primary-blue' : 'bg-line-strong'
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
+                    isActive ? 'right-1' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {error && (
+              <div className="p-4 bg-surface-danger/10 text-danger text-sm font-bold rounded-xl border border-danger-soft animate-in fade-in slide-in-from-top-1">
+                ⚠️ {error}
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Submit Button */}
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full !py-[18px] !text-[17px] !rounded-[24px] shadow-[0_12px_30px_rgba(10,101,255,0.2)] mt-8"
-        >
-          {isSubmitting ? '설정 저장 중...' : '저축 설정 완료하기'}
-        </Button>
+        <div className="mt-12">
+          <Button type="submit" disabled={isSubmitting || !keyword || !amount}>
+            {isSubmitting ? '설정 저장 중...' : initialSetting ? '규칙 변경하기' : '규칙 저장하기'}
+          </Button>
+        </div>
       </form>
     </div>
   );
