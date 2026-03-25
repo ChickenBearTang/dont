@@ -74,6 +74,9 @@ public class PrXaiContextService {
         BigDecimal saveboxBalance =
                 accountRepository.sumBalanceByUserIdAndRole(purchaseRequesterId, AccountRole.SAVE_BOX);
         double saveboxBalanceValue = saveboxBalance == null ? 0d : saveboxBalance.doubleValue();
+        if (saveboxBalanceValue <= 0d && financeProfile.emergencyFundBalance() > 0d) {
+            saveboxBalanceValue = financeProfile.emergencyFundBalance();
+        }
         List<PrXaiRecentTransactionDto> recentTransactions =
                 buildRecentTransactions(purchaseRequesterId);
 

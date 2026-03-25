@@ -91,8 +91,125 @@ class XaiPurchaseServiceTest(unittest.TestCase):
         }
         self.assertEqual(price_metrics.get("current_effective_price"), "189,000원")
         self.assertEqual(price_metrics.get("requested_price_amount"), "189,000원")
-        self.assertEqual(price_metrics.get("crawled_price_candidate"), "2,500,000원")
+        self.assertNotIn("crawled_price_candidate", price_metrics)
         self.assertIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
+
+    def test_summary_and_top_factors_are_localized_in_korean(self) -> None:
+        with patch(
+            "domain.xai_purchase.service._fetch_page_text",
+            return_value=(None, "MISSING_PURCHASE_URL"),
+        ):
+            response = evaluate_pr_purchase_xai(_request())
+
+        self.assertRegex(response.summary, r"[가-힣]")
+        self.assertGreaterEqual(len(response.top_factors), 1)
+        for factor in response.top_factors:
+            self.assertRegex(factor.label, r"[가-힣]")
+
+    def test_missing_crawl_price_defaults_to_zero_without_divergence_warning(
+        self,
+    ) -> None:
+        with patch(
+            "domain.xai_purchase.service._fetch_page_text",
+            return_value=(None, "MISSING_PURCHASE_URL"),
+        ):
+            response = evaluate_pr_purchase_xai(_request())
+
+        price_metrics = {
+            metric.code: metric.value
+            for metric in response.price_evaluation.key_metrics
+        }
+        self.assertNotIn("crawled_price_candidate", price_metrics)
+        self.assertNotIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
+
+    def test_tag_based_price_is_preferred_over_noisy_large_numbers(self) -> None:
+        request = _request()
+        request.purchase.price_amount.value = 1000
+        tagged_html = """
+        <html>
+          <body>
+            <div class="purchase-card">
+              <span class="final-price">1,000원</span>
+            </div>
+            <script>
+              const analyticsTotal = 534000000;
+            </script>
+          </body>
+        </html>
+        """
+        with patch(
+            "domain.xai_purchase.service._fetch_page_text",
+            return_value=(tagged_html, None),
+        ):
+            response = evaluate_pr_purchase_xai(request)
+
+        price_metrics = {
+            metric.code: metric.value
+            for metric in response.price_evaluation.key_metrics
+        }
+        self.assertNotIn("crawled_price_candidate", price_metrics)
+        self.assertNotIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
+
+    def test_total_price_is_divided_by_quantity_for_per_item_candidate(self) -> None:
+        request = _request()
+        request.purchase.price_amount.value = None
+        tagged_html = """
+        <html>
+          <body>
+            <div class="price-summary">총 금액 893,000,000원 / 1000개</div>
+          </body>
+        </html>
+        """
+        with patch(
+            "domain.xai_purchase.service._fetch_page_text",
+            return_value=(tagged_html, None),
+        ):
+            response = evaluate_pr_purchase_xai(request)
+
+        price_metrics = {
+            metric.code: metric.value
+            for metric in response.price_evaluation.key_metrics
+        }
+        self.assertNotIn("crawled_price_candidate", price_metrics)
+        self.assertEqual(price_metrics.get("current_effective_price"), "893,000원")
+        self.assertEqual(price_metrics.get("requested_price_amount"), "-")
+
+    def test_financial_status_uses_savebox_and_fixed_cashflow_fields(self) -> None:
+        payload = _request().model_dump(by_alias=True)
+        payload["financeProfile"]["currentBalance"]["value"] = 12_912_010
+        payload["financeProfile"]["daysUntilCardDue"]["value"] = 10
+        payload["financeProfile"]["saveboxBalance"] = {
+            "value": 0,
+            "source": "spring.finance_profile",
+            "snapshotId": "fin-91",
+        }
+        payload["financeProfile"]["availableFixedExpense"] = {
+            "value": 400000,
+            "source": "spring.finance_profile",
+            "snapshotId": "fin-91",
+        }
+        payload["financeProfile"]["availableFixedIncome"] = {
+            "value": 300000,
+            "source": "spring.finance_profile",
+            "snapshotId": "fin-91",
+        }
+        request = PurchaseXaiEvaluationRequest.model_validate(payload)
+
+        with patch(
+            "domain.xai_purchase.service._fetch_page_text",
+            return_value=(None, "MISSING_PURCHASE_URL"),
+        ):
+            response = evaluate_pr_purchase_xai(request)
+
+        self.assertEqual(response.financial_evaluation.status, "critical")
+        financial_metrics = {
+            metric.code: metric.value
+            for metric in response.financial_evaluation.key_metrics
+        }
+        self.assertEqual(financial_metrics.get("savebox_balance"), "0원")
+        self.assertEqual(financial_metrics.get("available_fixed_expense"), "400,000원")
+        self.assertEqual(financial_metrics.get("available_fixed_income"), "300,000원")
+        self.assertEqual(financial_metrics.get("days_until_card_due"), "10일")
 
     def test_jsonl_audit_store_persists_entries(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
