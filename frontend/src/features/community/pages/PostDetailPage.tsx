@@ -1,9 +1,11 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+﻿import { useEffect, useState, useMemo, useRef } from 'react';
+import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   createComment,
   deleteComment,
   deletePost,
+  getCommentReplies,
   getHotdealDetail,
   getComments,
   getPollDetail,
@@ -14,7 +16,8 @@ import {
 } from '../api/communityApi';
 import type {
   BoardCategory,
-  CommentSummaryDto,
+  CommentReplyDto,
+  CommentThreadDto,
   GetPostResponseDto,
   HotdealDetailResponseDto,
   PollDetailResponseDto,
@@ -27,22 +30,42 @@ import { UserAvatar } from '../components/UserAvatar';
 import { LinkifiedText } from '../components/LinkifiedText';
 import { Card, Button } from '@/shared/components';
 
-interface CommentNode extends CommentSummaryDto {
-  children: CommentNode[];
-  isVirtual?: boolean;
-}
+const COMMENT_PAGE_SIZE = 10;
+const REPLY_PAGE_SIZE = 10;
+const COMMENT_SCROLL_OFFSET = 72;
 
-interface CommentItemProps {
-  node: CommentNode;
-  depth?: number;
+type CommentEntryDto = CommentThreadDto | CommentReplyDto;
+type ThreadReplyLoadState = {
+  replies: CommentReplyDto[];
+  repliesLoaded: boolean;
+  repliesLoading: boolean;
+  repliesPage: number;
+  repliesHasNext: boolean;
+};
+type CommentThreadView = CommentThreadDto & ThreadReplyLoadState;
+
+interface CommentEntryProps {
+  comment: CommentEntryDto;
   currentUser: ReturnType<typeof useAuthStore.getState>['user'];
   handleDeleteComment: (id: number) => void;
+  onNavigateToComment: (commentId: number) => void;
+  onActivateComment?: () => void;
+  onDeactivateComment?: () => void;
   postId: string | undefined;
-  refreshComments: () => Promise<void>;
-  setPost: React.Dispatch<React.SetStateAction<GetPostResponseDto | null>>;
+  refreshComments: (fetchAll?: boolean) => Promise<void>;
+  refreshReplies: (rootCommentId: number) => Promise<void>;
+  rootCommentId: number;
+  setPost: Dispatch<SetStateAction<GetPostResponseDto | null>>;
   formatDate: (dateStr: string) => string;
   onReport: (type: ReportTargetType, id: number) => void;
   highlightedCommentId: number | null;
+  nested?: boolean;
+}
+
+interface CommentThreadItemProps extends Omit<CommentEntryProps, 'comment' | 'nested'> {
+  thread: CommentThreadView;
+  loadInitialReplies: (rootCommentId: number) => Promise<void>;
+  loadMoreReplies: (rootCommentId: number) => Promise<void>;
 }
 
 interface PollVotePanelProps {
@@ -56,54 +79,61 @@ interface HotdealInfoPanelProps {
   detail: HotdealDetailResponseDto;
 }
 
-const CommentItem = ({
-  node,
-  depth = 0,
+const CommentEntry = ({
+  comment,
   currentUser,
   handleDeleteComment,
+  onNavigateToComment,
+  onActivateComment,
+  onDeactivateComment,
   postId,
   refreshComments,
+  refreshReplies,
+  rootCommentId,
   setPost,
   formatDate,
   onReport,
   highlightedCommentId,
-}: CommentItemProps) => {
+  nested = false,
+}: CommentEntryProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const isHighlighted = node.commentId === highlightedCommentId;
+  const isHighlighted = comment.commentId === highlightedCommentId;
 
   useEffect(() => {
     if (isHighlighted && containerRef.current) {
       setTimeout(() => {
         containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 500); // Give some time for the comments to render/load
+      }, 500);
     }
   }, [isHighlighted]);
+
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
-
   const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(node.content);
+  const [editContent, setEditContent] = useState(comment.content);
   const [submittingEdit, setSubmittingEdit] = useState(false);
 
-  const commentLikeKey = `comment_like_${node.commentId}`;
+  const commentLikeKey = `comment_like_${comment.commentId}`;
   const [isLiked, setIsLiked] = useState(() => localStorage.getItem(commentLikeKey) === 'true');
 
-  const isCommentAuthor = node.isMine ?? currentUser?.userId === node.authorId;
+  const isCommentAuthor = comment.isMine ?? currentUser?.userId === comment.authorId;
+  const replyToNickname = 'replyToNickname' in comment ? comment.replyToNickname : null;
+  const replyPlaceholder = `${comment.authorNickname || '알 수 없음'}님에게 답글을 입력하세요...`;
 
-  const handleReplySubmit = async (e: React.FormEvent) => {
+  const handleReplySubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!postId || !replyContent.trim() || submittingReply) return;
     setSubmittingReply(true);
     try {
       await createComment(Number(postId), {
         content: replyContent.trim(),
-        parentCommentId: node.commentId,
+        parentCommentId: comment.commentId,
       });
       setReplyContent('');
       setIsReplying(false);
-      await refreshComments();
+      await refreshComments(true);
+      await refreshReplies(rootCommentId);
       setPost((prev) => (prev ? { ...prev, commentCount: prev.commentCount + 1 } : null));
     } catch {
       alert('답글 작성에 실패했습니다.');
@@ -112,14 +142,15 @@ const CommentItem = ({
     }
   };
 
-  const handleEditSubmit = async (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!editContent.trim() || submittingEdit) return;
     setSubmittingEdit(true);
     try {
-      await updateComment(node.commentId, { content: editContent.trim() });
+      await updateComment(comment.commentId, { content: editContent.trim() });
       setIsEditing(false);
-      await refreshComments();
+      await refreshComments(true);
+      await refreshReplies(rootCommentId);
     } catch {
       alert('댓글 수정에 실패했습니다.');
     } finally {
@@ -128,97 +159,92 @@ const CommentItem = ({
   };
 
   const handleToggleCommentReaction = async () => {
-    if (node.isVirtual || node.status === 'BLINDED') return;
+    if (comment.status === 'BLINDED') return;
     const nextActive = !isLiked;
     try {
       await toggleReaction({
         targetType: 'COMMENT',
-        targetId: node.commentId,
+        targetId: comment.commentId,
         reactionType: 'LIKE',
         active: nextActive,
       });
       setIsLiked(nextActive);
       if (nextActive) localStorage.setItem(commentLikeKey, 'true');
       else localStorage.removeItem(commentLikeKey);
-      await refreshComments();
+      await refreshComments(true);
+      await refreshReplies(rootCommentId);
     } catch (err: unknown) {
-      // Handle potential sync issues with older comments
       const axiosError = err as { response?: { status: number } };
       if (axiosError.response?.status === 400 || axiosError.response?.status === 409) {
-        // If it failed, it might be already in the target state.
-        // Try to force sync the local state and refresh to get the true count.
         setIsLiked(!isLiked);
         if (!isLiked) localStorage.setItem(commentLikeKey, 'true');
         else localStorage.removeItem(commentLikeKey);
-        await refreshComments();
+        await refreshComments(true);
+        await refreshReplies(rootCommentId);
       } else {
         alert('반응 처리에 실패했습니다.');
       }
     }
   };
 
-  if (node.isVirtual && node.children.length === 0) return null;
-
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col transition-all duration-1000 ${isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
-        } ${depth > 0 ? 'ml-8 mt-4 border-l-2 border-gray-50 pl-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
+      className={`relative flex flex-col transition-all duration-1000 ${
+        isHighlighted ? 'bg-blue-50/50 ring-2 ring-blue-400/30 rounded-2xl p-4 -mx-4 shadow-sm' : ''
+      } ${nested ? 'mt-4 rounded-2xl bg-slate-50/70 px-4 py-4' : 'mt-6 pb-6 border-b border-gray-50 last:border-0'}`}
     >
+      {(isCommentAuthor || comment.status !== 'BLINDED') && (
+        <div className="absolute right-0 top-0 flex items-center gap-2">
+          {isCommentAuthor ? (
+            <>
+              {comment.status !== 'BLINDED' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(!isEditing);
+                    setEditContent(comment.content);
+                  }}
+                  className="text-[12px] font-medium text-gray-400 hover:text-gray-700"
+                >
+                  {isEditing ? '취소' : '수정'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleDeleteComment(comment.commentId)}
+                className="text-[12px] font-medium text-red-400 hover:text-red-600"
+              >
+                삭제
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onReport('COMMENT', comment.commentId)}
+              className="text-[12px] font-medium text-gray-300 hover:text-rose-400 transition-colors"
+            >
+              신고
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-3">
         <UserAvatar
-          profileImageUrl={node.isVirtual ? null : node.authorProfileImageUrl}
-          nickname={node.isVirtual ? '?' : node.authorNickname}
+          profileImageUrl={comment.authorProfileImageUrl}
+          nickname={comment.authorNickname}
           className="h-[34px] w-[34px] shrink-0 text-[14px]"
         />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span
-                className={`font-bold text-[13.5px] truncate ${node.isVirtual ? 'text-gray-400' : 'text-gray-900'}`}
-              >
-                {node.isVirtual ? '알 수 없음' : node.authorNickname || '알 수 없음'}
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2 pr-14">
+              <span className="font-bold text-[13.5px] truncate text-gray-900">
+                {comment.authorNickname || '알 수 없음'}
               </span>
-              {!node.isVirtual && (
-                <span className="text-[12px] text-gray-400 font-medium tracking-tight">
-                  {formatDate(node.createdAt)}
-                </span>
-              )}
-            </div>
-
-            {!node.isVirtual && isCommentAuthor && (
-              <div className="flex items-center gap-2 shrink-0">
-                {node.status !== 'BLINDED' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditing(!isEditing);
-                      setEditContent(node.content);
-                    }}
-                    className="text-[12px] font-medium text-gray-400 hover:text-gray-700"
-                  >
-                    {isEditing ? '취소' : '수정'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleDeleteComment(node.commentId)}
-                  className="text-[12px] font-medium text-red-400 hover:text-red-600"
-                >
-                  삭제
-                </button>
-              </div>
-            )}
-            {!node.isVirtual && !isCommentAuthor && node.status !== 'BLINDED' && (
-              <button
-                type="button"
-                onClick={() => onReport('COMMENT', node.commentId)}
-                className="text-[12px] font-medium text-gray-300 hover:text-rose-400 transition-colors"
-              >
-                신고
-              </button>
-            )}
+              <span className="text-[12px] text-gray-400 font-medium tracking-tight">
+                {formatDate(comment.createdAt)}
+              </span>
           </div>
 
           {isEditing ? (
@@ -246,82 +272,117 @@ const CommentItem = ({
               </div>
             </form>
           ) : (
-            <LinkifiedText
-              text={
-                node.status === 'BLINDED'
-                  ? '신고 처리된 댓글입니다.'
-                  : node.isVirtual
-                    ? '삭제된 댓글입니다.'
-                    : node.content
+            <div
+              role={comment.status !== 'BLINDED' ? 'button' : undefined}
+              tabIndex={comment.status !== 'BLINDED' ? 0 : undefined}
+              onClick={
+                comment.status !== 'BLINDED'
+                  ? () => {
+                      setIsReplying((prev) => {
+                        const next = !prev;
+                        if (next) {
+                          onActivateComment?.();
+                        } else {
+                          onDeactivateComment?.();
+                        }
+                        return next;
+                      });
+                    }
+                  : undefined
               }
-              className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${node.isVirtual || node.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
-            />
-          )}
-
-          {!node.isVirtual && (
-            <div className="mt-2.5 flex items-center gap-3">
-              <button
-                onClick={handleToggleCommentReaction}
-                disabled={node.status === 'BLINDED'}
-                className={`group flex items-center gap-1.5 transition-colors ${node.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isLiked ? (
-                  <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" />
-                  </svg>
-                ) : (
-                  <svg
-                    className={`w-4 h-4 ${node.status === 'BLINDED' ? 'text-gray-200' : 'text-gray-300 group-hover:text-rose-400'}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-                    />
-                  </svg>
-                )}
-                <span
-                  className={`text-[12px] font-bold transition-colors ${node.status === 'BLINDED' ? 'text-gray-300' : isLiked ? 'text-rose-600' : 'text-gray-400 group-hover:text-gray-600'}`}
-                >
-                  {node.likeCount || 0}
-                </span>
-              </button>
-
-              {node.status !== 'BLINDED' && (
+              onKeyDown={
+                comment.status !== 'BLINDED'
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setIsReplying((prev) => {
+                          const next = !prev;
+                          if (next) {
+                            onActivateComment?.();
+                          } else {
+                            onDeactivateComment?.();
+                          }
+                          return next;
+                        });
+                      }
+                    }
+                  : undefined
+              }
+              className={comment.status !== 'BLINDED' ? 'cursor-pointer rounded-xl' : undefined}
+            >
+              {replyToNickname && 'replyToCommentId' in comment && comment.replyToCommentId ? (
                 <button
                   type="button"
-                  onClick={() => setIsReplying(!isReplying)}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-bold transition-colors ${isReplying ? 'bg-blue-600 text-white' : 'bg-[#EBF5FF] text-[#007AFF] hover:bg-[#D1E9FF]'}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateToComment(comment.replyToCommentId!);
+                  }}
+                  className="mt-1.5 text-[12px] font-semibold text-blue-500 transition-colors hover:text-blue-700"
                 >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  <span>답글</span>
+                  @{replyToNickname}님에게 답글
                 </button>
-              )}
+              ) : null}
+              <LinkifiedText
+                text={comment.status === 'BLINDED' ? '신고 처리된 댓글입니다.' : comment.content}
+                className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${
+                  comment.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'
+                }`}
+              />
             </div>
           )}
+
+          <div className="mt-2.5 flex items-center gap-3">
+            <button
+              onClick={handleToggleCommentReaction}
+              disabled={comment.status === 'BLINDED'}
+              className={`group flex items-center gap-1.5 transition-colors ${
+                comment.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {isLiked ? (
+                <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" />
+                </svg>
+              ) : (
+                <svg
+                  className={`w-4 h-4 ${
+                    comment.status === 'BLINDED'
+                      ? 'text-gray-200'
+                      : 'text-gray-300 group-hover:text-rose-400'
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
+                  />
+                </svg>
+              )}
+              <span
+                className={`text-[12px] font-bold transition-colors ${
+                  comment.status === 'BLINDED'
+                    ? 'text-gray-300'
+                    : isLiked
+                      ? 'text-rose-600'
+                      : 'text-gray-400 group-hover:text-gray-600'
+                }`}
+              >
+                {comment.likeCount || 0}
+              </span>
+            </button>
+
+          </div>
 
           {isReplying && (
             <form onSubmit={handleReplySubmit} className="mt-3 flex gap-2">
               <input
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="답글을 입력하세요..."
+                placeholder={replyPlaceholder}
                 className="flex-1 h-9 px-3 rounded-lg bg-gray-50 text-[13px] outline-none border border-gray-100"
               />
               <button
@@ -333,41 +394,148 @@ const CommentItem = ({
               </button>
             </form>
           )}
-
-          {node.children.length > 0 && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="text-[12px] font-bold text-blue-500"
-              >
-                {isExpanded ? '답글 숨기기' : `답글 ${node.children.length}개 보기`}
-              </button>
-            </div>
-          )}
         </div>
       </div>
-
-      {isExpanded &&
-        node.children.map((child) => (
-          <CommentItem
-            key={child.commentId}
-            node={child}
-            depth={depth + 1}
-            currentUser={currentUser}
-            handleDeleteComment={handleDeleteComment}
-            postId={postId}
-            refreshComments={refreshComments}
-            setPost={setPost}
-            formatDate={formatDate}
-            onReport={onReport}
-            highlightedCommentId={highlightedCommentId}
-          />
-        ))}
     </div>
   );
 };
 
+const CommentThreadItem = ({
+  thread,
+  currentUser,
+  handleDeleteComment,
+  onNavigateToComment,
+  postId,
+  refreshComments,
+  refreshReplies,
+  setPost,
+  formatDate,
+  onReport,
+  highlightedCommentId,
+  loadInitialReplies,
+  loadMoreReplies,
+}: CommentThreadItemProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const threadContainerRef = useRef<HTMLDivElement | null>(null);
+  const hasHighlightedReply = thread.replies.some((reply) => reply.commentId === highlightedCommentId);
+
+  useEffect(() => {
+    if (hasHighlightedReply) {
+      setIsExpanded(true);
+    }
+  }, [hasHighlightedReply]);
+
+  const handleActivateThread = async () => {
+    if (thread.replyCount > 0 && !thread.repliesLoaded) {
+      await loadInitialReplies(thread.commentId);
+    }
+
+    if (thread.replyCount > 0) {
+      setIsExpanded(true);
+    }
+  };
+
+  const closeThread = () => {
+    setIsExpanded(false);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        threadContainerRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest',
+        });
+      });
+    });
+  };
+
+  const handleReplyMetaToggle = async () => {
+    if (isExpanded) {
+      closeThread();
+      return;
+    }
+
+    await handleActivateThread();
+  };
+
+  return (
+    <div ref={threadContainerRef} style={{ scrollMarginTop: `${COMMENT_SCROLL_OFFSET}px` }}>
+      <CommentEntry
+        comment={thread}
+        currentUser={currentUser}
+        handleDeleteComment={handleDeleteComment}
+        onNavigateToComment={onNavigateToComment}
+        onActivateComment={() => void handleActivateThread()}
+        onDeactivateComment={closeThread}
+        postId={postId}
+        refreshComments={refreshComments}
+        refreshReplies={refreshReplies}
+        rootCommentId={thread.commentId}
+        setPost={setPost}
+        formatDate={formatDate}
+        onReport={onReport}
+        highlightedCommentId={highlightedCommentId}
+      />
+      {thread.replyCount > 0 && !isExpanded && (
+        <div className="ml-[46px] mt-2">
+          <button
+            type="button"
+            onClick={() => void handleReplyMetaToggle()}
+            className="text-[12px] font-semibold text-blue-500 transition-colors hover:text-blue-700"
+          >
+            답글 {thread.replyCount}개
+          </button>
+        </div>
+      )}
+      {isExpanded && (
+        <div className="ml-[46px] mt-3 border-l border-gray-100 pl-4">
+          {thread.repliesLoading && thread.replies.length === 0 ? (
+            <div className="py-4 text-[13px] font-medium text-gray-400">답글을 불러오는 중입니다.</div>
+          ) : null}
+          {thread.replies.map((reply) => (
+            <CommentEntry
+              key={reply.commentId}
+              comment={reply}
+              currentUser={currentUser}
+              handleDeleteComment={handleDeleteComment}
+              onNavigateToComment={onNavigateToComment}
+              postId={postId}
+              refreshComments={refreshComments}
+              refreshReplies={refreshReplies}
+              rootCommentId={thread.commentId}
+              setPost={setPost}
+              formatDate={formatDate}
+              onReport={onReport}
+              highlightedCommentId={highlightedCommentId}
+              nested
+            />
+          ))}
+          {!thread.repliesLoading && thread.repliesLoaded && thread.replies.length === 0 && (
+            <div className="py-4 text-[13px] font-medium text-gray-400">표시할 답글이 없습니다.</div>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {thread.repliesHasNext && (
+              <button
+                type="button"
+                onClick={() => void loadMoreReplies(thread.commentId)}
+                disabled={thread.repliesLoading}
+                className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-blue-600 ring-1 ring-blue-100 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-gray-300"
+              >
+                {thread.repliesLoading ? '답글을 더 불러오는 중입니다.' : '답글 더 보기'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={closeThread}
+              className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-blue-600 ring-1 ring-blue-100 transition-colors hover:bg-blue-50"
+            >
+              답글 숨기기
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 const PollVotePanel = ({
   detail,
   selectedVote,
@@ -445,7 +613,7 @@ const PollVotePanel = ({
               </div>
               <div className="mt-2 flex items-center justify-between text-[12px] font-medium text-gray-500">
                 <span>{option.rate}%</span>
-                <span>{isSelected ? '내 선택' : '선택하기'}</span>
+                <span>{isSelected ? '선택됨' : '선택하기'}</span>
               </div>
             </button>
           );
@@ -454,7 +622,7 @@ const PollVotePanel = ({
 
       <div className="mt-4 flex items-center justify-between text-[13px] font-medium text-gray-500">
         <span>총 {totalVotes}명 참여</span>
-        <span>{detail.isClosed ? '마감된 토론입니다.' : '마감 전까지 선택을 변경할 수 있습니다.'}</span>
+        <span>{detail.isClosed ? '마감된 투표입니다.' : '마감 전까지 선택을 변경할 수 있습니다.'}</span>
       </div>
     </div>
   );
@@ -545,7 +713,7 @@ const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
               </a>
             ) : (
               <div className="rounded-xl border border-dashed border-gray-200 px-4 py-3 text-center text-[13px] text-gray-400">
-                등록된 딜 링크가 없습니다.
+                등록된 링크가 없습니다.
               </div>
             )}
           </div>
@@ -557,16 +725,17 @@ const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
 
 export const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
-  const [searchParams] = useSearchParams();
-  const highlightedCommentId = searchParams.get('commentId')
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialHighlightedCommentId = searchParams.get('commentId')
     ? Number(searchParams.get('commentId'))
     : null;
   const navigate = useNavigate();
 
   const [post, setPost] = useState<GetPostResponseDto | null>(null);
-  const [comments, setComments] = useState<CommentSummaryDto[]>([]);
+  const [comments, setComments] = useState<CommentThreadView[]>([]);
   const [commentPage, setCommentPage] = useState(0);
   const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [loadingMoreComments, setLoadingMoreComments] = useState(false);
 
   const [commentInput, setCommentInput] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -576,6 +745,7 @@ export const PostDetailPage = () => {
   const [hotdealDetail, setHotdealDetail] = useState<HotdealDetailResponseDto | null>(null);
   const [selectedPollVote, setSelectedPollVote] = useState<'OPTION_A' | 'OPTION_B' | null>(null);
   const [submittingPollVote, setSubmittingPollVote] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const reactionStorageKey = `post_reaction_${postId}`;
   const pollVoteStorageKey = `poll_vote_${postId}`;
@@ -593,6 +763,13 @@ export const PostDetailPage = () => {
     targetType: 'POST',
     targetId: 0,
   });
+  const [highlightedCommentId, setHighlightedCommentId] = useState<number | null>(
+    initialHighlightedCommentId
+  );
+
+  useEffect(() => {
+    setHighlightedCommentId(initialHighlightedCommentId);
+  }, [initialHighlightedCommentId]);
 
   const onReport = (type: ReportTargetType, id: number) => {
     setReportModalState({
@@ -600,6 +777,15 @@ export const PostDetailPage = () => {
       targetType: type,
       targetId: id,
     });
+  };
+
+  const handleNavigateToComment = (commentId: number) => {
+    setHighlightedCommentId(null);
+    window.setTimeout(() => setHighlightedCommentId(commentId), 0);
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('commentId', String(commentId));
+    setSearchParams(nextParams, { replace: true });
   };
 
   const currentUser = useAuthStore((state) => state.user);
@@ -610,43 +796,113 @@ export const PostDetailPage = () => {
     return String(currentUser?.userId) === String(post.authorId);
   }, [post, currentUser]);
 
-  const commentTree = useMemo(() => {
-    const nodes = new Map<number, CommentNode>();
-    const roots: CommentNode[] = [];
+  const toThreadView = (
+    thread: CommentThreadDto,
+    previous?: CommentThreadView
+  ): CommentThreadView => ({
+    ...thread,
+    replies: previous?.replies ?? [],
+    repliesLoaded: previous?.repliesLoaded ?? false,
+    repliesLoading: false,
+    repliesPage: previous?.repliesPage ?? -1,
+    repliesHasNext: previous?.repliesHasNext ?? thread.replyCount > 0,
+  });
 
-    comments.forEach((c) => nodes.set(c.commentId, { ...c, children: [] }));
+  const fetchCommentPages = async (pageCount: number, fetchAll: boolean = false) => {
+    if (!postId) {
+      return;
+    }
 
-    comments.forEach((c) => {
-      const node = nodes.get(c.commentId)!;
-      if (node.parentCommentId === null || node.parentCommentId === undefined) {
-        roots.push(node);
-      } else {
-        const parentId = node.parentCommentId;
-        if (!nodes.has(parentId)) {
-          const virtualParent: CommentNode = {
-            commentId: parentId,
-            parentCommentId: null,
-            content: '삭제된 댓글입니다.',
-            authorId: -1,
-            authorNickname: '알 수 없음',
-            isMine: false,
-            likeCount: 0,
-            dislikeCount: 0,
-            createdAt: node.createdAt,
-            updatedAt: node.createdAt,
-            status: 'DELETED',
-            children: [],
-            isVirtual: true,
-          };
-          nodes.set(parentId, virtualParent);
-          roots.push(virtualParent);
-        }
-        nodes.get(parentId)!.children.push(node);
+    const mergedComments: CommentThreadDto[] = [];
+    let pageIndex = 0;
+    let hasNextPage = false;
+
+    while (true) {
+      const response = await getComments(Number(postId), pageIndex, COMMENT_PAGE_SIZE);
+      const nextComments = response.data?.content || [];
+
+      mergedComments.push(...nextComments);
+      hasNextPage = response.data?.hasNext || false;
+
+      if (!hasNextPage || (!fetchAll && pageIndex >= pageCount)) {
+        setComments((prev) => {
+          const previousById = new Map(prev.map((thread) => [thread.commentId, thread]));
+          return mergedComments.map((thread) => toThreadView(thread, previousById.get(thread.commentId)));
+        });
+        setHasMoreComments(hasNextPage);
+        setCommentPage(pageIndex);
+        return;
       }
-    });
 
-    return roots.sort((a, b) => a.commentId - b.commentId);
-  }, [comments]);
+      pageIndex += 1;
+    }
+  };
+
+  const fetchReplyPages = async (rootCommentId: number, pageCount: number) => {
+    if (!postId) {
+      return;
+    }
+
+    setComments((prev) =>
+      prev.map((thread) =>
+        thread.commentId === rootCommentId ? { ...thread, repliesLoading: true } : thread
+      )
+    );
+
+    const mergedReplies: CommentReplyDto[] = [];
+    let pageIndex = 0;
+    let hasNextPage = false;
+
+    try {
+      while (true) {
+        const response = await getCommentReplies(
+          Number(postId),
+          rootCommentId,
+          pageIndex,
+          REPLY_PAGE_SIZE
+        );
+        const nextReplies = response.data?.content || [];
+
+        mergedReplies.push(...nextReplies);
+        hasNextPage = response.data?.hasNext || false;
+
+        if (!hasNextPage || pageIndex >= pageCount) {
+          setComments((prev) =>
+            prev.map((thread) =>
+              thread.commentId === rootCommentId
+                ? {
+                    ...thread,
+                    replies: mergedReplies,
+                    repliesLoaded: true,
+                    repliesLoading: false,
+                    repliesPage: pageIndex,
+                    repliesHasNext: hasNextPage,
+                  }
+                : thread
+            )
+          );
+          return;
+        }
+
+        pageIndex += 1;
+      }
+    } catch {
+      setComments((prev) =>
+        prev.map((thread) =>
+          thread.commentId === rootCommentId ? { ...thread, repliesLoading: false } : thread
+        )
+      );
+    }
+  };
+
+  const refreshReplies = async (rootCommentId: number) => {
+    const targetThread = comments.find((thread) => thread.commentId === rootCommentId);
+    if (!targetThread?.repliesLoaded) {
+      return;
+    }
+
+    await fetchReplyPages(rootCommentId, Math.max(targetThread.repliesPage, 0));
+  };
 
   useEffect(() => {
     const fetchPostDetail = async () => {
@@ -654,15 +910,10 @@ export const PostDetailPage = () => {
       setLoading(true);
       setError(null);
       try {
-        const [postRes, commentsRes] = await Promise.all([
-          getPost(Number(postId)),
-          getComments(Number(postId), 0, 100),
-        ]);
+        const postRes = await getPost(Number(postId));
         if (postRes.data) {
           setPost(postRes.data);
-          setComments(commentsRes.data?.content || []);
-          setHasMoreComments(commentsRes.data?.hasNext || false);
-          setCommentPage(0);
+          await fetchCommentPages(0);
           const saved = localStorage.getItem(reactionStorageKey);
           setSelectedReaction(
             saved === 'LIKE' || saved === 'DISLIKE' ? (saved as ReactionType) : null
@@ -691,7 +942,7 @@ export const PostDetailPage = () => {
           setError('게시글을 찾을 수 없습니다.');
         }
       } catch {
-        setError('게시글을 불러오는 데 실패했습니다.');
+        setError('게시글을 불러오는데 실패했습니다.');
       } finally {
         setLoading(false);
       }
@@ -699,12 +950,17 @@ export const PostDetailPage = () => {
     fetchPostDetail();
   }, [pollVoteStorageKey, postId, reactionStorageKey]);
 
-  const refreshComments = async () => {
+  const refreshComments = async (fetchAll: boolean = false) => {
     if (!postId) return;
-    const commentsRes = await getComments(Number(postId), 0, 100);
-    setComments(commentsRes.data?.content || []);
-    setHasMoreComments(commentsRes.data?.hasNext || false);
-    setCommentPage(0);
+    const loadedReplyTargets = comments
+      .filter((thread) => thread.repliesLoaded)
+      .map((thread) => ({ rootCommentId: thread.commentId, replyPage: Math.max(thread.repliesPage, 0) }));
+
+    await fetchCommentPages(commentPage, fetchAll);
+
+    for (const target of loadedReplyTargets) {
+      await fetchReplyPages(target.rootCommentId, target.replyPage);
+    }
   };
 
   const handleDelete = async () => {
@@ -721,7 +977,7 @@ export const PostDetailPage = () => {
     if (!window.confirm('정말 이 댓글을 삭제하시겠습니까?')) return;
     try {
       await deleteComment(commentId);
-      await refreshComments();
+      await refreshComments(true);
       setPost((prev) =>
         prev ? { ...prev, commentCount: Math.max(0, prev.commentCount - 1) } : null
       );
@@ -730,14 +986,14 @@ export const PostDetailPage = () => {
     }
   };
 
-  const handleCommentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCommentSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!postId || !commentInput.trim() || submittingComment) return;
     setSubmittingComment(true);
     try {
       await createComment(Number(postId), { content: commentInput.trim() });
       setCommentInput('');
-      await refreshComments();
+      await refreshComments(true);
       setPost((prev) => (prev ? { ...prev, commentCount: prev.commentCount + 1 } : null));
     } catch {
       alert('댓글 작성에 실패했습니다.');
@@ -747,18 +1003,76 @@ export const PostDetailPage = () => {
   };
 
   const loadMoreComments = async () => {
-    if (!postId || !hasMoreComments) return;
+    if (!postId || !hasMoreComments || loadingMoreComments) return;
+    setLoadingMoreComments(true);
     try {
       const nextPage = commentPage + 1;
-      const res = await getComments(Number(postId), nextPage, 100);
+      const res = await getComments(Number(postId), nextPage, COMMENT_PAGE_SIZE);
       if (res.data) {
-        setComments((prev) => [...prev, ...(res.data?.content || [])]);
+        setComments((prev) => {
+          const previousById = new Map(prev.map((thread) => [thread.commentId, thread]));
+          const nextThreads = (res.data?.content || []).map((thread) =>
+            toThreadView(thread, previousById.get(thread.commentId))
+          );
+          return [...prev, ...nextThreads];
+        });
         setHasMoreComments(res.data.hasNext);
         setCommentPage(nextPage);
       }
     } catch {
       // Failed to load more comments
+    } finally {
+      setLoadingMoreComments(false);
     }
+  };
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!hasMoreComments) {
+      return;
+    }
+
+    const maybeLoadMore = (remainingScroll: number) => {
+      if (remainingScroll <= 240) {
+        void loadMoreComments();
+      }
+    };
+
+    const handleContainerScroll = () => {
+      if (!container) {
+        return;
+      }
+      maybeLoadMore(container.scrollHeight - container.scrollTop - container.clientHeight);
+    };
+
+    const handleWindowScroll = () => {
+      const scrollRoot = document.documentElement;
+      maybeLoadMore(scrollRoot.scrollHeight - window.scrollY - window.innerHeight);
+    };
+
+    container?.addEventListener('scroll', handleContainerScroll, { passive: true });
+    window.addEventListener('scroll', handleWindowScroll, { passive: true });
+
+    handleContainerScroll();
+    handleWindowScroll();
+
+    return () => {
+      container?.removeEventListener('scroll', handleContainerScroll);
+      window.removeEventListener('scroll', handleWindowScroll);
+    };
+  }, [hasMoreComments, loadingMoreComments, commentPage, postId]);
+
+  const loadInitialReplies = async (rootCommentId: number) => {
+    await fetchReplyPages(rootCommentId, 0);
+  };
+
+  const loadMoreReplies = async (rootCommentId: number) => {
+    const targetThread = comments.find((thread) => thread.commentId === rootCommentId);
+    if (!targetThread || targetThread.repliesLoading || !targetThread.repliesHasNext) {
+      return;
+    }
+
+    await fetchReplyPages(rootCommentId, targetThread.repliesPage + 1);
   };
 
   const handlePollVote = async (voteOption: 'OPTION_A' | 'OPTION_B') => {
@@ -782,7 +1096,7 @@ export const PostDetailPage = () => {
         localStorage.setItem(pollVoteStorageKey, voteOption);
       }
     } catch {
-      alert('토론 투표에 실패했습니다.');
+      alert('투표에 실패했습니다.');
     } finally {
       setSubmittingPollVote(false);
     }
@@ -856,7 +1170,7 @@ export const PostDetailPage = () => {
       case 'PR':
         return 'PR';
       case 'POLL':
-        return '토론';
+        return '투표';
       case 'HOTDEAL':
         return '핫딜';
       default:
@@ -991,7 +1305,7 @@ export const PostDetailPage = () => {
         </div>
       </div>
 
-      <div className="w-full overflow-y-auto">
+      <div ref={scrollContainerRef} className="w-full overflow-y-auto">
         <div className="px-5 pt-6 flex items-start gap-3 w-full">
           <UserAvatar
             profileImageUrl={post.authorProfileImageUrl}
@@ -1054,7 +1368,7 @@ export const PostDetailPage = () => {
                         />
                       ) : (
                         <div className="flex h-44 items-center justify-center bg-gray-50 text-[13px] font-semibold text-gray-400">
-                          파일 미리보기 없음
+                          파일 미리보기를 지원하지 않습니다.
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -1131,62 +1445,71 @@ export const PostDetailPage = () => {
 
         <div className="px-5 pt-6 pb-24 w-full">
           <h3 className="text-[15px] font-bold text-gray-900 mb-5">{post.commentCount}개의 댓글</h3>
+          {post.status !== 'BLINDED' && (
+            <form
+              onSubmit={handleCommentSubmit}
+              className="mb-6 rounded-2xl border border-gray-200 bg-gray-50/70 px-4 py-4"
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  value={commentInput}
+                  onChange={(e) => setCommentInput(e.target.value)}
+                  placeholder="댓글을 입력하세요"
+                  className="flex-1 h-11 px-4 rounded-full bg-white text-[14px] outline-none border border-gray-200 placeholder:text-gray-400"
+                />
+                <button
+                  type="submit"
+                  disabled={submittingComment || !commentInput.trim()}
+                  className="h-11 px-4 rounded-full bg-blue-600 text-white text-[14px] font-bold disabled:bg-gray-300 transition-colors"
+                >
+                  등록
+                </button>
+              </div>
+            </form>
+          )}
           <div className="flex flex-col">
-            {commentTree.length === 0 ? (
+            {comments.length === 0 ? (
               <div className="text-center text-gray-400 text-[14px] py-10 font-medium">
                 첫 번째 댓글을 남겨보세요.
               </div>
             ) : (
-              commentTree.map((node) => (
-                <CommentItem
-                  key={node.commentId}
-                  node={node}
+              comments.map((thread) => (
+                <CommentThreadItem
+                  key={thread.commentId}
+                  thread={thread}
                   currentUser={currentUser}
                   handleDeleteComment={handleDeleteComment}
+                  onNavigateToComment={handleNavigateToComment}
                   postId={postId}
                   refreshComments={refreshComments}
+                  refreshReplies={refreshReplies}
+                  rootCommentId={thread.commentId}
                   setPost={setPost}
                   formatDate={formatDate}
                   onReport={onReport}
                   highlightedCommentId={highlightedCommentId}
+                  loadInitialReplies={loadInitialReplies}
+                  loadMoreReplies={loadMoreReplies}
                 />
               ))
             )}
           </div>
           {hasMoreComments && (
-            <button
-              type="button"
-              onClick={loadMoreComments}
-              className="w-full mt-6 py-3 rounded-xl border border-gray-200 text-[14px] font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              댓글 더 보기
-            </button>
+            <div className="mt-6 flex justify-center py-4">
+              {loadingMoreComments ? (
+                <div className="flex items-center gap-2 text-[13px] font-medium text-gray-400">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500" />
+                  <span>댓글을 더 불러오는 중입니다.</span>
+                </div>
+              ) : (
+                <span className="text-[13px] font-medium text-gray-400">
+                  스크롤하면 댓글을 더 불러옵니다.
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
-
-      {post.status !== 'BLINDED' && (
-        <form
-          onSubmit={handleCommentSubmit}
-          className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-3"
-        >
-          <div className="flex items-center gap-2">
-            <input
-              value={commentInput}
-              onChange={(e) => setCommentInput(e.target.value)}
-              placeholder="댓글을 입력하세요."
-              className="flex-1 h-11 px-4 rounded-full bg-gray-100 text-[14px] outline-none placeholder:text-gray-400"
-            />
-            <button
-              type="submit"
-              disabled={submittingComment || !commentInput.trim()}
-              className="h-11 px-4 rounded-full bg-blue-600 text-white text-[14px] font-bold disabled:bg-gray-300 transition-colors"
-            >
-              등록
-            </button>
-          </div>
-        </form>
-      )}
 
       <ReportModal
         isOpen={reportModalState.isOpen}
@@ -1197,4 +1520,3 @@ export const PostDetailPage = () => {
     </Card>
   );
 };
-
