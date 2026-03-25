@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import importlib
 import json
-from google import genai
 
 from config import get_env, DEFAULT_GEMINI_MODEL
 from domain.consumption.ai_insights import _model_candidates, _extract_json
 from domain.strict_secretary.models import SecretaryResponse
+
 
 class StrictSecretaryAgent:
     def __init__(self):
@@ -13,7 +14,13 @@ class StrictSecretaryAgent:
         self.model_name = get_env("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
         self.client = None
         if self.api_key:
-            self.client = genai.Client(api_key=self.api_key)
+            try:
+                genai_module = importlib.import_module("google.genai")
+                client_factory = getattr(genai_module, "Client", None)
+                if client_factory is not None:
+                    self.client = client_factory(api_key=self.api_key)
+            except Exception:
+                self.client = None
 
     def evaluate_purchase(
         self,
@@ -34,18 +41,18 @@ class StrictSecretaryAgent:
             return SecretaryResponse(
                 is_approved=False,
                 fact_violence_comment="API Key가 없어서 팩트폭력도 못 해드리겠네요.",
-                reasoning=["API Key 누락"]
+                reasoning=["API Key 누락"],
             )
 
         context_data = {
             "profile": profile,
-            "recent_transactions_summary": recent_txs, # simplified list
+            "recent_transactions_summary": recent_txs,  # simplified list
             "past_excuses": explain_logs,
             "latest_ai_report": ai_report,
         }
-        
+
         context_str = json.dumps(context_data, ensure_ascii=False, indent=2)
-        
+
         prompt = f"""
 You are a "Strict but Friendly AI Secretary/Friend" (깐깐하지만 밉지 않은, 친한 비서/친구).
 You must address the user in friendly, informal Korean ("반말", like chatting with a close friend).
@@ -90,8 +97,12 @@ Return ONLY strict JSON with the following structure:
                 )
                 text = getattr(response, "text", "") or ""
                 parsed = _extract_json(text)
-                
-                if "is_approved" in parsed and "fact_violence_comment" in parsed and "reasoning" in parsed:
+
+                if (
+                    "is_approved" in parsed
+                    and "fact_violence_comment" in parsed
+                    and "reasoning" in parsed
+                ):
                     return SecretaryResponse(
                         is_approved=bool(parsed["is_approved"]),
                         fact_violence_comment=str(parsed["fact_violence_comment"]),
@@ -99,12 +110,15 @@ Return ONLY strict JSON with the following structure:
                     )
             except Exception as e:
                 import logging
-                logging.warning(f"Error evaluating purchase with model {{candidate}}: {{e}}")
+
+                logging.warning(
+                    f"Error evaluating purchase with model {{candidate}}: {{e}}"
+                )
                 continue
 
         # Fallback
         return SecretaryResponse(
             is_approved=False,
             fact_violence_comment="답변을 생성하는 중에 문제가 생겼어요. 일단 사지 마세요.",
-            reasoning=["AI 오류 발생"]
+            reasoning=["AI 오류 발생"],
         )

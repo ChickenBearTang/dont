@@ -26,6 +26,7 @@ export interface AccountDetail {
   accountBalance: string;
   lastTransactionDate: string;
   currencyCode: string;
+  isPrimary: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export interface Account {
   balance: number;
   userName: string;
   status: AccountStatus;
+  isPrimary: boolean;
 }
 
 /**

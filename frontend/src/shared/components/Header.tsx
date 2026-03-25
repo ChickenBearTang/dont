@@ -19,6 +19,20 @@ const NAV_TABS = [
   { label: '커뮤니티', path: '/community' },
 ];
 
+/**
+ * referenceId가 202603 형태로 올 때 2026-03으로 변환
+ */
+const formatReferenceMonth = (referenceId?: number | null) => {
+  if (!referenceId) return null;
+
+  const raw = String(referenceId);
+  if (!/^\d{6}$/.test(raw)) return null;
+
+  const year = raw.slice(0, 4);
+  const month = raw.slice(4, 6);
+  return `${year}-${month}`;
+};
+
 const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,6 +62,8 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const displayNickname = myPageData?.nickname ?? user?.nickname ?? '사용자';
   const displayProfileImageUrl = myPageData?.profileImageUrl ?? user?.profileImageUrl ?? null;
   const profileInitial = (displayNickname.trim()[0] ?? displayEmail.trim()[0] ?? 'U').toUpperCase();
+
+  const isAdmin = user?.role === 'ADMIN' || user?.role?.includes?.('ADMIN');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -83,6 +99,22 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
     setIsDropdownOpen(false);
 
+    // 팀원 코드: 소비리포트 알림 클릭 시 해당 월 리포트로 이동
+    if (
+      notif.notificationType === 'CONSUMPTION_REPORT_READY' ||
+      (notif.notificationType === 'FINANCE_GENERIC' && notif.referenceType === 'FINANCE')
+    ) {
+      const targetMonth = formatReferenceMonth(notif.referenceId);
+
+      if (targetMonth) {
+        navigate(`/finance/report?reportMonth=${targetMonth}`);
+      } else {
+        navigate('/finance/report');
+      }
+      return;
+    }
+
+    // 댓글 / 답글 알림 처리
     if (notif.postId && notif.commentId) {
       navigate(`/community/${notif.postId}?commentId=${notif.commentId}`);
       return;
@@ -95,6 +127,12 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
     if (notif.referenceType === 'COMMENT' && notif.postId && notif.referenceId) {
       navigate(`/community/${notif.postId}?commentId=${notif.referenceId}`);
+      return;
+    }
+
+    // 관리자 신고 처리 알림 등 클릭 시 별도 이동 없음
+    if (notif.notificationType?.includes?.('REPORT_PROCESSED') && isAdmin) {
+      return;
     }
   };
 
@@ -138,11 +176,10 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                 <div
                   key={tab.label}
                   onClick={() => navigate(tab.path)}
-                  className={`flex cursor-pointer items-center justify-center border-b-[3px] px-5 text-[15px] transition-all duration-300 hover:text-primary-blue ${
-                    isActive
-                      ? 'border-primary-blue text-primary-blue'
-                      : 'border-transparent text-gray-500 hover:border-gray-200'
-                  }`}
+                  className={`flex cursor-pointer items-center justify-center border-b-[3px] px-5 text-[15px] transition-all duration-300 hover:text-primary-blue ${isActive
+                    ? 'border-primary-blue text-primary-blue'
+                    : 'border-transparent text-gray-500 hover:border-gray-200'
+                    }`}
                 >
                   {tab.label}
                 </div>
@@ -153,7 +190,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
         {isAuthenticated ? (
           <div className="flex items-center gap-4">
-            {user?.role === 'ADMIN' && (
+            {isAdmin && (
               <button
                 type="button"
                 className="cursor-pointer text-gray-400 transition-all hover:scale-110 hover:text-red-500"
@@ -180,9 +217,8 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
-                className={`relative cursor-pointer transition-transform hover:scale-110 ${
-                  isDropdownOpen ? 'opacity-70' : ''
-                }`}
+                className={`relative cursor-pointer transition-transform hover:scale-110 ${isDropdownOpen ? 'opacity-70' : ''
+                  }`}
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
               >
                 <img src={bellIcon} alt="Notifications" className="h-5 w-5 object-contain" />
@@ -217,9 +253,8 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                       notifications.map((notif) => (
                         <div
                           key={notif.notificationId}
-                          className={`group relative flex cursor-pointer flex-col gap-0.5 border-b border-gray-50 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${
-                            !notif.isRead ? 'bg-blue-50/30' : ''
-                          }`}
+                          className={`group relative flex cursor-pointer flex-col gap-0.5 border-b border-gray-50 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${!notif.isRead ? 'bg-blue-50/30' : ''
+                            }`}
                           onClick={() => void handleNotificationClick(notif)}
                         >
                           <div className="flex items-start justify-between gap-2 pr-5">

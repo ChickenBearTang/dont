@@ -64,4 +64,16 @@ public class UserOnboardingController {
             @CurrentUserId Long userId) {
         return CommonResponse.success(userOnboardingService.completeOnboarding(userId));
     }
+
+    @org.springframework.web.bind.annotation.DeleteMapping
+    @Operation(summary = "온보딩 정보 초기화 API", description = "현재 로그인한 사용자의 온보딩 정보와 저축 설정을 초기화합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "404", description = "사용자 없음")
+    })
+    public CommonResponse<Void> resetOnboarding(@CurrentUserId Long userId) {
+        userOnboardingService.resetOnboarding(userId);
+        return CommonResponse.success(null);
+    }
 }

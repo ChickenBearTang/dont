@@ -1,3 +1,4 @@
-from ai.storage.sqlite_store import SqliteCrawlStore
+from .sqlite_store import SqliteCrawlStore
+from .postgres_store import PostgresCrawlStore
 
-__all__ = ["SqliteCrawlStore"]
+__all__ = ["SqliteCrawlStore", "PostgresCrawlStore"]

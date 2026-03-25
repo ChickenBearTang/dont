@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.ranking.service;
 
+import com.ssafy.edu.awesomeproject.common.s3.service.S3AssetUrlResolver;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.ranking.dto.response.RankingUserDto;
@@ -19,6 +20,7 @@ public class RankingService {
 
     private final StringRedisTemplate redisTemplate;
     private final UserRepository userRepository;
+    private final S3AssetUrlResolver s3AssetUrlResolver;
 
     // 글로벌 전체 랭킹용 Redis Key
     private static final String TOTAL_RANKING_KEY = "ranking:savebox:total";
@@ -74,15 +76,32 @@ public class RankingService {
             }
         }
 
-        Map<Long, String> nicknameMap =
+        // 유저 정보를 한 번에 조회 (N+1 방지)
+        Map<Long, User> userMap =
                 userRepository.findAllById(userIds).stream()
-                        .collect(Collectors.toMap(User::getId, User::getNickname));
+                        .collect(Collectors.toMap(User::getId, u -> u));
 
         for (int i = 0; i < userIds.size(); i++) {
             Long userId = userIds.get(i);
-            String nickname = nicknameMap.getOrDefault(userId, "탈퇴한 유저");
+            User user = userMap.get(userId);
+            String nickname = user != null ? user.getNickname() : "탈퇴한 유저";
+            Integer cohortNo =
+                    (user != null && user.getCohort() != null)
+                            ? user.getCohort().getGenerationNo()
+                            : null;
+            String profileImageUrl =
+                    user != null
+                            ? s3AssetUrlResolver.resolvePublicUrlOrNull(user.getProfileImageUrl())
+                            : null;
+
             result.add(
-                    RankingUserDto.of(userId, nickname, scores.get(i).longValue(), currentRank++));
+                    RankingUserDto.of(
+                            userId,
+                            nickname,
+                            scores.get(i).longValue(),
+                            currentRank++,
+                            cohortNo,
+                            profileImageUrl));
         }
 
         return result;
@@ -98,15 +117,26 @@ public class RankingService {
         Long rank = redisTemplate.opsForZSet().reverseRank(key, userIdStr);
 
         if (scoreDouble == null || rank == null) {
-            return RankingUserDto.of(userId, null, 0L, -1L);
+            return RankingUserDto.of(userId, null, 0L, -1L, null, null);
         }
 
-        String nickname = userRepository.findById(userId).map(User::getNickname).orElse("탈퇴한 유저");
+        User user = userRepository.findById(userId).orElse(null);
+        String nickname = user != null ? user.getNickname() : "탈퇴한 유저";
+        Integer cohortNo =
+                (user != null && user.getCohort() != null)
+                        ? user.getCohort().getGenerationNo()
+                        : null;
+        String profileImageUrl =
+                user != null
+                        ? s3AssetUrlResolver.resolvePublicUrlOrNull(user.getProfileImageUrl())
+                        : null;
 
         return RankingUserDto.of(
                 userId,
                 nickname,
                 scoreDouble.longValue(),
-                rank + 1); // Redis ZSET Rank는 0부터 시작하므로 +1
+                rank + 1, // Redis ZSET Rank는 0부터 시작하므로 +1
+                cohortNo,
+                profileImageUrl);
     }
 }

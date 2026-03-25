@@ -26,8 +26,10 @@ export const SaveboxDetailPage: React.FC = () => {
       (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
     );
 
-  // Find the linked primary account
-  const primaryAccount = accounts?.find((a) => a.id === setting?.primaryAccountId);
+  // Find the linked primary account with fallback
+  const primaryAccount = 
+    accounts?.find((a) => a.id === setting?.primaryAccountId) || 
+    accounts?.find((a) => a.isPrimary);
 
   // Get recent transactions for the savebox
   const now = new Date();
@@ -78,7 +80,7 @@ export const SaveboxDetailPage: React.FC = () => {
           <span className="text-primary-blue font-black">전용 금고</span>를 먼저 만들어보세요.
         </p>
         <button
-          onClick={() => navigate('/savebox-setup')}
+          onClick={() => navigate('/finance/savebox-setup')}
           className="px-10 py-5 bg-primary-blue text-white rounded-[24px] font-black text-lg shadow-xl shadow-blue-100 hover:scale-105 active:scale-95 transition-all"
         >
           세이브박스 개설하기
@@ -280,7 +282,7 @@ export const SaveboxDetailPage: React.FC = () => {
             )}
 
             <button
-              onClick={() => navigate('/savings-rule-setup')}
+              onClick={() => navigate('/finance/savings-rule-setup')}
               className="w-full mt-8 py-4 bg-eel text-white rounded-2xl font-bold text-[16px] hover:bg-black active:scale-95 transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-2 group"
             >
               <span> {setting ? '설정하기' : '설정하기'}</span>

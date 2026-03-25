@@ -18,6 +18,13 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
                     Long userId, LocalDate startDate, LocalDate endDate);
 
     @Query(
+            "select coalesce(sum(ct.transactionAmount), 0) from CardTransaction ct where ct.userId = :userId and ct.transactionDate between :startDate and :endDate")
+    Long sumAmountByUserIdAndDateRange(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query(
             """
             select ct.card.id as cardId, coalesce(sum(ct.transactionAmount), 0) as totalAmount
             from CardTransaction ct

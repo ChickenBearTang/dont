@@ -35,6 +35,15 @@ class AIPipelineManagerTest(unittest.TestCase):
 
         self.assertEqual(result, {"count": 1})
 
+    def test_run_re_raises_analyzer_error_by_default(self) -> None:
+        def _broken_analyzer(_: CrawlResult) -> dict[str, int]:
+            raise RuntimeError("boom")
+
+        manager = AIPipelineManager(crawler=_FakeCrawler(), analyzer=_broken_analyzer)
+
+        with self.assertRaises(RuntimeError):
+            manager.run()
+
 
 if __name__ == "__main__":
     unittest.main()
