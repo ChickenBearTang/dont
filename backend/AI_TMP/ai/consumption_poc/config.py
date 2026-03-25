@@ -4,9 +4,18 @@ import os
 from pathlib import Path
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = PROJECT_ROOT / "ai" / "data"
+def _find_env_path() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / ".env"
+        if candidate.exists():
+            return candidate
+    return Path(__file__).resolve().parents[2] / ".env"
+
+
+ENV_PATH = _find_env_path()
+PROJECT_ROOT = ENV_PATH.parent
+BASE_DIR = PROJECT_ROOT / "backend" / "AI_TMP" / "ai"
+DATA_DIR = BASE_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 GENERATED_DATA_DIR = DATA_DIR / "generated"
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -28,7 +37,6 @@ DEFAULT_GEMINI_MODEL_FALLBACKS = (
     "gemini-2.5-pro",
     "gemini-2.0-flash",
 )
-ENV_PATH = BASE_DIR / ".env"
 
 
 def load_local_env() -> dict[str, str]:

@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class ConsumptionReportService {
+    private static final DateTimeFormatter REPORT_MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
 
     private final FinConsumptionMonthlyReportRepository monthlyReportRepository;
     private final FinConsumptionJustificationRepository justificationRepository;
@@ -74,10 +76,12 @@ public class ConsumptionReportService {
                 .map(existing -> existing.getVersionNo() + 1)
                 .orElse(1);
 
+        String reportMonthText = toReportMonthText(reportMonth);
+
         ConsumptionAiClient.AiReportAnalysis aiAnalysis =
-            consumptionAiClient.analyzeMonthlyReport(userId, reportMonth.toString());
+            consumptionAiClient.analyzeMonthlyReport(userId, reportMonthText);
         CardRecommendationResponse cardRecommendation =
-            loadCardRecommendation(userId, reportMonth.toString());
+            loadCardRecommendation(userId, reportMonthText);
 
         List<Map<String, Object>> validJustifications =
             loadValidJustificationsForReport(userId, reportMonth);
@@ -129,9 +133,10 @@ public class ConsumptionReportService {
     public JustificationEvaluationResponse evaluateAndSaveJustification(
         Long userId, String targetMonthText, String message) {
         LocalDate targetMonth = toMonthStart(targetMonthText);
+        String normalizedTargetMonth = toReportMonthText(targetMonth);
 
         ConsumptionAiClient.JustificationEvaluation evaluation =
-            consumptionAiClient.evaluateJustification(userId, targetMonth.toString(), message);
+            consumptionAiClient.evaluateJustification(userId, normalizedTargetMonth, message);
 
         Map<String, Object> context =
             monthlyReportRepository
@@ -218,6 +223,10 @@ public class ConsumptionReportService {
             throw new ConsumptionException(
                 ConsumptionErrorCode.INVALID_REPORT_MONTH, reportMonthText);
         }
+    }
+
+    private String toReportMonthText(LocalDate reportMonth) {
+        return YearMonth.from(reportMonth).format(REPORT_MONTH_FORMATTER);
     }
 
     private MonthlyReportLlmStatus toLlmStatus(String llmStatus) {

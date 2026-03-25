@@ -6,8 +6,15 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
-# .env 경로 설정 및 로드
-env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+def _find_env_path() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / ".env"
+        if candidate.exists():
+            return candidate
+    return Path(__file__).resolve().parent.parent.parent / ".env"
+
+
+env_path = _find_env_path()
 load_dotenv(dotenv_path=env_path)
 
 def generate_tts_audio(text: str) -> bytes | None:

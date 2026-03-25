@@ -174,7 +174,8 @@ public class CardService {
                 .message("Card summary retrieved.")
                 .totalAmount(totalAmount)
                 .RankColumList(rankColumList)
-                .aiReport(getAiAnalysis(userId, start, end))
+                // Keep the spending summary fast. The report page loads detailed AI analysis separately.
+                .aiReport(null)
                 .build();
     }
 
