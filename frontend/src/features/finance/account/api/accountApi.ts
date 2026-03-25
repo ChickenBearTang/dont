@@ -83,4 +83,13 @@ export const accountApi = {
       params: { amount },
     });
   },
+
+  /**
+   * SSAFY Finance API 키를 등록하고 계좌 정보를 동기화합니다.
+   */
+  linkFinanceAccount: (userKey: string): Promise<ApiResponse<AccountListResponse>> => {
+    return axiosInstance.post('/fin/accounts/link', null, {
+      params: { userKey },
+    });
+  },
 };

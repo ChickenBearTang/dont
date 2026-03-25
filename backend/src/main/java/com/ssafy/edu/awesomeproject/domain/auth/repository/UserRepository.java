@@ -31,4 +31,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     default boolean existsActiveById(Long id) {
         return existsByIdAndStatus(id, UserStatus.ACTIVE);
     }
+
+    boolean existsBySsafyFinanceUserKey(String ssafyFinanceUserKey);
 }
