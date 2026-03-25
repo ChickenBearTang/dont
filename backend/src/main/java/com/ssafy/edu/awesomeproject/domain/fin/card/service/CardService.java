@@ -4,20 +4,31 @@ import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request.OpenBankRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBankResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiCardRecommendationDbRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiDateRangeRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.AiAnalysisResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardRecommendationResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.Card;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.global.client.AiClient;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankClient;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankReqHeader;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +47,7 @@ public class CardService {
     private final CardRepository cardRepository;
     private final CardTransactionRepository cardTransactionRepository;
     private final UserRepository userRepository;
+    private final AiClient aiClient;
 
     @Value("${ssafy.api.key}")
     private String apiKey;
@@ -57,9 +69,7 @@ public class CardService {
     }
 
     @Transactional
-    public CardListResponse.CardItem getCardItem(
-            Long userId, Long cardId, String startDate, String endDate) {
-
+    public CardListResponse.CardItem getCardItem(Long userId, Long cardId, String startDate, String endDate) {
         Card card = cardRepository.findById(cardId).orElseThrow();
 
         LocalDate start = parseDateOrThrow(startDate, "startDate");
@@ -73,9 +83,7 @@ public class CardService {
                         .findByCardIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
                                 cardId, start, end);
 
-        // 유저의 결제금액 총합
-        Long totalAmount =
-                transactions.stream().mapToLong(CardTransaction::getTransactionAmount).sum();
+        Long totalAmount = transactions.stream().mapToLong(CardTransaction::getTransactionAmount).sum();
 
         return CardListResponse.CardItem.builder()
                 .cardIssuerName(card.getCardIssuerName())
@@ -117,11 +125,7 @@ public class CardService {
                                 cardId, start, end);
 
         return buildCardTransactionListResponse(
-                transactions,
-                true,
-                "Card transactions retrieved.",
-                card.getCardNo(),
-                card.getCardName());
+                transactions, true, "Card transactions retrieved.", card.getCardNo(), card.getCardName());
     }
 
     @Transactional(readOnly = true)
@@ -132,43 +136,36 @@ public class CardService {
             throw new IllegalArgumentException("startDate must be before or equal to endDate.");
         }
 
-        // 유저id + 날짜로 필터링(직전달 포함)
         List<CardTransaction> transactions =
                 cardTransactionRepository
                         .findByUserIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
                                 userId, start, end);
 
-        // 유저의 결제금액 총합
         Long totalAmount =
-                transactions.stream().mapToLong(CardTransaction::getTransactionAmount).sum();
+                transactions.stream().mapToLong(this::safeTransactionAmount).sum();
 
         Map<String, Long> amountByCategory =
                 transactions.stream()
                         .collect(
                                 Collectors.groupingBy(
-                                        CardTransaction
-                                                ::getCategoryName, // 카테고리 꺼내는 getter 이름에 맞게 수정
-                                        Collectors.summingLong(
-                                                CardTransaction::getTransactionAmount)));
+                                        this::normalizeCategoryName,
+                                        Collectors.summingLong(this::safeTransactionAmount)));
 
         List<CardSummaryResponse.RankColum> rankColumList =
                 amountByCategory.entrySet().stream()
                         .map(
                                 entry -> {
                                     long amount = entry.getValue();
-
                                     double percentage =
                                             totalAmount == 0 ? 0.0 : (amount * 100.0) / totalAmount;
 
                                     return CardSummaryResponse.RankColum.builder()
                                             .categoryName(entry.getKey())
                                             .percentage(percentage)
-                                            .amount((int) amount) // 가능하면 Long으로 바꾸는거 추천
+                                            .amount((int) amount)
                                             .build();
                                 })
-                        .sorted(
-                                Comparator.comparing(CardSummaryResponse.RankColum::getPercentage)
-                                        .reversed())
+                        .sorted(Comparator.comparing(CardSummaryResponse.RankColum::getPercentage).reversed())
                         .toList();
 
         return CardSummaryResponse.builder()
@@ -177,7 +174,37 @@ public class CardService {
                 .message("Card summary retrieved.")
                 .totalAmount(totalAmount)
                 .RankColumList(rankColumList)
+                .aiReport(getAiAnalysis(userId, start, end))
                 .build();
+    }
+
+    private long safeTransactionAmount(CardTransaction transaction) {
+        return transaction.getTransactionAmount() == null ? 0L : transaction.getTransactionAmount();
+    }
+
+    private String normalizeCategoryName(CardTransaction transaction) {
+        String categoryName = transaction.getCategoryName();
+        if (categoryName == null || categoryName.isBlank()) {
+            return "기타";
+        }
+        return categoryName;
+    }
+
+    private AiAnalysisResponse getAiAnalysis(Long userId, LocalDate start, LocalDate end) {
+        try {
+            AiAnalysisResponse response =
+                    aiClient.analyzeConsumptionByDateRange(
+                            new AiDateRangeRequest(
+                                    userId, start.format(DATE_FORMATTER), end.format(DATE_FORMATTER)));
+            if (response == null) {
+                System.err.println("AI Analysis returned null response");
+                return null;
+            }
+            return response;
+        } catch (Exception e) {
+            System.err.println("AI Analysis failed: " + e.getMessage());
+            return null;
+        }
     }
 
     private RefreshResult refreshCardsFromExternal(Long userId) {
@@ -196,16 +223,12 @@ public class CardService {
         }
 
         List<Card> existingCards = cardRepository.findAllByUser_Id(userId);
-
         Map<String, Card> existingCardMap =
-                existingCards.stream()
-                        .collect(Collectors.toMap(Card::getCardUniqueNo, card -> card));
+                existingCards.stream().collect(Collectors.toMap(Card::getCardUniqueNo, card -> card));
 
         List<Card> resultCards = new ArrayList<>();
-
         for (OpenBankResponse.Rec rec : response.getRec()) {
             Card existingCard = existingCardMap.get(rec.getCardUniqueNo());
-
             if (existingCard != null) {
                 existingCard.updateFromExternal(
                         rec.getCardNo(),
@@ -221,8 +244,7 @@ public class CardService {
                         rec.getWithdrawalDate());
                 resultCards.add(existingCard);
             } else {
-                Card newCard = toCardEntity(user, rec);
-                resultCards.add(cardRepository.save(newCard));
+                resultCards.add(cardRepository.save(toCardEntity(user, rec)));
             }
         }
 
@@ -231,13 +253,11 @@ public class CardService {
 
     private OpenBankRequest createCardListRequest(String userKey) {
         LocalDateTime now = LocalDateTime.now();
-
         return OpenBankRequest.builder()
                 .header(
                         OpenBankReqHeader.builder()
                                 .apiName("inquireSignUpCreditCardList")
-                                .transmissionDate(
-                                        now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                                .transmissionDate(now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
                                 .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
                                 .institutionCode("00100")
                                 .fintechAppNo("001")
@@ -268,34 +288,23 @@ public class CardService {
                                 : cardTransactions.stream()
                                         .map(
                                                 cardTransaction ->
-                                                        CardTransactionResponse.TransactionItem
-                                                                .builder()
-                                                                .categoryName(
-                                                                        cardTransaction
-                                                                                .getCategoryName())
-                                                                .merchantName(
-                                                                        cardTransaction
-                                                                                .getMerchantName())
+                                                        CardTransactionResponse.TransactionItem.builder()
+                                                                .categoryName(cardTransaction.getCategoryName())
+                                                                .merchantName(cardTransaction.getMerchantName())
                                                                 .transactionDate(
-                                                                        cardTransaction
-                                                                                                .getTransactionDate()
-                                                                                        == null
+                                                                        cardTransaction.getTransactionDate() == null
                                                                                 ? null
                                                                                 : cardTransaction
                                                                                         .getTransactionDate()
-                                                                                        .format(
-                                                                                                DATE_FORMATTER))
-                                                                .transactionTime(
-                                                                        cardTransaction
-                                                                                .getTransactionTime())
+                                                                                        .format(DATE_FORMATTER))
+                                                                .transactionTime(cardTransaction.getTransactionTime())
                                                                 .transactionAmount(
-                                                                        cardTransaction
-                                                                                                .getTransactionAmount()
-                                                                                        == null
+                                                                        cardTransaction.getTransactionAmount() == null
                                                                                 ? null
                                                                                 : String.valueOf(
                                                                                         cardTransaction
                                                                                                 .getTransactionAmount()))
+                                                                .id(cardTransaction.getId())
                                                                 .build())
                                         .collect(Collectors.toList()))
                 .build();
@@ -316,25 +325,18 @@ public class CardService {
                                         .sorted(
                                                 Comparator.comparingLong(
                                                                 (Card card) ->
-                                                                        monthlyExpenseByCardId
-                                                                                .getOrDefault(
-                                                                                        card
-                                                                                                .getId(),
-                                                                                        0L))
+                                                                        monthlyExpenseByCardId.getOrDefault(
+                                                                                card.getId(), 0L))
                                                         .reversed())
                                         .map(
                                                 card ->
                                                         CardListResponse.CardItem.builder()
                                                                 .id(card.getId())
-                                                                .cardIssuerName(
-                                                                        card.getCardIssuerName())
+                                                                .cardIssuerName(card.getCardIssuerName())
                                                                 .cardName(card.getCardName())
                                                                 .monthlyCardExpense(
-                                                                        monthlyExpenseByCardId
-                                                                                .getOrDefault(
-                                                                                        card
-                                                                                                .getId(),
-                                                                                        0L))
+                                                                        monthlyExpenseByCardId.getOrDefault(
+                                                                                card.getId(), 0L))
                                                                 .build())
                                         .collect(Collectors.toList()))
                 .build();
@@ -348,16 +350,13 @@ public class CardService {
         LocalDate today = LocalDate.now();
         LocalDate firstDayOfMonth = today.withDayOfMonth(1);
 
-        return cardTransactionRepository
-                .findMonthlyExpenseByUserIdAndDateRange(userId, firstDayOfMonth, today)
+        return cardTransactionRepository.findMonthlyExpenseByUserIdAndDateRange(userId, firstDayOfMonth, today)
                 .stream()
                 .collect(
                         Collectors.toMap(
                                 CardTransactionRepository.CardMonthlyExpenseProjection::getCardId,
                                 projection ->
-                                        projection.getTotalAmount() == null
-                                                ? 0L
-                                                : projection.getTotalAmount()));
+                                        projection.getTotalAmount() == null ? 0L : projection.getTotalAmount()));
     }
 
     private Card toCardEntity(User user, OpenBankResponse.Rec rec) {
@@ -382,15 +381,13 @@ public class CardService {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException("User not found: " + userId));
+                        .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
         String financeUserKey = user.getSsafyFinanceUserKey();
         if (financeUserKey == null || financeUserKey.isBlank()) {
             throw new IllegalArgumentException(
                     "ssafy_finance_user_key is missing for userId=" + userId);
         }
-
         return user;
     }
 
@@ -401,8 +398,7 @@ public class CardService {
             try {
                 return LocalDate.parse(date, ISO_DATE_FORMATTER);
             } catch (DateTimeParseException ignored) {
-                throw new IllegalArgumentException(
-                        fieldName + " must be yyyyMMdd or yyyy-MM-dd format.");
+                throw new IllegalArgumentException(fieldName + " must be yyyyMMdd or yyyy-MM-dd format.");
             }
         }
     }
@@ -411,6 +407,18 @@ public class CardService {
         String timestamp = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         int randomNo = new Random().nextInt(900000) + 100000;
         return timestamp + randomNo;
+    }
+
+    @Transactional(readOnly = true)
+    public CardRecommendationResponse getCardRecommendation(Long userId, String monthStr) {
+        try {
+            YearMonth.parse(monthStr);
+            return aiClient.getCardRecommendationFromDb(
+                    new AiCardRecommendationDbRequest(userId, monthStr));
+        } catch (Exception e) {
+            System.err.println("AI Card Recommendation failed: " + e.getMessage());
+            return null;
+        }
     }
 
     private record RefreshResult(boolean success, List<Card> cards, String message) {}

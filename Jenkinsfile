@@ -10,7 +10,7 @@ pipeline {
     environment {
         COMPOSE_FILE = 'docker-compose.yml'
         ENV_FILE = '.env'
-        APP_SERVICES = 'redis backend frontend edge-nginx'
+        APP_SERVICES = 'redis backend frontend edge-nginx loki alloy grafana'
     }
 
     stages {
@@ -42,7 +42,7 @@ pipeline {
                     set +x
 
                     test -f "${ENV_FILE}" || {
-                      echo "Missing ${ENV_FILE}. Copy .env.example to .env and set RDS/Redis/JWT values."
+                      echo "Missing ${ENV_FILE}. Provide required runtime env values (RDS/Redis/JWT, etc.)."
                       exit 1
                     }
 

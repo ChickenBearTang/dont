@@ -18,6 +18,21 @@ export const RequireAuthRoute = () => {
   return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
+export const RequireAdminRoute = () => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const role = useAuthStore((state) => state.user?.role);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (role !== 'ADMIN') {
+    return <Navigate to="/community" replace />;
+  }
+
+  return <Outlet />;
+};
+
 export const RequireCompletedOnboardingRoute = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [status, setStatus] = useState<'loading' | 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'>(

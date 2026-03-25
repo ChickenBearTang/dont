@@ -2,13 +2,15 @@ import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/shared/components/PublicLayout';
 import { ForgotPasswordPage, SignUpPage, LoginPage } from '@/features/auth';
 import { FinanceConnectPage, MyPagePage, OnboardingPage } from '@/features/user';
-
+import NotFoundPage from '@/shared/components/NotFoundPage';
+import ServerErrorPage from '@/shared/components/ServerErrorPage';
 import {
   AuthenticatedLayoutRoute,
   DashboardRoute,
   HomeRoute,
   PrCreateRoute,
   PrDetailRoute,
+  RequireAdminRoute,
   RequireAuthRoute,
   RequireCompletedOnboardingRoute,
 } from '@/app/routeComponents';
@@ -16,6 +18,7 @@ import {
 export const router = createBrowserRouter([
   {
     element: <PublicLayout />,
+    errorElement: <ServerErrorPage />,
     children: [
       {
         path: '/',
@@ -146,6 +149,13 @@ export const router = createBrowserRouter([
             },
           },
           {
+            path: '/finance/cards/recommendation',
+            async lazy() {
+              const { CardRecommendationRankPage } = await import('@/features/finance/card/pages/CardRecommendationRankPage');
+              return { Component: CardRecommendationRankPage };
+            },
+          },
+          {
             path: '/account',
             async lazy() {
               const { AccountPage } = await import('@/features/finance/account/pages/AccountPage');
@@ -187,12 +197,25 @@ export const router = createBrowserRouter([
             },
           },
           {
-            path: 'admin/reports',
+            path: '/savings-rule-setup',
             async lazy() {
-              const { default: AdminReportPage } =
-                await import('@/features/community/pages/AdminReportPage');
-              return { Component: AdminReportPage };
+              const { SavingsRuleSetupPage } =
+                await import('@/features/finance/account/pages/SavingsRuleSetupPage');
+              return { Component: SavingsRuleSetupPage };
             },
+          },
+          {
+            element: <RequireAdminRoute />,
+            children: [
+              {
+                path: '/admin/reports',
+                async lazy() {
+                  const { default: AdminReportPage } =
+                    await import('@/features/community/pages/AdminReportPage');
+                  return { Component: AdminReportPage };
+                },
+              },
+            ],
           },
           {
             path: '/ranking',
@@ -204,5 +227,13 @@ export const router = createBrowserRouter([
         ],
       },
     ],
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />,
+  },
+  {
+    path: '/500',
+    element: <ServerErrorPage />,
   },
 ]);

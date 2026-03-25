@@ -170,7 +170,7 @@ const AttachmentCountChip = ({ count }: { count: number }) =>
   ) : null;
 
 const AuthorMeta = ({ post }: { post: PostSummaryDto }) => (
-  <div className="flex items-center gap-2 min-w-0">
+  <div className="flex w-full items-center justify-start gap-2 min-w-0">
     <UserAvatar
       profileImageUrl={post.authorProfileImageUrl}
       nickname={post.authorNickname}
@@ -923,7 +923,7 @@ export const CommunityPage = () => {
                       </div>
                     </div>
 
-                    <div className="col-span-2 flex justify-center text-gray-500 text-[13px] font-medium min-w-0">
+                    <div className="col-span-2 flex justify-start text-gray-500 text-[13px] font-medium min-w-0">
                       <AuthorMeta post={post} />
                     </div>
 

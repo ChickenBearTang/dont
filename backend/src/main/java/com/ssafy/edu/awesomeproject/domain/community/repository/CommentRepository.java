@@ -3,6 +3,7 @@ package com.ssafy.edu.awesomeproject.domain.community.repository;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Comment;
 import com.ssafy.edu.awesomeproject.domain.community.entity.CommentStatus;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +19,9 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     Page<Comment> findByPost_IdAndStatusIn(
             Long postId, Collection<CommentStatus> statuses, Pageable pageable);
+
+    List<Comment> findByPost_IdAndStatusInOrderByIdAsc(
+            Long postId, Collection<CommentStatus> statuses);
 
     // 댓글 count
     long countByPost_IdAndStatus(Long postId, CommentStatus status);

@@ -284,7 +284,24 @@ export interface UpdateCommentResponseDto {
   updatedAt: string;
 }
 
-export interface CommentSummaryDto {
+export interface CommentReplyDto {
+  commentId: number;
+  parentCommentId: number | null;
+  replyToCommentId: number | null;
+  replyToNickname: string | null;
+  depth: number;
+  authorId: number;
+  authorNickname: string;
+  authorProfileImageUrl?: string | null;
+  content: string;
+  status: 'ACTIVE' | 'DELETED' | 'BLINDED';
+  likeCount: number;
+  isMine: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommentThreadDto {
   commentId: number;
   parentCommentId: number | null;
   authorId: number;
@@ -293,14 +310,24 @@ export interface CommentSummaryDto {
   content: string;
   status: 'ACTIVE' | 'DELETED' | 'BLINDED';
   likeCount: number;
-  dislikeCount: number;
   isMine: boolean;
   createdAt: string;
   updatedAt: string;
+  replyCount: number;
+  replies: CommentReplyDto[];
 }
 
 export interface GetCommentListResponseDto {
-  content: CommentSummaryDto[];
+  content: CommentThreadDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface GetCommentReplyListResponseDto {
+  content: CommentReplyDto[];
   page: number;
   size: number;
   totalElements: number;
