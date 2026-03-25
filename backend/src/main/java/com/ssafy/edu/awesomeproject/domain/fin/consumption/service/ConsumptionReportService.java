@@ -30,10 +30,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -234,13 +232,16 @@ public class ConsumptionReportService {
         return objectMapper.convertValue(cardRecommendation, Map.class);
     }
 
+
     public AvgCohort avgCohort(Long userId) {
         User user = userRepository.findById(userId).orElse(null);
         Long cohortsID = user.getCohort().getId();
 
+
         //기수에 포함되는 모든 유저의 getcardsummary를 가져와서 또 그것의 평균
 
         List<User> userList = userRepository.findByCohortId(cohortsID);
+
 
 
 
@@ -257,18 +258,26 @@ public class ConsumptionReportService {
         String startDate = firstDayOfMonth.toString(); // "2026-03-01"
         String endDate = today.toString();             // "2026-03-25"
 
+
+
         for(User u : userList){
+
             Long avgSaveBoxId = 0L;
             CardSummaryResponse cardSummaryResponse =  cardService.getCardSummary(u.getId(),startDate,endDate);
+/*
+            System.out.println(u.getId());
 
            avgSaveBoxId += savingsSettingRepository.findByUserIdAndIsActiveTrue(u.getId())
                .get().getSaveboxAccountId();
 
+           System.out.println(avgSaveBoxId);
            avgSaveBox += accountRepository.getAccountById(avgSaveBoxId)
                .orElseThrow()
                .getBalance()
                .longValue();
 
+            System.out.println(u.getId() + " " + avgSaveBox);
+*/
             for (CardSummaryResponse.RankColum rank : cardSummaryResponse.getRankColumList()) {
 
                 switch (rank.getCategoryName()){
@@ -304,8 +313,9 @@ public class ConsumptionReportService {
         avgMarket /= userList.size();
         avgMedical /= userList.size();
 
-        AvgCohort avgCohort = new AvgCohort(cohortsID,avgSaveBox,avgFood,avgCafe,avgCulture,avgMarket,avgMedical);
 
+        AvgCohort avgCohort = new AvgCohort(cohortsID,avgSaveBox,avgFood,avgCafe,avgCulture,avgMarket,avgMedical);
+        //System.out.println("avgSaveBox: " + avgSaveBox);
         return avgCohort;
     }
 }
