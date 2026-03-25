@@ -48,6 +48,21 @@ class ReasoningEngineTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.engine.analyze({"avg_price_30d": 1.0}, top_k=0)
 
+    def test_reason_texts_are_localized_in_korean_for_known_features(self) -> None:
+        reasons = self.engine.analyze(
+            {"product_price_vs_monthly_spending": 1.0},
+            top_k=1,
+        )
+
+        self.assertEqual(len(reasons), 1)
+        self.assertRegex(str(reasons[0]["reason_text"]), r"[가-힣]")
+
+    def test_fallback_reason_text_is_localized_in_korean(self) -> None:
+        reasons = self.engine.analyze({}, top_k=1)
+
+        self.assertEqual(len(reasons), 1)
+        self.assertRegex(str(reasons[0]["reason_text"]), r"[가-힣]")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -82,10 +82,17 @@ services:
         REDIS_HOST: redis
         REDIS_PORT: 6379
         AI_SERVER_URL: http://ai-python:8000
+        AI_POSTGRES_HOST: ai-postgres
+        AI_POSTGRES_PORT: 5432
+        AI_POSTGRES_DB: ${AI_POSTGRES_DB:-ai_crawl}
+        AI_POSTGRES_USER: ${AI_POSTGRES_USER:-ai_user}
+        AI_POSTGRES_PASSWORD: ${AI_POSTGRES_PASSWORD:-ai_password}
         API_PATH: "/api/v1"
         DB_HIKARI_CONNECTION_TIMEOUT: "30000"
     depends_on:
       redis:
+        condition: service_healthy
+      ai-postgres:
         condition: service_healthy
     expose:
       - "8080"

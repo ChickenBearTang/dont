@@ -169,6 +169,10 @@ class ExplainabilityAnalyzer:
                     elif isinstance(suggested, list):
                         counterfactuals = suggested
 
+                counterfactuals = self._normalize_counterfactual_messages(
+                    counterfactuals
+                )
+
                 top_reason_text = (
                     str(reasons[0].get("reason_text", "기여도 신호 분석 결과"))
                     if len(reasons) > 0
@@ -286,6 +290,58 @@ class ExplainabilityAnalyzer:
             ),
         }
         return payload
+
+    def _normalize_counterfactual_messages(
+        self, counterfactuals: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for counterfactual in counterfactuals:
+            if not isinstance(counterfactual, dict):
+                continue
+            item = dict(counterfactual)
+            item["message"] = self._korean_counterfactual_message(item)
+            normalized.append(item)
+        return normalized
+
+    @staticmethod
+    def _korean_counterfactual_message(counterfactual: dict[str, Any]) -> str:
+        action = str(counterfactual.get("action", ""))
+        variable = str(counterfactual.get("variable", ""))
+        suggested_change = counterfactual.get("suggested_change", 0)
+
+        delta: int
+        try:
+            delta = max(int(float(suggested_change)), 0)
+        except (TypeError, ValueError):
+            delta = 0
+
+        if action == "decrease" and variable == "current_effective_price":
+            return (
+                f"가격을 약 {delta:,}원 낮추면 구매 판단이 개선될 수 있습니다."
+                if delta > 0
+                else "가격 조건이 개선되면 구매 판단이 나아질 수 있습니다."
+            )
+
+        if action == "increase" and variable == "available_budget":
+            return (
+                f"가용예산을 약 {delta:,}원 늘리면 구매 판단이 개선될 수 있습니다."
+                if delta > 0
+                else "가용예산이 늘어나면 구매 판단이 나아질 수 있습니다."
+            )
+
+        if action == "increase" and variable == "emergency_buffer":
+            return (
+                f"비상자금을 약 {delta:,}원 늘리면 리스크가 완화될 수 있습니다."
+                if delta > 0
+                else "비상자금이 늘어나면 구매 리스크가 완화될 수 있습니다."
+            )
+
+        if action == "wait_for_better_price":
+            return (
+                "현재 조건에서는 큰 변화가 없어 가격/예산 변동 후 재평가를 권장합니다."
+            )
+
+        return "구매 조건을 조정한 뒤 다시 평가하면 더 안정적인 판단이 가능합니다."
 
     def _build_feature_scores(
         self,

@@ -90,9 +90,11 @@ class XaiPurchaseServiceTest(unittest.TestCase):
             for metric in response.price_evaluation.key_metrics
         }
         self.assertEqual(price_metrics.get("current_effective_price"), "189,000원")
-        self.assertEqual(price_metrics.get("requested_price_amount"), "189,000원")
+        self.assertNotIn("requested_price_amount", price_metrics)
         self.assertNotIn("crawled_price_candidate", price_metrics)
-        self.assertIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
+        self.assertNotIn("CRAWL_FETCH_FAILED", response.warnings)
+        self.assertNotIn("PRICE_ESTIMATED_FROM_REQUEST", response.warnings)
+        self.assertNotIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
 
     def test_summary_and_top_factors_are_localized_in_korean(self) -> None:
         with patch(
@@ -119,8 +121,11 @@ class XaiPurchaseServiceTest(unittest.TestCase):
             metric.code: metric.value
             for metric in response.price_evaluation.key_metrics
         }
+        self.assertNotIn("requested_price_amount", price_metrics)
         self.assertNotIn("crawled_price_candidate", price_metrics)
         self.assertNotIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
+        self.assertNotIn("CRAWL_FETCH_FAILED", response.warnings)
+        self.assertNotIn("PRICE_ESTIMATED_FROM_REQUEST", response.warnings)
 
     def test_tag_based_price_is_preferred_over_noisy_large_numbers(self) -> None:
         request = _request()
@@ -147,6 +152,8 @@ class XaiPurchaseServiceTest(unittest.TestCase):
             metric.code: metric.value
             for metric in response.price_evaluation.key_metrics
         }
+        self.assertEqual(price_metrics.get("current_effective_price"), "1,000원")
+        self.assertNotIn("requested_price_amount", price_metrics)
         self.assertNotIn("crawled_price_candidate", price_metrics)
         self.assertNotIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
 
@@ -170,9 +177,9 @@ class XaiPurchaseServiceTest(unittest.TestCase):
             metric.code: metric.value
             for metric in response.price_evaluation.key_metrics
         }
+        self.assertNotIn("requested_price_amount", price_metrics)
         self.assertNotIn("crawled_price_candidate", price_metrics)
-        self.assertEqual(price_metrics.get("current_effective_price"), "893,000원")
-        self.assertEqual(price_metrics.get("requested_price_amount"), "-")
+        self.assertEqual(price_metrics.get("current_effective_price"), "-")
 
     def test_financial_status_uses_savebox_and_fixed_cashflow_fields(self) -> None:
         payload = _request().model_dump(by_alias=True)

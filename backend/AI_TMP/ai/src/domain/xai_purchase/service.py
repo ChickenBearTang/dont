@@ -409,21 +409,10 @@ def evaluate_pr_purchase_xai(
         else None
     )
 
-    page_text, crawl_warning = _fetch_page_text(request.purchase.purchase_url)
-    if crawl_warning is not None:
-        seed_warnings.append(crawl_warning)
-    current_price, crawled_price, price_estimated = _extract_current_price(
-        page_text, stated_price
-    )
-    if price_estimated:
-        seed_warnings.append("PRICE_ESTIMATED_FROM_REQUEST")
-    if (
-        not price_estimated
-        and stated_price is not None
-        and crawled_price is not None
-        and abs(crawled_price - stated_price) > max(int(stated_price * 0.2), 50000)
-    ):
-        seed_warnings.append("CRAWLED_PRICE_DIVERGES_FROM_REQUEST")
+    # Product page crawling is intentionally disabled for PR XAI.
+    # Current price is treated as the submitted PR request price.
+    current_price = stated_price
+    price_estimated = False
 
     window_stats, stats_warnings = _read_window_stats(current_price)
     seed_warnings.extend(stats_warnings)
@@ -552,13 +541,6 @@ def evaluate_pr_purchase_xai(
                         f"{int(current_price):,}원"
                         if current_price is not None
                         else "-"
-                    ),
-                ),
-                EvaluationMetric(
-                    code="requested_price_amount",
-                    label="PR 요청 가격",
-                    value=(
-                        f"{int(stated_price):,}원" if stated_price is not None else "-"
                     ),
                 ),
                 EvaluationMetric(

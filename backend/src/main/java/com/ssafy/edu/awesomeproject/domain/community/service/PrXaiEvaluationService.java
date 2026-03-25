@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.community.service;
 
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrXaiEvaluationRequestDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiAvailabilityResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiEvaluationResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
@@ -15,16 +16,27 @@ import org.springframework.web.client.RestClientResponseException;
 public class PrXaiEvaluationService {
 
     private final PrXaiContextService prXaiContextService;
+    private final PrXaiAvailabilityService prXaiAvailabilityService;
     private final AiClient aiClient;
 
     public PrXaiEvaluationService(
             PrXaiContextService prXaiContextService,
+            PrXaiAvailabilityService prXaiAvailabilityService,
             AiClient aiClient) {
         this.prXaiContextService = prXaiContextService;
+        this.prXaiAvailabilityService = prXaiAvailabilityService;
         this.aiClient = aiClient;
     }
 
     public PrXaiEvaluationResponseDto evaluate(Long postId, Long userId) {
+        PrXaiAvailabilityResponseDto availability =
+                prXaiAvailabilityService.checkAvailability(postId, userId);
+        if (!availability.enabled()) {
+            throw new CommunityException(
+                    CommunityErrorCode.PURCHASE_REQUEST_NOT_OPEN,
+                    availability.reason());
+        }
+
         PrXaiEvaluationRequestDto request = prXaiContextService.buildContext(postId, userId);
         try {
             PrXaiEvaluationResponseDto response = aiClient.evaluatePrXai(request.requestId(), request);

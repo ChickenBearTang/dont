@@ -788,7 +788,9 @@ export const PrDetailPage = () => {
                       {getXaiSectionStatusLabel(xaiEvaluation.priceEvaluation.status)}
                     </p>
                     <ul className="space-y-2">
-                      {xaiEvaluation.priceEvaluation.keyMetrics.map((metric) => (
+                      {xaiEvaluation.priceEvaluation.keyMetrics
+                        .filter((metric) => metric.code !== 'requested_price_amount')
+                        .map((metric) => (
                         <li
                           key={metric.code}
                           className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80"

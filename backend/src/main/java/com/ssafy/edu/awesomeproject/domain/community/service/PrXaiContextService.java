@@ -12,6 +12,7 @@ import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PrPostRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountRole;
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSettingRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.profile.dto.response.FinanceProfileResponse;
@@ -35,18 +36,21 @@ public class PrXaiContextService {
     private final FinanceProfileService financeProfileService;
     private final CardTransactionRepository cardTransactionRepository;
     private final AccountRepository accountRepository;
+    private final SavingsSettingRepository savingsSettingRepository;
 
     public PrXaiContextService(
             PrPostRepository prPostRepository,
             UserRepository userRepository,
             FinanceProfileService financeProfileService,
             CardTransactionRepository cardTransactionRepository,
-            AccountRepository accountRepository) {
+            AccountRepository accountRepository,
+            SavingsSettingRepository savingsSettingRepository) {
         this.prPostRepository = prPostRepository;
         this.userRepository = userRepository;
         this.financeProfileService = financeProfileService;
         this.cardTransactionRepository = cardTransactionRepository;
         this.accountRepository = accountRepository;
+        this.savingsSettingRepository = savingsSettingRepository;
     }
 
     @Transactional(readOnly = true)
@@ -71,12 +75,7 @@ public class PrXaiContextService {
         String todaySnapshot = LocalDate.now(ZoneOffset.UTC).format(BASIC_DATE);
         FinanceProfileResponse financeProfile =
                 financeProfileService.getFinanceProfile(String.valueOf(purchaseRequesterId));
-        BigDecimal saveboxBalance =
-                accountRepository.sumBalanceByUserIdAndRole(purchaseRequesterId, AccountRole.SAVE_BOX);
-        double saveboxBalanceValue = saveboxBalance == null ? 0d : saveboxBalance.doubleValue();
-        if (saveboxBalanceValue <= 0d && financeProfile.emergencyFundBalance() > 0d) {
-            saveboxBalanceValue = financeProfile.emergencyFundBalance();
-        }
+        double saveboxBalanceValue = resolveSaveboxBalance(purchaseRequesterId, financeProfile);
         List<PrXaiRecentTransactionDto> recentTransactions =
                 buildRecentTransactions(purchaseRequesterId);
 
@@ -135,6 +134,33 @@ public class PrXaiContextService {
                                 false,
                                 null)),
                 recentTransactions);
+    }
+
+    private double resolveSaveboxBalance(Long purchaseRequesterId, FinanceProfileResponse financeProfile) {
+        double saveboxBalanceBySetting =
+                savingsSettingRepository
+                        .findByUserIdAndIsActiveTrue(purchaseRequesterId)
+                        .map(setting -> setting.getSaveboxAccountId())
+                        .flatMap(accountRepository::findById)
+                        .map(account -> account.getBalance())
+                        .map(BigDecimal::doubleValue)
+                        .orElse(0d);
+        if (saveboxBalanceBySetting > 0d) {
+            return saveboxBalanceBySetting;
+        }
+
+        BigDecimal saveboxBalanceByRole =
+                accountRepository.sumBalanceByUserIdAndRole(purchaseRequesterId, AccountRole.SAVE_BOX);
+        double saveboxBalanceByRoleValue =
+                saveboxBalanceByRole == null ? 0d : saveboxBalanceByRole.doubleValue();
+        if (saveboxBalanceByRoleValue > 0d) {
+            return saveboxBalanceByRoleValue;
+        }
+
+        if (financeProfile.emergencyFundBalance() > 0d) {
+            return financeProfile.emergencyFundBalance();
+        }
+        return 0d;
     }
 
     private List<PrXaiRecentTransactionDto> buildRecentTransactions(Long userId) {
