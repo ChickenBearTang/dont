@@ -10,9 +10,11 @@ public interface AccountTransactionRepository extends JpaRepository<AccountTrans
     Optional<AccountTransaction> findByTransactionUniqueNo(String transactionUniqueNo);
 
     List<AccountTransaction> findAllByAccountIdOrderByTransactionDateDescTransactionTimeDesc(
-            Long accountId);
+        Long accountId);
 
     List<AccountTransaction>
-            findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
-                    Long accountId, LocalDate startDate, LocalDate endDate);
+    findAllByAccountIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+        Long accountId, LocalDate startDate, LocalDate endDate);
+
+    List<AccountTransaction> findAllByAccountIdAndAutoSavingsProcessedFalse(Long accountId);
 }
