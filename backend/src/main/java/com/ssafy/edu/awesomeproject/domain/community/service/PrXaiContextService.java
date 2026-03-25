@@ -10,10 +10,13 @@ import com.ssafy.edu.awesomeproject.domain.community.entity.PrPost;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PrPostRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountRole;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.profile.dto.response.FinanceProfileResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.profile.service.FinanceProfileService;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -31,16 +34,19 @@ public class PrXaiContextService {
     private final UserRepository userRepository;
     private final FinanceProfileService financeProfileService;
     private final CardTransactionRepository cardTransactionRepository;
+    private final AccountRepository accountRepository;
 
     public PrXaiContextService(
             PrPostRepository prPostRepository,
             UserRepository userRepository,
             FinanceProfileService financeProfileService,
-            CardTransactionRepository cardTransactionRepository) {
+            CardTransactionRepository cardTransactionRepository,
+            AccountRepository accountRepository) {
         this.prPostRepository = prPostRepository;
         this.userRepository = userRepository;
         this.financeProfileService = financeProfileService;
         this.cardTransactionRepository = cardTransactionRepository;
+        this.accountRepository = accountRepository;
     }
 
     @Transactional(readOnly = true)
@@ -65,6 +71,9 @@ public class PrXaiContextService {
         String todaySnapshot = LocalDate.now(ZoneOffset.UTC).format(BASIC_DATE);
         FinanceProfileResponse financeProfile =
                 financeProfileService.getFinanceProfile(String.valueOf(purchaseRequesterId));
+        BigDecimal saveboxBalance =
+                accountRepository.sumBalanceByUserIdAndRole(purchaseRequesterId, AccountRole.SAVE_BOX);
+        double saveboxBalanceValue = saveboxBalance == null ? 0d : saveboxBalance.doubleValue();
         List<PrXaiRecentTransactionDto> recentTransactions =
                 buildRecentTransactions(purchaseRequesterId);
 
@@ -98,6 +107,13 @@ public class PrXaiContextService {
                                 financeProfile.emergencyFundBalance(),
                                 "spring.finance_profile",
                                 "finance-profile:%d:%s".formatted(purchaseRequesterId, todaySnapshot),
+                                false,
+                                false,
+                                null),
+                        new PrXaiProvenanceValueDto(
+                                saveboxBalanceValue,
+                                "spring.savebox",
+                                "savebox-balance:%d:%s".formatted(purchaseRequesterId, todaySnapshot),
                                 false,
                                 false,
                                 null),
