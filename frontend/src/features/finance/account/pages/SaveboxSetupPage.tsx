@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useGetMyAccounts } from '../hooks/useAccountQueries';
-import { useSetPrimaryAccount, useCreateSaveBox, useLinkFinanceAccount } from '../hooks/useAccountMutations';
+import { useSetPrimaryAccount, useCreateSaveBox, useLinkFinanceAccount, useRefreshAccounts } from '../hooks/useAccountMutations';
+import { accountKeys } from '../queries/accountKeys';
 import { Button } from '@/shared/components';
 import type { AccountDetail } from '../types';
 
@@ -93,8 +95,10 @@ export const SaveboxSetupPage: React.FC = () => {
   };
 
   // Mutations
+  const queryClient = useQueryClient();
   const { mutateAsync: setPrimary } = useSetPrimaryAccount();
   const { mutateAsync: createSaveBox } = useCreateSaveBox();
+  const { mutateAsync: refreshAccounts } = useRefreshAccounts();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -121,6 +125,9 @@ export const SaveboxSetupPage: React.FC = () => {
       await setPrimary(selectedAccountId);
       // 2. 세이브박스 개설 (백엔드 스펙에 맞춰 accountTypeUniqueNo 전달)
       await createSaveBox({ accountTypeUniqueNo: '999-1-792bcf290d6a48' });
+      // 3. 계좌 목록 동기화 (새 세이브박스를 캐시에 즉시 반영)
+      await refreshAccounts();
+      await queryClient.refetchQueries({ queryKey: accountKeys.lists() });
 
       // 성공 상태로 전환
       setIsSuccess(true);

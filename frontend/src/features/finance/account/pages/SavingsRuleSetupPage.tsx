@@ -43,23 +43,28 @@ export const SavingsRuleSetupPage: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [navigate]);
 
-  // Load existing settings or onboarding recommendation
+  // Load existing settings and onboarding recommendation
+  // 온보딩 추천 금액을 최우선으로 적용하고, 키워드/활성화는 기존 설정에서 불러옴
   useEffect(() => {
     if (isInitialized.current) return;
+    // 두 쿼리가 모두 완료될 때까지 대기 (레이스 컨디션 방지)
+    if (isFetchingOnboarding || isFetchingSetting) return;
 
+    // 1. 기존 저축 설정이 있으면 키워드와 활성화 상태를 불러옴
     if (initialSetting) {
       setKeyword(initialSetting.keyword || '');
-      setAmount(initialSetting.savingsAmount || 0);
       setIsActive(initialSetting.isActive ?? true);
-      isInitialized.current = true;
-    } else if (onboardingData) {
-      // If no existing setting, pre-fill from onboarding recommendation
-      if (onboardingData.recommendedAmount) {
-        setAmount(onboardingData.recommendedAmount);
-      }
-      isInitialized.current = true;
     }
-  }, [initialSetting, onboardingData]);
+
+    // 2. 저축 금액: 온보딩 추천액 > 기존 설정값 순서로 적용
+    if (onboardingData?.recommendedAmount) {
+      setAmount(onboardingData.recommendedAmount);
+    } else if (initialSetting?.savingsAmount) {
+      setAmount(initialSetting.savingsAmount);
+    }
+
+    isInitialized.current = true;
+  }, [initialSetting, onboardingData, isFetchingOnboarding, isFetchingSetting]);
 
   // Identification Logic: Find real accounts
   const primaryAccount = accounts?.find(

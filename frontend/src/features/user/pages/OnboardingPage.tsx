@@ -25,6 +25,8 @@ export const OnboardingPage = () => {
   const [isKdt, setIsKdt] = useState<boolean | null>(null);
   const [fixedCostInput, setFixedCostInput] = useState('');
   const [variableCostInput, setVariableCostInput] = useState('');
+  // 서버에서 가져온 추천액 (뒤로가기 시 로컬 값이 초기화되어도 안전하게 표시)
+  const [serverRecommendedAmount, setServerRecommendedAmount] = useState<number | null>(null);
 
   // Handle browser back button: always return to Step 1
   useEffect(() => {
@@ -64,6 +66,10 @@ export const OnboardingPage = () => {
         }
 
         if (onboardingStatus === 'IN_PROGRESS') {
+          // 서버에 저장된 추천액을 로드 (뒤로가기 등으로 재진입 시 0원 방지)
+          if (statusResponse.data.recommendedAmount) {
+            setServerRecommendedAmount(statusResponse.data.recommendedAmount);
+          }
           setStep(4);
         }
       } catch (error) {
@@ -373,22 +379,25 @@ export const OnboardingPage = () => {
                   추천 저축액
                 </p>
                 <p className="text-5xl font-black text-accent tracking-tight">
-                  {formatNumber(recommendedAmount)}원
+                  {formatNumber(recommendedAmount || serverRecommendedAmount || 0)}원
                 </p>
-                <div className="mt-7 grid sm:grid-cols-2 gap-3 text-sm text-text-muted font-semibold">
-                  <p className="rounded-2xl bg-surface-muted px-4 py-3">
-                    기준 월 소득: {formatNumber(monthlyIncome)}원
-                  </p>
-                  <p className="rounded-2xl bg-surface-muted px-4 py-3">
-                    월 고정비: {formatNumber(fixedCost)}원
-                  </p>
-                  <p className="rounded-2xl bg-surface-muted px-4 py-3">
-                    월 변동비: {formatNumber(variableCost)}원
-                  </p>
-                  <p className="rounded-2xl bg-accent-soft text-accent px-4 py-3">
-                    월 가용금액: {formatNumber(availableAmount)}원
-                  </p>
-                </div>
+                {/* 로컬 계산 값이 있을 때만 상세 내역 표시 (뒤로가기 시 0원 노출 방지) */}
+                {monthlyIncome > 0 && (
+                  <div className="mt-7 grid sm:grid-cols-2 gap-3 text-sm text-text-muted font-semibold">
+                    <p className="rounded-2xl bg-surface-muted px-4 py-3">
+                      기준 월 소득: {formatNumber(monthlyIncome)}원
+                    </p>
+                    <p className="rounded-2xl bg-surface-muted px-4 py-3">
+                      월 고정비: {formatNumber(fixedCost)}원
+                    </p>
+                    <p className="rounded-2xl bg-surface-muted px-4 py-3">
+                      월 변동비: {formatNumber(variableCost)}원
+                    </p>
+                    <p className="rounded-2xl bg-accent-soft text-accent px-4 py-3">
+                      월 가용금액: {formatNumber(availableAmount)}원
+                    </p>
+                  </div>
+                )}
               </div>
 
               <Button
