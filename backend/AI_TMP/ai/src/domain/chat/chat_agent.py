@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import importlib
 import json
 from typing import Any
 
-from google import genai
-
 from config import get_env, DEFAULT_GEMINI_MODEL
 from domain.consumption.ai_insights import _model_candidates, _extract_json
+
 
 class ChatAgent:
     def __init__(self):
@@ -14,9 +14,17 @@ class ChatAgent:
         self.model_name = get_env("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
         self.client = None
         if self.api_key:
-            self.client = genai.Client(api_key=self.api_key)
+            try:
+                genai_module = importlib.import_module("google.genai")
+                client_factory = getattr(genai_module, "Client", None)
+                if client_factory is not None:
+                    self.client = client_factory(api_key=self.api_key)
+            except Exception:
+                self.client = None
 
-    def evaluate_justification(self, message: str, context: dict, history: list[dict[str, str]]) -> dict[str, Any]:
+    def evaluate_justification(
+        self, message: str, context: dict, history: list[dict[str, str]]
+    ) -> dict[str, Any]:
         """
         Evaluates a user's justification for their spending using the LLM.
         Returns a dictionary with 'is_valid' (bool) and 'response' (str).
@@ -62,7 +70,7 @@ User's Latest Message:
                 )
                 text = getattr(response, "text", "") or ""
                 parsed = _extract_json(text)
-                
+
                 if "is_valid" in parsed and "response" in parsed:
                     return {
                         "is_valid": bool(parsed["is_valid"]),
@@ -70,7 +78,10 @@ User's Latest Message:
                     }
             except Exception as e:
                 import logging
-                logging.warning("Error evaluating justification with model %s: %s", candidate, e)
+
+                logging.warning(
+                    "Error evaluating justification with model %s: %s", candidate, e
+                )
                 continue
 
         # Fallback if all models fail or return bad JSON
