@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -239,12 +239,12 @@ const CommentEntry = ({
 
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2 pr-14">
-              <span className="font-bold text-[13.5px] truncate text-gray-900">
-                {comment.authorNickname || '알 수 없음'}
-              </span>
-              <span className="text-[12px] text-gray-400 font-medium tracking-tight">
-                {formatDate(comment.createdAt)}
-              </span>
+            <span className="truncate text-[13.5px] font-bold text-gray-900">
+              {comment.authorNickname || '알 수 없음'}
+            </span>
+            <span className="text-[12px] font-medium tracking-tight text-gray-400">
+              {formatDate(comment.createdAt)}
+            </span>
           </div>
 
           {isEditing ? (
@@ -252,20 +252,20 @@ const CommentEntry = ({
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="w-full min-h-[80px] p-3 text-[14px] border border-gray-200 rounded-xl focus:border-blue-500 outline-none resize-none"
+                className="w-full min-h-[80px] resize-none rounded-xl border border-gray-200 p-3 text-[14px] outline-none focus:border-blue-500"
               />
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="px-3 py-1.5 text-[12px] font-bold text-gray-500 hover:bg-gray-100 rounded-lg"
+                  className="rounded-lg px-3 py-1.5 text-[12px] font-bold text-gray-500 hover:bg-gray-100"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={!editContent.trim() || submittingEdit}
-                  className="px-3 py-1.5 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
+                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-[12px] font-bold text-white disabled:bg-gray-300"
                 >
                   저장
                 </button>
@@ -322,10 +322,11 @@ const CommentEntry = ({
                   @{replyToNickname}님에게 답글
                 </button>
               ) : null}
+
               <LinkifiedText
                 text={comment.status === 'BLINDED' ? '신고 처리된 댓글입니다.' : comment.content}
-                className={`mt-1.5 text-[14px] whitespace-pre-wrap leading-relaxed ${
-                  comment.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'
+                className={`mt-1.5 whitespace-pre-wrap text-[14px] leading-relaxed ${
+                  comment.status === 'BLINDED' ? 'italic text-gray-400' : 'text-gray-800'
                 }`}
               />
             </div>
@@ -333,19 +334,20 @@ const CommentEntry = ({
 
           <div className="mt-2.5 flex items-center gap-3">
             <button
+              type="button"
               onClick={handleToggleCommentReaction}
               disabled={comment.status === 'BLINDED'}
               className={`group flex items-center gap-1.5 transition-colors ${
-                comment.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed' : ''
+                comment.status === 'BLINDED' ? 'cursor-not-allowed opacity-50' : ''
               }`}
             >
               {isLiked ? (
-                <svg className="w-4 h-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001z" />
                 </svg>
               ) : (
                 <svg
-                  className={`w-4 h-4 ${
+                  className={`h-4 w-4 ${
                     comment.status === 'BLINDED'
                       ? 'text-gray-200'
                       : 'text-gray-300 group-hover:text-rose-400'
@@ -374,7 +376,6 @@ const CommentEntry = ({
                 {comment.likeCount || 0}
               </span>
             </button>
-
           </div>
 
           {isReplying && (
@@ -383,12 +384,12 @@ const CommentEntry = ({
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
                 placeholder={replyPlaceholder}
-                className="flex-1 h-9 px-3 rounded-lg bg-gray-50 text-[13px] outline-none border border-gray-100"
+                className="h-9 flex-1 rounded-lg border border-gray-100 bg-gray-50 px-3 text-[13px] outline-none"
               />
               <button
                 type="submit"
                 disabled={!replyContent.trim() || submittingReply}
-                className="px-3 h-9 bg-blue-600 text-white text-[12px] font-bold rounded-lg disabled:bg-gray-300"
+                className="h-9 rounded-lg bg-blue-600 px-3 text-[12px] font-bold text-white disabled:bg-gray-300"
               >
                 등록
               </button>
@@ -536,6 +537,7 @@ const CommentThreadItem = ({
     </div>
   );
 };
+
 const PollVotePanel = ({
   detail,
   selectedVote,
@@ -561,7 +563,9 @@ const PollVotePanel = ({
           </p>
         </div>
         <span
-          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${detail.isClosed ? 'border-slate-200 bg-slate-100 text-slate-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${
+            detail.isClosed ? 'border-slate-200 bg-slate-100 text-slate-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          }`}
         >
           {detail.isClosed ? 'CLOSED' : 'OPEN'}
         </span>
@@ -594,22 +598,20 @@ const PollVotePanel = ({
               type="button"
               disabled={detail.isClosed || isSubmittingVote}
               onClick={() => onVote(option.voteOption)}
-              className={`rounded-2xl border px-5 py-5 text-left transition ${detail.isClosed
-                ? 'cursor-not-allowed border-gray-200 bg-gray-50'
-                : isSelected
-                  ? option.selectedClass
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                }`}
+              className={`rounded-2xl border px-5 py-5 text-left transition ${
+                detail.isClosed
+                  ? 'cursor-not-allowed border-gray-200 bg-gray-50'
+                  : isSelected
+                    ? option.selectedClass
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+              }`}
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[16px] font-bold text-gray-900">{option.label}</p>
                 <span className="text-[13px] font-bold text-gray-500">{option.count}표</span>
               </div>
               <div className="mt-4 h-2 rounded-full bg-white/90">
-                <div
-                  className={`h-2 rounded-full ${option.tone}`}
-                  style={{ width: `${option.rate}%` }}
-                />
+                <div className={`h-2 rounded-full ${option.tone}`} style={{ width: `${option.rate}%` }} />
               </div>
               <div className="mt-2 flex items-center justify-between text-[12px] font-medium text-gray-500">
                 <span>{option.rate}%</span>
@@ -632,11 +634,11 @@ const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
   const discountRate =
     detail.originalPriceAmount && detail.originalPriceAmount > 0
       ? Math.max(
-        0,
-        Math.round(
-          ((detail.originalPriceAmount - detail.dealPriceAmount) / detail.originalPriceAmount) * 100
+          0,
+          Math.round(
+            ((detail.originalPriceAmount - detail.dealPriceAmount) / detail.originalPriceAmount) * 100
+          )
         )
-      )
       : null;
   const isExpired = detail.expiredAt ? new Date(detail.expiredAt).getTime() <= Date.now() : false;
 
@@ -655,10 +657,9 @@ const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
           </p>
         </div>
         <span
-          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${isExpired
-            ? 'border-slate-200 bg-slate-100 text-slate-700'
-            : 'border-rose-200 bg-rose-50 text-rose-700'
-            }`}
+          className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${
+            isExpired ? 'border-slate-200 bg-slate-100 text-slate-700' : 'border-rose-200 bg-rose-50 text-rose-700'
+          }`}
         >
           {isExpired ? 'EXPIRED' : 'LIVE'}
         </span>
@@ -1085,11 +1086,11 @@ export const PostDetailPage = () => {
         setPollDetail((prev) =>
           prev
             ? {
-              ...prev,
-              optionACount: res.data.optionACount,
-              optionBCount: res.data.optionBCount,
-              totalVoteCount: res.data.totalVoteCount,
-            }
+                ...prev,
+                optionACount: res.data.optionACount,
+                optionBCount: res.data.optionBCount,
+                totalVoteCount: res.data.totalVoteCount,
+              }
             : prev
         );
         setSelectedPollVote(voteOption);
@@ -1120,10 +1121,10 @@ export const PostDetailPage = () => {
           setPost((prev) =>
             prev
               ? {
-                ...prev,
-                likeCount: resOpp.data!.likeCount,
-                dislikeCount: resOpp.data!.dislikeCount,
-              }
+                  ...prev,
+                  likeCount: resOpp.data!.likeCount,
+                  dislikeCount: resOpp.data!.dislikeCount,
+                }
               : null
           );
           setSelectedReaction(null);
@@ -1177,6 +1178,7 @@ export const PostDetailPage = () => {
         return '전체';
     }
   };
+
   const getCategoryDot = (cat: BoardCategory | undefined) => {
     switch (cat) {
       case 'FREE':
@@ -1193,6 +1195,7 @@ export const PostDetailPage = () => {
         return 'bg-gray-300';
     }
   };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleString('ko-KR', {
@@ -1204,16 +1207,18 @@ export const PostDetailPage = () => {
     });
   };
 
-  if (loading)
+  if (loading) {
     return (
       <Card className="!p-0 min-h-[600px] overflow-hidden flex items-center justify-center p-12">
-        <div className="w-8 h-8 border-4 border-primary-blue border-t-transparent rounded-full animate-spin mb-4" />
+        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary-blue border-t-transparent" />
       </Card>
     );
-  if (error || !post)
+  }
+
+  if (error || !post) {
     return (
       <Card className="!p-0 min-h-[600px] overflow-hidden flex flex-col items-center justify-center p-12">
-        <p className="text-gray-700 font-bold text-[18px] mb-2">
+        <p className="mb-2 text-[18px] font-bold text-gray-700">
           {error || '게시글을 찾을 수 없습니다.'}
         </p>
         <Button onClick={() => navigate('/community')} className="mt-4 !px-6 !py-2.5">
@@ -1221,16 +1226,17 @@ export const PostDetailPage = () => {
         </Button>
       </Card>
     );
+  }
 
   return (
-    <Card className="!p-0 flex flex-col min-h-[600px] overflow-hidden">
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md px-4 h-14 flex items-center justify-between border-b border-gray-100">
+    <Card className="!p-0 flex min-h-[600px] flex-col overflow-hidden">
+      <div className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-gray-100 bg-white/80 px-4 backdrop-blur-md">
         <button
           onClick={() => navigate('/community')}
-          className="p-2 -ml-2 text-gray-800 hover:text-black transition-colors"
+          className="-ml-2 p-2 text-gray-800 transition-colors hover:text-black"
         >
           <svg
-            className="w-6 h-6"
+            className="h-6 w-6"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -1239,15 +1245,15 @@ export const PostDetailPage = () => {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <span className="font-bold text-[16px] text-gray-900 tracking-[-0.01em]">
+        <span className="text-[16px] font-bold tracking-[-0.01em] text-gray-900">
           {getCategoryName(post.category)}
         </span>
-        <div className="w-10 flex justify-end">
+        <div className="flex w-10 justify-end">
           {isAuthor ? (
-            <div className="relative group">
-              <button className="p-2 -mr-2 text-gray-400 hover:text-gray-700">
+            <div className="group relative">
+              <button className="-mr-2 p-2 text-gray-400 hover:text-gray-700">
                 <svg
-                  className="w-5 h-5"
+                  className="h-5 w-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -1260,9 +1266,9 @@ export const PostDetailPage = () => {
                   />
                 </svg>
               </button>
-              <div className="absolute right-0 top-full mt-1 w-28 bg-white border border-gray-100 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col overflow-hidden">
+              <div className="invisible absolute right-0 top-full mt-1 flex w-28 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100">
                 <button
-                  className="px-4 py-2.5 text-left text-[14px] font-medium text-gray-700 hover:bg-gray-50 border-b border-gray-50"
+                  className="border-b border-gray-50 px-4 py-2.5 text-left text-[14px] font-medium text-gray-700 hover:bg-gray-50"
                   onClick={() => navigate(`/community/${postId}/edit`)}
                 >
                   수정
@@ -1279,10 +1285,10 @@ export const PostDetailPage = () => {
             <button
               type="button"
               onClick={() => onReport('POST', Number(postId))}
-              className="p-2 -mr-2 text-gray-400 hover:text-rose-500 transition-colors"
+              className="-mr-2 p-2 text-gray-400 transition-colors hover:text-rose-500"
             >
               <svg
-                className="w-5 h-5"
+                className="h-5 w-5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1306,25 +1312,27 @@ export const PostDetailPage = () => {
       </div>
 
       <div ref={scrollContainerRef} className="w-full overflow-y-auto">
-        <div className="px-5 pt-6 flex items-start gap-3 w-full">
+        <div className="flex w-full items-start gap-3 px-5 pt-6">
           <UserAvatar
             profileImageUrl={post.authorProfileImageUrl}
             nickname={post.authorNickname}
             className={`h-[42px] w-[42px] shrink-0 text-[18px] ${getCategoryDot(post.category)} text-white`}
           />
           <div className="pt-0.5">
-            <div className="text-[15px] font-bold text-gray-900 leading-tight">
+            <div className="text-[15px] font-bold leading-tight text-gray-900">
               {post.authorNickname || '알 수 없음'}
             </div>
-            <div className="text-[13px] text-text-muted font-bold mt-1">
+            <div className="mt-1 text-[13px] font-bold text-text-muted">
               {formatDate(post.createdAt)}
             </div>
           </div>
         </div>
 
-        <div className="px-5 mt-5">
+        <div className="mt-5 px-5">
           <h1
-            className={`text-[20px] font-bold leading-snug tracking-[-0.01em] whitespace-pre-wrap ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-900'}`}
+            className={`whitespace-pre-wrap text-[20px] font-bold leading-snug tracking-[-0.01em] ${
+              post.status === 'BLINDED' ? 'italic text-gray-400' : 'text-gray-900'
+            }`}
           >
             {post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.title}
           </h1>
@@ -1341,7 +1349,9 @@ export const PostDetailPage = () => {
           ) : null}
           <LinkifiedText
             text={post.status === 'BLINDED' ? '신고 처리된 게시물입니다.' : post.content}
-            className={`mt-4 text-[16px] leading-[1.65] font-medium whitespace-pre-wrap word-break-all ${post.status === 'BLINDED' ? 'text-gray-400 italic' : 'text-gray-800'}`}
+            className={`mt-4 whitespace-pre-wrap text-[16px] font-medium leading-[1.65] word-break-all ${
+              post.status === 'BLINDED' ? 'italic text-gray-400' : 'text-gray-800'
+            }`}
           />
           {post.status !== 'BLINDED' && post.attachments.length > 0 ? (
             <div className="mt-5 space-y-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
@@ -1390,14 +1400,26 @@ export const PostDetailPage = () => {
           ) : null}
         </div>
 
-        <div className="mt-10 px-5 flex items-center gap-2">
+        <div className="mt-10 flex items-center gap-2 px-5">
           <button
             onClick={() => handleToggleReaction('LIKE')}
             disabled={post.status === 'BLINDED'}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'LIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${
+              post.status === 'BLINDED'
+                ? 'cursor-not-allowed border-gray-100 opacity-50'
+                : selectedReaction === 'LIKE'
+                  ? 'border border-blue-500 bg-blue-50'
+                  : 'border border-gray-200 hover:bg-gray-50'
+            }`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'LIKE' ? 'text-blue-600' : 'text-gray-800'}`}
+              className={`h-[18px] w-[18px] ${
+                post.status === 'BLINDED'
+                  ? 'text-gray-300'
+                  : selectedReaction === 'LIKE'
+                    ? 'text-blue-600'
+                    : 'text-gray-800'
+              }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1410,7 +1432,13 @@ export const PostDetailPage = () => {
               />
             </svg>
             <span
-              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'LIKE' ? 'text-blue-700' : 'text-gray-700'}`}
+              className={`text-[13px] font-medium ${
+                post.status === 'BLINDED'
+                  ? 'text-gray-400'
+                  : selectedReaction === 'LIKE'
+                    ? 'text-blue-700'
+                    : 'text-gray-700'
+              }`}
             >
               좋아요 {post.likeCount}
             </span>
@@ -1418,10 +1446,22 @@ export const PostDetailPage = () => {
           <button
             onClick={() => handleToggleReaction('DISLIKE')}
             disabled={post.status === 'BLINDED'}
-            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${post.status === 'BLINDED' ? 'opacity-50 cursor-not-allowed border-gray-100' : selectedReaction === 'DISLIKE' ? 'border border-blue-500 bg-blue-50' : 'border border-gray-200 hover:bg-gray-50'}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 transition-colors ${
+              post.status === 'BLINDED'
+                ? 'cursor-not-allowed border-gray-100 opacity-50'
+                : selectedReaction === 'DISLIKE'
+                  ? 'border border-blue-500 bg-blue-50'
+                  : 'border border-gray-200 hover:bg-gray-50'
+            }`}
           >
             <svg
-              className={`w-[18px] h-[18px] ${post.status === 'BLINDED' ? 'text-gray-300' : selectedReaction === 'DISLIKE' ? 'text-blue-600' : 'text-gray-800'}`}
+              className={`h-[18px] w-[18px] ${
+                post.status === 'BLINDED'
+                  ? 'text-gray-300'
+                  : selectedReaction === 'DISLIKE'
+                    ? 'text-blue-600'
+                    : 'text-gray-800'
+              }`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1434,17 +1474,24 @@ export const PostDetailPage = () => {
               />
             </svg>
             <span
-              className={`text-[13px] font-medium ${post.status === 'BLINDED' ? 'text-gray-400' : selectedReaction === 'DISLIKE' ? 'text-blue-700' : 'text-gray-700'}`}
+              className={`text-[13px] font-medium ${
+                post.status === 'BLINDED'
+                  ? 'text-gray-400'
+                  : selectedReaction === 'DISLIKE'
+                    ? 'text-blue-700'
+                    : 'text-gray-700'
+              }`}
             >
               싫어요 {post.dislikeCount}
             </span>
           </button>
         </div>
 
-        <div className="h-2.5 bg-gray-50 border-y border-gray-100 mt-6 w-full" />
+        <div className="mt-6 h-2.5 w-full border-y border-gray-100 bg-gray-50" />
 
-        <div className="px-5 pt-6 pb-24 w-full">
-          <h3 className="text-[15px] font-bold text-gray-900 mb-5">{post.commentCount}개의 댓글</h3>
+        <div className="w-full px-5 pt-6 pb-24">
+          <h3 className="mb-5 text-[15px] font-bold text-gray-900">{post.commentCount}개의 댓글</h3>
+
           {post.status !== 'BLINDED' && (
             <form
               onSubmit={handleCommentSubmit}
@@ -1455,21 +1502,22 @@ export const PostDetailPage = () => {
                   value={commentInput}
                   onChange={(e) => setCommentInput(e.target.value)}
                   placeholder="댓글을 입력하세요"
-                  className="flex-1 h-11 px-4 rounded-full bg-white text-[14px] outline-none border border-gray-200 placeholder:text-gray-400"
+                  className="h-11 flex-1 rounded-full border border-gray-200 bg-white px-4 text-[14px] outline-none placeholder:text-gray-400"
                 />
                 <button
                   type="submit"
                   disabled={submittingComment || !commentInput.trim()}
-                  className="h-11 px-4 rounded-full bg-blue-600 text-white text-[14px] font-bold disabled:bg-gray-300 transition-colors"
+                  className="h-11 rounded-full bg-blue-600 px-4 text-[14px] font-bold text-white transition-colors disabled:bg-gray-300"
                 >
                   등록
                 </button>
               </div>
             </form>
           )}
+
           <div className="flex flex-col">
             {comments.length === 0 ? (
-              <div className="text-center text-gray-400 text-[14px] py-10 font-medium">
+              <div className="py-10 text-center text-[14px] font-medium text-gray-400">
                 첫 번째 댓글을 남겨보세요.
               </div>
             ) : (
@@ -1494,6 +1542,7 @@ export const PostDetailPage = () => {
               ))
             )}
           </div>
+
           {hasMoreComments && (
             <div className="mt-6 flex justify-center py-4">
               {loadingMoreComments ? (

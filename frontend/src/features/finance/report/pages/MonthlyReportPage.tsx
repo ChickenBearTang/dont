@@ -9,8 +9,13 @@ import {
 } from '../api/reportApi';
 
 // types import
-import type { SpendingSummaryResponse, SpendingSummaryRank, AiReportPayload, CardRecommendationResponse } from '../types';
-import { useNavigate } from 'react-router-dom';
+import type {
+  SpendingSummaryResponse,
+  SpendingSummaryRank,
+  AiReportPayload,
+  CardRecommendationResponse,
+} from '../types';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import mascotAnalyze from '@/assets/character/mascot_analyze.png';
 import mascotJust from '@/assets/character/mascot_just.png';
@@ -40,6 +45,20 @@ const formatToYYYYMM = (date: Date) => {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   return `${yyyy}-${mm}`;
+};
+
+const parseReportMonth = (reportMonth: string | null) => {
+  if (!reportMonth || !/^\d{4}-\d{2}$/.test(reportMonth)) return null;
+
+  const [yearText, monthText] = reportMonth.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return null;
+  }
+
+  return new Date(year, month - 1, 1);
 };
 
 const getMonthRange = (date: Date) => {
@@ -348,7 +367,6 @@ const ReportChatbot = ({
 
     try {
       const res = await sendAiJustification(targetMonth, msg);
-      // Safely access data depending on axios interceptor configuration
       const resData = (
         res as { data?: { data?: Record<string, unknown> } | Record<string, unknown> }
       )?.data;
@@ -356,7 +374,6 @@ const ReportChatbot = ({
         | Record<string, unknown>
         | undefined;
 
-      // Dummy fallback logic if no actual response is set yet
       const aiResponse = String(
         data?.ai_response ?? data?.aiResponse ?? '설득력이 있는 내용이네요. 내용을 검토하겠습니다.'
       );
@@ -414,8 +431,8 @@ const ReportChatbot = ({
       <div className="fixed bottom-8 right-8 flex flex-col items-end z-50 pointer-events-none">
         <div
           className={`mb-2 mr-2 flex flex-col items-end transition-all duration-500 ease-out z-50 ${isHovered
-            ? 'opacity-100 translate-y-0 scale-100'
-            : 'opacity-0 translate-y-4 scale-90 pointer-events-none'
+              ? 'opacity-100 translate-y-0 scale-100'
+              : 'opacity-0 translate-y-4 scale-90 pointer-events-none'
             }`}
         >
           <div className="bg-white px-4 py-2.5 rounded-2xl shadow-xl border border-gray-100 text-[13px] font-black text-eel mb-2 relative pointer-events-auto">
@@ -476,8 +493,8 @@ const ReportChatbot = ({
           <div
             key={idx}
             className={`max-w-[85%] rounded-2xl p-3 text-[14px] leading-relaxed shadow-sm ${m.sender === 'user'
-              ? 'bg-blue-600 text-white self-end rounded-tr-sm'
-              : 'bg-white text-gray-800 self-start rounded-tl-sm border border-gray-100'
+                ? 'bg-blue-600 text-white self-end rounded-tr-sm'
+                : 'bg-white text-gray-800 self-start rounded-tl-sm border border-gray-100'
               }`}
           >
             {m.text}
@@ -549,8 +566,16 @@ const ReportChatbot = ({
 };
 
 export const MonthlyReportPage = () => {
-  const { user } = useAuthStore();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const getNormalizedMonthDate = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), 1);
+
+  const [currentDate, setCurrentDate] = useState(() => {
+    const requestedDate = parseReportMonth(searchParams.get('reportMonth'));
+    return getNormalizedMonthDate(requestedDate ?? new Date());
+  });
 
   const [summary, setSummary] = useState<SpendingSummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -588,17 +613,16 @@ export const MonthlyReportPage = () => {
     );
   })();
 
-  const handleGenerateReport = async () => {
+    const handleGenerateReport = async () => {
     try {
       setGenerating(true);
       const reportMonth = formatToYYYYMM(currentDate);
       await generateMonthlyAiReport(reportMonth);
 
-        // Reload AI report
-        setAiLoading(true);
-        setCardRecommendLoading(true);
-        const res = await getMonthlyAiReport(reportMonth);
-        applyMonthlyReportPayload(extractReportPayload(res));
+      setAiLoading(true);
+      setCardRecommendLoading(true);
+      const res = await getMonthlyAiReport(reportMonth);
+      applyMonthlyReportPayload(extractReportPayload(res));
     } catch (error) {
       console.error('Failed to generate AI report:', error);
       alert('리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
@@ -610,12 +634,10 @@ export const MonthlyReportPage = () => {
   };
 
   const handleChatRegenerate = async () => {
-    // 채팅에서 "재작성" 버튼 클릭 시 작동할 함수
     try {
       const reportMonth = formatToYYYYMM(currentDate);
       await regenerateAiReport(reportMonth);
 
-      // 새로고침 로직
       setAiLoading(true);
       setCardRecommendLoading(true);
       const res = await getMonthlyAiReport(reportMonth);
@@ -628,6 +650,31 @@ export const MonthlyReportPage = () => {
       setCardRecommendLoading(false);
     }
   };
+
+  useEffect(() => {
+    const requestedDate = parseReportMonth(searchParams.get('reportMonth'));
+
+    if (!requestedDate) return;
+
+    const normalizedRequested = getNormalizedMonthDate(requestedDate);
+
+    if (formatToYYYYMM(normalizedRequested) !== formatToYYYYMM(currentDate)) {
+      setCurrentDate(normalizedRequested);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const normalizedCurrent = getNormalizedMonthDate(currentDate);
+    const currentParam = searchParams.get('reportMonth');
+    const nextMonth = formatToYYYYMM(normalizedCurrent);
+
+    if (currentParam === nextMonth) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('reportMonth', nextMonth);
+    setSearchParams(nextParams, { replace: true });
+  }, [currentDate, searchParams, setSearchParams]);
+
   useEffect(() => {
     const fetchSummary = async () => {
       try {
@@ -698,6 +745,7 @@ export const MonthlyReportPage = () => {
         </svg>
         금융 홈으로
       </button>
+
       <div className="flex items-center justify-between w-full max-w-[260px] mx-auto bg-white/80 p-1.5 mb-6 rounded-2xl shadow-sm border border-gray-100/80 backdrop-blur-sm">
         <button
           onClick={handlePrevMonth}
@@ -713,9 +761,11 @@ export const MonthlyReportPage = () => {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
+
         <div className="text-center font-black text-gray-900 text-[18px] tracking-tight">
           {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
         </div>
+
         <button
           onClick={handleNextMonth}
           disabled={
@@ -737,7 +787,6 @@ export const MonthlyReportPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-        {/* 왼쪽 패널: 기존 소비 리포트 */}
         <div className="w-full bg-gray-50/30 rounded-[32px] overflow-hidden flex flex-col min-h-[450px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="bg-white px-5 pt-6 pb-4 rounded-t-[32px]">
             <h1 className="text-[20px] font-bold text-gray-900 tracking-[-0.02em] flex items-center gap-2">
@@ -780,6 +829,7 @@ export const MonthlyReportPage = () => {
                   <h3 className="text-[15px] font-extrabold text-gray-900 mb-4 tracking-tight">
                     어디에 가장 많이 썼을까요?
                   </h3>
+
                   {summary.rankColumList.length === 0 ? (
                     <div className="py-12 text-center text-[14px] font-bold text-gray-400 bg-gray-50 rounded-2xl">
                       해당 월의 결제 내역이 없습니다.
@@ -809,6 +859,7 @@ export const MonthlyReportPage = () => {
                                   {idx + 1}위
                                 </span>
                               </div>
+
                               <div>
                                 <div className="text-[15px] font-extrabold text-gray-800 mb-0.5">
                                   {rank.categoryName}
@@ -818,6 +869,7 @@ export const MonthlyReportPage = () => {
                                 </div>
                               </div>
                             </div>
+
                             <div className="text-right">
                               <div className="text-[16px] font-black tracking-tight text-gray-900 group-hover:text-blue-600 transition-colors">
                                 {rank.amount?.toLocaleString() || 0}원
@@ -843,7 +895,6 @@ export const MonthlyReportPage = () => {
           </div>
         </div>
 
-        {/* 오른쪽 패널: AI 심층 리포트 */}
         <AIAnalysisCard
           analysis={aiAnalysis}
           cardRecommendation={cardRecommendation}
@@ -858,7 +909,6 @@ export const MonthlyReportPage = () => {
         />
       </div>
 
-      {/* 직전 달에만 채팅(반박) 버튼 표시 */}
       {isLastMonth && aiAnalysis && (
         <ReportChatbot
           targetMonth={formatToYYYYMM(currentDate)}
