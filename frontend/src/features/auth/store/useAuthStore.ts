@@ -13,6 +13,7 @@ interface AuthState {
   setAccessToken: (accessToken: string | null) => void;
   restoreSession: (params: { accessToken: string; user?: UserProfile | null }) => void;
   loginSuccess: (params: { accessToken: string; user: UserProfile | null }) => void;
+  updateUser: (user: Partial<UserProfile>) => void;
   logout: () => void;
 }
 
@@ -58,6 +59,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       accessToken,
       isAuthenticated: true,
       user,
+    });
+  },
+
+  updateUser: (partialUser) => {
+    set((state) => {
+      const nextUser = state.user ? { ...state.user, ...partialUser } : null;
+      if (nextUser) {
+        saveAuthUser(nextUser);
+      }
+      return { user: nextUser };
     });
   },
 

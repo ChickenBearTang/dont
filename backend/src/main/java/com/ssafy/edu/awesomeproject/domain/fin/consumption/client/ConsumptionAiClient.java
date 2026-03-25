@@ -1,13 +1,11 @@
 package com.ssafy.edu.awesomeproject.domain.fin.consumption.client;
 
-import java.util.List;
 import java.util.Map;
 
 public interface ConsumptionAiClient {
-    AiReportAnalysis analyzeMonthlyReport(Map<String, Object> reportPayload);
+    AiReportAnalysis analyzeMonthlyReport(Long userId, String reportMonth);
 
-    JustificationEvaluation evaluateJustification(
-            String message, Map<String, Object> context, List<Map<String, String>> history);
+    JustificationEvaluation evaluateJustification(Long userId, String targetMonth, String message);
 
     record AiReportAnalysis(Map<String, Object> analysisPayload, String llmStatus) {}
 
