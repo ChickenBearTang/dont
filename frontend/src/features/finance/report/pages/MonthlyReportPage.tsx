@@ -196,7 +196,6 @@ const AIAnalysisCard = ({
         </p>
       </div>
 
-<<<<<<< frontend/src/features/finance/report/pages/MonthlyReportPage.tsx
       <div className="flex-1 p-7 flex flex-col gap-6">
 
         {/* AI 기반 소비 유형 및 카드 추천 결과 */}
@@ -250,12 +249,6 @@ const AIAnalysisCard = ({
         <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
           <h3 className="text-[18px] font-extrabold text-gray-900 mb-5 flex items-center gap-2">
             <span className="text-xl">📊</span>
-=======
-      <div className="flex-1 p-5 flex flex-col gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
-          <h3 className="text-[16px] font-extrabold text-gray-900 mb-3 flex items-center gap-2">
-            <span className="text-lg">📊</span>
->>>>>>> frontend/src/features/finance/report/pages/MonthlyReportPage.tsx
             <span>이달의 소비 패턴</span>
           </h3>
           <div className="flex flex-col gap-3">
@@ -559,8 +552,6 @@ export const MonthlyReportPage = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const navigate = useNavigate();
-
 
   const [summary, setSummary] = useState<SpendingSummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);

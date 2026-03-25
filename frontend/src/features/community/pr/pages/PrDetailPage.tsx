@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card } from '@/shared/components';
 import { closePr, getPrDetail, submitPrVote } from '@/features/community/pr';
 import type { PrDetailResponseData } from '@/features/community/pr';
+import { getPrXaiEvaluation } from '@/features/community/pr/api/prXaiApi';
+import type { PrXaiEvaluationResponseData } from '@/features/community/pr/xaiTypes';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { formatRelativeTime } from '@/shared/utils/date';
 import { UserAvatar } from '@/features/community/components/UserAvatar';
@@ -74,6 +76,23 @@ interface ContentSection {
   title: string;
   body: string;
 }
+
+const decisionLabelMap: Record<string, string> = {
+  BUY_NOW: '지금 구매 권장',
+  WAIT: '관망 권장',
+  REVIEW: '추가 검토 필요',
+  NOT_RECOMMENDED: '비구매 권장',
+};
+
+const getDecisionBadgeClass = (decision: string): string => {
+  const normalized = decision.trim().toUpperCase();
+  if (normalized === 'BUY_NOW') return 'bg-success/10 text-success ring-1 ring-success/30';
+  if (normalized === 'WAIT') return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
+  if (normalized === 'NOT_RECOMMENDED') return 'bg-danger/10 text-danger ring-1 ring-danger/30';
+  return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
+};
+
+const formatPercent = (value: number): string => `${Math.round(value * 100)}%`;
 
 const parseEventPayload = (payload: Record<string, unknown> | null): EventPayload => {
   if (!payload) return {};
@@ -228,6 +247,10 @@ export const PrDetailPage = () => {
   const [voteOpinion, setVoteOpinion] = useState('');
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
   const [isClosingPr, setIsClosingPr] = useState(false);
+  const [xaiEvaluation, setXaiEvaluation] = useState<PrXaiEvaluationResponseData | null>(null);
+  const [isXaiLoading, setIsXaiLoading] = useState(false);
+  const [xaiError, setXaiError] = useState<string | null>(null);
+  const [hasRequestedXai, setHasRequestedXai] = useState(false);
 
   const loadDetail = useCallback(async () => {
     if (!parsedPostId || Number.isNaN(parsedPostId)) {
@@ -253,6 +276,32 @@ export const PrDetailPage = () => {
   useEffect(() => {
     void loadDetail();
   }, [loadDetail]);
+
+  useEffect(() => {
+    setXaiEvaluation(null);
+    setXaiError(null);
+    setIsXaiLoading(false);
+    setHasRequestedXai(false);
+  }, [parsedPostId]);
+
+  const handleFetchXaiEvaluation = useCallback(async () => {
+    if (!detail || isXaiLoading) return;
+
+    setHasRequestedXai(true);
+    setXaiEvaluation(null);
+    setIsXaiLoading(true);
+    setXaiError(null);
+
+    try {
+      const response = await getPrXaiEvaluation(detail.postId);
+      setXaiEvaluation(response.data);
+    } catch {
+      setXaiEvaluation(null);
+      setXaiError('XAI 구매 판단 결과를 불러오지 못했습니다.');
+    } finally {
+      setIsXaiLoading(false);
+    }
+  }, [detail, isXaiLoading]);
 
   const handleVote = async (voteValue: 'AGREE' | 'DISAGREE') => {
     if (!detail || detail.status !== 'OPEN' || isSubmittingVote) return;
@@ -598,6 +647,176 @@ export const PrDetailPage = () => {
                 </div>
               </div>
             ) : null}
+          </div>
+        </Card>
+
+        <Card className="!p-0 overflow-hidden border-light-gray shadow-xl">
+          <div className="flex items-center justify-between border-b border-light-gray bg-surface-muted/50 px-6 py-5">
+            <h3 className="text-xl font-black text-eel tracking-tight">XAI 구매 판단</h3>
+            {xaiEvaluation ? (
+              <span
+                className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider ${getDecisionBadgeClass(xaiEvaluation.decision)}`}
+              >
+                {decisionLabelMap[xaiEvaluation.decision] ?? xaiEvaluation.decision}
+              </span>
+            ) : null}
+          </div>
+          <div className="p-6 space-y-4">
+            {isXaiLoading ? (
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-muted">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-light-gray border-t-primary-blue" />
+                XAI가 재무·가격·근거를 분석하고 있습니다.
+              </div>
+            ) : xaiError ? (
+              <div className="space-y-3">
+                <p className="rounded-xl border border-danger/20 bg-danger/5 px-3 py-2 text-sm font-semibold text-danger">
+                  {xaiError}
+                </p>
+                <Button
+                  type="button"
+                  className="!w-auto !rounded-xl !px-4 !py-2 !text-xs"
+                  onClick={() => void handleFetchXaiEvaluation()}
+                >
+                  다시 판단하기
+                </Button>
+              </div>
+            ) : xaiEvaluation ? (
+              <>
+                <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4">
+                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">요약 판단</p>
+                  <p className="mt-2 text-sm font-semibold leading-relaxed text-eel/85">
+                    {xaiEvaluation.summary}
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-light-gray bg-white p-4">
+                    <p className="text-xs font-black text-text-subtle uppercase tracking-widest">재무 평가</p>
+                    <p className="mt-2 text-sm font-bold text-eel">{xaiEvaluation.financialEvaluation.status}</p>
+                    <ul className="space-y-2">
+                      {xaiEvaluation.financialEvaluation.keyMetrics.map((metric) => (
+                        <li
+                          key={metric.code}
+                          className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80"
+                        >
+                          {metric.label}: {metric.value}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-2xl border border-light-gray bg-white p-4">
+                    <p className="text-xs font-black text-text-subtle uppercase tracking-widest">가격 평가</p>
+                    <p className="mt-2 text-sm font-bold text-eel">{xaiEvaluation.priceEvaluation.status}</p>
+                    <ul className="space-y-2">
+                      {xaiEvaluation.priceEvaluation.keyMetrics.map((metric) => (
+                        <li
+                          key={metric.code}
+                          className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80"
+                        >
+                          {metric.label}: {metric.value}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">상위 판단 요인</p>
+                  {xaiEvaluation.topFactors.length > 0 ? (
+                    <ul className="space-y-2">
+                      {xaiEvaluation.topFactors.map((factor) => (
+                        <li key={factor.code} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
+                          {factor.label} · {factor.direction === 'positive' ? '긍정' : factor.direction === 'negative' ? '부정' : '중립'} · 영향도 {formatPercent(factor.impact)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm font-medium text-text-muted">상위 판단 요인이 아직 없습니다.</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">근거 데이터</p>
+                  {xaiEvaluation.supportingEvidence.length > 0 ? (
+                    <ul className="space-y-2">
+                      {xaiEvaluation.supportingEvidence.map((evidence) => (
+                        <li key={`${evidence.field}-${evidence.snapshotId ?? evidence.source}`} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
+                          {evidence.field}: {evidence.value} · {evidence.source}
+                          {(evidence.isDefault || evidence.isEstimated) && (
+                            <span className="ml-2 text-xs font-bold text-amber-600">
+                              {evidence.isEstimated ? '추정값' : '기본값'}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm font-medium text-text-muted">노출할 근거 데이터가 없습니다.</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">Counterfactual</p>
+                  {xaiEvaluation.counterfactuals.length > 0 ? (
+                    <ul className="space-y-2">
+                      {xaiEvaluation.counterfactuals.map((counterfactual) => (
+                        <li key={`${counterfactual.label}-${counterfactual.targetDecision}`} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
+                          {counterfactual.label}
+                          <span className="ml-2 text-xs font-bold text-primary-blue">
+                            → {decisionLabelMap[counterfactual.targetDecision] ?? counterfactual.targetDecision}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm font-medium text-text-muted">counterfactual이 아직 없습니다.</p>
+                  )}
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4 text-center">
+                    <p className="text-[11px] font-black text-text-subtle uppercase tracking-widest">판단 신뢰도</p>
+                    <p className="mt-2 text-lg font-black text-eel">{formatPercent(xaiEvaluation.confidence.decisionConfidence)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4 text-center">
+                    <p className="text-[11px] font-black text-text-subtle uppercase tracking-widest">데이터 완성도</p>
+                    <p className="mt-2 text-lg font-black text-eel">{formatPercent(xaiEvaluation.confidence.dataCompleteness)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4 text-center">
+                    <p className="text-[11px] font-black text-text-subtle uppercase tracking-widest">설명 충실도</p>
+                    <p className="mt-2 text-lg font-black text-eel">{formatPercent(xaiEvaluation.confidence.explanationFidelity)}</p>
+                  </div>
+                </div>
+                {xaiEvaluation.warnings.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-black text-text-subtle uppercase tracking-widest">주의 사항</p>
+                    <ul className="space-y-2">
+                      {xaiEvaluation.warnings.map((warning) => (
+                        <li key={warning} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                          {warning}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4 text-xs font-semibold text-text-muted">
+                  requestId: {xaiEvaluation.requestId}
+                  <br />
+                  generatedAt: {formatDateTime(xaiEvaluation.generatedAt)}
+                  <br />
+                  runtime: decision={xaiEvaluation.runtimeEngines.decision}, explanation={xaiEvaluation.runtimeEngines.explanation}, shap={xaiEvaluation.runtimeEngines.shap}, dice={xaiEvaluation.runtimeEngines.dice}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-text-muted">
+                  아직 XAI 판단 결과를 조회하지 않았습니다.
+                </p>
+                <Button
+                  type="button"
+                  className="!w-auto !rounded-xl !px-4 !py-2 !text-xs"
+                  disabled={hasRequestedXai && isXaiLoading}
+                  onClick={() => void handleFetchXaiEvaluation()}
+                >
+                  XAI 판단 보기
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
 
