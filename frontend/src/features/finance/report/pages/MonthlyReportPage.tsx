@@ -568,6 +568,7 @@ const ReportChatbot = ({
 export const MonthlyReportPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuthStore();
 
   const getNormalizedMonthDate = (date: Date) =>
     new Date(date.getFullYear(), date.getMonth(), 1);
