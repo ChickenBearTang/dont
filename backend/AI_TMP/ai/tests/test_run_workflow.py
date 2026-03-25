@@ -52,25 +52,16 @@ class RunWorkflowTest(unittest.TestCase):
         self.assertIn("--db-url", command)
         self.assertNotIn("ai.crawler.run_to_sqlite", command)
 
-    @patch("ai.crawler.run_workflow.subprocess.run")
-    def test_run_crawl_uses_sqlite_when_explicitly_selected(self, run_mock) -> None:
-        run_mock.return_value.returncode = 0
-        run_mock.return_value.stdout = "{}"
-        run_mock.return_value.stderr = ""
-
-        result = run_workflow.run_crawl(
-            db_path="ai/data/crawl.db",
-            backend="sqlite",
-            keyword="cpu",
-            start_page=1,
-            max_pages=3,
-            overlap_threshold=10,
-        )
-
-        command = str(result["command"])
-        self.assertIn("ai.crawler.run_to_sqlite", command)
-        self.assertIn("--db-path", command)
-        self.assertNotIn("ai.crawler.run_to_postgres", command)
+    def test_run_crawl_rejects_sqlite_backend(self) -> None:
+        with self.assertRaises(ValueError):
+            run_workflow.run_crawl(
+                db_path="ai/data/crawl.db",
+                backend="sqlite",
+                keyword="cpu",
+                start_page=1,
+                max_pages=3,
+                overlap_threshold=10,
+            )
 
     @patch("ai.crawler.run_workflow.subprocess.run")
     def test_run_crawl_uses_postgres_when_explicitly_selected(self, run_mock) -> None:
