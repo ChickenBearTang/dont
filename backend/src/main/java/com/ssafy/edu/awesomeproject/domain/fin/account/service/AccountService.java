@@ -32,6 +32,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -672,7 +673,7 @@ public class AccountService {
         if (amount == null) {
             return "0";
         }
-        return amount.setScale(0, RoundingMode.DOWN).toPlainString();
+        return NumberFormat.getInstance().format(amount);
     }
 
     private LocalDate parseLocalDate(String dateStr) {
