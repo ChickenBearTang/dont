@@ -15,6 +15,7 @@ import com.ssafy.edu.awesomeproject.domain.notification.repository.NotificationR
 import com.ssafy.edu.awesomeproject.domain.notification.sse.NotificationSseEmitters;
 import com.ssafy.edu.awesomeproject.domain.notification.sse.NotificationSsePayload;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+@Slf4j
 @Service
 @Transactional
 public class NotificationService {
@@ -44,6 +46,8 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public NotificationListResponseDto getNotifications(Long userId, Integer page, Integer size) {
+        log.info("알림 목록 조회 시작 - userId={}, page={}, size={}", userId, page, size);
+
         validateUserExists(userId);
 
         int pageNumber = (page == null || page < 0) ? 0 : page;
@@ -55,11 +59,31 @@ public class NotificationService {
         Page<Notification> notificationPage =
             notificationRepository.findByUserIdOrderByIdDesc(userId, pageRequest);
 
+        log.info(
+            "알림 목록 조회 DB 결과 - userId={}, totalElements={}, pageContentSize={}",
+            userId,
+            notificationPage.getTotalElements(),
+            notificationPage.getContent().size());
+
         List<NotificationListResponseDto.NotificationSummaryDto> content =
             notificationPage.getContent().stream()
                 .map(
                     notification -> {
+                        log.info(
+                            "알림 DTO 변환 중 - id={}, type={}, title={}, referenceType={}, referenceId={}",
+                            notification.getId(),
+                            notification.getNotificationType(),
+                            notification.getTitle(),
+                            notification.getReferenceType(),
+                            notification.getReferenceId());
+
                         NotificationTarget target = resolveTarget(notification);
+
+                        log.info(
+                            "알림 target 해석 완료 - id={}, postId={}, commentId={}",
+                            notification.getId(),
+                            target.postId(),
+                            target.commentId());
 
                         return new NotificationListResponseDto.NotificationSummaryDto(
                             notification.getId(),
@@ -78,6 +102,8 @@ public class NotificationService {
                     })
                 .toList();
 
+        log.info("알림 목록 조회 응답 생성 완료 - userId={}, contentSize={}", userId, content.size());
+
         return new NotificationListResponseDto(
             content,
             notificationPage.getNumber(),
@@ -89,13 +115,20 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public NotificationUnreadCountResponseDto getUnreadCount(Long userId) {
+        log.info("읽지 않은 알림 개수 조회 시작 - userId={}", userId);
+
         validateUserExists(userId);
 
         long unreadCount = notificationRepository.countByUserIdAndIsReadFalse(userId);
+
+        log.info("읽지 않은 알림 개수 조회 완료 - userId={}, unreadCount={}", userId, unreadCount);
+
         return new NotificationUnreadCountResponseDto(unreadCount);
     }
 
     public NotificationReadResponseDto markAsRead(Long userId, Long notificationId) {
+        log.info("알림 읽음 처리 시작 - userId={}, notificationId={}", userId, notificationId);
+
         validateUserExists(userId);
 
         Notification notification =
@@ -108,12 +141,20 @@ public class NotificationService {
 
         notification.markAsRead();
 
+        log.info("알림 읽음 처리 완료 - userId={}, notificationId={}", userId, notificationId);
+
         return new NotificationReadResponseDto(notification.getId(), notification.isRead());
     }
 
     public NotificationReadAllResponseDto markAllAsRead(Long userId) {
+        log.info("알림 전체 읽음 처리 시작 - userId={}", userId);
+
         validateUserExists(userId);
+
         int updatedCount = notificationRepository.markAllAsRead(userId);
+
+        log.info("알림 전체 읽음 처리 완료 - userId={}, updatedCount={}", userId, updatedCount);
+
         return new NotificationReadAllResponseDto(updatedCount);
     }
 
@@ -124,6 +165,14 @@ public class NotificationService {
         String body,
         NotificationReferenceType referenceType,
         Long referenceId) {
+        log.info(
+            "알림 생성 시작 - userId={}, type={}, title={}, referenceType={}, referenceId={}",
+            userId,
+            notificationType,
+            title,
+            referenceType,
+            referenceId);
+
         validateUserExists(userId);
 
         if (title == null || title.isBlank() || body == null || body.isBlank()) {
@@ -134,6 +183,12 @@ public class NotificationService {
             new Notification(userId, notificationType, title, body, referenceType, referenceId);
 
         Notification savedNotification = notificationRepository.save(notification);
+
+        log.info(
+            "알림 저장 완료 - notificationId={}, userId={}, type={}",
+            savedNotification.getId(),
+            userId,
+            savedNotification.getNotificationType());
 
         NotificationSsePayload payload =
             new NotificationSsePayload(
@@ -153,15 +208,26 @@ public class NotificationService {
                 new TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
+                        log.info(
+                            "알림 SSE 발송(afterCommit) - notificationId={}, userId={}",
+                            savedNotification.getId(),
+                            userId);
                         notificationSseEmitters.sendToUser(userId, payload);
                     }
                 });
         } else {
+            log.info("알림 SSE 즉시 발송 - notificationId={}, userId={}", savedNotification.getId(), userId);
             notificationSseEmitters.sendToUser(userId, payload);
         }
     }
 
     private NotificationTarget resolveTarget(Notification notification) {
+        log.info(
+            "알림 target 해석 시작 - id={}, referenceType={}, referenceId={}",
+            notification.getId(),
+            notification.getReferenceType(),
+            notification.getReferenceId());
+
         if (notification.getReferenceType() == NotificationReferenceType.COMMENT
             && notification.getReferenceId() != null) {
             return commentRepository
@@ -171,7 +237,13 @@ public class NotificationService {
                         new NotificationTarget(
                             comment.getPost().getId(), comment.getId()))
                 .orElseGet(
-                    () -> new NotificationTarget(null, notification.getReferenceId()));
+                    () -> {
+                        log.warn(
+                            "댓글 알림 대상 댓글을 찾지 못함 - notificationId={}, referenceId={}",
+                            notification.getId(),
+                            notification.getReferenceId());
+                        return new NotificationTarget(null, notification.getReferenceId());
+                    });
         }
 
         if (notification.getReferenceType() == NotificationReferenceType.POST
@@ -184,6 +256,7 @@ public class NotificationService {
 
     private void validateUserExists(Long userId) {
         if (userId == null || !userRepository.existsById(userId)) {
+            log.warn("존재하지 않는 사용자 알림 요청 - userId={}", userId);
             throw new NotificationException(NotificationErrorCode.USER_NOT_FOUND);
         }
     }
