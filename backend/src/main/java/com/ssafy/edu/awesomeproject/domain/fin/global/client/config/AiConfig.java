@@ -12,13 +12,13 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 @Configuration
 public class AiConfig {
 
-    @Value("${ai.server.url:http://localhost:8500}")
+    @Value("${ai.server.url:http://127.0.0.1:18000}")
     private String aiServerUrl;
 
     @Value("${ai.server.connect-timeout-ms:2000}")
     private int connectTimeoutMs;
 
-    @Value("${ai.server.read-timeout-ms:5000}")
+    @Value("${ai.server.read-timeout-ms:20000}")
     private int readTimeoutMs;
 
     @Bean

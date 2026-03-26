@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sqlite3
 import subprocess
 import sys
 
@@ -74,37 +73,22 @@ def run_crawl(
     backend: str = "postgres",
     db_url: str | None = None,
 ) -> dict[str, object]:
-    if backend == "postgres":
-        resolved_db_url = _resolve_db_url(db_url)
-        command = [
-            sys.executable,
-            "-m",
-            "ai.crawler.run_to_postgres",
-            "--db-url",
-            resolved_db_url,
-            "--start-page",
-            str(start_page),
-            "--max-pages",
-            str(max_pages),
-            "--overlap-threshold",
-            str(overlap_threshold),
-        ]
-    elif backend == "sqlite":
-        command = [
-            sys.executable,
-            "-m",
-            "ai.crawler.run_to_sqlite",
-            "--db-path",
-            db_path,
-            "--start-page",
-            str(start_page),
-            "--max-pages",
-            str(max_pages),
-            "--overlap-threshold",
-            str(overlap_threshold),
-        ]
-    else:
+    if backend != "postgres":
         raise ValueError(f"Unsupported backend: {backend}")
+    resolved_db_url = _resolve_db_url(db_url)
+    command = [
+        sys.executable,
+        "-m",
+        "ai.crawler.run_to_postgres",
+        "--db-url",
+        resolved_db_url,
+        "--start-page",
+        str(start_page),
+        "--max-pages",
+        str(max_pages),
+        "--overlap-threshold",
+        str(overlap_threshold),
+    ]
 
     if keyword:
         command.extend(["--keyword", keyword])
@@ -134,43 +118,13 @@ def read_samples(
     backend: str = "postgres",
     db_url: str | None = None,
 ) -> dict[str, object]:
-    if backend == "postgres":
-        store = PostgresCrawlStore(dsn=_resolve_db_url(db_url))
-        sample_result = store.read_samples(sample_limit=sample_limit)
-        return {
-            "total_count": sample_result.total_count,
-            "sample_items": sample_result.sample_items,
-        }
-
-    if backend != "sqlite":
+    if backend != "postgres":
         raise ValueError(f"Unsupported backend: {backend}")
-
-    with sqlite3.connect(db_path) as connection:
-        total_count = connection.execute("SELECT COUNT(*) FROM crawl_items").fetchone()[
-            0
-        ]
-        rows = connection.execute(
-            """
-            SELECT post_id, title, price, url
-            FROM crawl_items
-            ORDER BY CAST(post_id AS INTEGER) DESC
-            LIMIT ?
-            """,
-            (sample_limit,),
-        ).fetchall()
-
-    samples = [
-        {
-            "post_id": row[0],
-            "title": row[1],
-            "price": row[2],
-            "url": row[3],
-        }
-        for row in rows
-    ]
+    store = PostgresCrawlStore(dsn=_resolve_db_url(db_url))
+    sample_result = store.read_samples(sample_limit=sample_limit)
     return {
-        "total_count": total_count,
-        "sample_items": samples,
+        "total_count": sample_result.total_count,
+        "sample_items": sample_result.sample_items,
     }
 
 
@@ -178,7 +132,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--db-path", default="ai/data/crawl.db")
     parser.add_argument("--db-url", default=None)
-    parser.add_argument("--backend", choices=["sqlite", "postgres"], default="postgres")
+    parser.add_argument("--backend", choices=["postgres"], default="postgres")
     parser.add_argument("--keyword", default=None)
     parser.add_argument("--start-page", type=int, default=1)
     parser.add_argument("--max-pages", type=int, default=2)

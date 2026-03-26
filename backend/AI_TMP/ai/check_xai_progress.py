@@ -38,7 +38,6 @@ def _import_checks() -> CheckResult:
         "ai.manager",
         "ai.__main__",
         "ai.xai.analyzer",
-        "ai.storage.sqlite_store",
         "ai.storage.postgres_store",
         "ai.crawler.run_workflow",
     ]

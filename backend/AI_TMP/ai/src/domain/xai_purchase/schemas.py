@@ -34,6 +34,18 @@ class FinanceProfileContext(BaseModel):
         alias="expectedCardPaymentAmount"
     )
     days_until_card_due: ProvenanceValue = Field(alias="daysUntilCardDue")
+    savebox_balance: ProvenanceValue | None = Field(
+        default=None,
+        alias="saveboxBalance",
+    )
+    available_fixed_expense: ProvenanceValue | None = Field(
+        default=None,
+        alias="availableFixedExpense",
+    )
+    available_fixed_income: ProvenanceValue | None = Field(
+        default=None,
+        alias="availableFixedIncome",
+    )
 
     model_config = {"populate_by_name": True}
 

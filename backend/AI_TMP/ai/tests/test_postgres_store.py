@@ -13,7 +13,7 @@ class _FakeCursor:
     def __init__(
         self,
         fetchone_results: list[object | None] | None = None,
-        fetchall_results: list[tuple[str | None, str, str | None, str]] | None = None,
+        fetchall_results: list[tuple[object, ...]] | None = None,
     ) -> None:
         self.executed: list[tuple[str, tuple[object, ...] | None]] = []
         self._fetchone_results = list(fetchone_results or [])
@@ -27,7 +27,7 @@ class _FakeCursor:
             return None
         return self._fetchone_results.pop(0)
 
-    def fetchall(self) -> list[tuple[str | None, str, str | None, str]]:
+    def fetchall(self) -> list[tuple[object, ...]]:
         return list(self._fetchall_results)
 
     def __enter__(self) -> _FakeCursor:
@@ -61,6 +61,17 @@ class _ConnectorFactory:
 
 
 class PostgresCrawlStoreTest(unittest.TestCase):
+    def test_normalize_krw_price_rejects_foreign_currency(self) -> None:
+        self.assertEqual(PostgresCrawlStore._normalize_krw_price("1,200,000원"), "1200000")
+        self.assertEqual(PostgresCrawlStore._normalize_krw_price("₩899,000"), "899000")
+        self.assertEqual(PostgresCrawlStore._normalize_krw_price("KRW 77,500"), "77500")
+        self.assertEqual(PostgresCrawlStore._normalize_krw_price("$699"), "1048500")
+        self.assertEqual(PostgresCrawlStore._normalize_krw_price("USD 699"), "1048500")
+        self.assertEqual(PostgresCrawlStore._normalize_krw_price("JPY 12000"), "114000")
+        self.assertEqual(PostgresCrawlStore._normalize_krw_price("¥12000"), "114000")
+        self.assertEqual(PostgresCrawlStore._normalize_krw_price("CNY 100"), "21500")
+        self.assertIsNone(PostgresCrawlStore._normalize_krw_price("EUR 100"))
+
     def test_save_result_counts_inserted_and_updated(self) -> None:
         init_cursor = _FakeCursor()
         save_cursor = _FakeCursor(fetchone_results=[None, (1,)])
@@ -82,6 +93,26 @@ class PostgresCrawlStoreTest(unittest.TestCase):
         self.assertEqual(stats.inserted, 1)
         self.assertEqual(stats.updated, 1)
         self.assertGreaterEqual(len(save_cursor.executed), 4)
+
+    def test_save_result_converts_foreign_currency_to_krw(self) -> None:
+        init_cursor = _FakeCursor()
+        save_cursor = _FakeCursor(fetchone_results=[None])
+        connector = _ConnectorFactory(
+            [_FakeConnection(init_cursor), _FakeConnection(save_cursor)]
+        )
+        store = PostgresCrawlStore(dsn="postgresql://test", connector=connector)
+
+        result = CrawlResult(
+            source="quasarzone",
+            fetched_at=datetime.now(timezone.utc),
+            items=[HotDeal(title="USD item", url="https://example.com/views/9", price="USD 99")],
+        )
+        store.save_result(result)
+
+        insert_query = next(
+            entry for entry in save_cursor.executed if "INSERT INTO crawl_items" in entry[0]
+        )
+        self.assertEqual(insert_query[1][4], "148500")
 
     def test_is_seen_returns_true_when_row_exists(self) -> None:
         init_cursor = _FakeCursor()
@@ -136,6 +167,50 @@ class PostgresCrawlStoreTest(unittest.TestCase):
         self.assertEqual(stats["30d"]["count"], 3)
         self.assertEqual(stats["30d"]["avg_price"], 1200.0)
         self.assertEqual(stats["90d"]["max_price"], 2000.0)
+
+        self.assertIn(
+            "COALESCE(posted_at_ts, fetched_at)", stats_30d_cursor.executed[0][0]
+        )
+        self.assertIn(
+            "AND is_outlier = FALSE", stats_90d_cursor.executed[0][0]
+        )
+
+    def test_mark_price_outliers_marks_only_out_of_iqr_range(self) -> None:
+        init_cursor = _FakeCursor()
+        mark_cursor = _FakeCursor(
+            fetchall_results=[
+                ("https://example.com/views/1", "F87 pro A", 100000),
+                ("https://example.com/views/2", "F87 pro B", 103000),
+                ("https://example.com/views/3", "F87 pro C", 106000),
+                ("https://example.com/views/4", "F87 pro D", 110000),
+                ("https://example.com/views/5", "F87 pro E", 2000000),
+            ]
+        )
+        connector = _ConnectorFactory(
+            [_FakeConnection(init_cursor), _FakeConnection(mark_cursor)]
+        )
+        store = PostgresCrawlStore(dsn="postgresql://test", connector=connector)
+
+        result = store.mark_price_outliers(
+            channels=["quasarzone"],
+            keywords=["F87 pro"],
+            days=90,
+            iqr_multiplier=1.5,
+            min_group_size=4,
+        )
+
+        self.assertEqual(result.reviewed_rows, 5)
+        self.assertEqual(result.marked_rows, 1)
+        self.assertEqual(len(result.scopes), 1)
+        self.assertEqual(result.scopes[0].channel, "quasarzone")
+        self.assertEqual(result.scopes[0].keyword, "f87 pro")
+        self.assertEqual(result.scopes[0].marked_count, 1)
+
+        update_queries = [
+            entry for entry in mark_cursor.executed if "UPDATE crawl_items" in entry[0]
+        ]
+        self.assertGreaterEqual(len(update_queries), 2)
+        self.assertIn("is_outlier = TRUE", update_queries[-1][0])
 
 
 if __name__ == "__main__":

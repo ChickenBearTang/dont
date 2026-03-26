@@ -63,3 +63,11 @@ export interface PrXaiEvaluationResponseData {
   modelVersion?: string | null;
   ruleVersion?: string | null;
 }
+
+export interface PrXaiAvailabilityResponseData {
+  enabled: boolean;
+  reason: string;
+  matchType?: 'URL_EXACT' | 'TITLE_PRICE_SIMILAR' | string | null;
+  matchedItemTitle?: string | null;
+  matchedItemUrl?: string | null;
+}
