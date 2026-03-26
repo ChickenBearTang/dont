@@ -145,6 +145,12 @@ class ExplainabilityAnalyzer:
                 emergency_fund_balance = float(
                     self._finance_profile.get("emergency_fund_balance", 600_000)
                 )
+                savebox_balance = float(
+                    self._finance_profile.get(
+                        "savebox_balance",
+                        emergency_fund_balance,
+                    )
+                )
                 days_until_card_due = int(
                     self._finance_profile.get("days_until_card_due", 14)
                 )
@@ -157,7 +163,7 @@ class ExplainabilityAnalyzer:
                     suggested = self._dice_counterfactual_engine.suggest(
                         price_int=price_value,
                         monthly_spending_30d=monthly_spending_30d,
-                        emergency_fund_balance=emergency_fund_balance,
+                        emergency_fund_balance=savebox_balance,
                         current_balance=current_balance,
                         days_until_card_due=days_until_card_due,
                         expected_card_payment_amount=expected_card_payment_amount,
@@ -169,6 +175,13 @@ class ExplainabilityAnalyzer:
                     elif isinstance(suggested, list):
                         counterfactuals = suggested
 
+                counterfactuals = self._stabilize_counterfactual_suggestions(
+                    counterfactuals,
+                    price_value=price_value,
+                    monthly_spending_30d=monthly_spending_30d,
+                    savebox_balance=savebox_balance,
+                    window_stats=window_stats,
+                )
                 counterfactuals = self._normalize_counterfactual_messages(
                     counterfactuals
                 )
@@ -199,7 +212,7 @@ class ExplainabilityAnalyzer:
                     ),
                     "emergency_fund_balance": emergency_fund_balance,
                     "projected_balance_after_purchase": (
-                        current_balance - float(features.get("price_int", 0))
+                        savebox_balance - float(features.get("price_int", 0))
                     ),
                     "days_until_card_due": days_until_card_due,
                 }
@@ -282,6 +295,12 @@ class ExplainabilityAnalyzer:
             "emergency_fund_balance": float(
                 self._finance_profile.get("emergency_fund_balance", 600_000)
             ),
+            "savebox_balance": float(
+                self._finance_profile.get(
+                    "savebox_balance",
+                    self._finance_profile.get("emergency_fund_balance", 600_000),
+                )
+            ),
             "expected_card_payment_amount": float(
                 self._finance_profile.get("expected_card_payment_amount", 200_000)
             ),
@@ -300,6 +319,45 @@ class ExplainabilityAnalyzer:
                 continue
             item = dict(counterfactual)
             item["message"] = self._korean_counterfactual_message(item)
+            normalized.append(item)
+        return normalized
+
+    @staticmethod
+    def _stabilize_counterfactual_suggestions(
+        counterfactuals: list[dict[str, Any]],
+        *,
+        price_value: int | None,
+        monthly_spending_30d: float,
+        savebox_balance: float,
+        window_stats: dict[str, dict[str, float | int | None]] | None,
+    ) -> list[dict[str, Any]]:
+        avg_price_raw = ((window_stats or {}).get("30d", {}) or {}).get("avg_price")
+        avg_price_30d = (
+            float(avg_price_raw)
+            if isinstance(avg_price_raw, (int, float)) and float(avg_price_raw) > 0
+            else 0.0
+        )
+        monthly_buffer_target = max(float(monthly_spending_30d) * 0.5, 0.0)
+        market_buffer_target = max(avg_price_30d * 3.0, 0.0)
+        target_after_purchase = max(monthly_buffer_target, market_buffer_target)
+        projected_after_purchase = float(savebox_balance) - float(price_value or 0)
+        stable_required_delta = int(
+            max(target_after_purchase - projected_after_purchase, 0.0)
+        )
+        stable_threshold = float(max(float(savebox_balance) + stable_required_delta, 0.0))
+
+        normalized: list[dict[str, Any]] = []
+        for counterfactual in counterfactuals:
+            if not isinstance(counterfactual, dict):
+                continue
+            item = dict(counterfactual)
+            if (
+                str(item.get("variable", "")) == "emergency_buffer"
+                and str(item.get("action", "")) == "increase"
+            ):
+                item["suggested_change"] = stable_required_delta
+                item["threshold"] = stable_threshold
+                item["stabilized_by"] = "savebox_avg30d_rule_v1"
             normalized.append(item)
         return normalized
 
@@ -373,6 +431,9 @@ class ExplainabilityAnalyzer:
         emergency_fund_balance = float(
             self._finance_profile.get("emergency_fund_balance", 600_000)
         )
+        savebox_balance = float(
+            self._finance_profile.get("savebox_balance", emergency_fund_balance)
+        )
         days_until_card_due = int(self._finance_profile.get("days_until_card_due", 14))
 
         avg_price_30d = ((window_stats or {}).get("30d", {}) or {}).get("avg_price")
@@ -389,7 +450,7 @@ class ExplainabilityAnalyzer:
             ),
             "emergency_fund_balance": emergency_fund_balance
             / max(monthly_spending_30d, 1.0),
-            "projected_balance_after_purchase": (current_balance - price_int)
+            "projected_balance_after_purchase": (savebox_balance - price_int)
             / max(monthly_spending_30d, 1.0),
             "days_until_card_due": float(days_until_card_due) / 30.0,
         }

@@ -92,6 +92,29 @@ class XaiDiceKoreanMessagesTest(unittest.TestCase):
         self.assertEqual(len(normalized), 1)
         self.assertRegex(str(normalized[0].get("message", "")), r"[가-힣]")
 
+    def test_emergency_buffer_delta_is_stabilized_by_savebox_and_30d_avg(self) -> None:
+        stabilized = ExplainabilityAnalyzer._stabilize_counterfactual_suggestions(
+            [
+                {
+                    "type": "dice",
+                    "variable": "emergency_buffer",
+                    "action": "increase",
+                    "suggested_change": 999999,
+                    "threshold": 1234567,
+                    "message": "Increase emergency fund",
+                }
+            ],
+            price_value=50_000,
+            monthly_spending_30d=600_000,
+            savebox_balance=100_000,
+            window_stats={"30d": {"avg_price": 40_000}},
+        )
+
+        self.assertEqual(len(stabilized), 1)
+        self.assertEqual(stabilized[0]["suggested_change"], 250_000)
+        self.assertEqual(stabilized[0]["threshold"], 350_000.0)
+        self.assertEqual(stabilized[0]["stabilized_by"], "savebox_avg30d_rule_v1")
+
 
 if __name__ == "__main__":
     unittest.main()

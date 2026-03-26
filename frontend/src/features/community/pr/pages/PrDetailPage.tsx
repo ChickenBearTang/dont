@@ -129,6 +129,50 @@ const getXaiSectionStatusLabel = (status: string): string =>
 
 const getXaiWarningLabel = (warning: string): string => xaiWarningLabelMap[warning] ?? warning;
 
+const xaiEvidenceFieldLabelMap: Record<string, string> = {
+  current_price: '현재 판단 가격',
+  projected_balance_after_purchase: '구매 후 예상 잔액',
+  days_until_card_due: '카드 결제일까지',
+  avg_price_30d: '30일 평균가',
+  emergency_fund_balance: '비상자금',
+  current_balance: '현재 잔액',
+};
+
+const xaiEvidenceSourceLabelMap: Record<string, string> = {
+  'spring.pr_post': 'PR 요청값',
+  'spring.finance_profile': '재무 프로필',
+  'fastapi.xai': 'AI 계산값',
+};
+
+const getXaiEvidenceFieldLabel = (field: string): string => {
+  if (field === 'projected_balance_after_purchase') {
+    return '구매 후 세이브박스 잔액';
+  }
+  return xaiEvidenceFieldLabelMap[field] ?? field;
+};
+
+const getXaiEvidenceSourceLabel = (source: string): string =>
+  xaiEvidenceSourceLabelMap[source] ?? source;
+
+const formatXaiEvidenceValue = (field: string, rawValue: string): string => {
+  const normalized = rawValue.trim();
+  if (normalized.length === 0) return rawValue;
+  const numeric = Number(normalized.replaceAll(',', ''));
+  if (!Number.isFinite(numeric)) return rawValue;
+
+  if (field === 'days_until_card_due') return `${Math.round(numeric)}일`;
+  if (
+    field === 'current_price' ||
+    field === 'projected_balance_after_purchase' ||
+    field === 'avg_price_30d' ||
+    field === 'emergency_fund_balance' ||
+    field === 'current_balance'
+  ) {
+    return `${Math.round(numeric).toLocaleString('ko-KR')}원`;
+  }
+  return rawValue;
+};
+
 const parseEventPayload = (payload: Record<string, unknown> | null): EventPayload => {
   if (!payload) return {};
   return payload as EventPayload;
@@ -821,7 +865,7 @@ export const PrDetailPage = () => {
                     <ul className="space-y-2">
                       {xaiEvaluation.supportingEvidence.map((evidence) => (
                         <li key={`${evidence.field}-${evidence.snapshotId ?? evidence.source}`} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
-                          {evidence.field}: {evidence.value} · {evidence.source}
+                          {getXaiEvidenceFieldLabel(evidence.field)}: {formatXaiEvidenceValue(evidence.field, evidence.value)} · {getXaiEvidenceSourceLabel(evidence.source)}
                           {(evidence.isDefault || evidence.isEstimated) && (
                             <span className="ml-2 text-xs font-bold text-amber-600">
                               {evidence.isEstimated ? '추정값' : '기본값'}

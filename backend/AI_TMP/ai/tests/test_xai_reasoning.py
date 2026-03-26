@@ -4,6 +4,7 @@ import importlib
 import unittest
 
 ReasoningEngine = importlib.import_module("ai.xai.reasoning").ReasoningEngine
+canonical_reasons = importlib.import_module("ai.xai.purchase_core.reasons")
 
 
 class ReasoningEngineTest(unittest.TestCase):
@@ -23,10 +24,40 @@ class ReasoningEngineTest(unittest.TestCase):
 
         self.assertEqual(first, second)
         self.assertEqual(len(first), 3)
-        self.assertEqual(first[0]["reason_code"], "DECISION_FEATURE_SIGNAL")
-        self.assertEqual(first[1]["reason_code"], "PRICE_RELATIVE_TO_30D_AVG")
+        self.assertEqual(first[0]["reason_code"], "PRICE_RELATIVE_TO_30D_AVG")
         self.assertEqual(
-            first[2]["reason_code"], "PRICE_SHIPPING_COST_REDUCES_ATTRACTIVENESS"
+            first[1]["reason_code"], "SHIPPING_COST_REDUCES_ATTRACTIVENESS"
+        )
+        self.assertEqual(first[2]["reason_code"], "DECISION_FEATURE_SIGNAL")
+
+    def test_known_feature_reuses_canonical_reason_catalog_with_output_shape(
+        self,
+    ) -> None:
+        reasons = self.engine.analyze({"current_price": 0.25}, top_k=1)
+
+        self.assertEqual(len(reasons), 1)
+        reason = reasons[0]
+        expected_code, expected_source_type = canonical_reasons.REASON_CODE_MAP[
+            "current_price"
+        ]
+        self.assertEqual(reason["reason_code"], expected_code)
+        self.assertEqual(
+            reason["reason_text"], canonical_reasons.REASON_TEXT[expected_code]
+        )
+        self.assertEqual(reason["source_type"], expected_source_type)
+
+        self.assertSetEqual(
+            set(reason.keys()),
+            {
+                "reason_code",
+                "reason_text",
+                "feature",
+                "score",
+                "abs_score",
+                "impact_direction",
+                "shap_like_value",
+                "source_type",
+            },
         )
 
     def test_empty_input_returns_fallback_reason(self) -> None:

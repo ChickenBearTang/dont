@@ -490,6 +490,10 @@ def evaluate_pr_purchase_xai(
         else None
     )
     decision_confidence = float(item.get("decision_confidence", 0.0))
+    projected_savebox_balance_after_purchase = (
+        float(finance_profile["savebox_balance"])
+        - float(current_price if current_price is not None else 0)
+    )
 
     response = PurchaseXaiEvaluationResponse(
         requestId=request.request_id,
@@ -568,7 +572,11 @@ def evaluate_pr_purchase_xai(
         supportingEvidence=[
             SupportingEvidence(
                 field=str(evidence.get("feature", "unknown")),
-                value=str(evidence.get("observed_value", evidence.get("score", "-"))),
+                value=(
+                    str(int(projected_savebox_balance_after_purchase))
+                    if str(evidence.get("feature", "")) == "projected_balance_after_purchase"
+                    else str(evidence.get("observed_value", evidence.get("score", "-")))
+                ),
                 source=(
                     request.purchase.price_amount.source
                     if str(evidence.get("feature", "")) == "current_price"
