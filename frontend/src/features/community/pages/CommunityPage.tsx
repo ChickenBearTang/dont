@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Button } from '@/shared/components';
 import { getPosts } from '../api/communityApi';
+import { fetchMyPage } from '@/features/user/api/userApi';
 import type { BoardCategory, GetPostListResponseDto, PostSummaryDto } from '../types';
 import { UserAvatar } from '../components/UserAvatar';
+import { useAuthStore } from '@/features/auth/store/useAuthStore';
 
 const PAGE_SIZE = 12;
 const PR_STATUS_FILTERS = ['OPEN', 'MERGED', 'CLOSED'] as const;
@@ -583,8 +586,18 @@ const PrBoardList = ({
 };
 
 export const CommunityPage = () => {
+  const { user } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const { data: myPageData } = useQuery({
+    queryKey: ['myPage'],
+    queryFn: fetchMyPage,
+    enabled: !!user,
+    select: (res) => res.data,
+  });
+
+  const cohortNo = myPageData?.cohortGenerationNo ?? user?.cohortId;
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const category = searchParams.get('category') as BoardCategory | null;
@@ -722,13 +735,17 @@ export const CommunityPage = () => {
   const categoryTitle = keyword
     ? `'${keyword}' 검색 결과`
     : category
-      ? `${getCategoryName(category)} 게시판`
+      ? category === 'COHORT' && cohortNo
+        ? `${cohortNo}기 게시판`
+        : `${getCategoryName(category)} 게시판`
       : '전체 게시판';
 
   const categoryDescription = keyword
     ? `${totalElements}개의 게시글을 찾았습니다.`
     : category === 'PR'
       ? '구매 요청을 올리고 다른 사용자의 의견을 받아보세요.'
+      : category === 'COHORT'
+        ? `${cohortNo ?? ''}기 동기들과 자유롭게 소통하고 정보를 나누어보세요.`
       : category === 'POLL'
         ? '찬반이 갈리는 주제를 올리고 기한 안에 의견을 모아보세요.'
         : category === 'HOTDEAL'
