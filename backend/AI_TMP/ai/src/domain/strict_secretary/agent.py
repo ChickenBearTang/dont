@@ -8,6 +8,36 @@ from domain.consumption.ai_insights import _model_candidates, _extract_json
 from domain.strict_secretary.models import SecretaryResponse
 
 
+def _to_bool(value: object) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "y", "승인", "approve", "approved"}:
+            return True
+        if lowered in {"false", "0", "no", "n", "기각", "reject", "rejected"}:
+            return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return None
+
+
+def _reconcile_approval(approval: bool, comment: str, reasoning: list[str]) -> bool:
+    text = f"{comment}\n" + "\n".join(reasoning)
+
+    approve_keywords = ["승인", "구매해", "사도", "합당", "무리 없는", "감당 가능", "필수품"]
+    reject_keywords = ["기각", "반려", "사지 마", "무리", "과소비", "감당 불가", "불필요"]
+
+    approve_hit = any(keyword in text for keyword in approve_keywords)
+    reject_hit = any(keyword in text for keyword in reject_keywords)
+
+    if approve_hit and not reject_hit:
+        return True
+    if reject_hit and not approve_hit:
+        return False
+    return approval
+
+
 class StrictSecretaryAgent:
     def __init__(self):
         self.api_key = get_env("GEMINI_API_KEY")
@@ -103,10 +133,18 @@ Return ONLY strict JSON with the following structure:
                     and "fact_violence_comment" in parsed
                     and "reasoning" in parsed
                 ):
+                    normalized = _to_bool(parsed.get("is_approved"))
+                    if normalized is None:
+                        continue
+
+                    comment = str(parsed["fact_violence_comment"])
+                    reasoning = [str(item) for item in list(parsed["reasoning"])]
+                    final_approval = _reconcile_approval(normalized, comment, reasoning)
+
                     return SecretaryResponse(
-                        is_approved=bool(parsed["is_approved"]),
-                        fact_violence_comment=str(parsed["fact_violence_comment"]),
-                        reasoning=list(parsed["reasoning"]),
+                        is_approved=final_approval,
+                        fact_violence_comment=comment,
+                        reasoning=reasoning,
                     )
             except Exception as e:
                 import logging
