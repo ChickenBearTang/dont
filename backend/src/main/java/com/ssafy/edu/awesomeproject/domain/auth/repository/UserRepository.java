@@ -2,6 +2,8 @@ package com.ssafy.edu.awesomeproject.domain.auth.repository;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus;
+
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -31,6 +33,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     default boolean existsActiveById(Long id) {
         return existsByIdAndStatus(id, UserStatus.ACTIVE);
     }
-
     boolean existsBySsafyFinanceUserKey(String ssafyFinanceUserKey);
+
+    List<User> findByCohortId(Long cohortId);
 }

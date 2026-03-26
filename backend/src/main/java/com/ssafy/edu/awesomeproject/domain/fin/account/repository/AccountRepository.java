@@ -23,4 +23,6 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     BigDecimal sumBalanceByUserIdAndRole(
             @Param("userId") Long userId,
             @Param("accountRole") AccountRole accountRole);
+
+    Optional<Account> getAccountById(Long id);
 }
