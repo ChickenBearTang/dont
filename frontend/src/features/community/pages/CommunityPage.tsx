@@ -820,14 +820,15 @@ export const CommunityPage = () => {
               placeholder="검색"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              className="bg-gray-50 border border-gray-100 text-[13px] rounded-lg pl-9 pr-3 py-2 w-[180px] outline-none focus:border-gray-200 focus:bg-white transition-all font-medium text-gray-600 placeholder:text-gray-300"
+              className="bg-gray-50 border border-gray-100 text-[13px] rounded-xl pl-10 pr-4 h-[44px] w-[210px] outline-none focus:border-gray-200 focus:bg-white transition-all font-semibold text-gray-600 placeholder:text-gray-300"
             />
           </form>
 
           <Button
             type="button"
             onClick={() => navigate(getWritePath())}
-            className="inline-flex items-center gap-2 rounded-xl border border-blue-600 bg-blue-600 px-4 py-2.5 text-[14px] font-bold text-white shadow-sm transition hover:border-blue-700 hover:bg-blue-700 focus:outline-none"
+            fullWidth={false}
+            className="!inline-flex items-center gap-2 rounded-xl border-0 !bg-blue-600 px-6 h-[44px] text-[14px] font-black text-white shadow-md transition hover:!bg-blue-700 hover:-translate-y-0.5 active:scale-95 focus:outline-none"
           >
             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
