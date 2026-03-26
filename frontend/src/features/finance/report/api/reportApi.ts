@@ -3,10 +3,12 @@ import type { SpendingSummaryResponse, AiReportResponse, CardRecommendationRespo
 
 export const getSpendingSummary = async (
   startDate: string,
-  endDate: string
+  endDate: string,
+  includeAi = false
 ): Promise<SpendingSummaryResponse> => {
   return await axiosInstance.get('/fin/cards/spending-summary', {
-    params: { startDate, endDate },
+    params: { startDate, endDate, includeAi },
+    timeout: 30000, // 30 seconds
   });
 };
 
@@ -55,4 +57,3 @@ export const getCardRecommendation = async (month: string): Promise<CardRecommen
   });
   return res?.data ?? res;
 };
-

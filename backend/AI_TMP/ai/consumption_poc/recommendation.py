@@ -1,164 +1,231 @@
-import os
-import json
 import difflib
+import json
+import os
+
 import pandas as pd
-from consumption_poc.config import get_env, DEFAULT_GEMINI_MODEL
+
+from consumption_poc.config import DEFAULT_GEMINI_MODEL, get_env
+
 
 class AIConsumptionEngine:
     def __init__(self, personas, cards):
         self.personas = personas
         self.cards = cards
-        
-        # 1. 분리된 설정 파일 읽기 (store_mapping.json)
-        config_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'raw', 'store_mapping.json')
-        # 파일이 없을 경우를 대비한 fall-back 처리는 유지하지만, 기본적으로 분리된 파일을 사용합니다.
+
+        config_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "data", "raw", "store_mapping.json"
+        )
         if os.path.exists(config_path):
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 self.keyword_map = json.load(f)
         else:
             self.keyword_map = {}
-            
-        # LLM fallback을 위한 Gemini 클라이언트 초기화
+
         try:
             gemini_key = get_env("GEMINI_API_KEY")
             if gemini_key:
                 from google import genai
+
                 self.llm_client = genai.Client(api_key=gemini_key)
             else:
                 self.llm_client = None
         except Exception:
             self.llm_client = None
 
+    @staticmethod
+    def _normalize_token(value: str) -> str:
+        return (
+            str(value or "")
+            .strip()
+            .lower()
+            .replace("-", "_")
+            .replace(" ", "_")
+            .replace("/", "_")
+        )
+
     def _get_llm_category(self, store_name: str) -> str:
-        """3단계: LLM Fallback (전혀 모르는 가맹점일 경우)"""
         if not self.llm_client:
             return "ETC"
-            
         try:
-            # P01~P13 카테고리 설명을 프롬프트에 제공하여 매칭 (Gemini용 프롬프트)
-            categories_desc = ", ".join([f"{k}({v[0]} 등)" for k, v in self.keyword_map.items()])
-            prompt = f"다음 상호명이 어느 카테고리에 속하는지 P01부터 P13 중에서 하나만 출력하세요. 속하는 곳이 전혀 없다면 ETC를 출력하세요.\n\n카테고리 정보: {categories_desc}\n\n상호명: {store_name}\n\n출력형식: P01 등 단일 코드만 출력하세요."
-            
+            categories_desc = ", ".join([f"{k}({v[0]})" for k, v in self.keyword_map.items()])
+            prompt = (
+                "Given merchant text, choose one category code from P01..P13 only. "
+                "If uncertain, return ETC.\n\n"
+                f"Categories: {categories_desc}\n"
+                f"Merchant: {store_name}\n"
+                "Answer format: one code only."
+            )
             response = self.llm_client.models.generate_content(
                 model=DEFAULT_GEMINI_MODEL,
                 contents=prompt,
             )
-            result = getattr(response, "text", "") or ""
-            result = result.strip()
-            
-            # 응답값이 유효한 카테고리인지 확인
+            result = (getattr(response, "text", "") or "").strip()
             if result in self.keyword_map or result == "ETC":
                 return result
-        except Exception as e:
-            print(f"LLM Fallback Error for {store_name}: {e}")
-            
+        except Exception:
+            pass
         return "ETC"
 
     def match_type(self, row) -> str:
-        """가맹점명을 기반으로 type_id를 반환하는 다단계 매칭 로직"""
-        store_name = str(row.get('storeName', ''))
-        subcategory = str(row.get('subcategory', ''))
-        category = str(row.get('category', ''))
-        
-        # 0. 핵심: 소비리포트(category)와의 일맥상통을 위한 1차 매핑
+        store_name = str(row.get("storeName", "")).strip()
+        subcategory = self._normalize_token(row.get("subcategory", ""))
+        category = self._normalize_token(row.get("category", ""))
+        store_name_norm = store_name.lower()
+        context_text = " ".join(
+            [
+                str(row.get("storeName", "")),
+                str(row.get("category", "")),
+                str(row.get("subcategory", "")),
+            ]
+        ).lower()
+
         sub_to_p = {
-            'delivery': 'P01', 'convenience_store': 'P02', 'fastfood': 'P01',
-            'ott': 'P04', 'music': 'P04', 'taxi': 'P05',
-            'health_beauty': 'P06', 'cafe': 'P07',
-            'fashion': 'P08', 'ecommerce': 'P08',
-            'book': 'P09', 'course': 'P09', 'academy': 'P09',
-            'groceries': 'P10', 'home': 'P10', 'living': 'P06',
-            'flight': 'P11', 'hotel': 'P11', 'package': 'P11',
-            'luxury': 'P12', 'department_store': 'P12',
-            'movie': 'P13', 'hobby': 'P13', 'gaming': 'P13'
+            "delivery": "P01",
+            "convenience_store": "P02",
+            "fastfood": "P01",
+            "ott": "P04",
+            "music": "P04",
+            "taxi": "P05",
+            "health_beauty": "P06",
+            "cafe": "P07",
+            "fashion": "P08",
+            "ecommerce": "P08",
+            "book": "P09",
+            "course": "P09",
+            "academy": "P09",
+            "groceries": "P10",
+            "home": "P10",
+            "living": "P06",
+            "flight": "P11",
+            "hotel": "P11",
+            "package": "P11",
+            "luxury": "P12",
+            "department_store": "P12",
+            "movie": "P13",
+            "hobby": "P13",
+            "gaming": "P13",
         }
         if subcategory in sub_to_p:
             return sub_to_p[subcategory]
 
-        # 1. Exact/Keyword Match (빠른 경로)
-        for t_id, keywords in self.keyword_map.items():
-            if any(kw in store_name for kw in keywords):
-                return t_id
-                
-        # 2. Fuzzy Match (형태소/문자열 유사도 기반)
-        all_keywords = {kw: t_id for t_id, keywords in self.keyword_map.items() for kw in keywords}
-        matches = difflib.get_close_matches(store_name, all_keywords.keys(), n=1, cutoff=0.6)
+        category_to_p = {
+            "food": "P01",
+            "transport": "P05",
+            "shopping": "P08",
+            "subscription": "P04",
+            "education": "P09",
+            "health": "P06",
+            "travel": "P11",
+            "leisure": "P13",
+            "convenience_store": "P02",
+            "convenience": "P02",
+            "mart": "P10",
+            "cafe": "P07",
+            "dessert": "P07",
+            "medical": "P06",
+            "wellness": "P06",
+            "culture": "P13",
+            "식사_음식": "P01",
+            "편의점_마트": "P02",
+            "카페_디저트": "P07",
+            "의료_건강": "P06",
+            "문화_여가": "P13",
+        }
+        if category in category_to_p:
+            return category_to_p[category]
+
+        for type_id, keywords in self.keyword_map.items():
+            if any(str(kw).lower() in context_text for kw in keywords):
+                return type_id
+
+        for type_id, keywords in self.keyword_map.items():
+            if any(str(kw).lower() in store_name_norm for kw in keywords):
+                return type_id
+
+        lowered_to_type = {
+            str(kw).lower(): type_id
+            for type_id, keywords in self.keyword_map.items()
+            for kw in keywords
+        }
+        matches = difflib.get_close_matches(store_name_norm, lowered_to_type.keys(), n=1, cutoff=0.6)
         if matches:
-            return all_keywords[matches[0]]
-            
-        # 3. LLM API Fallback
+            return lowered_to_type[matches[0]]
+
         return self._get_llm_category(store_name)
 
     def preprocess(self, raw_data):
-        """1단계: 가맹점명 기반 type_id 다단계 매핑 및 데이터 정제"""
         df = pd.DataFrame(raw_data)
-        # apply 함수에 행 자체를 넘기기 위해 axis=1 설정
-        df['type_id'] = df.apply(self.match_type, axis=1)
-        df['amount'] = pd.to_numeric(df['amount'])
+        df["type_id"] = df.apply(self.match_type, axis=1)
+        df["amount"] = pd.to_numeric(df["amount"])
         return df
 
     def get_persona_score(self, df):
-        """2단계: 금액(70%)과 빈도(30%) 가중치를 적용한 페르소나 산출"""
-        stats = df.groupby('type_id').agg(
-            total_amount=('amount', 'sum'),
-            count=('amount', 'count')
-        ).to_dict('index')
+        stats = (
+            df.groupby("type_id")
+            .agg(total_amount=("amount", "sum"), count=("amount", "count"))
+            .to_dict("index")
+        )
 
         scored_personas = []
-        for p in self.personas:
-            t_id = p['type_id']
-            stat = stats.get(t_id, {'total_amount': 0, 'count': 0})
-            
-            # 결제 횟수당 만원 단위 가중치 부여
-            score = (stat['total_amount'] * 0.7) + (stat['count'] * 10000 * 0.3)
+        for persona in self.personas:
+            type_id = persona["type_id"]
+            stat = stats.get(type_id, {"total_amount": 0, "count": 0})
+            score = (stat["total_amount"] * 0.7) + (stat["count"] * 10000 * 0.3)
             if score > 0:
-                scored_personas.append({**p, **stat, "score": int(score)})
+                persona_name = persona.get("nickname") or persona.get("name") or type_id
+                scored_personas.append(
+                    {
+                        **persona,
+                        "name": persona_name,
+                        "nickname": persona.get("nickname", persona_name),
+                        **stat,
+                        "score": int(score),
+                    }
+                )
 
-        scored_personas.sort(key=lambda x: x['score'], reverse=True)
-        return scored_personas[0] if scored_personas else None, stats
+        scored_personas.sort(key=lambda x: x["score"], reverse=True)
+        return (scored_personas[0] if scored_personas else None), stats
 
     def simulate_benefits(self, stats, total_spend):
-        """3단계: 동적 JSON 구조(혜택)를 통한 실질 절약액 시뮬레이션 계산"""
         simulation_results = []
 
         for card in self.cards:
             savings = 0
-            
-            # 혜택 정보가 구조화된 JSON (structural arrays) 형태라고 가정하고 파싱
-            structured_benefits = card.get('benefits', {}).get('structured', [])
-            
+            structured_benefits = card.get("benefits", {}).get("structured", [])
             for benefit in structured_benefits:
-                target_type = benefit.get('target_type')
-                rate = benefit.get('rate', 0.0)
-                
+                target_type = benefit.get("target_type")
+                rate = benefit.get("rate", 0.0)
                 if target_type in stats:
-                    savings += stats[target_type]['total_amount'] * rate
-            
-            benefits = card.get('benefits', {})
-            simulation_results.append({
-                "card_id": card.get('card_id'),
-                "name": card.get('name'),
-                "main_text": benefits.get('main_text', ''),
-                "sub_text": benefits.get('sub_text', []),
-                "estimated_savings": int(savings),
-                "picking_rate": round((savings / total_spend) * 100, 2) if total_spend > 0 else 0,
-                "comment": card.get('recommend_comment')
-            })
+                    savings += stats[target_type]["total_amount"] * rate
 
-        simulation_results.sort(key=lambda x: x['estimated_savings'], reverse=True)
+            benefits = card.get("benefits", {})
+            simulation_results.append(
+                {
+                    "card_id": card.get("card_id"),
+                    "name": card.get("name"),
+                    "main_text": benefits.get("main_text", ""),
+                    "sub_text": benefits.get("sub_text", []),
+                    "structured_benefits": structured_benefits,
+                    "estimated_savings": int(savings),
+                    "picking_rate": round((savings / total_spend) * 100, 2) if total_spend > 0 else 0,
+                    "comment": card.get("recommend_comment"),
+                }
+            )
+
+        simulation_results.sort(key=lambda x: x["estimated_savings"], reverse=True)
         return simulation_results
 
     def run(self, raw_data):
-        """최종 실행 파이프라인 메소드"""
         df = self.preprocess(raw_data)
-        total_spend = df['amount'].sum()
+        total_spend = df["amount"].sum()
         user_persona, stats = self.get_persona_score(df)
         recommendations = self.simulate_benefits(stats, total_spend)
-        best_card = recommendations[0] if recommendations and recommendations[0]['estimated_savings'] > 0 else None
-        
+        best_card = recommendations[0] if recommendations and recommendations[0]["estimated_savings"] > 0 else None
+
         return {
             "user_persona": user_persona,
             "best_card": best_card,
             "all_cards": recommendations,
-            "total_spend": int(total_spend)
+            "total_spend": int(total_spend),
+            "type_spend_stats": {k: int(v.get("total_amount", 0)) for k, v in stats.items()},
         }
