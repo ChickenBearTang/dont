@@ -984,7 +984,7 @@ export const PrDetailPage = () => {
                   <>
                     {detail.agreeCount > 0 && (
                       <div
-                        className="h-full bg-success transition-all duration-1000 flex items-center justify-center"
+                        className={`h-full bg-success transition-all duration-1000 flex items-center justify-center ${detail.disagreeCount === 0 ? 'rounded-full' : 'rounded-l-full'}`}
                         style={{ width: `${agreeRatio}%` }}
                       >
                         {agreeRatio > 15 && <span className="text-[9px] font-black text-white/80">{Math.round(agreeRatio)}%</span>}
@@ -992,7 +992,7 @@ export const PrDetailPage = () => {
                     )}
                     {detail.disagreeCount > 0 && (
                       <div
-                        className="h-full bg-danger transition-all duration-1000 flex items-center justify-center border-l-2 border-white/20"
+                        className={`h-full bg-danger transition-all duration-1000 flex items-center justify-center ${detail.agreeCount === 0 ? 'rounded-full' : 'rounded-r-full'} ${detail.agreeCount > 0 ? 'border-l-2 border-white/20' : ''}`}
                         style={{ width: `${100 - agreeRatio}%` }}
                       >
                         {(100 - agreeRatio) > 15 && <span className="text-[9px] font-black text-white/80">{Math.round(100 - agreeRatio)}%</span>}
