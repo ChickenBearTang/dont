@@ -12,12 +12,16 @@ import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
 import com.ssafy.edu.awesomeproject.domain.notification.error.NotificationErrorCode;
 import com.ssafy.edu.awesomeproject.domain.notification.error.NotificationException;
 import com.ssafy.edu.awesomeproject.domain.notification.repository.NotificationRepository;
+import com.ssafy.edu.awesomeproject.domain.notification.sse.NotificationSseEmitters;
+import com.ssafy.edu.awesomeproject.domain.notification.sse.NotificationSsePayload;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @Transactional
@@ -25,14 +29,17 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
+    private final NotificationSseEmitters notificationSseEmitters;
 
     public NotificationService(
-            NotificationRepository notificationRepository,
-            UserRepository userRepository,
-            CommentRepository commentRepository) {
+        NotificationRepository notificationRepository,
+        UserRepository userRepository,
+        CommentRepository commentRepository,
+        NotificationSseEmitters notificationSseEmitters) {
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
         this.commentRepository = commentRepository;
+        this.notificationSseEmitters = notificationSseEmitters;
     }
 
     @Transactional(readOnly = true)
@@ -43,10 +50,10 @@ public class NotificationService {
         int pageSize = (size == null || size <= 0) ? 20 : size;
 
         PageRequest pageRequest =
-                PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "id"));
+            PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "id"));
 
         Page<Notification> notificationPage =
-                notificationRepository.findByUserIdOrderByIdDesc(userId, pageRequest);
+            notificationRepository.findByUserIdOrderByIdDesc(userId, pageRequest);
 
         List<NotificationListResponseDto.NotificationSummaryDto> content =
             notificationPage.getContent().stream()
@@ -72,12 +79,12 @@ public class NotificationService {
                 .toList();
 
         return new NotificationListResponseDto(
-                content,
-                notificationPage.getNumber(),
-                notificationPage.getSize(),
-                notificationPage.getTotalElements(),
-                notificationPage.getTotalPages(),
-                notificationPage.hasNext());
+            content,
+            notificationPage.getNumber(),
+            notificationPage.getSize(),
+            notificationPage.getTotalElements(),
+            notificationPage.getTotalPages(),
+            notificationPage.hasNext());
     }
 
     @Transactional(readOnly = true)
@@ -92,12 +99,12 @@ public class NotificationService {
         validateUserExists(userId);
 
         Notification notification =
-                notificationRepository
-                        .findByIdAndUserId(notificationId, userId)
-                        .orElseThrow(
-                            () ->
-                                    new NotificationException(
-                                            NotificationErrorCode.NOTIFICATION_NOT_FOUND));
+            notificationRepository
+                .findByIdAndUserId(notificationId, userId)
+                .orElseThrow(
+                    () ->
+                        new NotificationException(
+                            NotificationErrorCode.NOTIFICATION_NOT_FOUND));
 
         notification.markAsRead();
 
@@ -111,12 +118,12 @@ public class NotificationService {
     }
 
     public void createNotification(
-            Long userId,
-            NotificationType notificationType,
-            String title,
-            String body,
-            NotificationReferenceType referenceType,
-            Long referenceId) {
+        Long userId,
+        NotificationType notificationType,
+        String title,
+        String body,
+        NotificationReferenceType referenceType,
+        Long referenceId) {
         validateUserExists(userId);
 
         if (title == null || title.isBlank() || body == null || body.isBlank()) {
@@ -124,9 +131,34 @@ public class NotificationService {
         }
 
         Notification notification =
-                new Notification(userId, notificationType, title, body, referenceType, referenceId);
+            new Notification(userId, notificationType, title, body, referenceType, referenceId);
 
-        notificationRepository.save(notification);
+        Notification savedNotification = notificationRepository.save(notification);
+
+        NotificationSsePayload payload =
+            new NotificationSsePayload(
+                savedNotification.getId(),
+                savedNotification.getNotificationType().name(),
+                savedNotification.getTitle(),
+                savedNotification.getBody(),
+                savedNotification.getReferenceType() == null
+                    ? null
+                    : savedNotification.getReferenceType().name(),
+                savedNotification.getReferenceId(),
+                savedNotification.getPushedAt());
+
+        // 트랜잭션이 실제 커밋된 뒤에만 SSE 발송
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        notificationSseEmitters.sendToUser(userId, payload);
+                    }
+                });
+        } else {
+            notificationSseEmitters.sendToUser(userId, payload);
+        }
     }
 
     private NotificationTarget resolveTarget(Notification notification) {
@@ -138,7 +170,8 @@ public class NotificationService {
                     comment ->
                         new NotificationTarget(
                             comment.getPost().getId(), comment.getId()))
-                .orElseGet(() -> new NotificationTarget(null, notification.getReferenceId()));
+                .orElseGet(
+                    () -> new NotificationTarget(null, notification.getReferenceId()));
         }
 
         if (notification.getReferenceType() == NotificationReferenceType.POST

@@ -6,6 +6,7 @@ import { useNotificationStore } from '@/features/community/store/useNotification
 import { fetchMyPage } from '@/features/user/api/userApi';
 import bellIcon from '@/assets/logo/bell-icon.png';
 import type { NotificationSummaryDto } from '@/features/community/types/notification';
+import { useNotificationSse } from '@/features/community/hooks/useNotificationSse';
 
 interface HeaderProps {
   user: UserProfile | null;
@@ -138,15 +139,22 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
   const isAdmin = user?.role === 'ADMIN' || user?.role?.includes?.('ADMIN');
 
+  useNotificationSse(isAuthenticated);
+
   useEffect(() => {
     if (isAuthenticated) {
-      startPolling();
+
+      fetchNotifications();
+      void useNotificationStore.getState().fetchUnreadCount();
+
+      // SSE가 끊겼을 때를 대비한 fallback polling
+      startPolling(5 * 60 * 1000);
     } else {
       stopPolling();
     }
 
     return () => stopPolling();
-  }, [isAuthenticated, startPolling, stopPolling]);
+  }, [isAuthenticated, fetchNotifications, startPolling, stopPolling]);
 
   useEffect(() => {
     if (isDropdownOpen) {
@@ -272,8 +280,8 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                   key={tab.label}
                   onClick={() => navigate(tab.path)}
                   className={`flex cursor-pointer items-center justify-center border-b-[3px] px-5 text-[15px] transition-all duration-300 hover:text-primary-blue ${isActive
-                      ? 'border-primary-blue text-primary-blue'
-                      : 'border-transparent text-gray-500 hover:border-gray-200'
+                    ? 'border-primary-blue text-primary-blue'
+                    : 'border-transparent text-gray-500 hover:border-gray-200'
                     }`}
                 >
                   {tab.label}
