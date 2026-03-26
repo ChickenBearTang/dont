@@ -30,6 +30,14 @@ import { UserAvatar } from '../components/UserAvatar';
 import { LinkifiedText } from '../components/LinkifiedText';
 import { Card, Button } from '@/shared/components';
 
+const getStatusLabelWithEmoji = (status: string | undefined): string => {
+  const normalized = status?.trim().toUpperCase();
+  if (normalized === 'OPEN' || normalized === 'LIVE') return '📂 OPEN';
+  if (normalized === 'CLOSED' || normalized === 'EXPIRED') return '🚫 CLOSED';
+  if (normalized === 'MERGED') return '✔️ MERGED';
+  return status ?? 'OPEN';
+};
+
 const COMMENT_PAGE_SIZE = 10;
 const REPLY_PAGE_SIZE = 10;
 const COMMENT_SCROLL_OFFSET = 72;
@@ -564,10 +572,10 @@ const PollVotePanel = ({
         </div>
         <span
           className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${
-            detail.isClosed ? 'border-slate-200 bg-slate-100 text-slate-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            detail.isClosed ? 'border-rose-100 bg-rose-50 text-rose-700' : 'border-blue-100 bg-blue-50 text-blue-700'
           }`}
         >
-          {detail.isClosed ? 'CLOSED' : 'OPEN'}
+          {getStatusLabelWithEmoji(detail.isClosed ? 'CLOSED' : 'OPEN')}
         </span>
       </div>
 
@@ -658,10 +666,10 @@ const HotdealInfoPanel = ({ detail }: HotdealInfoPanelProps) => {
         </div>
         <span
           className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${
-            isExpired ? 'border-slate-200 bg-slate-100 text-slate-700' : 'border-rose-200 bg-rose-50 text-rose-700'
+            isExpired ? 'border-rose-100 bg-rose-50 text-rose-700' : 'border-blue-100 bg-blue-50 text-blue-700'
           }`}
         >
-          {isExpired ? 'EXPIRED' : 'LIVE'}
+          {getStatusLabelWithEmoji(isExpired ? 'CLOSED' : 'OPEN')}
         </span>
       </div>
 

@@ -106,34 +106,29 @@ const getPrStatusTone = (status: string | undefined) => {
 
 const getPollStatusTone = (isClosed: boolean) =>
   isClosed
-    ? 'bg-slate-100 text-slate-700 border-slate-200'
-    : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    ? 'bg-rose-50 text-rose-700 border-rose-100'
+    : 'bg-blue-50 text-blue-700 border-blue-100';
 
 const getHotdealStatusTone = (isExpired: boolean | null | undefined) =>
   isExpired
-    ? 'bg-slate-100 text-slate-700 border-slate-200'
-    : 'bg-rose-50 text-rose-700 border-rose-100';
+    ? 'bg-rose-50 text-rose-700 border-rose-100'
+    : 'bg-blue-50 text-blue-700 border-blue-100';
 
-const getBoardFilterTone = (status: BoardStatusFilter, category: 'POLL' | 'HOTDEAL') => {
+const getBoardFilterTone = (status: BoardStatusFilter) => {
   if (status === 'OPEN') {
-    return category === 'POLL'
-      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-      : 'bg-rose-50 text-rose-700 border-rose-100';
+    return 'bg-blue-50 text-blue-700 border-blue-100';
   }
-
-  return 'bg-slate-100 text-slate-700 border-slate-200';
+  return 'bg-rose-50 text-rose-700 border-rose-100';
 };
 
 const BoardStatusFilterBar = ({
   selectedStatuses,
   onToggleStatus,
   onSelectAllStatuses,
-  category,
 }: {
   selectedStatuses: BoardStatusFilter[];
   onToggleStatus: (status: BoardStatusFilter) => void;
   onSelectAllStatuses: () => void;
-  category: 'POLL' | 'HOTDEAL';
 }) => (
   <div className="flex flex-wrap items-center gap-2">
     <button
@@ -155,11 +150,11 @@ const BoardStatusFilterBar = ({
           type="button"
           onClick={() => onToggleStatus(status)}
           className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${isSelected
-              ? getBoardFilterTone(status, category)
+              ? getBoardFilterTone(status)
               : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
             }`}
         >
-          {status}
+          {getStatusLabelWithEmoji(status)}
         </button>
       );
     })}
@@ -221,7 +216,6 @@ const HotdealBoardList = ({
         selectedStatuses={selectedStatuses}
         onToggleStatus={onToggleStatus}
         onSelectAllStatuses={onSelectAllStatuses}
-        category="HOTDEAL"
       />
 
       {posts.length === 0 ? (
@@ -256,7 +250,7 @@ const HotdealBoardList = ({
                           hotdeal?.isExpired
                         )}`}
                       >
-                        {hotdeal?.isExpired ? 'CLOSED' : 'OPEN'}
+                        {getStatusLabelWithEmoji(hotdeal?.isExpired ? 'CLOSED' : 'OPEN')}
                       </span>
                     </div>
                     <div>
@@ -345,7 +339,6 @@ const PollBoardList = ({
         selectedStatuses={selectedStatuses}
         onToggleStatus={onToggleStatus}
         onSelectAllStatuses={onSelectAllStatuses}
-        category="POLL"
       />
 
       {posts.length === 0 ? (
@@ -379,7 +372,7 @@ const PollBoardList = ({
                           poll?.isClosed ?? false
                         )}`}
                       >
-                        {poll?.isClosed ? 'CLOSED' : 'OPEN'}
+                        {getStatusLabelWithEmoji(poll?.isClosed ? 'CLOSED' : 'OPEN')}
                       </span>
                     </div>
                     <div>
