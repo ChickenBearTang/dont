@@ -27,7 +27,7 @@ DEFAULT_GEMINI_MODEL_FALLBACKS = (
     "gemini-2.5-pro",
     "gemini-2.0-flash",
 )
-ENV_PATH = BASE_DIR / "../../env"
+ENV_PATH = BASE_DIR / "../../../.env"
 
 
 def load_local_env() -> dict[str, str]:
