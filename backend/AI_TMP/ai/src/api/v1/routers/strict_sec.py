@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from domain.consumption.schemas import (
@@ -13,19 +14,24 @@ from domain.consumption.service import ReportService
 
 router = APIRouter()
 service = ReportService()
+logger = logging.getLogger(__name__)
 
 @router.post("")
 def handle_strict_secretary(req: PurchaseIntentionRequest) -> dict:
     try:
+        logger.warning("[AI] strict-secretary request received")
         result = evaluate_purchase_intention(req)
+        logger.warning("[AI] strict-secretary success")
         return result.to_dict()
     except Exception as e:
+        logger.exception("[AI] strict-secretary failed")
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/db")
 def handle_strict_secretary_db(req: StrictSecretaryDbRequest) -> dict:
     try:
+        logger.warning("[AI] strict-secretary/db request: user_id=%s", req.user_id)
         context = service.build_strict_secretary_context_from_db(req.user_id)
         purchase_request = PurchaseIntentionRequest(
             user_profile=UserProfileBase(**context["profile"]),
@@ -45,8 +51,10 @@ def handle_strict_secretary_db(req: StrictSecretaryDbRequest) -> dict:
             ai_report_context=str(context["ai_report"]),
         )
         result = evaluate_purchase_intention(purchase_request)
+        logger.warning("[AI] strict-secretary/db success: user_id=%s", req.user_id)
         return result.to_dict()
     except Exception as e:
+        logger.exception("[AI] strict-secretary/db failed: user_id=%s", req.user_id)
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/tts")
