@@ -137,12 +137,14 @@ export const DashboardPage = () => {
     staleTime: 1000 * 60 * 30, // 30분 동안은 캐시 유지
   });
 
-  // 닉네임이 스토어에 없으면 업데이트
+  // 닉네임 동기화: 서버 프로필 정보가 있으면 스토어 정보를 최신화합니다.
   useEffect(() => {
-    if (profile?.nickname && user && !user.nickname) {
+    if (profile?.nickname && user?.nickname !== profile.nickname) {
       updateUser({ nickname: profile.nickname });
     }
-  }, [profile?.nickname, user, updateUser]);
+  }, [profile?.nickname, user?.nickname, updateUser]);
+
+  const displayNickname = profile?.nickname || user?.nickname || '회원';
 
   const savebox =
     accounts?.find((a) => a.id === setting?.saveboxAccountId) ||
@@ -165,7 +167,7 @@ export const DashboardPage = () => {
           <h2 className="text-[1.75rem] lg:text-[2.25rem] font-black text-eel leading-[1.3] tracking-tight">
             안녕하세요,{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent">
-              {profile?.nickname || user?.nickname || '회원'}
+              {displayNickname}
             </span>
             님!
             <br />

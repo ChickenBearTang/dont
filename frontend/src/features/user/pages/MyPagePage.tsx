@@ -132,8 +132,7 @@ export const MyPagePage = () => {
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['myPage'],
-    queryFn: fetchMyPage,
-    select: (response) => response.data,
+    queryFn: () => fetchMyPage().then((res) => res.data),
   });
 
   const [draftForm, setDraftForm] = useState<MyPageFormState | null>(null);

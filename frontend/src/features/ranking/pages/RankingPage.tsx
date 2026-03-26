@@ -172,12 +172,12 @@ export const RankingPage = () => {
   const [selectedCohortNo, setSelectedCohortNo] = useState<number | undefined>(undefined);
 
   // 4. 내 정보
-  const { data: myPageData } = useQuery<ApiResponse<MyPageResponse>>({
+  const { data: myPageData } = useQuery<MyPageResponse>({
     queryKey: ['myPage'],
-    queryFn: () => axiosInstance.get('/users/me'),
+    queryFn: () => axiosInstance.get('/users/me').then((res) => (res as any).data),
     staleTime: 1000 * 60 * 30,
   });
-  const myCohortNo = myPageData?.data?.cohortGenerationNo ?? undefined;
+  const myCohortNo = myPageData?.cohortGenerationNo ?? undefined;
 
   useEffect(() => {
     if (activeTab === 'cohort' && selectedCohortNo === undefined && myCohortNo) {

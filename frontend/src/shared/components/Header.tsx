@@ -113,12 +113,10 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const { data: myPageData } = useQuery({
+  const { data: profile } = useQuery({
     queryKey: ['myPage'],
-    queryFn: fetchMyPage,
-    enabled: isAuthenticated,
-    staleTime: 60 * 1000,
-    select: (response) => response.data,
+    queryFn: () => fetchMyPage().then((res) => res.data),
+    staleTime: 1000 * 60 * 30, // 30분 동안은 캐시 유지
   });
 
   const {
@@ -132,9 +130,9 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
     stopPolling,
   } = useNotificationStore();
 
-  const displayEmail = myPageData?.email ?? user?.email ?? '';
-  const displayNickname = myPageData?.nickname ?? user?.nickname ?? '사용자';
-  const displayProfileImageUrl = myPageData?.profileImageUrl ?? user?.profileImageUrl ?? null;
+  const displayEmail = profile?.email ?? user?.email ?? '';
+  const displayNickname = profile?.nickname || user?.nickname || '회원';
+  const displayProfileImageUrl = profile?.profileImageUrl ?? user?.profileImageUrl ?? null;
   const profileInitial = (displayNickname.trim()[0] ?? displayEmail.trim()[0] ?? 'U').toUpperCase();
 
   const isAdmin = user?.role === 'ADMIN' || user?.role?.includes?.('ADMIN');

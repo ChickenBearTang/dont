@@ -5,6 +5,7 @@ import { Card, Button } from '@/shared/components';
 import { getPosts } from '../api/communityApi';
 import { fetchMyPage } from '@/features/user/api/userApi';
 import type { BoardCategory, GetPostListResponseDto, PostSummaryDto } from '../types';
+import type { MyPageResponse } from '@/features/user/mypage/types';
 import { UserAvatar } from '../components/UserAvatar';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 
@@ -581,14 +582,11 @@ export const CommunityPage = () => {
   const { user } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
-
-  const { data: myPageData } = useQuery({
+  const { data: myPageData } = useQuery<MyPageResponse>({
     queryKey: ['myPage'],
-    queryFn: fetchMyPage,
+    queryFn: () => fetchMyPage().then((res) => res.data),
     enabled: !!user,
-    select: (res) => res.data,
   });
-
   const cohortNo = myPageData?.cohortGenerationNo ?? user?.cohortId;
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
