@@ -1,0 +1,41 @@
+{
+  "requestId": "req-123",
+  "schemaVersion": "v1",
+  "contextVersion": "v1",
+  "purchase": {
+    "postId": 67,
+    "title": "구매 요청",
+    "itemName": "맥북 프로",
+    "content": "개발 업무용으로 필요합니다.",
+    "category": "IT",
+    "purchaseUrl": "https://example.com/macbook",
+    "priceAmount": {
+      "value": 2500000,
+      "source": "spring.pr_post",
+      "snapshotId": "pr-67"
+    }
+  },
+  "financeProfile": {
+    "currentBalance": {
+      "value": 3000000,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    },
+    "emergencyFundBalance": {
+      "value": 800000,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    },
+    "expectedCardPaymentAmount": {
+      "value": 250000,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    },
+    "daysUntilCardDue": {
+      "value": 12,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    }
+  },
+  "recentTransactions": []
+}

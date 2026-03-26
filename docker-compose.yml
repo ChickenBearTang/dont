@@ -41,7 +41,7 @@ services:
 
   ai-python:
     build:
-      context: ./backend/AI_TMP/ai
+      context: ./AI_TMP/ai
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:

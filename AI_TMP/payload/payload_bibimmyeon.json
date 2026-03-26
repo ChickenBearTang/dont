@@ -1,0 +1,41 @@
+{
+  "requestId": "req-bibimmyeon-001",
+  "schemaVersion": "v1",
+  "contextVersion": "v1",
+  "purchase": {
+    "postId": 1936482,
+    "title": "구매 요청",
+    "itemName": "팔도 비빔면 130g x 5개",
+    "content": "식품 특가 구매 검토입니다.",
+    "category": "FOOD",
+    "purchaseUrl": "https://quasarzone.com/bbs/qb_saleinfo/views/1936482?direction=DESC&page=1&sort=num%2Creply",
+    "priceAmount": {
+      "value": 3200,
+      "source": "crawl_items",
+      "snapshotId": "crawl-1936482"
+    }
+  },
+  "financeProfile": {
+    "currentBalance": {
+      "value": 3000000,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    },
+    "emergencyFundBalance": {
+      "value": 800000,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    },
+    "expectedCardPaymentAmount": {
+      "value": 250000,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    },
+    "daysUntilCardDue": {
+      "value": 12,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    }
+  },
+  "recentTransactions": []
+}

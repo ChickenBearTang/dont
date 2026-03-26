@@ -1,0 +1,41 @@
+{
+  "requestId": "req-mxmaster4-001",
+  "schemaVersion": "v1",
+  "contextVersion": "v1",
+  "purchase": {
+    "postId": 1936440,
+    "title": "구매 요청",
+    "itemName": "로지텍 MX Master 4 무선 마우스",
+    "content": "업무용 마우스 구매 검토입니다.",
+    "category": "IT",
+    "purchaseUrl": "https://quasarzone.com/bbs/qb_saleinfo/views/1936440?direction=DESC&page=1&sort=num%2Creply",
+    "priceAmount": {
+      "value": 120345,
+      "source": "crawl_items",
+      "snapshotId": "crawl-1936440"
+    }
+  },
+  "financeProfile": {
+    "currentBalance": {
+      "value": 3000000,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    },
+    "emergencyFundBalance": {
+      "value": 800000,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    },
+    "expectedCardPaymentAmount": {
+      "value": 250000,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    },
+    "daysUntilCardDue": {
+      "value": 12,
+      "source": "spring.finance_profile",
+      "snapshotId": "fin-10"
+    }
+  },
+  "recentTransactions": []
+}
