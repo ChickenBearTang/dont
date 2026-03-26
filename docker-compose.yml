@@ -2,6 +2,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
     command:
       ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     ports:
@@ -20,6 +22,8 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
       POSTGRES_DB: ${AI_POSTGRES_DB:-ai_crawl}
       POSTGRES_USER: ${AI_POSTGRES_USER:-ai_user}
       POSTGRES_PASSWORD: ${AI_POSTGRES_PASSWORD:-ai_password}
@@ -47,6 +51,7 @@ services:
     env_file:
       - .env
     environment:
+      TZ: Asia/Seoul
       DB_URL: ${DB_URL}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
@@ -84,6 +89,7 @@ services:
     env_file:
       - .env
     environment:
+        TZ: Asia/Seoul
         REDIS_HOST: redis
         REDIS_PORT: 6379
         AI_SERVER_URL: http://ai-python:8000
@@ -111,6 +117,8 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
     restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
     expose:
       - "80"
     depends_on:
@@ -135,6 +143,7 @@ services:
       - ${SSL_KEY_PATH:-/dev/null}:/etc/nginx/certs/privkey.pem:ro
     command: ["sh", "/entrypoint-nginx.sh"]
     environment:
+      TZ: Asia/Seoul
       SSL_ENABLED: ${SSL_ENABLED:-false}
     networks:
       - app-net
