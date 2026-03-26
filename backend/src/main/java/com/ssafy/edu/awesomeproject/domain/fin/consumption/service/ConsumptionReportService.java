@@ -38,10 +38,12 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional
 public class ConsumptionReportService {
@@ -140,9 +142,10 @@ public class ConsumptionReportService {
     public JustificationEvaluationResponse evaluateAndSaveJustification(
         Long userId, String targetMonthText, String message) {
         LocalDate targetMonth = toMonthStart(targetMonthText);
+        String targetYearMonth = YearMonth.from(targetMonth).toString();
 
         ConsumptionAiClient.JustificationEvaluation evaluation =
-            consumptionAiClient.evaluateJustification(userId, targetMonth.toString(), message);
+            consumptionAiClient.evaluateJustification(userId, targetYearMonth, message);
 
         Map<String, Object> context =
             monthlyReportRepository
@@ -260,9 +263,22 @@ public class ConsumptionReportService {
 
     private CardRecommendationResponse loadCardRecommendation(Long userId, String reportMonth) {
         try {
-            return aiClient.getCardRecommendationFromDb(
+            CardRecommendationResponse response =
+                aiClient.getCardRecommendationFromDb(
                 new AiCardRecommendationDbRequest(userId, reportMonth));
+            if (response == null) {
+                log.warn(
+                    "Card recommendation returned null. userId={}, reportMonth={}",
+                    userId,
+                    reportMonth);
+            }
+            return response;
         } catch (Exception exception) {
+            log.warn(
+                "Card recommendation load failed. userId={}, reportMonth={}",
+                userId,
+                reportMonth,
+                exception);
             return null;
         }
     }

@@ -31,11 +31,13 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CardService {
 
@@ -130,6 +132,12 @@ public class CardService {
 
     @Transactional(readOnly = true)
     public CardSummaryResponse getCardSummary(Long userId, String startDate, String endDate) {
+        return getCardSummary(userId, startDate, endDate, true);
+    }
+
+    @Transactional(readOnly = true)
+    public CardSummaryResponse getCardSummary(
+            Long userId, String startDate, String endDate, boolean includeAi) {
         LocalDate start = parseDateOrThrow(startDate, "startDate");
         LocalDate end = parseDateOrThrow(endDate, "endDate");
         if (start.isAfter(end)) {
@@ -174,7 +182,7 @@ public class CardService {
                 .message("Card summary retrieved.")
                 .totalAmount(totalAmount)
                 .RankColumList(rankColumList)
-                .aiReport(getAiAnalysis(userId, start, end))
+                .aiReport(includeAi ? getAiAnalysis(userId, start, end) : null)
                 .build();
     }
 
@@ -413,10 +421,22 @@ public class CardService {
     public CardRecommendationResponse getCardRecommendation(Long userId, String monthStr) {
         try {
             YearMonth.parse(monthStr);
-            return aiClient.getCardRecommendationFromDb(
+            CardRecommendationResponse response =
+                    aiClient.getCardRecommendationFromDb(
                     new AiCardRecommendationDbRequest(userId, monthStr));
+            if (response == null) {
+                log.warn(
+                        "Card recommendation returned null from AI. userId={}, month={}",
+                        userId,
+                        monthStr);
+            }
+            return response;
         } catch (Exception e) {
-            System.err.println("AI Card Recommendation failed: " + e.getMessage());
+            log.warn(
+                    "AI Card Recommendation failed. userId={}, month={}",
+                    userId,
+                    monthStr,
+                    e);
             return null;
         }
     }

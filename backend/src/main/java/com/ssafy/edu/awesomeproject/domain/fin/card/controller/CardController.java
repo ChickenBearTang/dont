@@ -54,9 +54,11 @@ public class CardController {
     public ResponseEntity<CardSummaryResponse> getCardSummary(
             @CurrentUserId Long userId,
             @RequestParam String startDate,
-            @RequestParam String endDate) {
+            @RequestParam String endDate,
+            @RequestParam(defaultValue = "false") boolean includeAi) {
 
-        CardSummaryResponse response = cardService.getCardSummary(userId, startDate, endDate);
+        CardSummaryResponse response =
+                cardService.getCardSummary(userId, startDate, endDate, includeAi);
         return ResponseEntity.ok(response);
     }
 

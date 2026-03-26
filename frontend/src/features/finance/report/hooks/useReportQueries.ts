@@ -7,7 +7,7 @@ import { getSpendingSummary } from '../api/reportApi';
 export const useSpendingSummary = (startDate: string, endDate: string) => {
   return useQuery({
     queryKey: ['spendingSummary', startDate, endDate],
-    queryFn: () => getSpendingSummary(startDate, endDate),
+    queryFn: () => getSpendingSummary(startDate, endDate, false),
     enabled: !!startDate && !!endDate,
   });
 };

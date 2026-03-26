@@ -6,6 +6,7 @@ import {
   generateMonthlyAiReport,
   sendAiJustification,
   regenerateAiReport,
+  getCardRecommendation,
 } from '../api/reportApi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type {
@@ -226,7 +227,11 @@ const AIAnalysisCard = ({
               <div className="text-4xl text-indigo-500">🧑‍💻</div>
               <div>
                 <h3 className="text-[14px] font-bold text-indigo-500 tracking-tight">AI 분석 맞춤 소비 유형</h3>
-                <div className="text-[20px] font-black text-gray-900">{cardRecommendation.user_persona.name}</div>
+                <div className="text-[20px] font-black text-gray-900">
+                  {cardRecommendation.user_persona.nickname ||
+                    cardRecommendation.user_persona.name ||
+                    '소비 유형'}
+                </div>
               </div>
             </div>
             <p className="text-[14px] text-gray-700 leading-relaxed font-medium mb-6">
@@ -596,8 +601,28 @@ export const MonthlyReportPage = () => {
     (error as AxiosError | undefined)?.response?.status;
 
   const applyMonthlyReportPayload = (payload?: AiReportPayload) => {
+    console.log('[MonthlyReport] cardRecommendation payload:', payload?.cardRecommendation ?? null);
     setAiAnalysis(payload?.aiAnalysis ?? null);
     setCardRecommendation(payload?.cardRecommendation ?? null);
+  };
+
+  const hydrateCardRecommendation = async (reportMonth: string, payload?: AiReportPayload) => {
+    const embedded = payload?.cardRecommendation;
+    const hasEmbedded =
+      !!embedded && typeof embedded === 'object' && Object.keys(embedded).length > 0;
+    if (hasEmbedded) return;
+
+    try {
+      const directRecommendation = await getCardRecommendation(reportMonth);
+      console.log(
+        '[MonthlyReport] cardRecommendation direct API payload:',
+        directRecommendation ?? null
+      );
+      setCardRecommendation(directRecommendation ?? null);
+    } catch (error) {
+      console.error('[MonthlyReport] Failed to fetch direct card recommendation:', error);
+      setCardRecommendation(null);
+    }
   };
 
   const isCurrentMonth =
@@ -622,7 +647,9 @@ export const MonthlyReportPage = () => {
       setAiLoading(true);
       setCardRecommendLoading(true);
       const res = await getMonthlyAiReport(reportMonth);
-      applyMonthlyReportPayload(extractReportPayload(res));
+      const payload = extractReportPayload(res);
+      applyMonthlyReportPayload(payload);
+      await hydrateCardRecommendation(reportMonth, payload);
     } catch (error) {
       console.error('Failed to generate AI report:', error);
       alert('리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
@@ -641,7 +668,9 @@ export const MonthlyReportPage = () => {
       setAiLoading(true);
       setCardRecommendLoading(true);
       const res = await getMonthlyAiReport(reportMonth);
-      applyMonthlyReportPayload(extractReportPayload(res));
+      const payload = extractReportPayload(res);
+      applyMonthlyReportPayload(payload);
+      await hydrateCardRecommendation(reportMonth, payload);
     } catch (error) {
       console.error(error);
       throw error;
@@ -680,7 +709,7 @@ export const MonthlyReportPage = () => {
       try {
         setSummaryLoading(true);
         const { startDate, endDate } = getMonthRange(currentDate);
-        const res = await getSpendingSummary(startDate, endDate);
+        const res = await getSpendingSummary(startDate, endDate, false);
 
         let rankList = res.rankColumList || [];
         rankList = [...rankList].sort((a, b) => b.percentage - a.percentage);
@@ -698,12 +727,24 @@ export const MonthlyReportPage = () => {
     };
 
     const fetchAiReport = async () => {
+      const reportMonth = formatToYYYYMM(currentDate);
+      const currentMonth = formatToYYYYMM(new Date());
+
+      if (reportMonth === currentMonth) {
+        setAiAnalysis(null);
+        setCardRecommendation(null);
+        setAiLoading(false);
+        setCardRecommendLoading(false);
+        return;
+      }
+
       try {
         setAiLoading(true);
         setCardRecommendLoading(true);
-        const reportMonth = formatToYYYYMM(currentDate);
         const res = await getMonthlyAiReport(reportMonth);
-        applyMonthlyReportPayload(extractReportPayload(res));
+        const payload = extractReportPayload(res);
+        applyMonthlyReportPayload(payload);
+        await hydrateCardRecommendation(reportMonth, payload);
       } catch (error) {
         if (getAxiosStatus(error) !== 404) {
           console.error('Failed to fetch AI report:', error);
