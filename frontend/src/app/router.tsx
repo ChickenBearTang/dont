@@ -156,6 +156,13 @@ export const router = createBrowserRouter([
             },
           },
           {
+            path: '/finance/cards/recommendation/:recommendCardId',
+            async lazy() {
+              const { CardRecommendationDetailPage } = await import('@/features/finance/card/pages/CardRecommendationDetailPage');
+              return { Component: CardRecommendationDetailPage };
+            },
+          },
+          {
             path: '/account',
             async lazy() {
               const { AccountPage } = await import('@/features/finance/account/pages/AccountPage');

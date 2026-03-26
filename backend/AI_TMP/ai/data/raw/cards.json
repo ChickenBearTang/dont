@@ -1,0 +1,374 @@
+[
+    {
+        "card_id": "C01",
+        "name": "자취생 갓생카드",
+        "benefits": {
+            "main_text": "배달앱(배민/요기요/쿠팡이츠) 20% 할인",
+            "sub_text": [
+                "편의점 10% 적립",
+                "올리브영 10% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P01",
+                    "type": "discount",
+                    "rate": 0.20
+                },
+                {
+                    "target_type": "P02",
+                    "type": "reward",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P06",
+                    "type": "discount",
+                    "rate": 0.10
+                }
+            ]
+        },
+        "recommend_comment": "배달과 편의점 지출이 많은 당신께 딱! 아낀 돈은 세이브박스로 직행하세요."
+    },
+    {
+        "card_id": "C02",
+        "name": "24시 편의점 메이트",
+        "benefits": {
+            "main_text": "전국 주요 편의점(CU/GS25 등) 20% 할인",
+            "sub_text": [
+                "배달앱 5% 할인",
+                "카페 5% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P02",
+                    "type": "discount",
+                    "rate": 0.20
+                },
+                {
+                    "target_type": "P01",
+                    "type": "discount",
+                    "rate": 0.05
+                },
+                {
+                    "target_type": "P07",
+                    "type": "discount",
+                    "rate": 0.05
+                }
+            ]
+        },
+        "recommend_comment": "편의점 결제 비중이 압도적인 당신, 이 카드로 삼각김밥 하나 더 챙기세요!"
+    },
+    {
+        "card_id": "C03",
+        "name": "스마트 리빙카드",
+        "benefits": {
+            "main_text": "아파트 관리비/통신비/보험료 10% 할인",
+            "sub_text": [
+                "대형마트 5% 할인",
+                "택시 5% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P03",
+                    "type": "discount",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P10",
+                    "type": "discount",
+                    "rate": 0.05
+                },
+                {
+                    "target_type": "P05",
+                    "type": "discount",
+                    "rate": 0.05
+                }
+            ]
+        },
+        "recommend_comment": "숨만 쉬어도 나가는 고정비, 이 카드가 든든한 방어막이 되어줍니다."
+    },
+    {
+        "card_id": "C04",
+        "name": "홈프로텍터 마스터카드",
+        "benefits": {
+            "main_text": "OTT(넷플릭스/유튜브/디즈니+) 50% 할인",
+            "sub_text": [
+                "배달앱 10% 할인",
+                "온라인 쇼핑 5% 적립"
+            ],
+            "structured": [
+                {
+                    "target_type": "P04",
+                    "type": "discount",
+                    "rate": 0.50
+                },
+                {
+                    "target_type": "P01",
+                    "type": "discount",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P08",
+                    "type": "reward",
+                    "rate": 0.05
+                }
+            ]
+        },
+        "recommend_comment": "콘텐츠는 풍성하게, 구독료는 반값으로! 진정한 방구석 대장이 되어보세요."
+    },
+    {
+        "card_id": "C05",
+        "name": "출근길 구원카드",
+        "benefits": {
+            "main_text": "택시(카카오T/우티) 15% 할인",
+            "sub_text": [
+                "카페 20% 할인",
+                "통신비 5% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P05",
+                    "type": "discount",
+                    "rate": 0.15
+                },
+                {
+                    "target_type": "P07",
+                    "type": "discount",
+                    "rate": 0.20
+                },
+                {
+                    "target_type": "P03",
+                    "type": "discount",
+                    "rate": 0.05
+                }
+            ]
+        },
+        "recommend_comment": "잠과 바꾼 택시비... 조금이라도 덜 아깝게 챙겨드릴게요."
+    },
+    {
+        "card_id": "C06",
+        "name": "코덕 & 소확행카드",
+        "benefits": {
+            "main_text": "올리브영/다이소 15% 할인",
+            "sub_text": [
+                "유튜브 프리미엄 20% 할인",
+                "무신사 10% 적립"
+            ],
+            "structured": [
+                {
+                    "target_type": "P06",
+                    "type": "discount",
+                    "rate": 0.15
+                },
+                {
+                    "target_type": "P04",
+                    "type": "discount",
+                    "rate": 0.20
+                },
+                {
+                    "target_type": "P08",
+                    "type": "reward",
+                    "rate": 0.10
+                }
+            ]
+        },
+        "recommend_comment": "소소한 쇼핑의 즐거움은 유지하고, 지갑은 더 두툼하게 지켜드려요."
+    },
+    {
+        "card_id": "C07",
+        "name": "올나잇 부스트카드",
+        "benefits": {
+            "main_text": "스타벅스/투썸/메가커피 30% 할인",
+            "sub_text": [
+                "편의점 야식 10% 할인",
+                "심야 택시 10% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P07",
+                    "type": "discount",
+                    "rate": 0.30
+                },
+                {
+                    "target_type": "P02",
+                    "type": "discount",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P05",
+                    "type": "discount",
+                    "rate": 0.10
+                }
+            ]
+        },
+        "recommend_comment": "혈관에 흐르는 커피, 이제 훨씬 저렴하게 수혈받으세요!"
+    },
+    {
+        "card_id": "C08",
+        "name": "플렉스 방지턱카드",
+        "benefits": {
+            "main_text": "무신사/29CM/지그재그 10% 할인",
+            "sub_text": [
+                "인강 10% 할인",
+                "올리브영 5% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P08",
+                    "type": "discount",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P09",
+                    "type": "discount",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P06",
+                    "type": "discount",
+                    "rate": 0.05
+                }
+            ]
+        },
+        "recommend_comment": "이미 질렀다면? 내일의 내가 덜 힘들게 혜택을 꽉꽉 채웠습니다."
+    },
+    {
+        "card_id": "C09",
+        "name": "갓생 챌린지카드",
+        "benefits": {
+            "main_text": "인프런/패스트캠퍼스/서점 20% 적립",
+            "sub_text": [
+                "카페 10% 할인",
+                "대형마트 5% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P09",
+                    "type": "reward",
+                    "rate": 0.20
+                },
+                {
+                    "target_type": "P07",
+                    "type": "discount",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P10",
+                    "type": "discount",
+                    "rate": 0.05
+                }
+            ]
+        },
+        "recommend_comment": "성장을 위한 투자는 아낌없이! 포인트로 다음 강의도 노려보세요."
+    },
+    {
+        "card_id": "C10",
+        "name": "올라운드 세이버카드",
+        "benefits": {
+            "main_text": "대형마트/식재료/정육점 10% 할인",
+            "sub_text": [
+                "공과금 5% 할인",
+                "편의점 5% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P10",
+                    "type": "discount",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P03",
+                    "type": "discount",
+                    "rate": 0.05
+                },
+                {
+                    "target_type": "P02",
+                    "type": "discount",
+                    "rate": 0.05
+                }
+            ]
+        },
+        "recommend_comment": "알뜰하게 아끼는 당신, 이 카드로 저축왕의 자리를 굳히세요!"
+    },
+    {
+        "card_id": "C11",
+        "name": "글로벌 트래블러 카드",
+        "benefits": {
+            "main_text": "항공/철도/해외결제 15% 할인",
+            "sub_text": [
+                "숙박앱 10% 할인",
+                "공항 라운지 무료"
+            ],
+            "structured": [
+                {
+                    "target_type": "P11",
+                    "type": "discount",
+                    "rate": 0.15
+                },
+                {
+                    "target_type": "P11",
+                    "type": "discount",
+                    "rate": 0.10
+                }
+            ]
+        },
+        "recommend_comment": "여행을 좋아하는 자유인, 이동부터 숙박까지 한 번에 아껴보세요!"
+    },
+    {
+        "card_id": "C12",
+        "name": "오프라인 쇼핑 마스터",
+        "benefits": {
+            "main_text": "백화점/대형마트/아웃렛 10% 할인",
+            "sub_text": [
+                "전통시장 5% 적립",
+                "복합쇼핑몰 5% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P12",
+                    "type": "discount",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P10",
+                    "type": "point",
+                    "rate": 0.05
+                },
+                {
+                    "target_type": "P12",
+                    "type": "discount",
+                    "rate": 0.05
+                }
+            ]
+        },
+        "recommend_comment": "쇼핑의 손맛을 아는 프로 쇼퍼, 오프라인 결제마다 혜택이 쌓입니다."
+    },
+    {
+        "card_id": "C13",
+        "name": "컬처 라이프 패스",
+        "benefits": {
+            "main_text": "영화/공연/전시 예매 30% 할인",
+            "sub_text": [
+                "도서 10% 적립",
+                "음원 스트리밍 10% 할인"
+            ],
+            "structured": [
+                {
+                    "target_type": "P13",
+                    "type": "discount",
+                    "rate": 0.30
+                },
+                {
+                    "target_type": "P09",
+                    "type": "point",
+                    "rate": 0.10
+                },
+                {
+                    "target_type": "P04",
+                    "type": "discount",
+                    "rate": 0.10
+                }
+            ]
+        },
+        "recommend_comment": "문화생활로 힐링하는 프로 관람객, 티켓값 걱정 없이 즐기세요!"
+    }
+]

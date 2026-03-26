@@ -48,7 +48,13 @@ def get_connection() -> Iterator[psycopg.Connection]:
 
 
 def _month_bounds(report_month: str) -> tuple[date, date]:
-    month_start = datetime.strptime(report_month, "%Y-%m").date().replace(day=1)
+    value = report_month.strip()
+    if len(value) == 7:
+        month_start = datetime.strptime(value, "%Y-%m").date().replace(day=1)
+    elif len(value) == 10:
+        month_start = datetime.strptime(value, "%Y-%m-%d").date().replace(day=1)
+    else:
+        raise ValueError(f"Invalid report_month format: {report_month}")
     if month_start.month == 12:
         month_end = month_start.replace(year=month_start.year + 1, month=1, day=1)
     else:

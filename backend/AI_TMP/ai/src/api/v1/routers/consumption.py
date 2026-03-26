@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
 from domain.consumption.service import ReportService
 from domain.consumption.schemas import (
@@ -9,6 +11,7 @@ from domain.consumption.schemas import (
 
 router = APIRouter()
 service = ReportService()
+logger = logging.getLogger(__name__)
 
 @router.get("/users")
 def list_users() -> dict[str, list[dict[str, str]]]:
@@ -78,22 +81,57 @@ def analyze_monthly_report(request: MonthlyReportDbRequest) -> dict:
 @router.post("/consumption/date-range-report")
 def analyze_date_range_report(request: DateRangeAnalysisRequest) -> dict:
     try:
-        return service.build_report_from_db_range(
+        logger.warning(
+            "[AI] date-range-report request: user_id=%s, start_date=%s, end_date=%s",
+            request.user_id,
+            request.start_date,
+            request.end_date,
+        )
+        response = service.build_report_from_db_range(
             user_id=request.user_id,
             start_date=request.start_date,
             end_date=request.end_date,
             include_ai=True,
         )
+        logger.warning(
+            "[AI] date-range-report success: user_id=%s, start_date=%s, end_date=%s",
+            request.user_id,
+            request.start_date,
+            request.end_date,
+        )
+        return response
     except Exception as exc:
+        logger.exception(
+            "[AI] date-range-report failed: user_id=%s, start_date=%s, end_date=%s",
+            request.user_id,
+            request.start_date,
+            request.end_date,
+        )
         raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.post("/recommendation/db")
 def recommend_card_from_db(request: CardRecommendationDbRequest) -> dict:
     try:
-        return service.get_card_recommendation_from_db(
+        logger.warning(
+            "[AI] recommendation/db request: user_id=%s, month=%s",
+            request.user_id,
+            request.month,
+        )
+        response = service.get_card_recommendation_from_db(
             user_id=request.user_id,
             month=request.month,
         )
+        logger.warning(
+            "[AI] recommendation/db success: user_id=%s, month=%s",
+            request.user_id,
+            request.month,
+        )
+        return response
     except Exception as exc:
+        logger.exception(
+            "[AI] recommendation/db failed: user_id=%s, month=%s",
+            request.user_id,
+            request.month,
+        )
         raise HTTPException(status_code=400, detail=str(exc))
