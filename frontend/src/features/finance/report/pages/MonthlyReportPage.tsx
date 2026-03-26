@@ -7,10 +7,10 @@ import {
   sendAiJustification,
   regenerateAiReport,
 } from '../api/reportApi';
+import { useNavigate } from 'react-router-dom';
 
 // types import
 import type { SpendingSummaryResponse, SpendingSummaryRank, AiReportPayload, CardRecommendationResponse } from '../types';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import mascotAnalyze from '@/assets/character/mascot_analyze.png';
 import mascotJust from '@/assets/character/mascot_just.png';
@@ -550,6 +550,7 @@ const ReportChatbot = ({
 
 export const MonthlyReportPage = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const [summary, setSummary] = useState<SpendingSummaryResponse | null>(null);
