@@ -754,6 +754,7 @@ export const PostDetailPage = () => {
   const [hotdealDetail, setHotdealDetail] = useState<HotdealDetailResponseDto | null>(null);
   const [selectedPollVote, setSelectedPollVote] = useState<'OPTION_A' | 'OPTION_B' | null>(null);
   const [submittingPollVote, setSubmittingPollVote] = useState(false);
+  const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   const reactionStorageKey = `post_reaction_${postId}`;
@@ -1258,8 +1259,14 @@ export const PostDetailPage = () => {
         </span>
         <div className="flex w-10 justify-end">
           {isAuthor ? (
-            <div className="group relative">
-              <button className="-mr-2 p-2 text-gray-400 hover:text-gray-700">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsPostMenuOpen(!isPostMenuOpen)}
+                className={`-mr-2 p-2 transition-colors ${
+                  isPostMenuOpen ? 'text-gray-900 bg-gray-50 rounded-full' : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
                 <svg
                   className="h-5 w-5"
                   fill="none"
@@ -1274,20 +1281,35 @@ export const PostDetailPage = () => {
                   />
                 </svg>
               </button>
-              <div className="invisible absolute right-0 top-full mt-1 flex w-28 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100">
-                <button
-                  className="border-b border-gray-50 px-4 py-2.5 text-left text-[14px] font-medium text-gray-700 hover:bg-gray-50"
-                  onClick={() => navigate(`/community/${postId}/edit`)}
-                >
-                  수정
-                </button>
-                <button
-                  className="px-4 py-2.5 text-left text-[14px] font-medium text-red-500 hover:bg-red-50"
-                  onClick={handleDelete}
-                >
-                  삭제
-                </button>
-              </div>
+
+              {isPostMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setIsPostMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full z-20 mt-1 flex w-28 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg animate-in fade-in slide-in-from-top-1">
+                    <button
+                      className="border-b border-gray-50 px-4 py-2.5 text-left text-[14px] font-medium text-gray-700 hover:bg-gray-50"
+                      onClick={() => {
+                        setIsPostMenuOpen(false);
+                        navigate(`/community/${postId}/edit`);
+                      }}
+                    >
+                      수정
+                    </button>
+                    <button
+                      className="px-4 py-2.5 text-left text-[14px] font-medium text-red-500 hover:bg-red-50"
+                      onClick={() => {
+                        setIsPostMenuOpen(false);
+                        handleDelete();
+                      }}
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <button
