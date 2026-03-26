@@ -4,13 +4,15 @@ import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useNotificationStore } from '../store/useNotificationStore';
 
 export const useNotificationSse = (enabled: boolean) => {
+    const token = useAuthStore((state) => state.accessToken);
+
     useEffect(() => {
         if (!enabled) {
             return;
         }
 
-        const token = useAuthStore.getState().accessToken;
         if (!token) {
+            console.info('Notification SSE skipped: access token is not ready yet.');
             return;
         }
 
@@ -54,5 +56,5 @@ export const useNotificationSse = (enabled: boolean) => {
             console.info('Cleaning up Notification SSE connection');
             eventSource.close();
         };
-    }, [enabled]);
+    }, [enabled, token]);
 };
