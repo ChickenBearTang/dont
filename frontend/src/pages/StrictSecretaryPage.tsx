@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import StrictSecretaryForm from '@/components/StrictSecretaryForm';
 import StrictSecretaryLanding from '@/components/StrictSecretaryLanding';
 import StrictSecretaryResult, { type AIResultData } from '@/components/StrictSecretaryResult';
@@ -8,12 +8,18 @@ import './StrictSecretaryPage.css';
 
 type PageState = 'IDLE' | 'FORM_OPEN' | 'LOADING_VIDEO' | 'RESULT' | 'RETRY';
 
+type PurchaseFormData = {
+  item_text: string;
+  item_link: string;
+  user_reason: string;
+};
+
 export default function StrictSecretaryPage() {
   const [pageState, setPageState] = useState<PageState>('IDLE');
   const [aiResult, setAiResult] = useState<AIResultData | null>(null);
   const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [isRequestInFlight, setIsRequestInFlight] = useState(false);
 
-  const isVideoEndedRef = useRef(false);
   const isApiResolvedRef = useRef(false);
   const currentAiDataRef = useRef<AIResultData | null>(null);
   const ttsAudioUrlRef = useRef<string | null>(null);
@@ -26,13 +32,12 @@ export default function StrictSecretaryPage() {
     setPageState('IDLE');
     setAiResult(null);
     setTtsAudioUrl(null);
-    isVideoEndedRef.current = false;
+    setIsRequestInFlight(false);
     isApiResolvedRef.current = false;
     currentAiDataRef.current = null;
     ttsAudioUrlRef.current = null;
   };
 
-  // TTS 음성을 미리 생성하는 함수 (영상 재생 중에 백그라운드로 호출)
   const prefetchTts = (text: string) => {
     getTtsAudio(text)
       .then((url) => {
@@ -40,67 +45,64 @@ export default function StrictSecretaryPage() {
         setTtsAudioUrl(url);
       })
       .catch((err) => {
-        console.warn('TTS prefetch 실패 (음성 없이 결과만 표시):', err);
+        console.warn('TTS prefetch failed (결과는 계속 표시):', err);
       });
   };
 
-  const handleFormSubmit = (data: {
-    item_text: string;
-    item_link: string;
-    user_reason: string;
-  }) => {
-    console.log('Purchase Request Data:', data);
-
+  const handleFormSubmit = (data: PurchaseFormData) => {
     setPageState('LOADING_VIDEO');
-    isVideoEndedRef.current = false;
+    setIsRequestInFlight(true);
     isApiResolvedRef.current = false;
     currentAiDataRef.current = null;
     ttsAudioUrlRef.current = null;
     setTtsAudioUrl(null);
 
-    // 1. 텍스트 API 호출 → 성공하면 바로 TTS도 호출
-    evaluatePurchase({
-      item_text: data.item_text,
-      item_link: data.item_link,
-      user_reason: data.user_reason,
-    })
+    evaluatePurchase(data)
       .then((result) => {
         isApiResolvedRef.current = true;
         currentAiDataRef.current = result;
-
-        // 2. 텍스트 결과를 받자마자 TTS 생성도 백그라운드로 시작
         prefetchTts(result.fact_violence_comment);
-
-        // 영상이 이미 끝났다면 바로 결과 화면으로 전환
-        if (isVideoEndedRef.current) {
-          setAiResult(result);
-          setPageState('RESULT');
-        }
+        setAiResult(result);
+        setPageState('RESULT');
       })
       .catch((err) => {
-        console.error('strict-secretary API error:', err);
+        console.error('strict-secretary API error:', {
+          message: err?.message,
+          status: err?.response?.status,
+          data: err?.response?.data,
+        });
         isApiResolvedRef.current = false;
+        setPageState('RETRY');
+      })
+      .finally(() => {
+        setIsRequestInFlight(false);
       });
   };
 
   const handleVideoEnded = () => {
-    isVideoEndedRef.current = true;
+    if (isRequestInFlight) {
+      return;
+    }
 
     if (isApiResolvedRef.current && currentAiDataRef.current) {
       setAiResult(currentAiDataRef.current);
       setPageState('RESULT');
-    } else {
-      setPageState('RETRY');
     }
   };
 
   const handleRetry = () => {
+    if (isRequestInFlight) {
+      alert('아직 분석 중입니다. 조금만 더 기다려주세요.');
+      return;
+    }
+
     if (isApiResolvedRef.current && currentAiDataRef.current) {
       setAiResult(currentAiDataRef.current);
       setPageState('RESULT');
-    } else {
-      alert('아직 AI가 고민 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
     }
+
+    alert('요청이 실패했습니다. 다시 시도해 주세요.');
   };
 
   return (
@@ -110,7 +112,7 @@ export default function StrictSecretaryPage() {
           <button
             className="ss-circle-btn"
             onClick={toggleForm}
-            aria-label="구매 요청서 작성 폼 열기"
+            aria-label="구매 요청서 작성 열기"
           >
             <img src={PRImage} alt="비서 이미지" className="ss-btn-image" />
           </button>
