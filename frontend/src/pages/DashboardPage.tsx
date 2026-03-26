@@ -26,18 +26,18 @@ const ExpenditureCard = () => {
   const rankList: { categoryName: string; amount: number; percentage: number }[] =
     (
       data as
-        | {
-            data?: {
-              rankColumList?: { categoryName: string; amount: number; percentage: number }[];
-            };
-            rankColumList?: { categoryName: string; amount: number; percentage: number }[];
-          }
-        | undefined
+      | {
+        data?: {
+          rankColumList?: { categoryName: string; amount: number; percentage: number }[];
+        };
+        rankColumList?: { categoryName: string; amount: number; percentage: number }[];
+      }
+      | undefined
     )?.data?.rankColumList ??
     (
       data as
-        | { rankColumList?: { categoryName: string; amount: number; percentage: number }[] }
-        | undefined
+      | { rankColumList?: { categoryName: string; amount: number; percentage: number }[] }
+      | undefined
     )?.rankColumList ??
     [];
 
@@ -237,8 +237,8 @@ const RankingWidget = () => {
     },
   });
 
-  const myRanking = data?.data?.myRanking;
-  const top3 = data?.data?.top10?.slice(0, 3) || [];
+  const myRanking = data?.myRanking;
+  const top3 = data?.top10?.slice(0, 3) || [];
 
   return (
     <Card className="p-8 flex flex-col h-full border border-indigo-50 shadow-sm relative overflow-hidden group">
@@ -292,13 +292,12 @@ const RankingWidget = () => {
                 >
                   <div className="flex items-center gap-3 w-full">
                     <span
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                        user.rank === 1
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : user.rank === 2
-                            ? 'bg-slate-100 text-slate-600'
-                            : 'bg-orange-50 text-orange-600'
-                      }`}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${user.rank === 1
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : user.rank === 2
+                          ? 'bg-slate-100 text-slate-600'
+                          : 'bg-orange-50 text-orange-600'
+                        }`}
                     >
                       {user.rank}
                     </span>
