@@ -28,11 +28,16 @@ public class StrictSecretaryService {
 
     public StrictSecretaryResponse evaluatePurchase(
             Long userId, String itemText, String itemLink, String userReason) {
+        long startedAt = System.currentTimeMillis();
+
         if (userId == null) {
+            log.warn("strict-secretary evaluate skipped: userId is null");
             return fallback("로그인 사용자 정보를 확인하지 못했습니다.");
         }
 
         try {
+            log.info("strict-secretary evaluate start. userId={}", userId);
+
             User user =
                     userRepository
                             .findActiveById(userId)
@@ -40,27 +45,44 @@ public class StrictSecretaryService {
                                     () ->
                                             new IllegalArgumentException(
                                                     "Active user not found: " + userId));
+
             List<StrictSecretaryEvaluateRequest.RecentTransaction> recentTransactions =
                     fetchRecentTransactions(userId);
+            log.info(
+                    "strict-secretary context prepared. userId={}, recentTransactions={}",
+                    userId,
+                    recentTransactions.size());
 
             StrictSecretaryEvaluateRequest request =
                     new StrictSecretaryEvaluateRequest(
                             new StrictSecretaryEvaluateRequest.UserProfile(
                                     String.valueOf(userId),
-                                    user.getName(),
+                                    safeUserName(user.getName()),
                                     resolveMonthlyIncome(user, recentTransactions)),
                             safeText(itemText),
                             safeText(itemLink),
                             safeText(userReason),
                             recentTransactions,
                             null);
+
+            log.info("strict-secretary calling python AI. userId={}", userId);
             StrictSecretaryResponse response = aiClient.evaluatePurchase(request);
             if (response == null) {
                 throw new IllegalStateException("AI strict-secretary response is empty");
             }
+
+            log.info(
+                    "strict-secretary evaluate success. userId={}, approved={}, elapsedMs={}",
+                    userId,
+                    response.isApproved(),
+                    System.currentTimeMillis() - startedAt);
             return response;
         } catch (Exception exception) {
-            log.warn("strict-secretary evaluate failed: {}", exception.getMessage());
+            log.warn(
+                    "strict-secretary evaluate failed. userId={}, elapsedMs={}, reason={}",
+                    userId,
+                    System.currentTimeMillis() - startedAt,
+                    exception.getMessage());
             return fallback("AI 판단 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
         }
     }
@@ -78,8 +100,7 @@ public class StrictSecretaryService {
                 .toList();
     }
 
-    private StrictSecretaryEvaluateRequest.RecentTransaction toRecentTransaction(
-            CardTransaction tx) {
+    private StrictSecretaryEvaluateRequest.RecentTransaction toRecentTransaction(CardTransaction tx) {
         String transactionDate =
                 tx.getTransactionDate() == null ? "" : tx.getTransactionDate().format(BASIC_DATE);
         String transactionTime =
@@ -87,7 +108,9 @@ public class StrictSecretaryService {
                         ? "000000"
                         : tx.getTransactionTime().replaceAll("[^0-9]", "");
         String normalizedTime =
-                transactionTime.isBlank() ? "000000" : transactionTime.substring(0, Math.min(6, transactionTime.length()));
+                transactionTime.isBlank()
+                        ? "000000"
+                        : transactionTime.substring(0, Math.min(6, transactionTime.length()));
 
         long rawAmount = tx.getTransactionAmount() == null ? 0L : tx.getTransactionAmount();
         int boundedAmount =
@@ -117,20 +140,28 @@ public class StrictSecretaryService {
             return 0;
         }
 
-        long total = transactions.stream().mapToLong(StrictSecretaryEvaluateRequest.RecentTransaction::transactionAmount).sum();
+        long total =
+                transactions.stream()
+                        .mapToLong(StrictSecretaryEvaluateRequest.RecentTransaction::transactionAmount)
+                        .sum();
         long estimated = Math.max(0L, total / 3L);
         return estimated > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) estimated;
     }
 
     private StrictSecretaryResponse fallback(String message) {
         return StrictSecretaryResponse.builder()
-                .is_approved(false)
-                .fact_violence_comment(message)
-                .reasoning(List.of("Spring-AI 위임 경로에서 오류가 발생했습니다."))
+                .approved(false)
+                .factViolenceComment(message)
+                .reasoning(List.of("Spring-AI 연동 경로에서 오류가 발생했습니다."))
                 .build();
     }
 
     private String safeText(String value) {
         return value == null ? "" : value;
+    }
+
+    private String safeUserName(String value) {
+        String normalized = safeText(value).trim();
+        return normalized.isEmpty() ? "사용자" : normalized;
     }
 }

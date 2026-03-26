@@ -27,10 +27,7 @@ public class NotificationSseEmitters {
             }
         }
 
-        log.info("알림 SSE 연결 추가 - userId={}, 현재 연결 수={}", userId, emitters.size());
-
         emitter.onCompletion(() -> {
-            log.info("알림 SSE 완료 - userId={}", userId);
             emitters.remove(userId, emitter);
         });
 
