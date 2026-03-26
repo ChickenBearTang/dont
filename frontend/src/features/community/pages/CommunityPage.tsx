@@ -35,10 +35,9 @@ const formatRelativeDate = (dateStr: string) => {
   if (diffMin < 60) return `${diffMin}분 전`;
   if (diffHour < 24) return `${diffHour}시간 전`;
 
-  return date.toLocaleDateString('ko-KR', {
-    month: 'numeric',
-    day: 'numeric',
-  });
+  const month = date.getMonth() + 1;
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${month}.${day}`;
 };
 
 const formatDateTime = (dateStr: string | null | undefined) => {
@@ -298,7 +297,7 @@ const HotdealBoardList = ({
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
                   <AuthorMeta post={post} />
-                  <span>{formatRelativeDate(post.createdAt)}</span>
+                  <span className="whitespace-nowrap shrink-0">{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
             );
@@ -432,7 +431,7 @@ const PollBoardList = ({
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
                   <AuthorMeta post={post} />
-                  <span>{formatRelativeDate(post.createdAt)}</span>
+                  <span className="whitespace-nowrap shrink-0">{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
             );
@@ -567,7 +566,7 @@ const PrBoardList = ({
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
                   <AuthorMeta post={post} />
-                  <span>{formatRelativeDate(post.createdAt)}</span>
+                  <span className="whitespace-nowrap shrink-0">{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
             );
@@ -946,7 +945,7 @@ export const CommunityPage = () => {
                       <AuthorMeta post={post} />
                     </div>
 
-                    <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium">
+                    <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium whitespace-nowrap">
                       {formatRelativeDate(post.createdAt)}
                     </div>
                   </div>
