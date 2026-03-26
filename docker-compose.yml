@@ -44,7 +44,12 @@ services:
       context: ./backend/AI_TMP/ai
       dockerfile: Dockerfile
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       AI_POSTGRES_DSN: postgresql://${AI_POSTGRES_USER:-ai_user}:${AI_POSTGRES_PASSWORD:-ai_password}@ai-postgres:5432/${AI_POSTGRES_DB:-ai_crawl}
       AI_POSTGRES_HOST: ai-postgres
       AI_POSTGRES_PORT: 5432
