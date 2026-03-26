@@ -20,7 +20,6 @@ import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationRefer
 import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
 import com.ssafy.edu.awesomeproject.domain.notification.service.NotificationService;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;

@@ -7,15 +7,13 @@ import {
   sendAiJustification,
   regenerateAiReport,
 } from '../api/reportApi';
-
-// types import
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type {
   SpendingSummaryResponse,
   SpendingSummaryRank,
   AiReportPayload,
   CardRecommendationResponse,
 } from '../types';
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import mascotAnalyze from '@/assets/character/mascot_analyze.png';
 import mascotJust from '@/assets/character/mascot_just.png';
@@ -585,7 +583,8 @@ export const MonthlyReportPage = () => {
   const [aiLoading, setAiLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  const [cardRecommendation, setCardRecommendation] = useState<CardRecommendationResponse | null>(null);
+  const [cardRecommendation, setCardRecommendation] =
+    useState<CardRecommendationResponse | null>(null);
   const [cardRecommendLoading, setCardRecommendLoading] = useState(true);
 
   const extractReportPayload = (res: unknown): AiReportPayload | undefined =>

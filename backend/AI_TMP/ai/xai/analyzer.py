@@ -145,6 +145,12 @@ class ExplainabilityAnalyzer:
                 emergency_fund_balance = float(
                     self._finance_profile.get("emergency_fund_balance", 600_000)
                 )
+                savebox_balance = float(
+                    self._finance_profile.get(
+                        "savebox_balance",
+                        emergency_fund_balance,
+                    )
+                )
                 days_until_card_due = int(
                     self._finance_profile.get("days_until_card_due", 14)
                 )
@@ -157,8 +163,8 @@ class ExplainabilityAnalyzer:
                     suggested = self._dice_counterfactual_engine.suggest(
                         price_int=price_value,
                         monthly_spending_30d=monthly_spending_30d,
-                        emergency_fund_balance=emergency_fund_balance,
-                        current_balance=current_balance,
+                        emergency_fund_balance=savebox_balance,
+                        current_balance=savebox_balance,
                         days_until_card_due=days_until_card_due,
                         expected_card_payment_amount=expected_card_payment_amount,
                     )
@@ -168,6 +174,17 @@ class ExplainabilityAnalyzer:
                             dice_engine_state = dice_meta
                     elif isinstance(suggested, list):
                         counterfactuals = suggested
+
+                counterfactuals = self._stabilize_counterfactual_suggestions(
+                    counterfactuals,
+                    price_value=price_value,
+                    monthly_spending_30d=monthly_spending_30d,
+                    savebox_balance=savebox_balance,
+                    window_stats=window_stats,
+                )
+                counterfactuals = self._normalize_counterfactual_messages(
+                    counterfactuals
+                )
 
                 top_reason_text = (
                     str(reasons[0].get("reason_text", "기여도 신호 분석 결과"))
@@ -195,7 +212,7 @@ class ExplainabilityAnalyzer:
                     ),
                     "emergency_fund_balance": emergency_fund_balance,
                     "projected_balance_after_purchase": (
-                        current_balance - float(features.get("price_int", 0))
+                        savebox_balance - float(features.get("price_int", 0))
                     ),
                     "days_until_card_due": days_until_card_due,
                 }
@@ -278,6 +295,12 @@ class ExplainabilityAnalyzer:
             "emergency_fund_balance": float(
                 self._finance_profile.get("emergency_fund_balance", 600_000)
             ),
+            "savebox_balance": float(
+                self._finance_profile.get(
+                    "savebox_balance",
+                    self._finance_profile.get("emergency_fund_balance", 600_000),
+                )
+            ),
             "expected_card_payment_amount": float(
                 self._finance_profile.get("expected_card_payment_amount", 200_000)
             ),
@@ -286,6 +309,153 @@ class ExplainabilityAnalyzer:
             ),
         }
         return payload
+
+    def _normalize_counterfactual_messages(
+        self, counterfactuals: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for counterfactual in counterfactuals:
+            if not isinstance(counterfactual, dict):
+                continue
+            item = dict(counterfactual)
+            item["message"] = self._korean_counterfactual_message(item)
+            normalized.append(item)
+        return normalized
+
+    @staticmethod
+    def _stabilize_counterfactual_suggestions(
+        counterfactuals: list[dict[str, Any]],
+        *,
+        price_value: int | None,
+        monthly_spending_30d: float,
+        savebox_balance: float,
+        window_stats: dict[str, dict[str, float | int | None]] | None,
+    ) -> list[dict[str, Any]]:
+        avg_price_raw = ((window_stats or {}).get("30d", {}) or {}).get("avg_price")
+        avg_price_30d = (
+            float(avg_price_raw)
+            if isinstance(avg_price_raw, (int, float)) and float(avg_price_raw) > 0
+            else 0.0
+        )
+        # Keep recommendation amount stable across repeated calls:
+        # when 30d average exists, anchor target only to avg price + savebox context.
+        if avg_price_30d > 0:
+            target_after_purchase = max(avg_price_30d * 15.0, 0.0)
+        else:
+            target_after_purchase = max(float(monthly_spending_30d) * 0.5, 0.0)
+        projected_after_purchase = float(savebox_balance) - float(price_value or 0)
+        stable_required_delta_raw = max(target_after_purchase - projected_after_purchase, 0.0)
+        stable_required_delta = int(
+            round(stable_required_delta_raw / 10_000.0) * 10_000
+        )
+        stable_required_delta = max(stable_required_delta, 0)
+        stable_threshold = float(max(float(savebox_balance) + stable_required_delta, 0.0))
+
+        normalized: list[dict[str, Any]] = []
+        emergency_template: dict[str, Any] | None = None
+        for counterfactual in counterfactuals:
+            if not isinstance(counterfactual, dict):
+                continue
+            item = dict(counterfactual)
+            raw_change = item.get("suggested_change", 0)
+            try:
+                quantized_change = int(round(max(float(raw_change), 0.0) / 10_000.0) * 10_000)
+            except (TypeError, ValueError):
+                quantized_change = 0
+            item["suggested_change"] = quantized_change
+            if (
+                str(item.get("variable", "")) == "emergency_buffer"
+                and str(item.get("action", "")) == "increase"
+            ):
+                emergency_template = item if emergency_template is None else emergency_template
+                continue
+            normalized.append(item)
+
+        if stable_required_delta > 0:
+            emergency_item = (
+                dict(emergency_template)
+                if emergency_template is not None
+                else {
+                    "type": "dice",
+                    "variable": "emergency_buffer",
+                    "action": "increase",
+                }
+            )
+            emergency_item["suggested_change"] = stable_required_delta
+            emergency_item["threshold"] = stable_threshold
+            emergency_item["stabilized_by"] = "savebox_avg30d_rule_v2"
+            normalized.append(emergency_item)
+
+        def _priority(item: dict[str, Any]) -> tuple[int, int, str, str]:
+            variable = str(item.get("variable", ""))
+            action = str(item.get("action", ""))
+            if variable == "emergency_buffer" and action == "increase":
+                base = 0
+            elif variable == "available_budget" and action == "increase":
+                base = 1
+            elif variable == "current_effective_price" and action == "decrease":
+                base = 2
+            else:
+                base = 9
+            try:
+                delta = max(int(float(item.get("suggested_change", 0))), 0)
+            except (TypeError, ValueError):
+                delta = 0
+            return (base, delta, variable, action)
+
+        normalized.sort(key=_priority)
+        if len(normalized) == 0:
+            return [
+                {
+                    "type": "dice",
+                    "variable": "current_effective_price",
+                    "action": "wait_for_better_price",
+                    "suggested_change": 0,
+                    "threshold": float(price_value or 0),
+                    "stabilized_by": "savebox_avg30d_rule_v2",
+                }
+            ]
+        return normalized[:3]
+
+    @staticmethod
+    def _korean_counterfactual_message(counterfactual: dict[str, Any]) -> str:
+        action = str(counterfactual.get("action", ""))
+        variable = str(counterfactual.get("variable", ""))
+        suggested_change = counterfactual.get("suggested_change", 0)
+
+        delta: int
+        try:
+            delta = max(int(float(suggested_change)), 0)
+        except (TypeError, ValueError):
+            delta = 0
+
+        if action == "decrease" and variable == "current_effective_price":
+            return (
+                f"가격을 약 {delta:,}원 낮추면 구매 판단이 개선될 수 있습니다."
+                if delta > 0
+                else "가격 조건이 개선되면 구매 판단이 나아질 수 있습니다."
+            )
+
+        if action == "increase" and variable == "available_budget":
+            return (
+                f"가용예산을 약 {delta:,}원 늘리면 구매 판단이 개선될 수 있습니다."
+                if delta > 0
+                else "가용예산이 늘어나면 구매 판단이 나아질 수 있습니다."
+            )
+
+        if action == "increase" and variable == "emergency_buffer":
+            return (
+                f"비상자금을 약 {delta:,}원 늘리면 리스크가 완화될 수 있습니다."
+                if delta > 0
+                else "비상자금이 늘어나면 구매 리스크가 완화될 수 있습니다."
+            )
+
+        if action == "wait_for_better_price":
+            return (
+                "현재 조건에서는 큰 변화가 없어 가격/예산 변동 후 재평가를 권장합니다."
+            )
+
+        return "구매 조건을 조정한 뒤 다시 평가하면 더 안정적인 판단이 가능합니다."
 
     def _build_feature_scores(
         self,
@@ -317,6 +487,9 @@ class ExplainabilityAnalyzer:
         emergency_fund_balance = float(
             self._finance_profile.get("emergency_fund_balance", 600_000)
         )
+        savebox_balance = float(
+            self._finance_profile.get("savebox_balance", emergency_fund_balance)
+        )
         days_until_card_due = int(self._finance_profile.get("days_until_card_due", 14))
 
         avg_price_30d = ((window_stats or {}).get("30d", {}) or {}).get("avg_price")
@@ -333,7 +506,7 @@ class ExplainabilityAnalyzer:
             ),
             "emergency_fund_balance": emergency_fund_balance
             / max(monthly_spending_30d, 1.0),
-            "projected_balance_after_purchase": (current_balance - price_int)
+            "projected_balance_after_purchase": (savebox_balance - price_int)
             / max(monthly_spending_30d, 1.0),
             "days_until_card_due": float(days_until_card_due) / 30.0,
         }

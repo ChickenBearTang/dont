@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import random
 from typing import Any
 
 
@@ -49,20 +51,26 @@ class DiceCounterfactualEngine:
                     )
 
         train_df = self._pd.DataFrame(rows)
-        model = self._rf_cls(n_estimators=32, random_state=42)
-        x_train = train_df[
-            ["current_effective_price", "available_budget", "emergency_buffer"]
+        continuous_features = [
+            "current_effective_price",
+            "available_budget",
+            "emergency_buffer",
         ]
+        for feature in continuous_features:
+            train_df[feature] = train_df[feature].astype(float)
+        model = self._rf_cls(n_estimators=32, random_state=42)
+        x_train = train_df[continuous_features]
         y_train = train_df["decision_label"]
         model.fit(x_train, y_train)
 
         data = self._dice_ml.Data(
             dataframe=train_df,
-            continuous_features=[
-                "current_effective_price",
-                "available_budget",
-                "emergency_buffer",
-            ],
+            continuous_features=continuous_features,
+            continuous_features_precision={
+                "current_effective_price": 2,
+                "available_budget": 2,
+                "emergency_buffer": 2,
+            },
             outcome_name="decision_label",
         )
         dice_model = self._dice_ml.Model(
@@ -71,6 +79,59 @@ class DiceCounterfactualEngine:
             model_type="classifier",
         )
         self._explainer = self._dice_ml.Dice(data, dice_model, method="random")
+
+    @staticmethod
+    def _stable_seed(
+        *,
+        price_int: int | None,
+        monthly_spending_30d: float,
+        emergency_fund_balance: float,
+        current_balance: float,
+        days_until_card_due: int,
+        expected_card_payment_amount: float,
+    ) -> int:
+        payload = (
+            f"{price_int}|{monthly_spending_30d:.4f}|{emergency_fund_balance:.4f}|"
+            f"{current_balance:.4f}|{days_until_card_due}|{expected_card_payment_amount:.4f}"
+        )
+        return int(hashlib.sha256(payload.encode("utf-8")).hexdigest()[:8], 16)
+
+    @staticmethod
+    def _priority(variable: str) -> int:
+        priorities = {
+            "emergency_buffer": 0,
+            "available_budget": 1,
+            "current_effective_price": 2,
+        }
+        return priorities.get(variable, 9)
+
+    @classmethod
+    def _sort_key(cls, suggestion: dict[str, Any]) -> tuple[int, int, str]:
+        raw_delta = suggestion.get("suggested_change", 0)
+        try:
+            delta = max(int(float(raw_delta)), 0)
+        except (TypeError, ValueError):
+            delta = 0
+        variable = str(suggestion.get("variable", ""))
+        return (delta, cls._priority(variable), variable)
+
+    @classmethod
+    def _select_deterministic(
+        cls, suggestions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        if len(suggestions) == 0:
+            return []
+        by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        for suggestion in suggestions:
+            variable = str(suggestion.get("variable", ""))
+            action = str(suggestion.get("action", ""))
+            key = (variable, action)
+            previous = by_key.get(key)
+            if previous is None or cls._sort_key(suggestion) < cls._sort_key(previous):
+                by_key[key] = suggestion
+        normalized = list(by_key.values())
+        normalized.sort(key=cls._sort_key)
+        return normalized[:3]
 
     @staticmethod
     def _to_suggestions(
@@ -164,6 +225,22 @@ class DiceCounterfactualEngine:
                 }
 
             current_effective_price = float(price_int) if price_int is not None else 0.0
+            seed = self._stable_seed(
+                price_int=price_int,
+                monthly_spending_30d=monthly_spending_30d,
+                emergency_fund_balance=emergency_fund_balance,
+                current_balance=current_balance,
+                days_until_card_due=days_until_card_due,
+                expected_card_payment_amount=expected_card_payment_amount,
+            )
+            random.seed(seed)
+            try:
+                import numpy as np
+
+                np.random.seed(seed % (2**32 - 1))
+            except Exception:
+                pass
+
             query = self._pd.DataFrame(
                 [
                     {
@@ -175,7 +252,7 @@ class DiceCounterfactualEngine:
             )
             result = self._explainer.generate_counterfactuals(
                 query,
-                total_CFs=1,
+                total_CFs=6,
                 desired_class="opposite",
             )
             examples = result.cf_examples_list
@@ -193,19 +270,25 @@ class DiceCounterfactualEngine:
                     "reason": "dice_empty",
                 }
 
-            row = {
-                "current_effective_price": float(
-                    final_df.iloc[0]["current_effective_price"]
-                ),
-                "available_budget": float(final_df.iloc[0]["available_budget"]),
-                "emergency_buffer": float(final_df.iloc[0]["emergency_buffer"]),
-            }
-            suggestions = self._to_suggestions(
-                cf_row=row,
-                current_effective_price=current_effective_price,
-                available_budget=float(current_balance),
-                emergency_buffer=float(emergency_fund_balance),
-            )
+            candidates: list[dict[str, Any]] = []
+            for _, candidate_row in final_df.iterrows():
+                row = {
+                    "current_effective_price": float(
+                        candidate_row["current_effective_price"]
+                    ),
+                    "available_budget": float(candidate_row["available_budget"]),
+                    "emergency_buffer": float(candidate_row["emergency_buffer"]),
+                }
+                candidates.extend(
+                    self._to_suggestions(
+                        cf_row=row,
+                        current_effective_price=current_effective_price,
+                        available_budget=float(current_balance),
+                        emergency_buffer=float(emergency_fund_balance),
+                    )
+                )
+
+            suggestions = self._select_deterministic(candidates)
             if len(suggestions) == 0:
                 return [
                     {
@@ -227,7 +310,7 @@ class DiceCounterfactualEngine:
                 "backend": "dice_ml",
                 "count": len(suggestions[:3]),
             }
-        except (TypeError, ValueError, RuntimeError):
+        except (TypeError, ValueError, RuntimeError, IndexError):
             return fallback, {
                 "enabled": False,
                 "backend": "fallback",

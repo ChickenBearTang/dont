@@ -3,8 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card } from '@/shared/components';
 import { closePr, getPrDetail, submitPrVote } from '@/features/community/pr';
 import type { PrDetailResponseData } from '@/features/community/pr';
-import { getPrXaiEvaluation } from '@/features/community/pr/api/prXaiApi';
-import type { PrXaiEvaluationResponseData } from '@/features/community/pr/xaiTypes';
+import { getPrXaiAvailability, getPrXaiEvaluation } from '@/features/community/pr/api/prXaiApi';
+import type {
+  PrXaiAvailabilityResponseData,
+  PrXaiEvaluationResponseData,
+} from '@/features/community/pr/xaiTypes';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { formatRelativeTime } from '@/shared/utils/date';
 import { UserAvatar } from '@/features/community/components/UserAvatar';
@@ -93,6 +96,82 @@ const getDecisionBadgeClass = (decision: string): string => {
 };
 
 const formatPercent = (value: number): string => `${Math.round(value * 100)}%`;
+
+const formatImpactPercent = (value: number): string => {
+  const absoluteValue = Math.abs(value);
+  if (absoluteValue <= 1) return `${Math.round(absoluteValue * 100)}%`;
+  if (absoluteValue <= 100) return `${Math.round(absoluteValue)}%`;
+  return `${Math.round(Math.min(absoluteValue / 100, 100))}%`;
+};
+
+const xaiSectionStatusLabelMap: Record<string, string> = {
+  critical: '위험',
+  tight: '주의',
+  healthy: '양호',
+  degraded: '데이터 부족',
+  favorable: '유리',
+  expensive: '고가',
+  neutral: '보통',
+};
+
+const xaiWarningLabelMap: Record<string, string> = {
+  CRAWL_FETCH_FAILED: '상품 페이지 크롤링에 실패했습니다.',
+  PRICE_ESTIMATED_FROM_REQUEST: '요청 가격 기준으로 대체 계산했습니다.',
+  SHAP_UNAVAILABLE: 'SHAP 설명 엔진을 사용할 수 없습니다.',
+  DICE_UNAVAILABLE: 'DICE 반사실 설명 엔진을 사용할 수 없습니다.',
+  NO_PRICE_HISTORY: '가격 이력 데이터가 부족합니다.',
+  PRICE_HISTORY_READ_FAILED: '가격 이력 조회에 실패했습니다.',
+  MISSING_PURCHASE_URL: '구매 URL이 없어 크롤링을 생략했습니다.',
+};
+
+const getXaiSectionStatusLabel = (status: string): string =>
+  xaiSectionStatusLabelMap[status.trim().toLowerCase()] ?? status;
+
+const getXaiWarningLabel = (warning: string): string => xaiWarningLabelMap[warning] ?? warning;
+
+const xaiEvidenceFieldLabelMap: Record<string, string> = {
+  current_price: '현재 판단 가격',
+  projected_balance_after_purchase: '구매 후 예상 잔액',
+  days_until_card_due: '카드 결제일까지',
+  avg_price_30d: '30일 평균가',
+  emergency_fund_balance: '비상자금',
+  current_balance: '현재 잔액',
+};
+
+const xaiEvidenceSourceLabelMap: Record<string, string> = {
+  'spring.pr_post': 'PR 요청값',
+  'spring.finance_profile': '재무 프로필',
+  'fastapi.xai': 'AI 계산값',
+};
+
+const getXaiEvidenceFieldLabel = (field: string): string => {
+  if (field === 'projected_balance_after_purchase') {
+    return '구매 후 세이브박스 잔액';
+  }
+  return xaiEvidenceFieldLabelMap[field] ?? field;
+};
+
+const getXaiEvidenceSourceLabel = (source: string): string =>
+  xaiEvidenceSourceLabelMap[source] ?? source;
+
+const formatXaiEvidenceValue = (field: string, rawValue: string): string => {
+  const normalized = rawValue.trim();
+  if (normalized.length === 0) return rawValue;
+  const numeric = Number(normalized.replaceAll(',', ''));
+  if (!Number.isFinite(numeric)) return rawValue;
+
+  if (field === 'days_until_card_due') return `${Math.round(numeric)}일`;
+  if (
+    field === 'current_price' ||
+    field === 'projected_balance_after_purchase' ||
+    field === 'avg_price_30d' ||
+    field === 'emergency_fund_balance' ||
+    field === 'current_balance'
+  ) {
+    return `${Math.round(numeric).toLocaleString('ko-KR')}원`;
+  }
+  return rawValue;
+};
 
 const parseEventPayload = (payload: Record<string, unknown> | null): EventPayload => {
   if (!payload) return {};
@@ -248,6 +327,8 @@ export const PrDetailPage = () => {
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
   const [isClosingPr, setIsClosingPr] = useState(false);
   const [xaiEvaluation, setXaiEvaluation] = useState<PrXaiEvaluationResponseData | null>(null);
+  const [xaiAvailability, setXaiAvailability] = useState<PrXaiAvailabilityResponseData | null>(null);
+  const [isXaiAvailabilityLoading, setIsXaiAvailabilityLoading] = useState(false);
   const [isXaiLoading, setIsXaiLoading] = useState(false);
   const [xaiError, setXaiError] = useState<string | null>(null);
   const [hasRequestedXai, setHasRequestedXai] = useState(false);
@@ -279,13 +360,44 @@ export const PrDetailPage = () => {
 
   useEffect(() => {
     setXaiEvaluation(null);
+    setXaiAvailability(null);
+    setIsXaiAvailabilityLoading(false);
     setXaiError(null);
     setIsXaiLoading(false);
     setHasRequestedXai(false);
   }, [parsedPostId]);
 
+  useEffect(() => {
+    if (!detail) return;
+    let isMounted = true;
+
+    const loadAvailability = async () => {
+      setIsXaiAvailabilityLoading(true);
+      try {
+        const response = await getPrXaiAvailability(detail.postId);
+        if (!isMounted) return;
+        setXaiAvailability(response.data);
+      } catch {
+        if (!isMounted) return;
+        setXaiAvailability({
+          enabled: false,
+          reason: 'XAI 활성화 상태를 확인하지 못했습니다.',
+        });
+      } finally {
+        if (isMounted) {
+          setIsXaiAvailabilityLoading(false);
+        }
+      }
+    };
+
+    void loadAvailability();
+    return () => {
+      isMounted = false;
+    };
+  }, [detail]);
+
   const handleFetchXaiEvaluation = useCallback(async () => {
-    if (!detail || isXaiLoading) return;
+    if (!detail || isXaiLoading || !xaiAvailability?.enabled) return;
 
     setHasRequestedXai(true);
     setXaiEvaluation(null);
@@ -301,7 +413,7 @@ export const PrDetailPage = () => {
     } finally {
       setIsXaiLoading(false);
     }
-  }, [detail, isXaiLoading]);
+  }, [detail, isXaiLoading, xaiAvailability?.enabled]);
 
   const handleVote = async (voteValue: 'AGREE' | 'DISAGREE') => {
     if (!detail || detail.status !== 'OPEN' || isSubmittingVote) return;
@@ -672,6 +784,15 @@ export const PrDetailPage = () => {
                 <p className="rounded-xl border border-danger/20 bg-danger/5 px-3 py-2 text-sm font-semibold text-danger">
                   {xaiError}
                 </p>
+                {isXaiAvailabilityLoading ? (
+                  <p className="text-xs font-semibold text-text-subtle">
+                    XAI 활성화 가능 여부를 확인 중입니다.
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-text-subtle">
+                    {xaiAvailability?.reason ?? 'XAI 활성화 상태 정보가 없습니다.'}
+                  </p>
+                )}
                 <Button
                   type="button"
                   className="!w-auto !rounded-xl !px-4 !py-2 !text-xs"
@@ -691,7 +812,9 @@ export const PrDetailPage = () => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-light-gray bg-white p-4">
                     <p className="text-xs font-black text-text-subtle uppercase tracking-widest">재무 평가</p>
-                    <p className="mt-2 text-sm font-bold text-eel">{xaiEvaluation.financialEvaluation.status}</p>
+                    <p className="mt-2 text-sm font-bold text-eel">
+                      {getXaiSectionStatusLabel(xaiEvaluation.financialEvaluation.status)}
+                    </p>
                     <ul className="space-y-2">
                       {xaiEvaluation.financialEvaluation.keyMetrics.map((metric) => (
                         <li
@@ -705,9 +828,13 @@ export const PrDetailPage = () => {
                   </div>
                   <div className="rounded-2xl border border-light-gray bg-white p-4">
                     <p className="text-xs font-black text-text-subtle uppercase tracking-widest">가격 평가</p>
-                    <p className="mt-2 text-sm font-bold text-eel">{xaiEvaluation.priceEvaluation.status}</p>
+                    <p className="mt-2 text-sm font-bold text-eel">
+                      {getXaiSectionStatusLabel(xaiEvaluation.priceEvaluation.status)}
+                    </p>
                     <ul className="space-y-2">
-                      {xaiEvaluation.priceEvaluation.keyMetrics.map((metric) => (
+                      {xaiEvaluation.priceEvaluation.keyMetrics
+                        .filter((metric) => metric.code !== 'requested_price_amount')
+                        .map((metric) => (
                         <li
                           key={metric.code}
                           className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80"
@@ -724,7 +851,7 @@ export const PrDetailPage = () => {
                     <ul className="space-y-2">
                       {xaiEvaluation.topFactors.map((factor) => (
                         <li key={factor.code} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
-                          {factor.label} · {factor.direction === 'positive' ? '긍정' : factor.direction === 'negative' ? '부정' : '중립'} · 영향도 {formatPercent(factor.impact)}
+                          {factor.label} · 영향도 {formatImpactPercent(factor.impact)}
                         </li>
                       ))}
                     </ul>
@@ -738,7 +865,7 @@ export const PrDetailPage = () => {
                     <ul className="space-y-2">
                       {xaiEvaluation.supportingEvidence.map((evidence) => (
                         <li key={`${evidence.field}-${evidence.snapshotId ?? evidence.source}`} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
-                          {evidence.field}: {evidence.value} · {evidence.source}
+                          {getXaiEvidenceFieldLabel(evidence.field)}: {formatXaiEvidenceValue(evidence.field, evidence.value)} · {getXaiEvidenceSourceLabel(evidence.source)}
                           {(evidence.isDefault || evidence.isEstimated) && (
                             <span className="ml-2 text-xs font-bold text-amber-600">
                               {evidence.isEstimated ? '추정값' : '기본값'}
@@ -788,7 +915,7 @@ export const PrDetailPage = () => {
                     <ul className="space-y-2">
                       {xaiEvaluation.warnings.map((warning) => (
                         <li key={warning} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
-                          {warning}
+                          {getXaiWarningLabel(warning)}
                         </li>
                       ))}
                     </ul>
@@ -807,10 +934,23 @@ export const PrDetailPage = () => {
                 <p className="text-sm font-medium text-text-muted">
                   아직 XAI 판단 결과를 조회하지 않았습니다.
                 </p>
+                {isXaiAvailabilityLoading ? (
+                  <p className="text-xs font-semibold text-text-subtle">
+                    XAI 활성화 가능 여부를 확인 중입니다.
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-text-subtle">
+                    {xaiAvailability?.reason ?? 'XAI 활성화 상태 정보가 없습니다.'}
+                  </p>
+                )}
                 <Button
                   type="button"
                   className="!w-auto !rounded-xl !px-4 !py-2 !text-xs"
-                  disabled={hasRequestedXai && isXaiLoading}
+                  disabled={
+                    isXaiAvailabilityLoading ||
+                    !xaiAvailability?.enabled ||
+                    (hasRequestedXai && isXaiLoading)
+                  }
                   onClick={() => void handleFetchXaiEvaluation()}
                 >
                   XAI 판단 보기
