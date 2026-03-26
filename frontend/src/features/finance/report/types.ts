@@ -81,7 +81,8 @@ export interface AiReportResponse {
 
 export interface Persona {
   type_id: string;
-  name: string;
+  name?: string;
+  nickname?: string;
   description: string;
   total_amount: number;
   count: number;
@@ -89,10 +90,15 @@ export interface Persona {
 }
 
 export interface CardResult {
-  card_id: number;
+  card_id: string | number;
   name: string;
   main_text: string;
   sub_text: string[];
+  structured_benefits?: {
+    target_type: string;
+    type?: string;
+    rate: number;
+  }[];
   estimated_savings: number;
   picking_rate: number;
   comment: string;
@@ -103,4 +109,5 @@ export interface CardRecommendationResponse {
   best_card: CardResult;
   all_cards: CardResult[];
   total_spend: number;
+  type_spend_stats?: Record<string, number>;
 }
