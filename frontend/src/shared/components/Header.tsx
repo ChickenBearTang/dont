@@ -5,6 +5,7 @@ import type { UserProfile } from '@/features/auth/types';
 import { useNotificationStore } from '@/features/community/store/useNotificationStore';
 import { fetchMyPage } from '@/features/user/api/userApi';
 import bellIcon from '@/assets/logo/bell-icon.png';
+import type { NotificationSummaryDto } from '@/features/community/types/notification';
 
 interface HeaderProps {
   user: UserProfile | null;
@@ -18,6 +19,92 @@ const NAV_TABS = [
   { label: '랭킹', path: '/ranking' },
   { label: '커뮤니티', path: '/community' },
 ];
+
+/**
+ * referenceId가 202603 형태로 올 때 2026-03으로 변환
+ */
+const formatReferenceMonth = (referenceId?: number | null) => {
+  if (!referenceId) return null;
+
+  const raw = String(referenceId);
+  if (!/^\d{6}$/.test(raw)) return null;
+
+  const year = raw.slice(0, 4);
+  const month = raw.slice(4, 6);
+  return `${year}-${month}`;
+};
+
+const getNotificationMeta = (notif: NotificationSummaryDto) => {
+  if (
+    notif.notificationType === 'MANUAL_SAVINGS_COMPLETED' ||
+    notif.notificationType === 'AUTO_SAVINGS_COMPLETED'
+  ) {
+    return {
+      label: '저축',
+      icon: '₩',
+      badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+      iconClass: 'bg-emerald-100 text-emerald-700',
+      unreadClass: 'bg-emerald-50/70',
+      dotClass: 'bg-emerald-500',
+    };
+  }
+
+  if (
+    notif.notificationType === 'CONSUMPTION_REPORT_READY' ||
+    notif.notificationType === 'FINANCE_GENERIC'
+  ) {
+    return {
+      label: '소비리포트',
+      icon: '📊',
+      badgeClass: 'bg-violet-50 text-violet-700 border border-violet-100',
+      iconClass: 'bg-violet-100 text-violet-700',
+      unreadClass: 'bg-violet-50/70',
+      dotClass: 'bg-violet-500',
+    };
+  }
+
+  if (
+    notif.notificationType === 'POST_REPORTED' ||
+    notif.notificationType === 'COMMENT_REPORTED' ||
+    notif.notificationType === 'REPORT_PROCESSED_BLINDED' ||
+    notif.notificationType === 'REPORT_PROCESSED_REJECTED' ||
+    notif.notificationType === 'POST_BLINDED' ||
+    notif.notificationType === 'COMMENT_BLINDED'
+  ) {
+    return {
+      label: '신고',
+      icon: '!',
+      badgeClass: 'bg-rose-50 text-rose-700 border border-rose-100',
+      iconClass: 'bg-rose-100 text-rose-700',
+      unreadClass: 'bg-rose-50/70',
+      dotClass: 'bg-rose-500',
+    };
+  }
+
+  if (
+    notif.notificationType === 'POST_COMMENT_CREATED' ||
+    notif.referenceType === 'POST' ||
+    notif.referenceType === 'COMMENT'
+  ) {
+    return {
+      label: '커뮤니티',
+      icon: '💬',
+      badgeClass: 'bg-sky-50 text-sky-700 border border-sky-100',
+      iconClass: 'bg-sky-100 text-sky-700',
+      unreadClass: 'bg-sky-50/70',
+      dotClass: 'bg-sky-500',
+    };
+  }
+
+  return {
+    label: '알림',
+    icon: '🔔',
+    badgeClass: 'bg-gray-50 text-gray-700 border border-gray-100',
+    iconClass: 'bg-gray-100 text-gray-700',
+    unreadClass: 'bg-blue-50/30',
+    dotClass: 'bg-blue-500',
+  };
+};
 
 const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const navigate = useNavigate();
@@ -49,6 +136,8 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const displayProfileImageUrl = myPageData?.profileImageUrl ?? user?.profileImageUrl ?? null;
   const profileInitial = (displayNickname.trim()[0] ?? displayEmail.trim()[0] ?? 'U').toUpperCase();
 
+  const isAdmin = user?.role === 'ADMIN' || user?.role?.includes?.('ADMIN');
+
   useEffect(() => {
     if (isAuthenticated) {
       startPolling();
@@ -76,13 +165,51 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleNotificationClick = async (notif: (typeof notifications)[0]) => {
+  const handleNotificationClick = async (notif: NotificationSummaryDto) => {
     if (!notif.isRead) {
       await markAsRead(notif.notificationId);
     }
 
     setIsDropdownOpen(false);
 
+    // 소비리포트 알림 클릭 시 해당 월 리포트로 이동
+    if (notif.notificationType === 'CONSUMPTION_REPORT_READY') {
+      const targetMonth = formatReferenceMonth(notif.referenceId);
+
+      if (targetMonth) {
+        navigate(`/finance/report?reportMonth=${targetMonth}`);
+      } else {
+        navigate('/finance/report');
+      }
+      return;
+    }
+
+    // 금융 알림 클릭 시 분기
+    if (notif.referenceType === 'FINANCE') {
+      if (
+        notif.notificationType === 'MANUAL_SAVINGS_COMPLETED' ||
+        notif.notificationType === 'AUTO_SAVINGS_COMPLETED'
+      ) {
+        navigate('/finance/savebox');
+        return;
+      }
+
+      if (notif.notificationType === 'FINANCE_GENERIC') {
+        const targetMonth = formatReferenceMonth(notif.referenceId);
+
+        if (targetMonth) {
+          navigate(`/finance/report?reportMonth=${targetMonth}`);
+        } else {
+          navigate('/finance/report');
+        }
+        return;
+      }
+
+      navigate('/finance');
+      return;
+    }
+
+    // 댓글 / 답글 알림 처리
     if (notif.postId && notif.commentId) {
       navigate(`/community/${notif.postId}?commentId=${notif.commentId}`);
       return;
@@ -95,6 +222,12 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
     if (notif.referenceType === 'COMMENT' && notif.postId && notif.referenceId) {
       navigate(`/community/${notif.postId}?commentId=${notif.referenceId}`);
+      return;
+    }
+
+    // 관리자 신고 처리 알림 등 클릭 시 별도 이동 없음
+    if (notif.notificationType?.includes?.('REPORT_PROCESSED') && isAdmin) {
+      return;
     }
   };
 
@@ -138,11 +271,10 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                 <div
                   key={tab.label}
                   onClick={() => navigate(tab.path)}
-                  className={`flex cursor-pointer items-center justify-center border-b-[3px] px-5 text-[15px] transition-all duration-300 hover:text-primary-blue ${
-                    isActive
+                  className={`flex cursor-pointer items-center justify-center border-b-[3px] px-5 text-[15px] transition-all duration-300 hover:text-primary-blue ${isActive
                       ? 'border-primary-blue text-primary-blue'
                       : 'border-transparent text-gray-500 hover:border-gray-200'
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </div>
@@ -153,7 +285,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
         {isAuthenticated ? (
           <div className="flex items-center gap-4">
-            {user?.role === 'ADMIN' && (
+            {isAdmin && (
               <button
                 type="button"
                 className="cursor-pointer text-gray-400 transition-all hover:scale-110 hover:text-red-500"
@@ -180,9 +312,8 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
             <div className="relative" ref={dropdownRef}>
               <button
                 type="button"
-                className={`relative cursor-pointer transition-transform hover:scale-110 ${
-                  isDropdownOpen ? 'opacity-70' : ''
-                }`}
+                className={`relative cursor-pointer transition-transform hover:scale-110 ${isDropdownOpen ? 'opacity-70' : ''
+                  }`}
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
               >
                 <img src={bellIcon} alt="Notifications" className="h-5 w-5 object-contain" />
@@ -194,9 +325,15 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
               </button>
 
               {isDropdownOpen && (
-                <div className="animate-dropdown absolute right-0 mt-3 w-80 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
+                <div className="animate-dropdown absolute right-0 mt-3 w-[360px] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
                   <div className="flex items-center justify-between border-b border-gray-50 bg-gray-50/50 px-4 py-3">
-                    <span className="text-[14px] font-bold text-gray-900">알림</span>
+                    <div className="flex flex-col">
+                      <span className="text-[14px] font-bold text-gray-900">알림</span>
+                      <span className="text-[11px] text-gray-400">
+                        커뮤니티 · 저축 · 소비리포트 · 신고
+                      </span>
+                    </div>
+
                     {unreadCount > 0 && (
                       <button
                         type="button"
@@ -214,54 +351,75 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
                         새로운 알림이 없습니다.
                       </div>
                     ) : (
-                      notifications.map((notif) => (
-                        <div
-                          key={notif.notificationId}
-                          className={`group relative flex cursor-pointer flex-col gap-0.5 border-b border-gray-50 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${
-                            !notif.isRead ? 'bg-blue-50/30' : ''
-                          }`}
-                          onClick={() => void handleNotificationClick(notif)}
-                        >
-                          <div className="flex items-start justify-between gap-2 pr-5">
-                            <span className="line-clamp-1 text-[13px] font-bold text-gray-900">
-                              {notif.title}
-                            </span>
-                            <span className="shrink-0 text-[11px] text-gray-400">
-                              {formatTime(notif.createdAt)}
-                            </span>
-                          </div>
+                      notifications.map((notif) => {
+                        const meta = getNotificationMeta(notif);
 
-                          <p className="line-clamp-2 pr-5 text-[12px] leading-relaxed text-gray-600">
-                            {notif.body}
-                          </p>
-
-                          {!notif.isRead && <div className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-500" />}
-
-                          <button
-                            type="button"
-                            onClick={async (event) => {
-                              event.stopPropagation();
-                              await dismissNotification(notif.notificationId);
-                            }}
-                            className="absolute top-2.5 right-2 p-1 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-gray-600"
-                            title="알림 지우기"
+                        return (
+                          <div
+                            key={notif.notificationId}
+                            className={`group relative flex cursor-pointer gap-3 border-b border-gray-50 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${!notif.isRead ? meta.unreadClass : ''
+                              }`}
+                            onClick={() => void handleNotificationClick(notif)}
                           >
-                            <svg
-                              className="h-3 w-3"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth="3"
+                            <div
+                              className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${meta.iconClass}`}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      ))
+                              {meta.icon}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-1 flex items-center justify-between gap-2 pr-5">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${meta.badgeClass}`}
+                                >
+                                  {meta.label}
+                                </span>
+                                <span className="shrink-0 text-[11px] text-gray-400">
+                                  {formatTime(notif.createdAt)}
+                                </span>
+                              </div>
+
+                              <div className="flex items-start justify-between gap-2 pr-5">
+                                <span className="line-clamp-1 text-[13px] font-bold text-gray-900">
+                                  {notif.title}
+                                </span>
+                              </div>
+
+                              <p className="mt-1 line-clamp-2 pr-5 text-[12px] leading-relaxed text-gray-600">
+                                {notif.body}
+                              </p>
+
+                              {!notif.isRead && (
+                                <div className={`mt-2 h-1.5 w-1.5 rounded-full ${meta.dotClass}`} />
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={async (event) => {
+                                event.stopPropagation();
+                                await dismissNotification(notif.notificationId);
+                              }}
+                              className="absolute top-2.5 right-2 p-1 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-gray-600"
+                              title="알림 지우기"
+                            >
+                              <svg
+                                className="h-3 w-3"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth="3"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
 
