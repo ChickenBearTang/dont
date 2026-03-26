@@ -12,7 +12,10 @@ if str(SRC_DIR) not in sys.path:
 
 from domain.xai_purchase.audit_store import JsonlXaiAuditLogStore
 from domain.xai_purchase.schemas import PurchaseXaiEvaluationRequest
-from domain.xai_purchase.service import evaluate_pr_purchase_xai
+from domain.xai_purchase.service import (
+    _counterfactual_target_decision,
+    evaluate_pr_purchase_xai,
+)
 
 
 def _request() -> PurchaseXaiEvaluationRequest:
@@ -235,6 +238,26 @@ class XaiPurchaseServiceTest(unittest.TestCase):
             self.assertIn("req-1", saved)
             self.assertIn("NO_PRICE_HISTORY", saved)
             self.assertIn("REVIEW", saved)
+
+    def test_counterfactual_target_decision_respects_wait_action(self) -> None:
+        target = _counterfactual_target_decision(
+            current_decision="REVIEW",
+            counterfactual={
+                "action": "wait_for_better_price",
+                "suggested_change": 0,
+            },
+        )
+        self.assertEqual(target, "WAIT")
+
+    def test_counterfactual_target_decision_keeps_review_when_no_change(self) -> None:
+        target = _counterfactual_target_decision(
+            current_decision="REVIEW",
+            counterfactual={
+                "action": "increase",
+                "suggested_change": 0,
+            },
+        )
+        self.assertEqual(target, "REVIEW")
 
 
 if __name__ == "__main__":

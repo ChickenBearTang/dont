@@ -111,9 +111,34 @@ class XaiDiceKoreanMessagesTest(unittest.TestCase):
         )
 
         self.assertEqual(len(stabilized), 1)
-        self.assertEqual(stabilized[0]["suggested_change"], 250_000)
-        self.assertEqual(stabilized[0]["threshold"], 350_000.0)
-        self.assertEqual(stabilized[0]["stabilized_by"], "savebox_avg30d_rule_v1")
+        self.assertEqual(stabilized[0]["variable"], "emergency_buffer")
+        self.assertEqual(stabilized[0]["action"], "increase")
+        self.assertEqual(stabilized[0]["suggested_change"], 550_000)
+        self.assertEqual(stabilized[0]["threshold"], 650_000.0)
+        self.assertEqual(stabilized[0]["stabilized_by"], "savebox_avg30d_rule_v2")
+
+    def test_emergency_suggestion_is_injected_when_missing(self) -> None:
+        stabilized = ExplainabilityAnalyzer._stabilize_counterfactual_suggestions(
+            [
+                {
+                    "type": "dice",
+                    "variable": "available_budget",
+                    "action": "increase",
+                    "suggested_change": 215123,
+                    "threshold": 800000,
+                }
+            ],
+            price_value=50_000,
+            monthly_spending_30d=600_000,
+            savebox_balance=100_000,
+            window_stats={"30d": {"avg_price": 40_000}},
+        )
+
+        self.assertGreaterEqual(len(stabilized), 1)
+        self.assertEqual(stabilized[0]["variable"], "emergency_buffer")
+        self.assertEqual(stabilized[0]["suggested_change"], 550_000)
+        self.assertEqual(stabilized[1]["variable"], "available_budget")
+        self.assertEqual(stabilized[1]["suggested_change"], 220_000)
 
 
 if __name__ == "__main__":

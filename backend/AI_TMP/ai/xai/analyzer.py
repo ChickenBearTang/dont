@@ -164,7 +164,7 @@ class ExplainabilityAnalyzer:
                         price_int=price_value,
                         monthly_spending_30d=monthly_spending_30d,
                         emergency_fund_balance=savebox_balance,
-                        current_balance=current_balance,
+                        current_balance=savebox_balance,
                         days_until_card_due=days_until_card_due,
                         expected_card_payment_amount=expected_card_payment_amount,
                     )
@@ -337,29 +337,85 @@ class ExplainabilityAnalyzer:
             if isinstance(avg_price_raw, (int, float)) and float(avg_price_raw) > 0
             else 0.0
         )
-        monthly_buffer_target = max(float(monthly_spending_30d) * 0.5, 0.0)
-        market_buffer_target = max(avg_price_30d * 3.0, 0.0)
-        target_after_purchase = max(monthly_buffer_target, market_buffer_target)
+        # Keep recommendation amount stable across repeated calls:
+        # when 30d average exists, anchor target only to avg price + savebox context.
+        if avg_price_30d > 0:
+            target_after_purchase = max(avg_price_30d * 15.0, 0.0)
+        else:
+            target_after_purchase = max(float(monthly_spending_30d) * 0.5, 0.0)
         projected_after_purchase = float(savebox_balance) - float(price_value or 0)
+        stable_required_delta_raw = max(target_after_purchase - projected_after_purchase, 0.0)
         stable_required_delta = int(
-            max(target_after_purchase - projected_after_purchase, 0.0)
+            round(stable_required_delta_raw / 10_000.0) * 10_000
         )
+        stable_required_delta = max(stable_required_delta, 0)
         stable_threshold = float(max(float(savebox_balance) + stable_required_delta, 0.0))
 
         normalized: list[dict[str, Any]] = []
+        emergency_template: dict[str, Any] | None = None
         for counterfactual in counterfactuals:
             if not isinstance(counterfactual, dict):
                 continue
             item = dict(counterfactual)
+            raw_change = item.get("suggested_change", 0)
+            try:
+                quantized_change = int(round(max(float(raw_change), 0.0) / 10_000.0) * 10_000)
+            except (TypeError, ValueError):
+                quantized_change = 0
+            item["suggested_change"] = quantized_change
             if (
                 str(item.get("variable", "")) == "emergency_buffer"
                 and str(item.get("action", "")) == "increase"
             ):
-                item["suggested_change"] = stable_required_delta
-                item["threshold"] = stable_threshold
-                item["stabilized_by"] = "savebox_avg30d_rule_v1"
+                emergency_template = item if emergency_template is None else emergency_template
+                continue
             normalized.append(item)
-        return normalized
+
+        if stable_required_delta > 0:
+            emergency_item = (
+                dict(emergency_template)
+                if emergency_template is not None
+                else {
+                    "type": "dice",
+                    "variable": "emergency_buffer",
+                    "action": "increase",
+                }
+            )
+            emergency_item["suggested_change"] = stable_required_delta
+            emergency_item["threshold"] = stable_threshold
+            emergency_item["stabilized_by"] = "savebox_avg30d_rule_v2"
+            normalized.append(emergency_item)
+
+        def _priority(item: dict[str, Any]) -> tuple[int, int, str, str]:
+            variable = str(item.get("variable", ""))
+            action = str(item.get("action", ""))
+            if variable == "emergency_buffer" and action == "increase":
+                base = 0
+            elif variable == "available_budget" and action == "increase":
+                base = 1
+            elif variable == "current_effective_price" and action == "decrease":
+                base = 2
+            else:
+                base = 9
+            try:
+                delta = max(int(float(item.get("suggested_change", 0))), 0)
+            except (TypeError, ValueError):
+                delta = 0
+            return (base, delta, variable, action)
+
+        normalized.sort(key=_priority)
+        if len(normalized) == 0:
+            return [
+                {
+                    "type": "dice",
+                    "variable": "current_effective_price",
+                    "action": "wait_for_better_price",
+                    "suggested_change": 0,
+                    "threshold": float(price_value or 0),
+                    "stabilized_by": "savebox_avg30d_rule_v2",
+                }
+            ]
+        return normalized[:3]
 
     @staticmethod
     def _korean_counterfactual_message(counterfactual: dict[str, Any]) -> str:

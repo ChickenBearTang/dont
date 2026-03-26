@@ -398,6 +398,35 @@ def _price_status(current_price: int | None, avg_price: float | None) -> str:
     return "neutral"
 
 
+def _safe_non_negative_int(value: Any, default: int = 0) -> int:
+    try:
+        return max(int(float(value)), 0)
+    except (TypeError, ValueError):
+        return int(default)
+
+
+def _counterfactual_target_decision(
+    *, current_decision: str, counterfactual: dict[str, Any]
+) -> str:
+    action = str(counterfactual.get("action", ""))
+    change = _safe_non_negative_int(counterfactual.get("suggested_change", 0))
+    normalized_current = (
+        current_decision
+        if current_decision in {"BUY_NOW", "WAIT", "REVIEW", "NOT_RECOMMENDED"}
+        else "REVIEW"
+    )
+
+    if action == "wait_for_better_price":
+        return "WAIT"
+    if change <= 0:
+        return normalized_current
+    if normalized_current in {"WAIT", "REVIEW"}:
+        return "BUY_NOW"
+    if normalized_current == "NOT_RECOMMENDED":
+        return "REVIEW"
+    return normalized_current
+
+
 def evaluate_pr_purchase_xai(
     request: PurchaseXaiEvaluationRequest,
 ) -> PurchaseXaiEvaluationResponse:
@@ -599,10 +628,9 @@ def evaluate_pr_purchase_xai(
         counterfactuals=[
             Counterfactual(
                 label=str(counterfactual.get("message", "대체 조건을 확인하세요.")),
-                targetDecision=(
-                    "BUY_NOW"
-                    if str(item.get("decision", "REVIEW")) != "BUY_NOW"
-                    else "WAIT"
+                targetDecision=_counterfactual_target_decision(
+                    current_decision=str(item.get("decision", "REVIEW")),
+                    counterfactual=counterfactual,
                 ),
                 validated=str(counterfactual.get("type", "")) == "dice",
             )
