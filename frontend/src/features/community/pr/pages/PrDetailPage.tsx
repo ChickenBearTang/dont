@@ -35,6 +35,14 @@ const formatAbsoluteDate = (value: string): string =>
 
 const normalizePrStatus = (status: string): string => status.trim().toUpperCase();
 
+const getStatusLabelWithEmoji = (status: string): string => {
+  const normalized = normalizePrStatus(status);
+  if (normalized === 'OPEN') return '📂 OPEN';
+  if (normalized === 'MERGED') return '✔️ MERGED';
+  if (normalized === 'CLOSED') return '🚫 CLOSED';
+  return normalized;
+};
+
 const getStatusBadgeClass = (status: string): string => {
   const normalizedStatus = normalizePrStatus(status);
 
@@ -501,7 +509,7 @@ export const PrDetailPage = () => {
               <span
                 className={`rounded-full border px-4 py-1 text-xs font-bold uppercase tracking-wider ${getStatusBadgeClass(detail.status)} shadow-sm`}
               >
-                {normalizePrStatus(detail.status)}
+                {getStatusLabelWithEmoji(detail.status)}
               </span>
               <span className="text-xs font-bold text-text-subtle tracking-tight bg-surface-soft px-2.5 py-1 rounded-lg">PR #{detail.postId}</span>
             </div>
@@ -682,7 +690,7 @@ export const PrDetailPage = () => {
                 현재 종료된 요청구루 🐾
               </h3>
               <p className="mt-3 text-lg font-bold text-text-muted">
-                최종 결과: <span className="text-accent uppercase">{detail.status}</span>
+                최종 결과: <span className="text-accent uppercase">{getStatusLabelWithEmoji(detail.status)}</span>
               </p>
             </div>
           </Card>

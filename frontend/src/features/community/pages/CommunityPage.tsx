@@ -84,6 +84,14 @@ const getCategoryDot = (category: BoardCategory | undefined) => {
 
 const normalizePrStatus = (status: string | undefined) => status?.trim().toUpperCase() ?? 'OPEN';
 
+const getStatusLabelWithEmoji = (status: string | undefined): string => {
+  const normalized = normalizePrStatus(status);
+  if (normalized === 'OPEN') return '📂 OPEN';
+  if (normalized === 'MERGED') return '✔️ MERGED';
+  if (normalized === 'CLOSED') return '🚫 CLOSED';
+  return normalized;
+};
+
 const getPrStatusTone = (status: string | undefined) => {
   const normalizedStatus = normalizePrStatus(status);
 
@@ -489,7 +497,7 @@ const PrBoardList = ({
                   : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
                 }`}
             >
-              {status}
+              {getStatusLabelWithEmoji(status)}
             </button>
           );
         })}
@@ -520,7 +528,7 @@ const PrBoardList = ({
                           pr?.resultStatus ?? pr?.status
                         )}`}
                       >
-                        {normalizePrStatus(pr?.resultStatus ?? pr?.status)}
+                        {getStatusLabelWithEmoji(pr?.resultStatus ?? pr?.status)}
                       </span>
                     </div>
                     <div>
