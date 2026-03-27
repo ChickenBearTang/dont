@@ -109,5 +109,22 @@ export interface CardRecommendationResponse {
   best_card: CardResult;
   all_cards: CardResult[];
   total_spend: number;
-  type_spend_stats?: Record<string, number>;
+}
+
+export interface CohortComparisonData {
+  cohort: number;
+  avg_save_box: number;
+  avg_food: number;
+  avg_cafe: number;
+  avg_culture: number;
+  avg_market: number;
+  avg_medical: number;
+}
+
+export interface CohortComparisonResponse {
+  success: boolean;
+  code: string;
+  message: string;
+  data: CohortComparisonData;
+  timestamp: string;
 }

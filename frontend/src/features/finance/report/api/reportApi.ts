@@ -1,5 +1,10 @@
 import axiosInstance from '@/shared/api/axiosInstance';
-import type { SpendingSummaryResponse, AiReportResponse, CardRecommendationResponse } from '../types';
+import type {
+  SpendingSummaryResponse,
+  AiReportResponse,
+  CardRecommendationResponse,
+  CohortComparisonResponse,
+} from '../types';
 
 export const getSpendingSummary = async (
   startDate: string,
@@ -8,14 +13,14 @@ export const getSpendingSummary = async (
 ): Promise<SpendingSummaryResponse> => {
   return await axiosInstance.get('/fin/cards/spending-summary', {
     params: { startDate, endDate, includeAi },
-    timeout: 30000, // 30 seconds
+    timeout: 120000, // 2 minutes
   });
 };
 
 export const getMonthlyAiReport = async (reportMonth: string): Promise<AiReportResponse> => {
   return await axiosInstance.get('/fin/consumption/reports/monthly', {
     params: { reportMonth },
-    timeout: 30000, // 30 seconds
+    timeout: 120000, // 2 minutes
   });
 };
 
@@ -23,7 +28,7 @@ export const generateMonthlyAiReport = async (reportMonth: string): Promise<AiRe
   return await axiosInstance.post(
     '/fin/consumption/reports/monthly',
     { reportMonth },
-    { timeout: 30000 } // 30 seconds
+    { timeout: 120000 } // 2 minutes
   );
 };
 
@@ -37,7 +42,7 @@ export const sendAiJustification = async (
       targetMonth,
       message,
     },
-    { timeout: 30000 }
+    { timeout: 120000 } // 2 minutes
   );
 };
 
@@ -47,13 +52,20 @@ export const regenerateAiReport = async (reportMonth: string): Promise<AiReportR
     {
       reportMonth,
     },
-    { timeout: 30000 }
+    { timeout: 120000 } // 2 minutes
   );
 };
 
 export const getCardRecommendation = async (month: string): Promise<CardRecommendationResponse> => {
   const res: any = await axiosInstance.get('/fin/cards/recommend', {
     params: { month },
+    timeout: 120000,
   });
   return res?.data ?? res;
+};
+
+export const getConsumptionCompare = async (): Promise<CohortComparisonResponse> => {
+  return await axiosInstance.get('/fin/consumption/reports/compare', {
+    timeout: 120000,
+  });
 };

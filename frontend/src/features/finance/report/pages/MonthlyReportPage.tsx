@@ -7,6 +7,7 @@ import {
   sendAiJustification,
   regenerateAiReport,
   getCardRecommendation,
+  getConsumptionCompare,
 } from '../api/reportApi';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type {
@@ -14,6 +15,7 @@ import type {
   SpendingSummaryRank,
   AiReportPayload,
   CardRecommendationResponse,
+  CohortComparisonData,
 } from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import mascotAnalyze from '@/assets/character/mascot_analyze.png';
@@ -106,6 +108,128 @@ const DonutChart = ({ data }: { data: SpendingSummaryRank[] }) => {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         <span className="text-[13px] font-bold text-gray-400">이달의 지출</span>
+      </div>
+    </div>
+  );
+};
+
+const CohortComparisonCard = ({
+  summary,
+  comparison,
+  loading,
+}: {
+  summary: SpendingSummaryResponse | null;
+  comparison: CohortComparisonData | null;
+  loading: boolean;
+}) => {
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-center min-h-[120px]">
+        <div className="w-7 h-7 border-4 border-gray-100 border-t-indigo-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!comparison) {
+    return (
+      <div className="bg-white rounded-2xl p-5 border border-indigo-100 shadow-sm transition-shadow hover:shadow-md ring-1 ring-indigo-50 text-center text-gray-500 font-bold text-[14px]">
+        동기들의 지출 데이터를 불러올 수 없습니다.
+      </div>
+    );
+  }
+
+  const getMyCategoryAmount = (label: string) => {
+    return summary?.rankColumList?.find((r) => r.categoryName === label)?.amount || 0;
+  };
+
+  const compareList = [
+    { label: '식사/음식', myAmount: getMyCategoryAmount('식사/음식'), avgAmount: comparison.avg_food },
+    { label: '카페/디저트', myAmount: getMyCategoryAmount('카페/디저트'), avgAmount: comparison.avg_cafe },
+    { label: '문화/여가', myAmount: getMyCategoryAmount('문화/여가'), avgAmount: comparison.avg_culture },
+    { label: '편의점/마트', myAmount: getMyCategoryAmount('편의점/마트'), avgAmount: comparison.avg_market },
+    { label: '의료/건강', myAmount: getMyCategoryAmount('의료/건강'), avgAmount: comparison.avg_medical },
+    { label: '세이브박스', myAmount: getMyCategoryAmount('세이브박스'), avgAmount: comparison.avg_save_box },
+  ].filter(item => item.myAmount > 0 || item.avgAmount > 0);
+
+  if (compareList.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl p-5 border border-indigo-100 shadow-sm transition-shadow hover:shadow-md ring-1 ring-indigo-50 text-center text-gray-500 font-bold text-[14px]">
+        앗! 나와 동기들의 비교할 지출 데이터가 아직 부족해요.
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-indigo-100 shadow-sm transition-shadow hover:shadow-md ring-1 ring-indigo-50">
+      <h3 className="text-[15px] font-extrabold text-indigo-700 mb-5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🔥</span>
+          <span>나와 비슷한 {comparison.cohort}기 평균 지출액 비교</span>
+        </div>
+      </h3>
+
+      <div className="flex flex-col gap-6">
+        {compareList.map((item, idx) => {
+          const maxAmount = Math.max(item.myAmount, item.avgAmount, 1);
+          const myRatio = Math.round((item.myAmount / maxAmount) * 100);
+          const avgRatio = Math.round((item.avgAmount / maxAmount) * 100);
+
+          let diffElem = <span className="text-gray-500 font-bold">비슷하게</span>;
+          if (item.myAmount > item.avgAmount) {
+            const extra = item.avgAmount > 0 
+              ? `${Math.round(((item.myAmount - item.avgAmount) / item.avgAmount) * 100)}% 더 많이`
+              : '더 많이';
+            diffElem = <span className="text-rose-500 font-bold">{extra}</span>;
+          } else if (item.myAmount < item.avgAmount) {
+            const less = item.avgAmount > 0
+              ? Math.round(((item.avgAmount - item.myAmount) / item.avgAmount) * 100)
+              : 0;
+            diffElem = <span className="text-blue-500 font-bold">{less}% 덜</span>;
+          }
+
+          return (
+            <div key={idx} className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-end mb-1">
+                <span className="text-[14px] font-bold text-gray-800">{item.label}</span>
+                <span className="text-[12px] font-medium text-gray-400">
+                  동기들보다 {diffElem} 썼어요!
+                </span>
+              </div>
+
+              <div className="relative flex flex-col gap-2">
+                <div className="flex items-center w-full h-4">
+                  <div className="w-12 text-right text-[11px] text-blue-600 font-bold shrink-0 pr-2 leading-none">
+                    나
+                  </div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-full overflow-hidden relative">
+                    <div
+                      className="absolute top-0 left-0 h-full bg-blue-500 rounded-full transition-all duration-1000"
+                      style={{ width: `${myRatio}%` }}
+                    />
+                  </div>
+                  <div className="w-[72px] text-right text-[12px] font-bold text-gray-700 shrink-0 leading-none pl-2 truncate">
+                    {item.myAmount.toLocaleString()}원
+                  </div>
+                </div>
+
+                <div className="flex items-center w-full h-4">
+                  <div className="w-12 text-right text-[11px] text-indigo-500 font-bold shrink-0 pr-2 leading-none">
+                    {comparison.cohort}기
+                  </div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-full overflow-hidden relative">
+                    <div
+                      className="absolute top-0 left-0 h-full bg-indigo-400 rounded-full transition-all duration-1000"
+                      style={{ width: `${avgRatio}%` }}
+                    />
+                  </div>
+                  <div className="w-[72px] text-right text-[12px] font-bold text-gray-500 shrink-0 leading-none pl-2 truncate">
+                    {item.avgAmount.toLocaleString()}원
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -434,8 +558,8 @@ const ReportChatbot = ({
       <div className="fixed bottom-8 right-8 flex flex-col items-end z-50 pointer-events-none">
         <div
           className={`mb-2 mr-2 flex flex-col items-end transition-all duration-500 ease-out z-50 ${isHovered
-              ? 'opacity-100 translate-y-0 scale-100'
-              : 'opacity-0 translate-y-4 scale-90 pointer-events-none'
+            ? 'opacity-100 translate-y-0 scale-100'
+            : 'opacity-0 translate-y-4 scale-90 pointer-events-none'
             }`}
         >
           <div className="bg-white px-4 py-2.5 rounded-2xl shadow-xl border border-gray-100 text-[13px] font-black text-eel mb-2 relative pointer-events-auto">
@@ -496,8 +620,8 @@ const ReportChatbot = ({
           <div
             key={idx}
             className={`max-w-[85%] rounded-2xl p-3 text-[14px] leading-relaxed shadow-sm ${m.sender === 'user'
-                ? 'bg-blue-600 text-white self-end rounded-tr-sm'
-                : 'bg-white text-gray-800 self-start rounded-tl-sm border border-gray-100'
+              ? 'bg-blue-600 text-white self-end rounded-tr-sm'
+              : 'bg-white text-gray-800 self-start rounded-tl-sm border border-gray-100'
               }`}
           >
             {m.text}
@@ -584,6 +708,9 @@ export const MonthlyReportPage = () => {
   const [summary, setSummary] = useState<SpendingSummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
 
+  const [cohortComparison, setCohortComparison] = useState<CohortComparisonData | null>(null);
+  const [cohortComparisonLoading, setCohortComparisonLoading] = useState(false);
+
   const [aiAnalysis, setAiAnalysis] = useState<AiReportPayload['aiAnalysis'] | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -638,7 +765,7 @@ export const MonthlyReportPage = () => {
     );
   })();
 
-    const handleGenerateReport = async () => {
+  const handleGenerateReport = async () => {
     try {
       setGenerating(true);
       const reportMonth = formatToYYYYMM(currentDate);
@@ -757,8 +884,31 @@ export const MonthlyReportPage = () => {
       }
     };
 
+    const fetchCohortComparison = async () => {
+      const currentMonth = formatToYYYYMM(new Date());
+      const reportMonth = formatToYYYYMM(currentDate);
+
+      if (reportMonth !== currentMonth) {
+        setCohortComparison(null);
+        setCohortComparisonLoading(false);
+        return;
+      }
+
+      try {
+        setCohortComparisonLoading(true);
+        const res = await getConsumptionCompare();
+        setCohortComparison(res.data ?? null);
+      } catch (err) {
+        console.error('Failed to fetch cohort comparison:', err);
+        setCohortComparison(null);
+      } finally {
+        setCohortComparisonLoading(false);
+      }
+    };
+
     fetchSummary();
     fetchAiReport();
+    fetchCohortComparison();
   }, [currentDate]);
 
   const handlePrevMonth = () => {
@@ -936,18 +1086,28 @@ export const MonthlyReportPage = () => {
           </div>
         </div>
 
-        <AIAnalysisCard
-          analysis={aiAnalysis}
-          cardRecommendation={cardRecommendation}
-          cardRecommendLoading={cardRecommendLoading}
-          loading={aiLoading}
-          isCurrentMonth={isCurrentMonth}
-          generating={generating}
-          onGenerate={handleGenerateReport}
-          onNavigateToRecommend={() =>
-            navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`)
-          }
-        />
+        <div className="flex flex-col gap-6 w-full">
+          {isCurrentMonth && (
+            <CohortComparisonCard
+              summary={summary}
+              comparison={cohortComparison}
+              loading={cohortComparisonLoading}
+            />
+          )}
+
+          <AIAnalysisCard
+            analysis={aiAnalysis}
+            cardRecommendation={cardRecommendation}
+            cardRecommendLoading={cardRecommendLoading}
+            loading={aiLoading}
+            isCurrentMonth={isCurrentMonth}
+            generating={generating}
+            onGenerate={handleGenerateReport}
+            onNavigateToRecommend={() =>
+              navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`)
+            }
+          />
+        </div>
       </div>
 
       {isLastMonth && aiAnalysis && (
