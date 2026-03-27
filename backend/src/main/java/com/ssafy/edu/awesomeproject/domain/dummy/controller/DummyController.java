@@ -3,9 +3,11 @@ package com.ssafy.edu.awesomeproject.domain.dummy.controller;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.request.DummyCreateAccountsRequest;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.request.DummyCreateCardRequest;
+import com.ssafy.edu.awesomeproject.domain.dummy.dto.request.DummyCreateCardTransactionsRequest;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.request.DummyCreateUserRequest;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateAccountsResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateCardResponse;
+import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateCardTransactionsResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateUserResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.service.DummyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -68,5 +70,20 @@ public class DummyController {
     public CommonResponse<DummyCreateCardResponse> createCard(
             @Valid @RequestBody DummyCreateCardRequest request) {
         return CommonResponse.success(dummyService.createDummyCard(request.userId()));
+    }
+
+    @PostMapping("/create_card_transactions")
+    @Operation(
+            summary = "더미 카드 결제내역 생성 API",
+            description = "userId를 입력받아 올해 1월~3월(27일) 카테고리별 더미 결제내역을 생성합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "카드를 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "데이터 생성 실패")
+    })
+    public CommonResponse<DummyCreateCardTransactionsResponse> createCardTransactions(
+            @Valid @RequestBody DummyCreateCardTransactionsRequest request) {
+        return CommonResponse.success(dummyService.createDummyCardTransactions(request.userId()));
     }
 }

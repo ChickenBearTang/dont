@@ -15,6 +15,7 @@ import com.ssafy.edu.awesomeproject.domain.dummy.client.dto.request.FinanceMembe
 import com.ssafy.edu.awesomeproject.domain.dummy.client.dto.response.FinanceMemberSearchResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateAccountsResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateCardResponse;
+import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateCardTransactionsResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateUserResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
@@ -25,6 +26,10 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.SavingsSetti
 import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountErrorCode;
 import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountException;
 import com.ssafy.edu.awesomeproject.domain.fin.account.service.AccountService;
+import com.ssafy.edu.awesomeproject.domain.fin.card.entity.Card;
+import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
+import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankAdapter;
@@ -33,8 +38,15 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +75,8 @@ public class DummyService {
     private final DummyCardClient dummyCardClient;
     private final AccountService accountService;
     private final CardService cardService;
+    private final CardRepository cardRepository;
+    private final CardTransactionRepository cardTransactionRepository;
     private final OpenBankAdapter openBankAdapter;
 
     @Value("${ssafy.api.key}")
@@ -198,6 +212,66 @@ public class DummyService {
                 userId, DUMMY_CARD_UNIQUE_NO, withdrawalAccountNo, refreshedCardCount);
     }
 
+    public DummyCreateCardTransactionsResponse createDummyCardTransactions(Long userId) {
+        Card card =
+                cardRepository.findAllByUser_Id(userId).stream()
+                        .max(Comparator.comparing(Card::getId))
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
+
+        LocalDate startDate = LocalDate.of(LocalDate.now().getYear(), 1, 1);
+        LocalDate endDate = resolveEndDate(LocalDate.now().getYear());
+
+        List<CardTransaction> existing =
+                cardTransactionRepository
+                        .findByCardIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
+                                card.getId(), startDate, endDate);
+        if (!existing.isEmpty()) {
+            cardTransactionRepository.deleteAll(existing);
+        }
+
+        List<CardTransaction> toInsert = new ArrayList<>();
+        long totalAmount = 0L;
+
+        for (Map.Entry<YearMonth, Map<String, Long>> monthly :
+                buildMonthlyCategoryTemplate(startDate.getYear()).entrySet()) {
+            YearMonth yearMonth = monthly.getKey();
+            Map<String, Long> categoryBaseAmounts = monthly.getValue();
+            LocalDate monthEnd = resolveMonthEnd(yearMonth);
+
+            for (Map.Entry<String, Long> categoryEntry : categoryBaseAmounts.entrySet()) {
+                String category = categoryEntry.getKey();
+                long randomizedAmount = randomizeAmount(categoryEntry.getValue());
+                LocalDate transactionDate = randomDateWithin(yearMonth.atDay(1), monthEnd);
+
+                CardTransaction transaction =
+                        CardTransaction.builder()
+                                .card(card)
+                                .userId(userId)
+                                .transactionDate(transactionDate)
+                                .transactionTime(randomTime())
+                                .merchantName(category + " 더미가맹점")
+                                .categoryName(category)
+                                .transactionAmount(randomizedAmount)
+                                .transactionType("PAYMENT")
+                                .approvalNo(randomApprovalNo())
+                                .description("dummy monthly aggregate")
+                                .build();
+                toInsert.add(transaction);
+                totalAmount += randomizedAmount;
+            }
+        }
+
+        cardTransactionRepository.saveAll(toInsert);
+
+        return new DummyCreateCardTransactionsResponse(
+                userId,
+                card.getId(),
+                startDate.toString(),
+                endDate.toString(),
+                toInsert.size(),
+                totalAmount);
+    }
+
     private int findNextDummySequence(Integer generationNo) {
         int sequence = 1;
         while (userRepository.existsByEmail(buildEmail(generationNo, sequence))) {
@@ -312,5 +386,76 @@ public class DummyService {
         if (!"201".equals(responseCode) && !"H0000".equals(responseCode)) {
             throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR);
         }
+    }
+
+    private Map<YearMonth, Map<String, Long>> buildMonthlyCategoryTemplate(int year) {
+        Map<YearMonth, Map<String, Long>> template = new LinkedHashMap<>();
+
+        template.put(
+                YearMonth.of(year, 1),
+                Map.of(
+                        "식사/음식", 130_000L,
+                        "카페/디저트", 70_000L,
+                        "편의점/마트", 120_000L,
+                        "문화/여가", 90_000L,
+                        "의료/건강", 60_000L));
+        template.put(
+                YearMonth.of(year, 2),
+                Map.of(
+                        "식사/음식", 115_000L,
+                        "카페/디저트", 65_000L,
+                        "편의점/마트", 80_000L,
+                        "문화/여가", 85_000L,
+                        "의료/건강", 55_000L));
+        template.put(
+                YearMonth.of(year, 3),
+                Map.of(
+                        "식사/음식", 120_000L,
+                        "카페/디저트", 60_000L,
+                        "편의점/마트", 90_000L,
+                        "문화/여가", 75_000L,
+                        "의료/건강", 50_000L));
+        return template;
+    }
+
+    private LocalDate resolveEndDate(int year) {
+        LocalDate march27 = LocalDate.of(year, 3, 27);
+        LocalDate now = LocalDate.now();
+        return now.isBefore(march27) ? now : march27;
+    }
+
+    private LocalDate resolveMonthEnd(YearMonth yearMonth) {
+        LocalDate endDate = resolveEndDate(yearMonth.getYear());
+        LocalDate monthEnd = yearMonth.atEndOfMonth();
+        return endDate.isBefore(monthEnd) && endDate.getMonthValue() == yearMonth.getMonthValue()
+                ? endDate
+                : monthEnd;
+    }
+
+    private long randomizeAmount(long baseAmount) {
+        double multiplier = ThreadLocalRandom.current().nextDouble(0.85, 1.16);
+        long raw = Math.round(baseAmount * multiplier);
+        return Math.max(5_000L, (raw / 100L) * 100L);
+    }
+
+    private LocalDate randomDateWithin(LocalDate start, LocalDate end) {
+        if (end.isBefore(start)) {
+            return start;
+        }
+        long daySpan = end.toEpochDay() - start.toEpochDay();
+        long offset = ThreadLocalRandom.current().nextLong(daySpan + 1);
+        return start.plusDays(offset);
+    }
+
+    private String randomTime() {
+        int hour = ThreadLocalRandom.current().nextInt(8, 23);
+        int minute = ThreadLocalRandom.current().nextInt(0, 60);
+        int second = ThreadLocalRandom.current().nextInt(0, 60);
+        return String.format("%02d%02d%02d", hour, minute, second);
+    }
+
+    private String randomApprovalNo() {
+        int number = ThreadLocalRandom.current().nextInt(100000, 1000000);
+        return "APP" + number;
     }
 }
