@@ -8,9 +8,13 @@ import com.ssafy.edu.awesomeproject.domain.auth.token.EmailVerificationStore;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.repository.CohortRepository;
 import com.ssafy.edu.awesomeproject.domain.dummy.client.FinanceMemberClient;
+import com.ssafy.edu.awesomeproject.domain.dummy.client.DummyCardClient;
+import com.ssafy.edu.awesomeproject.domain.dummy.client.dto.request.DummyCreateCreditCardRequest;
+import com.ssafy.edu.awesomeproject.domain.dummy.client.dto.response.DummyCreateCreditCardResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.client.dto.request.FinanceMemberCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.dummy.client.dto.response.FinanceMemberSearchResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateAccountsResponse;
+import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateCardResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateUserResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
@@ -21,11 +25,17 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.SavingsSetti
 import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountErrorCode;
 import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountException;
 import com.ssafy.edu.awesomeproject.domain.fin.account.service.AccountService;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankAdapter;
+import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankReqHeader;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +50,8 @@ public class DummyService {
     private static final String DUMMY_EMAIL_DOMAIN = "@ssafy.com";
     private static final String SAVE_BOX_ACCOUNT_TYPE_UNIQUE_NO = "999-1-792bcf290d6a48";
     private static final String PRIMARY_ACCOUNT_TYPE_UNIQUE_NO = "088-1-eacd56391e8e4a";
+    private static final String DUMMY_CARD_UNIQUE_NO = "1009-b3f6f6e4f97c404";
+    private static final String DUMMY_CARD_WITHDRAWAL_DATE = "1";
     private static final String DUMMY_SAVINGS_KEYWORD = "dummy";
     private static final BigDecimal DUMMY_SAVINGS_AMOUNT = BigDecimal.valueOf(10000);
 
@@ -48,7 +60,9 @@ public class DummyService {
     private final UserRepository userRepository;
     private final EmailVerificationStore emailVerificationStore;
     private final FinanceMemberClient financeMemberClient;
+    private final DummyCardClient dummyCardClient;
     private final AccountService accountService;
+    private final CardService cardService;
     private final OpenBankAdapter openBankAdapter;
 
     @Value("${ssafy.api.key}")
@@ -150,6 +164,40 @@ public class DummyService {
                 savingsSetting.id());
     }
 
+    public DummyCreateCardResponse createDummyCard(Long userId) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
+        String userKey = user.getSsafyFinanceUserKey();
+        if (userKey == null || userKey.isBlank()) {
+            throw new AccountException(AccountErrorCode.FINANCE_USER_KEY_NOT_FOUND);
+        }
+
+        String withdrawalAccountNo =
+                accountService.getAccountList(userId).accounts().stream()
+                        .filter(account -> Boolean.TRUE.equals(account.isPrimary()))
+                        .map(AccountListResponse.AccountDetail::accountNo)
+                        .findFirst()
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.PRIMARY_ACCOUNT_NOT_FOUND));
+
+        DummyCreateCreditCardResponse createCardResponse =
+                dummyCardClient.createCreditCard(
+                        DummyCreateCreditCardRequest.builder()
+                                .header(createCreditCardHeader(userKey))
+                                .cardUniqueNo(DUMMY_CARD_UNIQUE_NO)
+                                .withdrawalAccountNo(withdrawalAccountNo)
+                                .withdrawalDate(DUMMY_CARD_WITHDRAWAL_DATE)
+                                .build());
+        validateCreateCardResponse(createCardResponse);
+
+        CardListResponse refreshed = cardService.refreshCardList(userId);
+        int refreshedCardCount = refreshed.getCards() == null ? 0 : refreshed.getCards().size();
+
+        return new DummyCreateCardResponse(
+                userId, DUMMY_CARD_UNIQUE_NO, withdrawalAccountNo, refreshedCardCount);
+    }
+
     private int findNextDummySequence(Integer generationNo) {
         int sequence = 1;
         while (userRepository.existsByEmail(buildEmail(generationNo, sequence))) {
@@ -225,6 +273,38 @@ public class DummyService {
 
     private void validateCreateAccountResponse(OpenBankCreateAccountResponse response) {
         if (response == null || response.getHeader() == null || response.getRec() == null) {
+            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR);
+        }
+
+        String responseCode = response.getHeader().getResponseCode();
+        if (!"201".equals(responseCode) && !"H0000".equals(responseCode)) {
+            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR);
+        }
+    }
+
+    private OpenBankReqHeader createCreditCardHeader(String userKey) {
+        LocalDateTime now = LocalDateTime.now();
+        return OpenBankReqHeader.builder()
+                .apiName("createCreditCard")
+                .transmissionDate(now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
+                .institutionCode("00100")
+                .fintechAppNo("001")
+                .apiServiceCode("createCreditCard")
+                .institutionTransactionUniqueNo(generateUniqueNo(now))
+                .apiKey(ssafyApiKey)
+                .userKey(userKey)
+                .build();
+    }
+
+    private String generateUniqueNo(LocalDateTime now) {
+        String timestamp = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        int randomNo = ThreadLocalRandom.current().nextInt(100000, 1000000);
+        return timestamp + randomNo;
+    }
+
+    private void validateCreateCardResponse(DummyCreateCreditCardResponse response) {
+        if (response == null || response.getHeader() == null) {
             throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR);
         }
 
