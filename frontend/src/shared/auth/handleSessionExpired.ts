@@ -9,7 +9,7 @@ export const handleSessionExpired = () => {
   if (now - lastSessionExpiredToastAt > SESSION_EXPIRED_TOAST_INTERVAL_MS) {
     useUIStore
       .getState()
-      .addToast('Session expired. Please log in again.', 'error');
+      .addToast('세션이 만료되었습니다. 다시 로그인해 주세요.', 'error');
     lastSessionExpiredToastAt = now;
   }
 

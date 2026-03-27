@@ -65,7 +65,8 @@ const STORE_KEYWORDS: Record<string, string[]> = {
   P13: ['영화', 'cgv', '롯데시네마', '메가박스', '전시', '공연', '연극', 'culture'],
 };
 
-const normalize = (value: string) => (value || '').toLowerCase().replace(/\s+/g, '_').replace(/[-/]/g, '_');
+const normalize = (value: string) =>
+  (value || '').toLowerCase().replace(/\s+/g, '_').replace(/[-/]/g, '_');
 
 const amountToNumber = (value: string | number | undefined) => {
   if (typeof value === 'number') return value;
@@ -247,9 +248,7 @@ export const CardRecommendationDetailPage = () => {
   return (
     <div className="w-full max-w-[980px] mx-auto py-8 px-4">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-gray-100">
-          ←
-        </button>
+        <button onClick={() => navigate(-1)} className="p-2 rounded-lg hover:bg-gray-100">←</button>
         <h1 className="text-2xl font-black text-gray-900">추천 카드 상세 근거</h1>
       </div>
 

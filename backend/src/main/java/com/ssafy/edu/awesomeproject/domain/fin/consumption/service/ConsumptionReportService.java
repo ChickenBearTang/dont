@@ -196,9 +196,9 @@ public class ConsumptionReportService {
         notificationService.createNotification(
             userId,
             NotificationType.CONSUMPTION_REPORT_READY,
-            "소비리포트 도착",
+            "소비 리포트 도착",
             String.format(
-                "%s님의 %d년 %d월 소비리포트가 도착했어요! 확인해보세요!",
+                "%s님의 %d년 %d월 소비 리포트가 도착했어요! 확인해보세요!",
                 displayName, year, month),
             NotificationReferenceType.FINANCE,
             referenceMonth);
@@ -323,3 +323,4 @@ public class ConsumptionReportService {
         return value == null ? 0.0 : value.doubleValue();
     }
 }
+
