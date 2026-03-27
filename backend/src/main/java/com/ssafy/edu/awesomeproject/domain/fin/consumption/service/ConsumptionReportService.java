@@ -3,15 +3,9 @@ package com.ssafy.edu.awesomeproject.domain.fin.consumption.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
-import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
-import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
-import com.ssafy.edu.awesomeproject.domain.fin.account.entity.SavingsSetting;
-import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
-import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSettingRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiCardRecommendationDbRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardRecommendationResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
+import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.client.ConsumptionAiClient;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.GenerateMonthlyReportRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.AvgCohort;
@@ -30,13 +24,13 @@ import com.ssafy.edu.awesomeproject.domain.fin.global.client.AiClient;
 import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationReferenceType;
 import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
 import com.ssafy.edu.awesomeproject.domain.notification.service.NotificationService;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.*;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -51,9 +45,7 @@ public class ConsumptionReportService {
     private final FinConsumptionMonthlyReportRepository monthlyReportRepository;
     private final FinConsumptionJustificationRepository justificationRepository;
     private final UserRepository userRepository;
-    private final SavingsSettingRepository savingsSettingRepository;
-    private final AccountRepository accountRepository;
-    private final CardService cardService;
+    private final CardTransactionRepository cardTransactionRepository;
 
     private final ConsumptionAiClient consumptionAiClient;
     private final AiClient aiClient;
@@ -289,91 +281,45 @@ public class ConsumptionReportService {
         }
         return objectMapper.convertValue(cardRecommendation, Map.class);
     }
-
-
+    @Transactional(readOnly = true)
     public AvgCohort avgCohort(Long userId) {
-        User user = userRepository.findById(userId).orElse(null);
-        Long cohortsID = user.getCohort().getId();
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () ->
+                                        new ConsumptionException(
+                                                ConsumptionErrorCode.INVALID_PAYLOAD,
+                                                "User not found: " + userId));
 
-
-        //기수에 포함되는 모든 유저의 getcardsummary를 가져와서 또 그것의 평균
-
-        List<User> userList = userRepository.findByCohortId(cohortsID);
-
-
-
-
-        long avgSaveBox = 0;
-        long avgFood = 0;
-        long avgCafe = 0;
-        long avgCulture = 0;
-        long avgMarket = 0;
-        long avgMedical = 0;
-
-        LocalDate today = LocalDate.now();
-        LocalDate firstDayOfMonth = today.withDayOfMonth(1);
-
-        String startDate = firstDayOfMonth.toString(); // "2026-03-01"
-        String endDate = today.toString();             // "2026-03-25"
-
-
-
-        for(User u : userList){
-
-            Long avgSaveBoxId = 0L;
-            CardSummaryResponse cardSummaryResponse =  cardService.getCardSummary(u.getId(),startDate,endDate);
-/*
-            System.out.println(u.getId());
-
-           avgSaveBoxId += savingsSettingRepository.findByUserIdAndIsActiveTrue(u.getId())
-               .get().getSaveboxAccountId();
-
-           System.out.println(avgSaveBoxId);
-           avgSaveBox += accountRepository.getAccountById(avgSaveBoxId)
-               .orElseThrow()
-               .getBalance()
-               .longValue();
-
-            System.out.println(u.getId() + " " + avgSaveBox);
-*/
-            for (CardSummaryResponse.RankColum rank : cardSummaryResponse.getRankColumList()) {
-
-                switch (rank.getCategoryName()){
-                    case "식사/음식":
-                        avgFood += rank.getAmount();
-                        break;
-                    case "카페/디저트":
-                        avgCafe += rank.getAmount();
-                        break;
-                    case "편의점/마트":
-                        avgMarket += rank.getAmount();
-                        break;
-                    case "문화/여가":
-                        avgCulture += rank.getAmount();
-                        break;
-                    case "의료/건강":
-                        avgMedical += rank.getAmount();
-                        break;
-                    default:
-                        break;
-                }
-
-
-            }
-
-
+        if (user.getCohort() == null) {
+            throw new ConsumptionException(
+                    ConsumptionErrorCode.INVALID_PAYLOAD,
+                    "Cohort is missing for userId=" + userId);
         }
 
-        avgSaveBox /=  userList.size();
-        avgFood /= userList.size();
-        avgCafe /= userList.size();
-        avgCulture /= userList.size();
-        avgMarket /= userList.size();
-        avgMedical /= userList.size();
+        Long cohortId = user.getCohort().getId();
+        LocalDate endDate = LocalDate.now(applicationClock);
+        LocalDate startDate = endDate.withDayOfMonth(1);
 
+        CardTransactionRepository.CohortCategoryAverageProjection projection =
+                cardTransactionRepository.findCohortCategoryAverages(cohortId, startDate, endDate);
 
-        AvgCohort avgCohort = new AvgCohort(cohortsID,avgSaveBox,avgFood,avgCafe,avgCulture,avgMarket,avgMedical);
-        //System.out.println("avgSaveBox: " + avgSaveBox);
-        return avgCohort;
+        if (projection == null) {
+            return new AvgCohort(cohortId, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        }
+
+        return new AvgCohort(
+                projection.getCohortId(),
+                0.0,
+                toDouble(projection.getAvgFood()),
+                toDouble(projection.getAvgCafe()),
+                toDouble(projection.getAvgCulture()),
+                toDouble(projection.getAvgMarket()),
+                toDouble(projection.getAvgMedical()));
+    }
+
+    private double toDouble(BigDecimal value) {
+        return value == null ? 0.0 : value.doubleValue();
     }
 }

@@ -1,39 +1,76 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getCardRecommendation } from '@/features/finance/report/api/reportApi';
 import type { CardRecommendationResponse } from '@/features/finance/report/types';
 
+type RecommendationNavigationState = {
+  prefetchedMonth?: string;
+  prefetchedRecommendation?: CardRecommendationResponse | null;
+};
+
 export const CardRecommendationRankPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [data, setData] = useState<CardRecommendationResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRanking = async () => {
+    const resolveMonth = () => {
+      const requestedMonth = searchParams.get('month');
+      const now = new Date();
+      const fallbackMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      return requestedMonth || fallbackMonth;
+    };
+
+    const month = resolveMonth();
+    const state = (location.state ?? null) as RecommendationNavigationState | null;
+    const canUsePrefetched =
+      !!state?.prefetchedRecommendation && state.prefetchedMonth === month;
+
+    const fetchRanking = async (showSpinner: boolean) => {
       try {
-        setLoading(true);
-        const requestedMonth = searchParams.get('month');
-        const now = new Date();
-        const fallbackMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const month = requestedMonth || fallbackMonth;
+        if (showSpinner) {
+          setLoading(true);
+        }
         const res = await getCardRecommendation(month);
         setData(res as CardRecommendationResponse);
       } catch (error) {
         console.error('Failed to fetch card recommendation ranking:', error);
+        if (showSpinner) {
+          setData(null);
+        }
       } finally {
-        setLoading(false);
+        if (showSpinner) {
+          setLoading(false);
+        }
       }
     };
-    fetchRanking();
-  }, [searchParams]);
+
+    if (canUsePrefetched && state?.prefetchedRecommendation) {
+      setData(state.prefetchedRecommendation);
+      setLoading(false);
+      void fetchRanking(false);
+      return;
+    }
+
+    void fetchRanking(true);
+  }, [location.state, searchParams]);
 
   const moveToDetail = (cardId: string | number) => {
     const requestedMonth = searchParams.get('month');
     const now = new Date();
     const fallbackMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const month = requestedMonth || fallbackMonth;
-    navigate(`/finance/cards/recommendation/${String(cardId)}?month=${month}`);
+    const selectedCard =
+      data?.all_cards?.find((card) => String(card.card_id) === String(cardId)) ?? null;
+    navigate(`/finance/cards/recommendation/${String(cardId)}?month=${month}`, {
+      state: {
+        prefetchedMonth: month,
+        prefetchedRecommendation: data,
+        prefetchedCard: selectedCard,
+      },
+    });
   };
 
   return (
@@ -111,4 +148,3 @@ export const CardRecommendationRankPage = () => {
     </div>
   );
 };
-

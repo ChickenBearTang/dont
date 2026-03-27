@@ -1104,7 +1104,12 @@ export const MonthlyReportPage = () => {
             generating={generating}
             onGenerate={handleGenerateReport}
             onNavigateToRecommend={() =>
-              navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`)
+              navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`, {
+                state: {
+                  prefetchedMonth: formatToYYYYMM(currentDate),
+                  prefetchedRecommendation: cardRecommendation,
+                },
+              })
             }
           />
         </div>
