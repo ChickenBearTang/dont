@@ -12,7 +12,6 @@ export const useNotificationSse = (enabled: boolean) => {
         }
 
         if (!token) {
-            console.info('Notification SSE skipped: access token is not ready yet.');
             return;
         }
 
@@ -28,17 +27,12 @@ export const useNotificationSse = (enabled: boolean) => {
             heartbeatTimeout: 60 * 1000,
         });
 
-        eventSource.addEventListener('connect', (event: Event) => {
-            console.log('Notification SSE connected:', (event as MessageEvent).data);
-        });
+        eventSource.addEventListener('connect', () => { });
 
-        eventSource.addEventListener('heartbeat', () => {
-        });
+        eventSource.addEventListener('heartbeat', () => { });
 
-        eventSource.addEventListener('notification-created', async (event: Event) => {
+        eventSource.addEventListener('notification-created', async () => {
             try {
-                console.log('실시간 알림 수신:', (event as MessageEvent).data);
-
                 await Promise.all([
                     useNotificationStore.getState().fetchUnreadCount(),
                     useNotificationStore.getState().fetchNotifications(),
@@ -48,8 +42,7 @@ export const useNotificationSse = (enabled: boolean) => {
             }
         });
 
-        eventSource.addEventListener('error', () => {
-        });
+        eventSource.addEventListener('error', () => { });
 
         return () => {
             eventSource.close();
