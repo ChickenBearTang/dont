@@ -49,11 +49,9 @@ export const useNotificationSse = (enabled: boolean) => {
         });
 
         eventSource.addEventListener('error', () => {
-            console.warn('Notification SSE reconnecting...');
         });
 
         return () => {
-            console.info('Cleaning up Notification SSE connection');
             eventSource.close();
         };
     }, [enabled, token]);
