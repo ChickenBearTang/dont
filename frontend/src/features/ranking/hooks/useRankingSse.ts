@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { refreshAccessToken } from '@/features/auth/api/authApi';
+import { getErrorStatusCode, isSessionExpiredStatus } from '@/shared/auth/authErrorPolicy';
+import { handleSessionExpired } from '@/shared/auth/handleSessionExpired';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 
 const REFRESH_COOLDOWN_MS = 10000;
@@ -31,19 +33,10 @@ export interface RankingUpdatePayload {
   updatedData?: RankingListResponse;
 }
 
-const getStatusCode = (error: unknown): number | undefined => {
-  if (typeof error !== 'object' || error === null || !('response' in error)) {
-    return undefined;
-  }
-
-  return (error as { response?: { status?: number } }).response?.status;
-};
-
 export const useRankingSse = () => {
   const queryClient = useQueryClient();
   const token = useAuthStore((state) => state.accessToken);
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
-  const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
     if (!token) {
@@ -102,9 +95,9 @@ export const useRankingSse = () => {
         setAccessToken(nextToken);
         eventSource.close();
       } catch (error) {
-        const statusCode = getStatusCode(error);
-        if (statusCode === 401 || statusCode === 403) {
-          logout();
+        const statusCode = getErrorStatusCode(error);
+        if (isSessionExpiredStatus(statusCode)) {
+          handleSessionExpired();
           eventSource.close();
           return;
         }
@@ -118,5 +111,5 @@ export const useRankingSse = () => {
     return () => {
       eventSource.close();
     };
-  }, [logout, queryClient, setAccessToken, token]);
+  }, [queryClient, setAccessToken, token]);
 };

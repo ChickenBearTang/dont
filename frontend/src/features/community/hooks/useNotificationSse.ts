@@ -1,23 +1,16 @@
 import { useEffect } from 'react';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 import { refreshAccessToken } from '@/features/auth/api/authApi';
+import { getErrorStatusCode, isSessionExpiredStatus } from '@/shared/auth/authErrorPolicy';
+import { handleSessionExpired } from '@/shared/auth/handleSessionExpired';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useNotificationStore } from '../store/useNotificationStore';
 
 const REFRESH_COOLDOWN_MS = 10000;
 
-const getStatusCode = (error: unknown): number | undefined => {
-  if (typeof error !== 'object' || error === null || !('response' in error)) {
-    return undefined;
-  }
-
-  return (error as { response?: { status?: number } }).response?.status;
-};
-
 export const useNotificationSse = (enabled: boolean) => {
   const token = useAuthStore((state) => state.accessToken);
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
-  const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
     if (!enabled || !token) {
@@ -69,9 +62,9 @@ export const useNotificationSse = (enabled: boolean) => {
         setAccessToken(nextToken);
         eventSource.close();
       } catch (error) {
-        const statusCode = getStatusCode(error);
-        if (statusCode === 401 || statusCode === 403) {
-          logout();
+        const statusCode = getErrorStatusCode(error);
+        if (isSessionExpiredStatus(statusCode)) {
+          handleSessionExpired();
           eventSource.close();
           return;
         }
@@ -85,5 +78,5 @@ export const useNotificationSse = (enabled: boolean) => {
     return () => {
       eventSource.close();
     };
-  }, [enabled, logout, setAccessToken, token]);
+  }, [enabled, setAccessToken, token]);
 };
