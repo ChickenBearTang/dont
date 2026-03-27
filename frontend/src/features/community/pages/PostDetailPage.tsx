@@ -387,20 +387,35 @@ const CommentEntry = ({
           </div>
 
           {isReplying && (
-            <form onSubmit={handleReplySubmit} className="mt-3 flex gap-2">
-              <input
+            <form onSubmit={handleReplySubmit} className="mt-3 flex flex-col gap-2">
+              <textarea
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleReplySubmit(e as any);
+                  }
+                }}
                 placeholder={replyPlaceholder}
-                className="h-9 flex-1 rounded-lg border border-gray-100 bg-gray-50 px-3 text-[13px] outline-none"
+                className="min-h-[60px] w-full resize-none rounded-xl border border-gray-100 bg-gray-50 p-3 text-[13px] outline-none transition-all focus:border-blue-400 focus:bg-white"
               />
-              <button
-                type="submit"
-                disabled={!replyContent.trim() || submittingReply}
-                className="h-9 rounded-lg bg-blue-600 px-3 text-[12px] font-bold text-white disabled:bg-gray-300"
-              >
-                등록
-              </button>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsReplying(false)}
+                  className="rounded-lg px-3 py-1.5 text-[12px] font-bold text-gray-500 hover:bg-gray-100"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={!replyContent.trim() || submittingReply}
+                  className="rounded-lg bg-blue-600 px-4 py-1.5 text-[12px] font-bold text-white transition-colors disabled:bg-gray-300"
+                >
+                  {submittingReply ? '등록 중...' : '등록'}
+                </button>
+              </div>
             </form>
           )}
         </div>
@@ -1525,21 +1540,30 @@ export const PostDetailPage = () => {
           {post.status !== 'BLINDED' && (
             <form
               onSubmit={handleCommentSubmit}
-              className="mb-6 rounded-2xl border border-gray-200 bg-gray-50/70 px-4 py-4"
+              className="mb-8 flex flex-col gap-3 rounded-[28px] border border-gray-200 bg-gray-50/50 p-5 focus-within:border-blue-400 focus-within:bg-white transition-all shadow-sm"
             >
-              <div className="flex items-center gap-2">
-                <input
-                  value={commentInput}
-                  onChange={(e) => setCommentInput(e.target.value)}
-                  placeholder="댓글을 입력하세요"
-                  className="h-11 flex-1 rounded-full border border-gray-200 bg-white px-4 text-[14px] outline-none placeholder:text-gray-400"
-                />
+              <textarea
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleCommentSubmit(e as any);
+                  }
+                }}
+                placeholder="따뜻한 댓글을 남겨주세요."
+                className="min-h-[100px] w-full resize-none border-none bg-transparent text-[14.5px] leading-relaxed text-gray-800 outline-none placeholder:text-gray-400"
+              />
+              <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+                <span className="text-[11px] font-medium text-gray-400">
+                  Enter로 등록, Shift+Enter로 줄바꿈
+                </span>
                 <button
                   type="submit"
                   disabled={submittingComment || !commentInput.trim()}
-                  className="h-11 rounded-full bg-blue-600 px-4 text-[14px] font-bold text-white transition-colors disabled:bg-gray-300"
+                  className="rounded-full bg-blue-600 px-6 py-2.5 text-[13.5px] font-bold text-white shadow-lg shadow-blue-100 transition-all hover:bg-blue-700 disabled:bg-gray-200 disabled:shadow-none"
                 >
-                  등록
+                  {submittingComment ? '등록 중...' : '댓글 등록'}
                 </button>
               </div>
             </form>
