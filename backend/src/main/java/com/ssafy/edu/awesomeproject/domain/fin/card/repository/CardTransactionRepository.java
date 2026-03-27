@@ -47,17 +47,18 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
             value =
                     """
                     with cohort_users as (
-                        select u.id
+                        select distinct u.id
                         from users u
                         where u.cohort_id = :cohortId
+                           or u.id = :userId
                     ),
                     user_spending as (
                         select
                             cu.id as user_id,
-                            coalesce(sum(case when ct.category_name = '식사/외식' then ct.transaction_amount else 0 end), 0) as food_amount,
-                            coalesce(sum(case when ct.category_name = '카페/간식' then ct.transaction_amount else 0 end), 0) as cafe_amount,
+                            coalesce(sum(case when ct.category_name in ('식사/외식', '식사/음식') then ct.transaction_amount else 0 end), 0) as food_amount,
+                            coalesce(sum(case when ct.category_name in ('카페/간식', '카페/디저트') then ct.transaction_amount else 0 end), 0) as cafe_amount,
                             coalesce(sum(case when ct.category_name = '문화/여가' then ct.transaction_amount else 0 end), 0) as culture_amount,
-                            coalesce(sum(case when ct.category_name = '쇼핑/마트' then ct.transaction_amount else 0 end), 0) as market_amount,
+                            coalesce(sum(case when ct.category_name in ('쇼핑/마트', '편의점/마트') then ct.transaction_amount else 0 end), 0) as market_amount,
                             coalesce(sum(case when ct.category_name = '의료/건강' then ct.transaction_amount else 0 end), 0) as medical_amount
                         from cohort_users cu
                         left join card_transactions ct
@@ -67,16 +68,17 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
                     )
                     select
                         cast(:cohortId as bigint) as cohortId,
-                        coalesce(avg(user_spending.food_amount), 0) as avgFood,
-                        coalesce(avg(user_spending.cafe_amount), 0) as avgCafe,
-                        coalesce(avg(user_spending.culture_amount), 0) as avgCulture,
-                        coalesce(avg(user_spending.market_amount), 0) as avgMarket,
-                        coalesce(avg(user_spending.medical_amount), 0) as avgMedical
+                        coalesce(round(avg(user_spending.food_amount), 0), 0) as avgFood,
+                        coalesce(round(avg(user_spending.cafe_amount), 0), 0) as avgCafe,
+                        coalesce(round(avg(user_spending.culture_amount), 0), 0) as avgCulture,
+                        coalesce(round(avg(user_spending.market_amount), 0), 0) as avgMarket,
+                        coalesce(round(avg(user_spending.medical_amount), 0), 0) as avgMedical
                     from user_spending
                     """,
             nativeQuery = true)
     CohortCategoryAverageProjection findCohortCategoryAverages(
             @Param("cohortId") Long cohortId,
+            @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 

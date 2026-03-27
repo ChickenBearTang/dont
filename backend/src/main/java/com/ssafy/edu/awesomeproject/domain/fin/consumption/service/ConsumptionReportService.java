@@ -303,7 +303,8 @@ public class ConsumptionReportService {
         LocalDate startDate = endDate.withDayOfMonth(1);
 
         CardTransactionRepository.CohortCategoryAverageProjection projection =
-                cardTransactionRepository.findCohortCategoryAverages(cohortId, startDate, endDate);
+                cardTransactionRepository.findCohortCategoryAverages(
+                        cohortId, userId, startDate, endDate);
 
         if (projection == null) {
             return new AvgCohort(cohortId, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
@@ -323,4 +324,3 @@ public class ConsumptionReportService {
         return value == null ? 0.0 : value.doubleValue();
     }
 }
-

@@ -138,17 +138,43 @@ const CohortComparisonCard = ({
     );
   }
 
-  const getMyCategoryAmount = (label: string) => {
-    return summary?.rankColumList?.find((r) => r.categoryName === label)?.amount || 0;
+  const getMyCategoryAmount = (labels: string[]) => {
+    return summary?.rankColumList?.find((r) => labels.includes(r.categoryName))?.amount || 0;
   };
 
+  const toWholeWon = (amount: number) => Math.round(Number(amount) || 0);
+
   const compareList = [
-    { label: '식사/음식', myAmount: getMyCategoryAmount('식사/음식'), avgAmount: comparison.avg_food },
-    { label: '카페/디저트', myAmount: getMyCategoryAmount('카페/디저트'), avgAmount: comparison.avg_cafe },
-    { label: '문화/여가', myAmount: getMyCategoryAmount('문화/여가'), avgAmount: comparison.avg_culture },
-    { label: '편의점/마트', myAmount: getMyCategoryAmount('편의점/마트'), avgAmount: comparison.avg_market },
-    { label: '의료/건강', myAmount: getMyCategoryAmount('의료/건강'), avgAmount: comparison.avg_medical },
-    { label: '세이브박스', myAmount: getMyCategoryAmount('세이브박스'), avgAmount: comparison.avg_save_box },
+    {
+      label: '식사/음식',
+      myAmount: getMyCategoryAmount(['식사/음식', '식사/외식']),
+      avgAmount: toWholeWon(comparison.avg_food),
+    },
+    {
+      label: '카페/디저트',
+      myAmount: getMyCategoryAmount(['카페/디저트', '카페/간식']),
+      avgAmount: toWholeWon(comparison.avg_cafe),
+    },
+    {
+      label: '문화/여가',
+      myAmount: getMyCategoryAmount(['문화/여가']),
+      avgAmount: toWholeWon(comparison.avg_culture),
+    },
+    {
+      label: '편의점/마트',
+      myAmount: getMyCategoryAmount(['편의점/마트', '쇼핑/마트']),
+      avgAmount: toWholeWon(comparison.avg_market),
+    },
+    {
+      label: '의료/건강',
+      myAmount: getMyCategoryAmount(['의료/건강']),
+      avgAmount: toWholeWon(comparison.avg_medical),
+    },
+    {
+      label: '세이브박스',
+      myAmount: getMyCategoryAmount(['세이브박스']),
+      avgAmount: toWholeWon(comparison.avg_save_box),
+    },
   ].filter(item => item.myAmount > 0 || item.avgAmount > 0);
 
   if (compareList.length === 0) {
