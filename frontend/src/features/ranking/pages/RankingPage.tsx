@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRankingSse, type RankingUser } from '../hooks/useRankingSse';
 import axiosInstance from '@/shared/api/axiosInstance';
 import { fetchCohorts } from '@/features/user/api/userApi';
-import type { Cohort, ApiResponse } from '@/shared/types';
+import type { Cohort } from '@/shared/types';
 import type { MyPageResponse } from '@/features/user/mypage/types';
 
 // 백엔드(CommonResponse)에서 내려주는 JSON 포맷 인터페이스

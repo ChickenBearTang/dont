@@ -131,11 +131,12 @@ const CommentEntry = ({
 
   const handleReplySubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!postId || !replyContent.trim() || submittingReply) return;
+    const finalContent = replyContent.trim().replace(/\n{3,}/g, '\n\n');
+    if (!postId || !finalContent || submittingReply) return;
     setSubmittingReply(true);
     try {
       await createComment(Number(postId), {
-        content: replyContent.trim(),
+        content: finalContent,
         parentCommentId: comment.commentId,
       });
       setReplyContent('');
@@ -152,10 +153,11 @@ const CommentEntry = ({
 
   const handleEditSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!editContent.trim() || submittingEdit) return;
+    const finalContent = editContent.trim().replace(/\n{3,}/g, '\n\n');
+    if (!finalContent || submittingEdit) return;
     setSubmittingEdit(true);
     try {
-      await updateComment(comment.commentId, { content: editContent.trim() });
+      await updateComment(comment.commentId, { content: finalContent });
       setIsEditing(false);
       await refreshComments(true);
       await refreshReplies(rootCommentId);
@@ -1013,10 +1015,11 @@ export const PostDetailPage = () => {
 
   const handleCommentSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!postId || !commentInput.trim() || submittingComment) return;
+    const finalContent = commentInput.trim().replace(/\n{3,}/g, '\n\n');
+    if (!postId || !finalContent || submittingComment) return;
     setSubmittingComment(true);
     try {
-      await createComment(Number(postId), { content: commentInput.trim() });
+      await createComment(Number(postId), { content: finalContent });
       setCommentInput('');
       await refreshComments(true);
       setPost((prev) => (prev ? { ...prev, commentCount: prev.commentCount + 1 } : null));
