@@ -14,7 +14,6 @@ import '@/styles/index.css';
 const AppBootstrap = () => {
   const hasBootstrappedRef = useRef(false);
 
-  const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const setAuthInitializing = useAuthStore((state) => state.setAuthInitializing);
   const restoreSession = useAuthStore((state) => state.restoreSession);
 
@@ -26,12 +25,17 @@ const AppBootstrap = () => {
     hasBootstrappedRef.current = true;
 
     const bootstrapAuth = async () => {
+      const savedUser = loadAuthUser();
+      if (!savedUser) {
+        setAuthInitializing(false);
+        return;
+      }
+
       setAuthInitializing(true);
 
       try {
         const response = await refreshAccessToken();
         const nextToken = response.data.accessToken;
-        const savedUser = loadAuthUser();
 
         restoreSession({
           accessToken: nextToken,
@@ -52,10 +56,6 @@ const AppBootstrap = () => {
 
     void bootstrapAuth();
   }, [restoreSession, setAuthInitializing]);
-
-  if (isAuthInitializing) {
-    return <div className="min-h-screen bg-[#F8FAFC]" />;
-  }
 
   return (
     <>

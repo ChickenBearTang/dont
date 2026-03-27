@@ -20,7 +20,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   accessToken: null,
   isAuthenticated: false,
-  isAuthInitializing: true,
+  isAuthInitializing: false,
   user: loadAuthUser(),
 
   setAuthInitializing: (isAuthInitializing) => set({ isAuthInitializing }),
