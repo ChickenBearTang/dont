@@ -7,6 +7,7 @@ import { toAttachmentRequests } from '../api/attachmentApi';
 import type { BoardCategory, PostAttachmentDto } from '../types';
 import { Card, Button } from '@/shared/components';
 import { createPr } from '@/features/community/pr';
+import { useUIStore } from '@/shared/store/useUIStore';
 
 const CATEGORY_OPTIONS: Array<{ value: BoardCategory; label: string }> = [
   { value: 'FREE', label: '자유 게시판' },
@@ -64,7 +65,7 @@ export const CreatePostPage = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const { addToast } = useUIStore();
 
   const [itemName, setItemName] = useState('');
   const [priceAmount, setPriceAmount] = useState('');
@@ -105,45 +106,43 @@ export const CreatePostPage = () => {
 
   const validateDefaultPost = (trimmedTitle: string, trimmedContent: string) => {
     if (!trimmedTitle) {
-      setErrorMessage('제목을 입력해 주세요.');
+      addToast('제목을 입력해 주세요.', 'info');
       return false;
     }
-
     if (!trimmedContent) {
-      setErrorMessage('내용을 입력해 주세요.');
+      addToast('내용을 입력해 주세요.', 'info');
       return false;
     }
-
     return true;
   };
 
   const validatePrPost = (trimmedTitle: string) => {
     if (!trimmedTitle) {
-      setErrorMessage('제목을 입력해 주세요.');
+      addToast('제목을 입력해 주세요.', 'info');
       return false;
     }
     if (!itemName.trim()) {
-      setErrorMessage('상품명을 입력해 주세요.');
+      addToast('상품명을 입력해 주세요.', 'info');
       return false;
     }
     if (!priceAmount || Number(priceAmount) < 0) {
-      setErrorMessage('가격은 0 이상이어야 합니다.');
+      addToast('가격은 0 이상이어야 합니다.', 'info');
       return false;
     }
     if (!reason.trim()) {
-      setErrorMessage('필요 사유를 입력해 주세요.');
+      addToast('필요 사유를 입력해 주세요.', 'info');
       return false;
     }
     if (!budgetReason.trim()) {
-      setErrorMessage('예산 근거를 입력해 주세요.');
+      addToast('예산 근거를 입력해 주세요.', 'info');
       return false;
     }
     if (!alternativeComparison.trim()) {
-      setErrorMessage('대체재 비교 내용을 입력해 주세요.');
+      addToast('대체재 비교 내용을 입력해 주세요.', 'info');
       return false;
     }
     if (purchaseUrl.trim() && !isValidUrl(purchaseUrl.trim())) {
-      setErrorMessage('구매 링크는 http 또는 https URL이어야 합니다.');
+      addToast('구매 링크는 http 또는 https URL이어야 합니다.', 'info');
       return false;
     }
     return true;
@@ -151,48 +150,47 @@ export const CreatePostPage = () => {
 
   const validatePollPost = (trimmedTitle: string, trimmedContent: string) => {
     if (!trimmedTitle) {
-      setErrorMessage('제목을 입력해 주세요.');
+      addToast('제목을 입력해 주세요.', 'info');
       return false;
     }
     if (!trimmedContent) {
-      setErrorMessage('내용을 입력해 주세요.');
+      addToast('내용을 입력해 주세요.', 'info');
       return false;
     }
     if (!pollQuestion.trim()) {
-      setErrorMessage('질문을 입력해 주세요.');
+      addToast('질문을 입력해 주세요.', 'info');
       return false;
     }
     if (!pollOptionA.trim() || !pollOptionB.trim()) {
-      setErrorMessage('선택지 A/B를 모두 입력해 주세요.');
+      addToast('선택지 A/B를 모두 입력해 주세요.', 'info');
       return false;
     }
     if (!pollDeadlineAt) {
-      setErrorMessage('투표 마감 시각을 선택해 주세요.');
+      addToast('투표 마감 시각을 선택해 주세요.', 'info');
       return false;
     }
-
     return true;
   };
 
   const validateHotdealPost = (trimmedTitle: string, trimmedContent: string) => {
     if (!trimmedTitle) {
-      setErrorMessage('제목을 입력해 주세요.');
+      addToast('제목을 입력해 주세요.', 'info');
       return false;
     }
     if (!trimmedContent) {
-      setErrorMessage('내용을 입력해 주세요.');
+      addToast('내용을 입력해 주세요.', 'info');
       return false;
     }
     if (!productName.trim()) {
-      setErrorMessage('상품명을 입력해 주세요.');
+      addToast('상품명을 입력해 주세요.', 'info');
       return false;
     }
     if (!dealPriceAmount || Number(dealPriceAmount) <= 0) {
-      setErrorMessage('딜 가격은 1원 이상이어야 합니다.');
+      addToast('딜 가격은 1원 이상이어야 합니다.', 'info');
       return false;
     }
     if (originalPriceAmount && Number(originalPriceAmount) <= 0) {
-      setErrorMessage('정가는 1원 이상이어야 합니다.');
+      addToast('정가는 1원 이상이어야 합니다.', 'info');
       return false;
     }
     if (
@@ -200,14 +198,13 @@ export const CreatePostPage = () => {
       Number(dealPriceAmount) > 0 &&
       Number(originalPriceAmount) < Number(dealPriceAmount)
     ) {
-      setErrorMessage('정가는 딜 가격보다 크거나 같아야 합니다.');
+      addToast('정가는 딜 가격보다 크거나 같아야 합니다.', 'info');
       return false;
     }
     if (dealUrl.trim() && !isValidUrl(dealUrl.trim())) {
-      setErrorMessage('딜 링크는 http 또는 https URL이어야 합니다.');
+      addToast('딜 링크는 http 또는 https URL이어야 합니다.', 'info');
       return false;
     }
-
     return true;
   };
 
@@ -229,7 +226,6 @@ export const CreatePostPage = () => {
       return;
     }
 
-    setErrorMessage('');
     setIsSubmitting(true);
 
     try {
@@ -276,6 +272,7 @@ export const CreatePostPage = () => {
         });
       }
 
+      addToast('게시글이 성공적으로 등록되었습니다.', 'success');
       navigate(`/community?category=${category}`);
     } catch (error: unknown) {
       let serverMessage = '게시글 작성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
@@ -291,7 +288,7 @@ export const CreatePostPage = () => {
           '게시글 작성에 실패했습니다. 잠시 후 다시 시도해 주세요.';
       }
 
-      setErrorMessage(serverMessage);
+      addToast(serverMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -699,11 +696,7 @@ export const CreatePostPage = () => {
           </div>
         )}
 
-        {errorMessage ? (
-          <div className="rounded-xl border border-error-red/20 bg-error-red/5 px-4 py-3 text-[13px] font-bold text-error-red">
-            {errorMessage}
-          </div>
-        ) : null}
+
 
         <div className="flex justify-end gap-3 pt-2 shrink-0">
           <Button variant="outline" type="button" onClick={handleCancel} className="!px-5">

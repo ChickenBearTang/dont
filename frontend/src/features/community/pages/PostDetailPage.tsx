@@ -25,7 +25,9 @@ import type {
   ReportTargetType,
 } from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
+import { useUIStore } from '@/shared/store/useUIStore';
 import { ReportModal } from '../components/ReportModal';
+import { Modal } from '@/shared/components/Modal';
 import { UserAvatar } from '../components/UserAvatar';
 import { LinkifiedText } from '../components/LinkifiedText';
 import { Card, Button } from '@/shared/components';
@@ -772,7 +774,11 @@ export const PostDetailPage = () => {
   const [selectedPollVote, setSelectedPollVote] = useState<'OPTION_A' | 'OPTION_B' | null>(null);
   const [submittingPollVote, setSubmittingPollVote] = useState(false);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
+  const { addToast } = useUIStore();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
+  const [commentIdToDelete, setCommentIdToDelete] = useState<number | null>(null);
 
   const reactionStorageKey = `post_reaction_${postId}`;
   const pollVoteStorageKey = `poll_vote_${postId}`;
@@ -991,25 +997,39 @@ export const PostDetailPage = () => {
   };
 
   const handleDelete = async () => {
-    if (!postId || !window.confirm('정말 이 게시글을 삭제하시겠습니까?')) return;
+    setIsDeletePostModalOpen(true);
+  };
+
+  const handleConfirmDeletePost = async () => {
+    if (!postId) return;
     try {
       await deletePost(Number(postId));
+      addToast('게시글이 삭제되었습니다.', 'success');
       navigate('/community');
     } catch {
-      alert('게시글 삭제에 실패했습니다.');
+      addToast('게시글 삭제에 실패했습니다.', 'error');
+    } finally {
+      setIsDeletePostModalOpen(false);
     }
   };
 
-  const handleDeleteComment = async (commentId: number) => {
-    if (!window.confirm('정말 이 댓글을 삭제하시겠습니까?')) return;
+  const handleDeleteComment = (commentId: number) => {
+    setCommentIdToDelete(commentId);
+  };
+
+  const handleConfirmDeleteComment = async () => {
+    if (!commentIdToDelete) return;
     try {
-      await deleteComment(commentId);
+      await deleteComment(commentIdToDelete);
       await refreshComments(true);
       setPost((prev) =>
         prev ? { ...prev, commentCount: Math.max(0, prev.commentCount - 1) } : null
       );
+      addToast('댓글이 삭제되었습니다.', 'success');
     } catch {
-      alert('댓글 삭제에 실패했습니다.');
+      addToast('댓글 삭제에 실패했습니다.', 'error');
+    } finally {
+      setCommentIdToDelete(null);
     }
   };
 
@@ -1623,6 +1643,64 @@ export const PostDetailPage = () => {
         targetType={reportModalState.targetType}
         targetId={reportModalState.targetId}
       />
+
+      {/* 게시글 삭제 확인 모달 */}
+      <Modal
+        isOpen={isDeletePostModalOpen}
+        onClose={() => setIsDeletePostModalOpen(false)}
+        title="게시글 삭제"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeletePostModalOpen(false)}
+              className="!px-6"
+            >
+              취소
+            </Button>
+            <Button
+              className="!bg-rose-500 !border-rose-500 hover:!bg-rose-600 !px-6"
+              onClick={handleConfirmDeletePost}
+            >
+              삭제하기
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-[15px] font-medium text-gray-600 leading-relaxed">
+          정말 이 게시글을 삭제하시겠습니까? <br />
+          삭제된 게시글은 다시 복구할 수 없습니다.
+        </p>
+      </Modal>
+
+      {/* 댓글 삭제 확인 모달 */}
+      <Modal
+        isOpen={commentIdToDelete !== null}
+        onClose={() => setCommentIdToDelete(null)}
+        title="댓글 삭제"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setCommentIdToDelete(null)}
+              className="!px-6"
+            >
+              취소
+            </Button>
+            <Button
+              className="!bg-rose-500 !border-rose-500 hover:!bg-rose-600 !px-6"
+              onClick={handleConfirmDeleteComment}
+            >
+              삭제하기
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-[15px] font-medium text-gray-600 leading-relaxed">
+          정말 이 댓글을 삭제하시겠습니까? <br />
+          삭제된 댓글은 다시 복구할 수 없습니다.
+        </p>
+      </Modal>
     </Card>
   );
 };
