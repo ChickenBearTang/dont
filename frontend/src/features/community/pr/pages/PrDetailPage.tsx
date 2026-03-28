@@ -88,6 +88,12 @@ interface ContentSection {
   body: string;
 }
 
+interface XaiSummaryParts {
+  verdict: string;
+  keyReason: string;
+  improvementPoint: string;
+}
+
 const decisionLabelMap: Record<string, string> = {
   BUY_NOW: '지금 구매 권장',
   WAIT: '관망 권장',
@@ -110,6 +116,57 @@ const formatImpactPercent = (value: number): string => {
   if (absoluteValue <= 1) return `${Math.round(absoluteValue * 100)}%`;
   if (absoluteValue <= 100) return `${Math.round(absoluteValue)}%`;
   return `${Math.round(Math.min(absoluteValue / 100, 100))}%`;
+};
+
+const parseMetricNumericValue = (rawValue: string): number | null => {
+  const sanitized = rawValue.replace(/[^\d.-]/g, '');
+  if (!sanitized) return null;
+  const parsed = Number(sanitized);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+};
+
+const toComparisonBarPercent = (value: number, maxValue: number): number => {
+  if (value <= 0 || maxValue <= 0) return 0;
+  const rawPercent = (value / maxValue) * 100;
+  return Math.min(Math.max(rawPercent, 8), 100);
+};
+
+const formatWon = (value: number): string => `${Math.round(value).toLocaleString('ko-KR')}원`;
+
+const normalizeMetricCode = (code: string): string =>
+  code.trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+const normalizeMetricLabelToken = (label: string): string => label.replace(/\s+/g, '').trim();
+
+const isCurrentPriceMetric = (code: string, label: string): boolean => {
+  const normalizedCode = normalizeMetricCode(code);
+  const normalizedLabel = normalizeMetricLabelToken(label);
+  return (
+    normalizedCode === 'current_price' ||
+    normalizedCode === 'price_current' ||
+    normalizedLabel.includes('현재판단가격') ||
+    normalizedLabel.includes('현재가격')
+  );
+};
+
+const isAvgPriceMetric = (code: string, label: string): boolean => {
+  const normalizedCode = normalizeMetricCode(code);
+  const normalizedLabel = normalizeMetricLabelToken(label);
+  return (
+    normalizedCode === 'avg_price_30d' ||
+    normalizedCode === 'average_price_30d' ||
+    normalizedCode === 'price_avg_30d' ||
+    normalizedLabel.includes('30일평균가') ||
+    normalizedLabel.includes('평균가')
+  );
+};
+
+const toDisplayMetricLabel = (label: string): string => {
+  const normalizedLabel = normalizeMetricLabelToken(label);
+  if (normalizedLabel === '사용가능고정지출') return '이번 달 고정지출';
+  if (normalizedLabel === '사용가능고정수입') return '이번 달 고정 수입';
+  return label;
 };
 
 const xaiSectionStatusLabelMap: Record<string, string> = {
@@ -136,6 +193,47 @@ const getXaiSectionStatusLabel = (status: string): string =>
   xaiSectionStatusLabelMap[status.trim().toLowerCase()] ?? status;
 
 const getXaiWarningLabel = (warning: string): string => xaiWarningLabelMap[warning] ?? warning;
+
+const cleanSummarySegment = (value: string): string =>
+  value.replace(/^[\s.·\-:]+/, '').replace(/\s+/g, ' ').trim();
+
+const parseXaiSummary = (summary: string): XaiSummaryParts => {
+  const raw = summary ?? '';
+  const keyMarker = '핵심 근거:';
+  const improveMarker = '개선 포인트:';
+  const keyIndex = raw.indexOf(keyMarker);
+  const improveIndex = raw.indexOf(improveMarker);
+
+  const normalizeVerdict = (value: string): string =>
+    cleanSummarySegment(value).replace(/[.。]+$/, '').trim();
+
+  if (keyIndex < 0 && improveIndex < 0) {
+    return {
+      verdict: normalizeVerdict(raw) || '-',
+      keyReason: '-',
+      improvementPoint: '-',
+    };
+  }
+
+  const verdictEndCandidates = [keyIndex, improveIndex].filter((index) => index >= 0);
+  const verdictEnd =
+    verdictEndCandidates.length > 0 ? Math.min(...verdictEndCandidates) : raw.length;
+
+  const keyReasonStart = keyIndex >= 0 ? keyIndex + keyMarker.length : -1;
+  const keyReasonEnd = improveIndex >= 0 ? improveIndex : raw.length;
+  const keyReason =
+    keyReasonStart >= 0 ? cleanSummarySegment(raw.slice(keyReasonStart, keyReasonEnd)) : '-';
+
+  const improvementStart = improveIndex >= 0 ? improveIndex + improveMarker.length : -1;
+  const improvementPoint =
+    improvementStart >= 0 ? cleanSummarySegment(raw.slice(improvementStart)) : '-';
+
+  return {
+    verdict: normalizeVerdict(raw.slice(0, verdictEnd)) || '-',
+    keyReason: keyReason || '-',
+    improvementPoint: improvementPoint || '-',
+  };
+};
 
 const xaiEvidenceFieldLabelMap: Record<string, string> = {
   current_price: '현재 판단 가격',
@@ -499,6 +597,79 @@ export const PrDetailPage = () => {
     detail.events && detail.events.length > 0
       ? detail.events[detail.events.length - 1].createdAt
       : detail.closedAt ?? detail.updatedAt;
+  const xaiSummaryParts = xaiEvaluation ? parseXaiSummary(xaiEvaluation.summary) : null;
+  const priceMetrics = xaiEvaluation
+    ? xaiEvaluation.priceEvaluation.keyMetrics.filter(
+        (metric) => metric.code !== 'requested_price_amount',
+      )
+    : [];
+  const priceComparison = (() => {
+    const currentPriceMetric = priceMetrics.find((metric) =>
+      isCurrentPriceMetric(metric.code, metric.label),
+    );
+    const averagePriceMetric = priceMetrics.find((metric) =>
+      isAvgPriceMetric(metric.code, metric.label),
+    );
+    if (!currentPriceMetric || !averagePriceMetric) return null;
+
+    const currentPrice = parseMetricNumericValue(currentPriceMetric.value);
+    const averagePrice = parseMetricNumericValue(averagePriceMetric.value);
+    if (currentPrice === null || averagePrice === null) return null;
+
+    const maxPrice = Math.max(currentPrice, averagePrice, 1);
+    const gap = currentPrice - averagePrice;
+    const ratio = averagePrice > 0 ? currentPrice / averagePrice : null;
+
+    if (gap > 0) {
+      return {
+        currentPrice,
+        averagePrice,
+        currentPriceLabel: currentPriceMetric.value,
+        averagePriceLabel: averagePriceMetric.value,
+        currentBarPercent: toComparisonBarPercent(currentPrice, maxPrice),
+        averageBarPercent: toComparisonBarPercent(averagePrice, maxPrice),
+        headlineText: '현재 판단 가격 > 30일 평균가',
+        summaryText: `현재 판단 가격이 평균가보다 ${formatWon(Math.abs(gap))} 높습니다.`,
+        detailText: ratio ? `평균가의 ${ratio.toFixed(2)}배` : null,
+        summaryClassName: 'text-danger',
+      };
+    }
+
+    if (gap < 0) {
+      return {
+        currentPrice,
+        averagePrice,
+        currentPriceLabel: currentPriceMetric.value,
+        averagePriceLabel: averagePriceMetric.value,
+        currentBarPercent: toComparisonBarPercent(currentPrice, maxPrice),
+        averageBarPercent: toComparisonBarPercent(averagePrice, maxPrice),
+        headlineText: '현재 판단 가격 < 30일 평균가',
+        summaryText: `현재 판단 가격이 평균가보다 ${formatWon(Math.abs(gap))} 낮습니다.`,
+        detailText: ratio ? `평균가의 ${ratio.toFixed(2)}배` : null,
+        summaryClassName: 'text-success',
+      };
+    }
+
+    return {
+      currentPrice,
+      averagePrice,
+      currentPriceLabel: currentPriceMetric.value,
+      averagePriceLabel: averagePriceMetric.value,
+      currentBarPercent: toComparisonBarPercent(currentPrice, maxPrice),
+      averageBarPercent: toComparisonBarPercent(averagePrice, maxPrice),
+      headlineText: '현재 판단 가격 = 30일 평균가',
+      summaryText: '현재 판단 가격과 30일 평균가가 같습니다.',
+      detailText: null,
+      summaryClassName: 'text-text-muted',
+    };
+  })();
+  const priceMetricList = priceComparison
+    ? priceMetrics.filter(
+        (metric) =>
+          !isCurrentPriceMetric(metric.code, metric.label) &&
+          !isAvgPriceMetric(metric.code, metric.label),
+      )
+    : priceMetrics;
 
   return (
     <div className="grid grid-cols-1 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -812,10 +983,12 @@ export const PrDetailPage = () => {
             ) : xaiEvaluation ? (
               <>
                 <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4">
-                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">요약 판단</p>
-                  <p className="mt-2 text-sm font-semibold leading-relaxed text-eel/85">
-                    {xaiEvaluation.summary}
-                  </p>
+                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">판단 요약</p>
+                  <div className="mt-2 space-y-1.5 text-sm font-semibold leading-relaxed text-eel/85">
+                    <p>{xaiSummaryParts?.verdict ?? '-'}</p>
+                    <p>핵심 근거: {xaiSummaryParts?.keyReason ?? '-'}</p>
+                    <p>개선 포인트: {xaiSummaryParts?.improvementPoint ?? '-'}</p>
+                  </div>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-2xl border border-light-gray bg-white p-4">
@@ -829,7 +1002,7 @@ export const PrDetailPage = () => {
                           key={metric.code}
                           className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80"
                         >
-                          {metric.label}: {metric.value}
+                          {toDisplayMetricLabel(metric.label)}: {metric.value}
                         </li>
                       ))}
                     </ul>
@@ -839,18 +1012,58 @@ export const PrDetailPage = () => {
                     <p className="mt-2 text-sm font-bold text-eel">
                       {getXaiSectionStatusLabel(xaiEvaluation.priceEvaluation.status)}
                     </p>
-                    <ul className="space-y-2">
-                      {xaiEvaluation.priceEvaluation.keyMetrics
-                        .filter((metric) => metric.code !== 'requested_price_amount')
-                        .map((metric) => (
-                        <li
-                          key={metric.code}
-                          className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80"
-                        >
-                          {metric.label}: {metric.value}
-                        </li>
-                      ))}
-                    </ul>
+                    {priceComparison && (
+                      <div className="mt-3 rounded-xl border border-light-gray bg-surface-muted/40 p-3">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-text-subtle">
+                          현재가 비교
+                        </p>
+                        <p className={`mt-1 text-xs font-extrabold ${priceComparison.summaryClassName}`}>
+                          {priceComparison.headlineText}
+                        </p>
+                        <div className="mt-2 space-y-2">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-xs font-semibold text-eel/80">
+                              <span>현재 판단 가격</span>
+                              <span>{priceComparison.currentPriceLabel}</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-light-gray">
+                              <div
+                                className="h-full rounded-full bg-danger transition-all duration-700"
+                                style={{ width: `${priceComparison.currentBarPercent}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-xs font-semibold text-eel/80">
+                              <span>30일 평균가</span>
+                              <span>{priceComparison.averagePriceLabel}</span>
+                            </div>
+                            <div className="h-3 overflow-hidden rounded-full bg-light-gray">
+                              <div
+                                className="h-full rounded-full bg-primary-blue transition-all duration-700"
+                                style={{ width: `${priceComparison.averageBarPercent}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <p className={`mt-2 text-xs font-bold ${priceComparison.summaryClassName}`}>
+                          {priceComparison.summaryText}
+                          {priceComparison.detailText ? ` (${priceComparison.detailText})` : ''}
+                        </p>
+                      </div>
+                    )}
+                    {priceMetricList.length > 0 && (
+                      <ul className="mt-2 space-y-2">
+                        {priceMetricList.map((metric) => (
+                          <li
+                            key={metric.code}
+                            className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80"
+                          >
+                            {toDisplayMetricLabel(metric.label)}: {metric.value}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -886,23 +1099,25 @@ export const PrDetailPage = () => {
                     <p className="text-sm font-medium text-text-muted">노출할 근거 데이터가 없습니다.</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">Counterfactual</p>
-                  {xaiEvaluation.counterfactuals.length > 0 ? (
-                    <ul className="space-y-2">
-                      {xaiEvaluation.counterfactuals.map((counterfactual) => (
-                        <li key={`${counterfactual.label}-${counterfactual.targetDecision}`} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
-                          {counterfactual.label}
-                          <span className="ml-2 text-xs font-bold text-primary-blue">
-                            → {decisionLabelMap[counterfactual.targetDecision] ?? counterfactual.targetDecision}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm font-medium text-text-muted">counterfactual이 아직 없습니다.</p>
-                  )}
-                </div>
+                {xaiEvaluation.decision.trim().toUpperCase() !== 'BUY_NOW' && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-black text-text-subtle uppercase tracking-widest">Counterfactual</p>
+                    {xaiEvaluation.counterfactuals.length > 0 ? (
+                      <ul className="space-y-2">
+                        {xaiEvaluation.counterfactuals.map((counterfactual) => (
+                          <li key={`${counterfactual.label}-${counterfactual.targetDecision}`} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
+                            {counterfactual.label}
+                            <span className="ml-2 text-xs font-bold text-primary-blue">
+                              → {decisionLabelMap[counterfactual.targetDecision] ?? counterfactual.targetDecision}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm font-medium text-text-muted">counterfactual이 아직 없습니다.</p>
+                    )}
+                  </div>
+                )}
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4 text-center">
                     <p className="text-[11px] font-black text-text-subtle uppercase tracking-widest">판단 신뢰도</p>
