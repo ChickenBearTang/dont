@@ -14,6 +14,7 @@ import com.ssafy.edu.awesomeproject.domain.dummy.client.dto.response.DummyCreate
 import com.ssafy.edu.awesomeproject.domain.dummy.client.dto.request.FinanceMemberCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.dummy.client.dto.response.FinanceMemberSearchResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateAccountsResponse;
+import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateAllResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateCardResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateCardTransactionsResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateUserResponse;
@@ -27,24 +28,21 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountErrorCode;
 import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountException;
 import com.ssafy.edu.awesomeproject.domain.fin.account.service.AccountService;
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.Card;
-import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankAdapter;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankReqHeader;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -78,12 +76,24 @@ public class DummyService {
     private final CardRepository cardRepository;
     private final CardTransactionRepository cardTransactionRepository;
     private final OpenBankAdapter openBankAdapter;
+    private final EntityManager entityManager;
 
     @Value("${ssafy.api.key}")
     private String ssafyApiKey;
 
     @Value("${auth.email-verification.verified-ttl-seconds}")
     private long verifiedTtlSeconds;
+
+    @Transactional
+    public DummyCreateAllResponse createDummyAll(Integer generationNo) {
+        DummyCreateUserResponse user = createDummyUser(generationNo);
+        DummyCreateAccountsResponse accounts = createDummyAccounts(user.userId());
+        DummyCreateCardResponse card = createDummyCard(user.userId());
+        DummyCreateCardTransactionsResponse cardTransactions =
+                createDummyCardTransactions(user.userId());
+
+        return new DummyCreateAllResponse(generationNo, user, accounts, card, cardTransactions);
+    }
 
     @Transactional
     public DummyCreateUserResponse createDummyUser(Integer generationNo) {
@@ -212,6 +222,7 @@ public class DummyService {
                 userId, DUMMY_CARD_UNIQUE_NO, withdrawalAccountNo, refreshedCardCount);
     }
 
+    @Transactional
     public DummyCreateCardTransactionsResponse createDummyCardTransactions(Long userId) {
         Card card =
                 cardRepository.findAllByUser_Id(userId).stream()
@@ -221,15 +232,15 @@ public class DummyService {
         LocalDate startDate = LocalDate.of(LocalDate.now().getYear(), 1, 1);
         LocalDate endDate = resolveEndDate(LocalDate.now().getYear());
 
-        List<CardTransaction> existing =
-                cardTransactionRepository
-                        .findByCardIdAndTransactionDateBetweenOrderByTransactionDateDescTransactionTimeDesc(
-                                card.getId(), startDate, endDate);
-        if (!existing.isEmpty()) {
-            cardTransactionRepository.deleteAll(existing);
-        }
+        entityManager
+                .createNativeQuery(
+                        "delete from card_transactions where card_id = :cardId and transaction_date between :startDate and :endDate")
+                .setParameter("cardId", card.getId())
+                .setParameter("startDate", startDate)
+                .setParameter("endDate", endDate)
+                .executeUpdate();
 
-        List<CardTransaction> toInsert = new ArrayList<>();
+        int insertedCount = 0;
         long totalAmount = 0L;
 
         for (Map.Entry<YearMonth, Map<String, Long>> monthly :
@@ -243,32 +254,32 @@ public class DummyService {
                 long randomizedAmount = randomizeAmount(categoryEntry.getValue());
                 LocalDate transactionDate = randomDateWithin(yearMonth.atDay(1), monthEnd);
 
-                CardTransaction transaction =
-                        CardTransaction.builder()
-                                .card(card)
-                                .userId(userId)
-                                .transactionDate(transactionDate)
-                                .transactionTime(randomTime())
-                                .merchantName(category + " 더미가맹점")
-                                .categoryName(category)
-                                .transactionAmount(randomizedAmount)
-                                .transactionType("PAYMENT")
-                                .approvalNo(randomApprovalNo())
-                                .description("dummy monthly aggregate")
-                                .build();
-                toInsert.add(transaction);
+                entityManager
+                        .createNativeQuery(
+                                "insert into card_transactions "
+                                        + "(card_id, transaction_date, merchant_name, category_name, transaction_amount, transaction_type, approval_no, description, user_id) "
+                                        + "values (:cardId, :transactionDate, :merchantName, :categoryName, :transactionAmount, :transactionType, :approvalNo, :description, :userId)")
+                        .setParameter("cardId", card.getId())
+                        .setParameter("transactionDate", transactionDate)
+                        .setParameter("merchantName", category + " 더미가맹점")
+                        .setParameter("categoryName", category)
+                        .setParameter("transactionAmount", randomizedAmount)
+                        .setParameter("transactionType", "PAYMENT")
+                        .setParameter("approvalNo", randomApprovalNo())
+                        .setParameter("description", "dummy monthly aggregate")
+                        .setParameter("userId", userId)
+                        .executeUpdate();
+                insertedCount++;
                 totalAmount += randomizedAmount;
             }
         }
-
-        cardTransactionRepository.saveAll(toInsert);
 
         return new DummyCreateCardTransactionsResponse(
                 userId,
                 card.getId(),
                 startDate.toString(),
                 endDate.toString(),
-                toInsert.size(),
+                insertedCount,
                 totalAmount);
     }
 
@@ -445,13 +456,6 @@ public class DummyService {
         long daySpan = end.toEpochDay() - start.toEpochDay();
         long offset = ThreadLocalRandom.current().nextLong(daySpan + 1);
         return start.plusDays(offset);
-    }
-
-    private String randomTime() {
-        int hour = ThreadLocalRandom.current().nextInt(8, 23);
-        int minute = ThreadLocalRandom.current().nextInt(0, 60);
-        int second = ThreadLocalRandom.current().nextInt(0, 60);
-        return String.format("%02d%02d%02d", hour, minute, second);
     }
 
     private String randomApprovalNo() {

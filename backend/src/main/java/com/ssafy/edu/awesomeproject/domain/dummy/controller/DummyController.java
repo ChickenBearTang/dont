@@ -2,10 +2,12 @@ package com.ssafy.edu.awesomeproject.domain.dummy.controller;
 
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.request.DummyCreateAccountsRequest;
+import com.ssafy.edu.awesomeproject.domain.dummy.dto.request.DummyCreateAllRequest;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.request.DummyCreateCardRequest;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.request.DummyCreateCardTransactionsRequest;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.request.DummyCreateUserRequest;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateAccountsResponse;
+import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateAllResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateCardResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateCardTransactionsResponse;
 import com.ssafy.edu.awesomeproject.domain.dummy.dto.response.DummyCreateUserResponse;
@@ -25,6 +27,21 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/dummy")
 public class DummyController {
     private final DummyService dummyService;
+
+    @PostMapping("/create_all")
+    @Operation(
+            summary = "더미 통합 생성 API",
+            description = "기수만 입력받아 유저 생성, 계좌 생성/설정, 카드 생성, 결제내역 생성까지 한 번에 수행합니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "404", description = "기수/사용자/카드 조회 실패"),
+        @ApiResponse(responseCode = "500", description = "외부 API 또는 데이터 생성 실패")
+    })
+    public CommonResponse<DummyCreateAllResponse> createAll(
+            @Valid @RequestBody DummyCreateAllRequest request) {
+        return CommonResponse.success(dummyService.createDummyAll(request.generationNo()));
+    }
 
     @PostMapping("/creat_user")
     @Operation(
