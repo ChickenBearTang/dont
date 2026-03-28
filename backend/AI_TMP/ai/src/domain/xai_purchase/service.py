@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 import re
 from typing import Any
 from urllib.parse import urlparse
 import urllib.request
 
 from ai.models import CrawlResult, HotDeal
+from ai.finance_engine.inference import predict_finance_signal
+from ai.price_engine.inference import predict_price_signal
 from ai.xai.analyzer import ExplainabilityAnalyzer
 from ai.xai.counterfactuals import CounterfactualEngine
 from ai.xai.dice_engine import DiceCounterfactualEngine
@@ -283,10 +286,26 @@ def _read_window_stats(
     }, warnings
 
 
+def _default_model_artifact_path(model_dir_name: str) -> str | None:
+    candidate = (
+        Path(__file__).resolve().parents[3]
+        / "data"
+        / "artifacts"
+        / model_dir_name
+    )
+    if (candidate / "model.pkl").exists() and (candidate / "metadata.json").exists():
+        return str(candidate)
+    return None
+
+
 def _map_runtime_engines(payload: dict[str, Any]) -> RuntimeEngines:
     runtime = payload.get("runtime_engines", {}) if isinstance(payload, dict) else {}
     shap_state = runtime.get("shap", {}) if isinstance(runtime, dict) else {}
     dice_state = runtime.get("dice", {}) if isinstance(runtime, dict) else {}
+    price_model_state = runtime.get("price_model", {}) if isinstance(runtime, dict) else {}
+    finance_model_state = (
+        runtime.get("finance_model", {}) if isinstance(runtime, dict) else {}
+    )
     return RuntimeEngines(
         decision="rule_engine_v1",
         explanation="rule_trace",
@@ -300,17 +319,31 @@ def _map_runtime_engines(payload: dict[str, Any]) -> RuntimeEngines:
             if dice_state.get("enabled")
             else "disabled"
         ),
+        price_model=(
+            str(price_model_state.get("backend", "disabled"))
+            if price_model_state.get("enabled")
+            else "disabled"
+        ),
+        finance_model=(
+            str(finance_model_state.get("backend", "disabled"))
+            if finance_model_state.get("enabled")
+            else "disabled"
+        ),
     )
 
 
 def _collect_warnings(payload: dict[str, Any], seed_warnings: list[str]) -> list[str]:
     warnings = list(seed_warnings)
     runtime = payload.get("runtime_engines", {}) if isinstance(payload, dict) else {}
-    for engine_name in ("shap", "dice"):
+    for engine_name in ("shap", "dice", "price_model", "finance_model"):
         state = runtime.get(engine_name, {}) if isinstance(runtime, dict) else {}
         if not state.get("enabled", False):
             reason = state.get("reason")
-            if isinstance(reason, str) and reason:
+            if (
+                isinstance(reason, str)
+                and reason
+                and reason not in {"price_model_disabled", "finance_model_disabled"}
+            ):
                 warnings.append(reason.upper())
     errors = payload.get("errors", [])
     if isinstance(errors, list):
@@ -388,6 +421,24 @@ def _financial_status(
     return "healthy"
 
 
+def _financial_status_from_model(
+    *,
+    finance_model_signal: dict[str, Any],
+    finance_model_state: dict[str, Any],
+    fallback_status: str,
+) -> str:
+    if not finance_model_state.get("enabled", False):
+        return fallback_status
+    risk_bucket = str(finance_model_signal.get("finance_model_risk_bucket", "")).lower()
+    if risk_bucket == "high":
+        return "critical"
+    if risk_bucket == "medium":
+        return "tight"
+    if risk_bucket == "low":
+        return "healthy"
+    return fallback_status
+
+
 def _price_status(current_price: int | None, avg_price: float | None) -> str:
     if current_price is None or avg_price is None or avg_price <= 0:
         return "degraded"
@@ -445,6 +496,14 @@ def evaluate_pr_purchase_xai(
 
     window_stats, stats_warnings = _read_window_stats(current_price)
     seed_warnings.extend(stats_warnings)
+    price_model_path = _default_model_artifact_path("price_retrain_model")
+    price_model_signal, price_model_state = predict_price_signal(
+        current_price=current_price,
+        window_stats=window_stats,
+        category=request.purchase.category,
+        explicit_model_path=price_model_path,
+        enabled=True,
+    )
 
     current_balance = _provenance_value_to_float(
         request.finance_profile.current_balance
@@ -480,6 +539,12 @@ def evaluate_pr_purchase_xai(
         "available_fixed_expense": available_fixed_expense,
         "available_fixed_income": available_fixed_income,
     }
+    finance_model_signal, finance_model_state = predict_finance_signal(
+        current_price=current_price,
+        finance_profile=finance_profile,
+        window_stats=window_stats,
+        enabled=True,
+    )
     purchase_url = (
         request.purchase.purchase_url
         or f"https://purchase-request.local/{request.purchase.post_id}"
@@ -488,6 +553,8 @@ def evaluate_pr_purchase_xai(
     fallback_counterfactual_engine = CounterfactualEngine()
     analyzer = ExplainabilityAnalyzer(
         finance_profile=finance_profile,
+        price_model_signal=price_model_signal,
+        finance_model_signal=finance_model_signal,
         counterfactual_engine=fallback_counterfactual_engine,
         dice_counterfactual_engine=DiceCounterfactualEngine(
             fallback_engine=fallback_counterfactual_engine
@@ -509,6 +576,15 @@ def evaluate_pr_purchase_xai(
         top_k=3,
         window_stats=window_stats,
     )
+    runtime_payload = payload.get("runtime_engines")
+    if isinstance(runtime_payload, dict):
+        runtime_payload["price_model"] = price_model_state
+        runtime_payload["finance_model"] = finance_model_state
+    else:
+        payload["runtime_engines"] = {
+            "price_model": price_model_state,
+            "finance_model": finance_model_state,
+        }
 
     item = payload["crawl"]["items"][0]
     runtime_engines = _map_runtime_engines(payload)
@@ -523,6 +599,17 @@ def evaluate_pr_purchase_xai(
         float(finance_profile["savebox_balance"])
         - float(current_price if current_price is not None else 0)
     )
+    fallback_financial_status = _financial_status(
+        savebox_balance=finance_profile["savebox_balance"],
+        available_fixed_expense=finance_profile["available_fixed_expense"],
+        available_fixed_income=finance_profile["available_fixed_income"],
+        days_until_card_due=int(finance_profile["days_until_card_due"]),
+    )
+    financial_status = _financial_status_from_model(
+        finance_model_signal=finance_model_signal,
+        finance_model_state=finance_model_state,
+        fallback_status=fallback_financial_status,
+    )
 
     response = PurchaseXaiEvaluationResponse(
         requestId=request.request_id,
@@ -532,12 +619,7 @@ def evaluate_pr_purchase_xai(
             item.get("polished_summary", "XAI 평가 요약을 생성하지 못했습니다.")
         ),
         financialEvaluation=EvaluationSection(
-            status=_financial_status(
-                savebox_balance=finance_profile["savebox_balance"],
-                available_fixed_expense=finance_profile["available_fixed_expense"],
-                available_fixed_income=finance_profile["available_fixed_income"],
-                days_until_card_due=int(finance_profile["days_until_card_due"]),
-            ),
+            status=financial_status,
             keyMetrics=[
                 EvaluationMetric(
                     code="savebox_balance",
@@ -546,12 +628,12 @@ def evaluate_pr_purchase_xai(
                 ),
                 EvaluationMetric(
                     code="available_fixed_expense",
-                    label="사용가능 고정 지출",
+                    label="이번 달 고정지출",
                     value=f"{int(finance_profile['available_fixed_expense']):,}원",
                 ),
                 EvaluationMetric(
                     code="available_fixed_income",
-                    label="사용가능 고정 수입",
+                    label="이번 달 고정 수입",
                     value=f"{int(finance_profile['available_fixed_income']):,}원",
                 ),
                 EvaluationMetric(

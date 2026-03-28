@@ -37,6 +37,8 @@ class ExplainabilityAnalyzer:
         shap_contribution_engine: Any | None = None,
         summary_polisher: Any | None = None,
         finance_profile: dict[str, float | int] | None = None,
+        price_model_signal: dict[str, float] | None = None,
+        finance_model_signal: dict[str, float | str] | None = None,
     ) -> None:
         features_module = import_module("ai.xai.features")
         reasoning_module = import_module("ai.xai.reasoning")
@@ -75,6 +77,8 @@ class ExplainabilityAnalyzer:
         self._decision_engine = DecisionEngine()
         self._explanation_engine = ExplanationEngine()
         self._finance_profile = finance_profile or {}
+        self._price_model_signal = price_model_signal or {}
+        self._finance_model_signal = finance_model_signal or {}
 
     def analyze_crawl_result(
         self,
@@ -215,6 +219,15 @@ class ExplainabilityAnalyzer:
                         savebox_balance - float(features.get("price_int", 0))
                     ),
                     "days_until_card_due": days_until_card_due,
+                    "price_model_gap_score": self._price_model_signal.get(
+                        "price_model_gap_score"
+                    ),
+                    "finance_model_risk_score": self._finance_model_signal.get(
+                        "finance_model_risk_score"
+                    ),
+                    "finance_model_affordability_score": self._finance_model_signal.get(
+                        "finance_model_affordability_score"
+                    ),
                 }
 
                 item = self._explanation_engine.build_item_explanation(
@@ -497,10 +510,44 @@ class ExplainabilityAnalyzer:
         if isinstance(avg_price_30d, (int, float)) and float(avg_price_30d) > 0:
             ratio = float(price_int) / float(avg_price_30d)
             relative_price_score = max(min(1.5 - ratio, 1.0), -1.0)
+        price_model_gap_score_raw = self._price_model_signal.get(
+            "price_model_gap_score", 0.0
+        )
+        try:
+            price_model_gap_score = float(price_model_gap_score_raw)
+        except (TypeError, ValueError):
+            price_model_gap_score = 0.0
+        price_model_gap_score = max(min(price_model_gap_score, 1.0), -1.0)
+        relative_price_score = (relative_price_score * 0.7) + (
+            price_model_gap_score * 0.3
+        )
+        finance_model_risk_raw = self._finance_model_signal.get(
+            "finance_model_risk_score", 0.0
+        )
+        finance_model_affordability_raw = self._finance_model_signal.get(
+            "finance_model_affordability_score",
+            0.0,
+        )
+        try:
+            finance_model_risk_score = float(finance_model_risk_raw)
+        except (TypeError, ValueError):
+            finance_model_risk_score = 0.0
+        try:
+            finance_model_affordability_score = float(finance_model_affordability_raw)
+        except (TypeError, ValueError):
+            finance_model_affordability_score = 0.0
+        finance_model_risk_score = max(min(finance_model_risk_score, 1.0), -1.0)
+        finance_model_affordability_score = max(
+            min(finance_model_affordability_score, 1.0),
+            -1.0,
+        )
 
         return {
             "current_price": current_price_score,
             "avg_price_30d": relative_price_score,
+            "price_model_gap_score": price_model_gap_score,
+            "finance_model_risk_score": finance_model_risk_score,
+            "finance_model_affordability_score": finance_model_affordability_score,
             "product_price_vs_monthly_spending": (
                 (price_int / monthly_spending_30d) if monthly_spending_30d > 0 else 1.0
             ),

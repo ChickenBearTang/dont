@@ -208,6 +208,12 @@ class XaiPurchaseServiceTest(unittest.TestCase):
         with patch(
             "domain.xai_purchase.service._fetch_page_text",
             return_value=(None, "MISSING_PURCHASE_URL"),
+        ), patch(
+            "domain.xai_purchase.service.predict_finance_signal",
+            return_value=(
+                {},
+                {"enabled": False, "backend": "disabled", "reason": "finance_model_disabled"},
+            ),
         ):
             response = evaluate_pr_purchase_xai(request)
 

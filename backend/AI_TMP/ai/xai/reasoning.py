@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
@@ -16,13 +16,13 @@ class _ReasonTemplate:
 class ReasoningEngine:
     _UNKNOWN_REASON_TEMPLATE = _ReasonTemplate(
         code="DECISION_FEATURE_SIGNAL",
-        text="개별 특성 기여도가 추천 판단에 영향을 주었습니다.",
+        text="핵심 특징 신호가 최종 판단에 반영되었습니다.",
         source_type="feature_score",
     )
 
     _FALLBACK_REASON: dict[str, Any] = {
         "reason_code": "NO_VALID_FEATURE_SCORES",
-        "reason_text": "유효한 숫자형 특성 점수가 없어 기본 판단 근거를 사용했습니다.",
+        "reason_text": "유효한 특징 점수가 부족하여 기본 판단 근거를 사용했습니다.",
         "feature": None,
         "score": 0.0,
         "source_type": "fallback",
