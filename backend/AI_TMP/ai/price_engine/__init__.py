@@ -3,6 +3,8 @@ from .allowlist import (
     FORBIDDEN_TRAIN_FIELDS,
     PHASE2_RESERVED_FIELDS,
 )
+from .artifacts import load_price_model_artifact, save_price_model_artifact
+from .inference import build_price_inference_payload, predict_price_signal
 from importlib import import_module
 from .schema_models import (
     PriceObservation,
@@ -45,6 +47,10 @@ __all__ = [
     "SchemaValidationError",
     "build_price_feature_snapshot_v1",
     "merge_to_price_observation",
+    "load_price_model_artifact",
+    "save_price_model_artifact",
+    "build_price_inference_payload",
+    "predict_price_signal",
     "validate_inference_payload",
     "validate_schema_version",
 ]
