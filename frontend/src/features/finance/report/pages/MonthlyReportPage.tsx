@@ -777,18 +777,29 @@ export const MonthlyReportPage = () => {
   const getAxiosStatus = (error: unknown): number | undefined =>
     (error as AxiosError | undefined)?.response?.status;
 
+  const isCardRecommendationResponse = (
+    value: AiReportPayload['cardRecommendation'] | null | undefined
+  ): value is CardRecommendationResponse => {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const candidate = value as Partial<CardRecommendationResponse>;
+    return (
+      !!candidate.user_persona &&
+      !!candidate.best_card &&
+      Array.isArray(candidate.all_cards) &&
+      typeof candidate.total_spend === 'number'
+    );
+  };
+
   const applyMonthlyReportPayload = (
     payload?: AiReportPayload,
     options?: { preserveCardRecommendationOnEmpty?: boolean }
   ) => {
     setAiAnalysis(payload?.aiAnalysis ?? null);
-    const nextCardRecommendation = payload?.cardRecommendation ?? null;
-    const hasCardRecommendation =
-      !!nextCardRecommendation &&
-      typeof nextCardRecommendation === 'object' &&
-      Object.keys(nextCardRecommendation).length > 0;
-
-    if (hasCardRecommendation) {
+    const nextCardRecommendation = payload?.cardRecommendation;
+    if (isCardRecommendationResponse(nextCardRecommendation)) {
       setCardRecommendation(nextCardRecommendation);
       return;
     }

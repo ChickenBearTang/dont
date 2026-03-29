@@ -7,6 +7,8 @@ import { getErrorStatusCode, isSessionExpiredStatus } from '@/shared/auth/authEr
 import { handleSessionExpired } from '@/shared/auth/handleSessionExpired';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { loadAuthUser } from '@/features/auth/utils/authStorage';
+import { fetchMyPage } from '@/features/user/api/userApi';
+import type { UserProfile } from '@/features/auth/types';
 import { queryClient } from '@/shared/api/queryClient';
 import { QueryClientProvider } from '@tanstack/react-query';
 import '@/styles/index.css';
@@ -26,24 +28,34 @@ const AppBootstrap = () => {
 
     const bootstrapAuth = async () => {
       const savedUser = loadAuthUser();
-      if (!savedUser) {
-        setAuthInitializing(false);
-        return;
-      }
-
       setAuthInitializing(true);
 
       try {
         const response = await refreshAccessToken();
         const nextToken = response.data.accessToken;
+        let userForSession = savedUser;
+
+        if (!userForSession) {
+          const myPageResponse = await fetchMyPage();
+          const myPage = myPageResponse.data;
+          userForSession = {
+            userId: myPage.userId,
+            email: myPage.email,
+            nickname: myPage.nickname ?? undefined,
+            profileImageUrl: myPage.profileImageUrl ?? undefined,
+            onboardingCompleted: myPage.onboardingStatus === 'COMPLETED',
+            cohortId: myPage.cohortId ?? undefined,
+            role: 'USER',
+          } satisfies UserProfile;
+        }
 
         restoreSession({
           accessToken: nextToken,
-          user: savedUser,
+          user: userForSession,
         });
       } catch (error) {
         const statusCode = getErrorStatusCode(error);
-        if (isSessionExpiredStatus(statusCode)) {
+        if (isSessionExpiredStatus(statusCode) && savedUser) {
           handleSessionExpired();
           return;
         }
