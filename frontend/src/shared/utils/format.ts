@@ -1,10 +1,15 @@
+
+
+
 export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('ko-KR').format(amount) + '원';
 };
 
+
 export const formatNumber = (num: number): string => {
   return new Intl.NumberFormat('ko-KR').format(num);
 };
+
 
 export const formatKoreanUnit = (amount: number): string => {
   if (amount >= 100000000) {

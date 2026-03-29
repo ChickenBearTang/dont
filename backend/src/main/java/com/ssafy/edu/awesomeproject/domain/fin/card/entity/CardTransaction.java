@@ -81,3 +81,5 @@ public class CardTransaction extends BaseEntity {
         this.userId = userId;
     }
 }
+
+

@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { SignUpForm } from '@/features/auth/components/SignUpForm';
 
+
 export const SignUpPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="max-w-[600px] mx-auto py-10">
+    <div className="w-full max-w-[600px] px-4 mx-auto py-10">
+      {}
       <div className="text-center mb-10">
         <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-tight">
           똑똑한 자산 관리의 시작,
@@ -17,7 +19,8 @@ export const SignUpPage = () => {
         </p>
       </div>
 
-      <div className="bg-[#F8FAFC] p-8 lg:p-12 rounded-[40px] shadow-sm border border-gray-100 relative overflow-hidden">
+      <div className="bg-[#F8FAFC] p-8 lg:p-12 rounded-[40px] shadow-sm border border-gray-100 relative overflow-visible">
+        {}
         <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none">
           <img
             src="/assets/mascot_happy.png"
@@ -31,8 +34,8 @@ export const SignUpPage = () => {
             <span className="text-2xl">🎁</span>
           </div>
           <p className="text-[14px] font-bold text-gray-700 leading-relaxed break-keep">
-            환영합니다! 가입을 위해 기수 정보와 목표 금액 등 몇 가지 정보만 알려주세요. 현명한 지출
-            관리를 위한 맞춤형 리포트를 준비해드릴게요.
+            환영합니다! 가입을 위해 이메일 인증과 기본 정보만 먼저 입력해주세요. 닉네임은 가입 후
+            마이페이지에서 설정할 수 있고, 온보딩에서는 목표 금액 추천을 이어서 진행합니다.
           </p>
         </div>
 

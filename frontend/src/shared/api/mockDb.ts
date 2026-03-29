@@ -7,15 +7,15 @@ class MockDatabase {
       userId: 1,
       nickname: '테스트유저',
       onboardingCompleted: false,
-      role: 'ROLE_USER',
+      role: 'USER',
       email: 'test@test.com',
     },
   ];
 
   private cohorts: Cohort[] = [
-    { cohortId: 1, cohortCode: '14기' },
-    { cohortId: 2, cohortCode: '15기' },
-    { cohortId: 3, cohortCode: '16기' },
+    { cohortId: 1, cohortCode: '14기', generationNo: 14 },
+    { cohortId: 2, cohortCode: '15기', generationNo: 15 },
+    { cohortId: 3, cohortCode: '16기', generationNo: 16 },
   ];
 
   private toUserProfile(user: UserProfile & { email: string }): UserProfile {
@@ -39,9 +39,9 @@ class MockDatabase {
   registerUser(payload: SignUpRequestPayload): UserProfile {
     const newUser = {
       userId: this.users.length + 1,
-      nickname: payload.nickname,
+      nickname: payload.name,
       onboardingCompleted: false,
-      role: 'ROLE_USER' as const,
+      role: 'USER' as const,
       email: payload.email,
     };
     this.users.push(newUser);

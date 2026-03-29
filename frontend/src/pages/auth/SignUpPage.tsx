@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { SignUpForm } from '@/features/auth/components/SignUpForm';
 
+
 const SignUpPage = () => {
   const navigate = useNavigate();
 
   return (
     <div className="max-w-[600px] mx-auto py-10">
+      {}
       <div className="text-center mb-10">
         <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-tight">
           똑똑한 자산 관리의 시작,
@@ -18,6 +20,7 @@ const SignUpPage = () => {
       </div>
 
       <div className="bg-[#F8FAFC] p-8 lg:p-12 rounded-[40px] shadow-sm border border-gray-100 relative overflow-hidden">
+        {}
         <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none">
           <img
             src="/assets/mascot_happy.png"

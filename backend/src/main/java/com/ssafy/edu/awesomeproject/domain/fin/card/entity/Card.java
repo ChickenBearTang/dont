@@ -96,6 +96,7 @@ public class Card extends BaseEntity {
         this.withdrawalDate = withdrawalDate;
     }
 
+
     public void updateFromExternal(
             String cardNo,
             String cvc,

@@ -27,7 +27,7 @@ const getMonthRange = (date: Date) => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0); // Last day of the month
+  const lastDay = new Date(year, month + 1, 0);
   return {
     startDate: formatToYYYYMMDD(firstDay),
     endDate: formatToYYYYMMDD(lastDay),
@@ -37,6 +37,7 @@ const getMonthRange = (date: Date) => {
 export const CardDetailPage = () => {
   const { cardId } = useParams<{ cardId: string }>();
   const navigate = useNavigate();
+  const isNumericCardId = !!cardId && /^\d+$/.test(cardId);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [cardInfo, setCardInfo] = useState<CardDetailDto | null>(null);
@@ -44,7 +45,7 @@ export const CardDetailPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || !isNumericCardId) return;
 
     const fetchDetail = async () => {
       try {
@@ -72,7 +73,7 @@ export const CardDetailPage = () => {
     };
 
     fetchDetail();
-  }, [cardId, currentDate]);
+  }, [cardId, currentDate, isNumericCardId]);
 
   const handlePrevMonth = () => {
     setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -84,12 +85,14 @@ export const CardDetailPage = () => {
 
   const formatTransactionDate = (dateStr: string, timeStr: string) => {
     if (!dateStr) return '';
-    // Format YYYYMMDD and HHMMSS
+
     const year = dateStr.slice(0, 4);
     const month = dateStr.slice(4, 6);
     const day = dateStr.slice(6, 8);
-    const hour = timeStr ? timeStr.slice(0, 2) : '00';
-    const min = timeStr ? timeStr.slice(2, 4) : '00';
+
+    const cleanTime = timeStr ? timeStr.replace(/:/g, '') : '000000';
+    const hour = cleanTime.slice(0, 2).padStart(2, '0');
+    const min = cleanTime.slice(2, 4).padStart(2, '0');
 
     return `${year}년 ${parseInt(month, 10)}월 ${parseInt(day, 10)}일 ${hour}:${min}`;
   };
@@ -98,6 +101,20 @@ export const CardDetailPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
         <div className="w-8 h-8 border-4 border-gray-100 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isNumericCardId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <h2 className="text-lg font-bold text-gray-800">AI 추천 카드 코드(C01 등)는 상세 조회를 지원하지 않습니다.</h2>
+        <button
+          onClick={() => navigate('/finance/cards/recommend')}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          추천 목록으로 돌아가기
+        </button>
       </div>
     );
   }
@@ -146,6 +163,7 @@ export const CardDetailPage = () => {
       </div>
 
       <div className="px-7 py-6 flex-1 flex flex-col">
+        {}
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={handlePrevMonth}

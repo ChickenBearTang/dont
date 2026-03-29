@@ -1,9 +1,16 @@
-﻿import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
+import {
+  getErrorCode,
+  getErrorStatusCode,
+  isReissuable401Code,
+  isSessionExpiredStatus,
+} from '@/shared/auth/authErrorPolicy';
+import { handleSessionExpired } from '@/shared/auth/handleSessionExpired';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import type { ApiResponse } from '@/shared/types';
 import type { TokenReissueResponseData } from '@/features/auth/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT) || 10000;
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
@@ -94,10 +101,12 @@ axiosInstance.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined;
     const status = error.response?.status;
+    const code = getErrorCode(error);
 
     if (
       !originalRequest ||
       status !== 401 ||
+      !isReissuable401Code(code) ||
       originalRequest._retry ||
       isAuthEndpoint(originalRequest.url)
     ) {
@@ -133,7 +142,10 @@ axiosInstance.interceptors.response.use(
       return axiosInstance(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError);
-      useAuthStore.getState().logout();
+      const refreshStatus = getErrorStatusCode(refreshError);
+      if (isSessionExpiredStatus(refreshStatus)) {
+        handleSessionExpired();
+      }
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

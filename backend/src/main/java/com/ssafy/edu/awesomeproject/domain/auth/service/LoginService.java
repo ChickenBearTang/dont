@@ -26,7 +26,7 @@ public class LoginService {
     public LoginResult login(String email, String password) {
         User user =
                 userRepository
-                        .findByEmail(email)
+                        .findActiveByEmail(email)
                         .orElseThrow(() -> new AuthException(AuthErrorCode.BAD_CREDENTIALS));
 
         if (!passwordHashService.matches(password, user.getPassword())) {
@@ -45,6 +45,17 @@ public class LoginService {
                 loginTokenResult.expiresInSeconds(),
                 loginTokenResult.refreshToken(),
                 loginTokenResult.refreshTokenExpiresInSeconds());
+    }
+
+    public void verifyPassword(Long userId, String password) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.AUTHENTICATION_FAILED));
+
+        if (!passwordHashService.matches(password, user.getPassword())) {
+            throw new AuthException(AuthErrorCode.BAD_CREDENTIALS);
+        }
     }
 
     public record LoginResult(

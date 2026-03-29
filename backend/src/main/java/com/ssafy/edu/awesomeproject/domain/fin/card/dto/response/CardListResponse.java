@@ -21,6 +21,7 @@ public class CardListResponse {
         private String cardIssuerName;
         private String cardName;
 
+
         private long monthlyCardExpense;
     }
 }

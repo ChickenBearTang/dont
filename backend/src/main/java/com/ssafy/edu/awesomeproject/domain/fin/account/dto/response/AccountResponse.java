@@ -5,6 +5,7 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountStatus;
 import java.math.BigDecimal;
 import lombok.Builder;
 
+
 @Builder
 public record AccountResponse(
         Long id,
@@ -14,7 +15,8 @@ public record AccountResponse(
         String accountName,
         BigDecimal balance,
         String userName,
-        AccountStatus status) {
+        AccountStatus status,
+        Boolean isPrimary) {
 
     public static AccountResponse from(Account account) {
         return AccountResponse.builder()
@@ -26,6 +28,7 @@ public record AccountResponse(
                 .balance(account.getBalance())
                 .userName(account.getUserName())
                 .status(account.getStatus())
+                .isPrimary(account.isPrimary())
                 .build();
     }
 }

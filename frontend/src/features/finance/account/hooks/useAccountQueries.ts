@@ -2,13 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { accountApi } from '../api/accountApi';
 import { accountKeys } from '../queries/accountKeys';
 
+
 export const useGetMyAccounts = () => {
   return useQuery({
     queryKey: accountKeys.lists(),
     queryFn: accountApi.getMyAccounts,
-    select: (response) => response.data.accounts,
+    select: (response) => {
+      const sortedAccounts = [...response.data.accounts].sort((a, b) => {
+        const balanceA = Number(a.accountBalance) || 0;
+        const balanceB = Number(b.accountBalance) || 0;
+        return balanceB - balanceA;
+      });
+      return sortedAccounts;
+    },
   });
 };
+
 
 export const useGetAccountDetail = (accountId: number) => {
   return useQuery({
@@ -18,6 +27,7 @@ export const useGetAccountDetail = (accountId: number) => {
     enabled: !!accountId,
   });
 };
+
 
 export const useGetAccountTransactions = (
   accountId: number,
@@ -30,6 +40,7 @@ export const useGetAccountTransactions = (
     enabled: !!accountId,
   });
 };
+
 
 export const useGetSavingsSetting = () => {
   return useQuery({

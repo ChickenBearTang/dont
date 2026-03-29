@@ -9,6 +9,9 @@ import lombok.Getter;
 @Builder
 public class OpenBankRequest {
 
+
     @JsonProperty("Header")
     private OpenBankReqHeader header;
+
+
 }

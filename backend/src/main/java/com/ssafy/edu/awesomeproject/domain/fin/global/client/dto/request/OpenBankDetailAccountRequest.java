@@ -5,6 +5,7 @@ import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankReqHead
 import lombok.Builder;
 import lombok.Getter;
 
+
 @Getter
 @Builder
 public class OpenBankDetailAccountRequest {

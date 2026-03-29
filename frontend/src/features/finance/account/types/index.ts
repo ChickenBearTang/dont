@@ -1,4 +1,8 @@
+
+
+
 export type AccountStatus = 'ACTIVE' | 'INACTIVE' | 'CLOSED';
+
 
 export interface AccountDetail {
   id: number;
@@ -16,7 +20,9 @@ export interface AccountDetail {
   accountBalance: string;
   lastTransactionDate: string;
   currencyCode: string;
+  isPrimary: boolean;
 }
+
 
 export interface Account {
   id: number;
@@ -27,13 +33,15 @@ export interface Account {
   balance: number;
   userName: string;
   status: AccountStatus;
+  isPrimary: boolean;
 }
+
 
 export interface TransactionItem {
   transactionUniqueNo: string;
   transactionDate: string;
   transactionTime: string;
-  transactionType: '1' | '2'; // 1: 입금, 2: 출금
+  transactionType: '1' | '2';
   transactionTypeName: string;
   transactionAmount: string;
   afterBalance: string;
@@ -41,25 +49,29 @@ export interface TransactionItem {
   transactionMemo: string;
 }
 
+
 export interface SavingsSetting {
   id?: number;
   primaryAccountId: number;
-  saveBoxAccountId: number;
+  saveboxAccountId: number;
   keyword: string;
-  savingAmount: number;
+  savingsAmount: number;
   isActive: boolean;
 }
 
+
 export interface SaveBoxCreateRequest {
-  accountName: string;
+  accountTypeUniqueNo: string;
 }
 
 export interface SavingsSettingRequest {
   primaryAccountId: number;
-  saveBoxAccountId: number;
+  saveboxAccountId: number;
   keyword: string;
-  savingAmount: number;
+  savingsAmount: number;
+  isActive: boolean;
 }
+
 
 export interface AccountListResponse {
   accounts: AccountDetail[];

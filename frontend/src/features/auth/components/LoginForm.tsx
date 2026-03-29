@@ -1,9 +1,10 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { Input, Button } from '@/shared/components';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { login, mapUserProfileFromLogin } from '@/features/auth/api/authApi';
+import { fetchOnboardingStatus } from '@/features/user/api/userApi';
 
 interface FormErrors {
   email?: string;
@@ -29,6 +30,8 @@ export const LoginForm = () => {
 
     if (!password) {
       nextErrors.password = '비밀번호를 입력해주세요.';
+    } else if (password.length < 8) {
+      nextErrors.password = '비밀번호는 8자 이상이어야 합니다.';
     }
 
     return nextErrors;
@@ -54,47 +57,72 @@ export const LoginForm = () => {
         accessToken: loginData.accessToken,
         user: mapUserProfileFromLogin(loginData),
       });
-
-      addToast('로그인에 성공했습니다.', 'success');
-      navigate('/dashboard', { replace: true });
     } catch {
       addToast('로그인에 실패했습니다. 이메일/비밀번호를 확인해주세요.', 'error');
+      setIsPending(false);
+      return;
+    }
+
+    try {
+      const onboardingStatusResponse = await fetchOnboardingStatus();
+      const onboardingStatus = onboardingStatusResponse.data.onboardingStatus;
+      const nextPath =
+        onboardingStatus === 'NOT_STARTED'
+          ? '/onboarding'
+          : onboardingStatus === 'COMPLETED'
+            ? '/dashboard'
+            : '/finance-connect';
+
+      addToast('로그인에 성공했습니다.', 'success');
+      navigate(nextPath, { replace: true });
+    } catch {
+      addToast(
+        '로그인은 성공했지만 온보딩 상태를 확인하지 못했습니다. 온보딩으로 이동합니다.',
+        'error'
+      );
+      navigate('/onboarding', { replace: true });
     } finally {
       setIsPending(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <Input
         label="이메일"
         name="email"
         type="email"
-        placeholder="example@test.com"
+        placeholder="이메일을 입력하세요."
         required
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         error={!!errors.email}
+        errorMessage={errors.email}
       />
-      {errors.email && (
-        <p className="text-error-red text-[13px] ml-1 font-medium">{errors.email}</p>
-      )}
 
       <Input
         label="비밀번호"
         name="password"
         type="password"
-        placeholder="비밀번호를 입력하세요"
+        placeholder="비밀번호를 입력하세요."
         required
         value={password}
         onChange={(event) => setPassword(event.target.value)}
         error={!!errors.password}
+        errorMessage={errors.password}
       />
-      {errors.password && (
-        <p className="text-error-red text-[13px] ml-1 font-medium">{errors.password}</p>
-      )}
 
-      <Button type="submit" className="mt-8" disabled={isPending}>
+      <div className="-mt-1 text-right">
+        <button
+          type="button"
+          className="text-[13px] font-bold text-accent hover:underline"
+          onClick={() => navigate('/forgot-password')}
+        >
+          비밀번호 찾기
+        </button>
+      </div>
+
+      <Button type="submit" className="mt-6" disabled={isPending}>
         {isPending ? '로그인 중...' : '로그인'}
       </Button>
     </form>

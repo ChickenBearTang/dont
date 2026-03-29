@@ -4,7 +4,11 @@ import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.CreatePostRequestDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.UpdatePostRequestDto;
-import com.ssafy.edu.awesomeproject.domain.community.dto.response.*;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.CreatePostResponseDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.DeletePostResponseDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.GetPostListResponseDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.GetPostResponseDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.UpdatePostResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.entity.BoardCategory;
 import com.ssafy.edu.awesomeproject.domain.community.service.PostService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,7 +16,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import java.util.List;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/community/posts")
@@ -35,13 +47,15 @@ public class PostController {
     public CommonResponse<CreatePostResponseDto> createPost(
             @CurrentUserId Long userId,
             @Valid @RequestBody CreatePostRequestDto createPostRequestDto) {
+
         PostService.CreatePostResult result =
                 postService.createPost(
                         userId,
                         createPostRequestDto.category(),
                         createPostRequestDto.generationNo(),
                         createPostRequestDto.title(),
-                        createPostRequestDto.content());
+                        createPostRequestDto.content(),
+                        createPostRequestDto.attachments());
 
         return CommonResponse.success(
                 new CreatePostResponseDto(
@@ -55,7 +69,7 @@ public class PostController {
     @Operation(
             summary = "게시글 목록 조회 API",
             description =
-                    "category가 없으면 전체 목록, 있으면 카테고리별 게시글 목록을 페이지 번호 방식으로 조회합니다. COHORT 카테고리 조회 시에는 cohortId를 함께 보내야 합니다.")
+                    "category가 없으면 전체 목록, 있으면 카테고리별 게시글 목록을 페이지 번호 방식으로 조회합니다. COHORT 카테고리 조회 시에는 generationNo를 함께 보냅니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "정상 응답"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청")
@@ -75,16 +89,20 @@ public class PostController {
                         .map(
                                 post -> {
                                     PostService.PostExtraSummary extra = post.extraSummary();
+
                                     return new GetPostListResponseDto.PostSummaryDto(
                                             post.postId(),
                                             post.category(),
                                             post.generationNo(),
+                                            post.status(),
                                             post.title(),
                                             post.authorId(),
                                             post.authorNickname(),
+                                            post.authorProfileImageUrl(),
                                             post.isMine(),
                                             post.likeCount(),
                                             post.commentCount(),
+                                            post.attachmentCount(),
                                             post.createdAt(),
                                             extra == null
                                                     ? null
@@ -97,6 +115,9 @@ public class PostController {
                                                                             extra.pr().status(),
                                                                             extra.pr()
                                                                                     .resultStatus(),
+                                                                            extra.pr().itemName(),
+                                                                            extra.pr()
+                                                                                    .priceAmount(),
                                                                             extra.pr()
                                                                                     .totalVoteCount(),
                                                                             extra.pr()
@@ -160,14 +181,17 @@ public class PostController {
                         result.postId(),
                         result.category(),
                         result.generationNo(),
+                        result.status(),
                         result.title(),
                         result.content(),
                         result.authorId(),
                         result.authorNickname(),
+                        result.authorProfileImageUrl(),
                         result.isMine(),
                         result.likeCount(),
                         result.dislikeCount(),
                         result.commentCount(),
+                        result.attachments(),
                         result.createdAt(),
                         result.updatedAt()));
     }
@@ -183,12 +207,14 @@ public class PostController {
             @CurrentUserId Long userId,
             @PathVariable Long postId,
             @Valid @RequestBody UpdatePostRequestDto updatePostRequestDto) {
+
         PostService.UpdatePostResult result =
                 postService.updatePost(
                         userId,
                         postId,
                         updatePostRequestDto.title(),
-                        updatePostRequestDto.content());
+                        updatePostRequestDto.content(),
+                        updatePostRequestDto.attachments());
 
         return CommonResponse.success(
                 new UpdatePostResponseDto(result.postId(), result.updatedAt()));
@@ -203,6 +229,7 @@ public class PostController {
     })
     public CommonResponse<DeletePostResponseDto> deletePost(
             @CurrentUserId Long userId, @PathVariable Long postId) {
+
         PostService.DeletePostResult result = postService.deletePost(userId, postId);
 
         return CommonResponse.success(

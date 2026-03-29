@@ -7,6 +7,7 @@ import com.ssafy.edu.awesomeproject.domain.community.dto.request.UpdateCommentRe
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.CreateCommentResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.DeleteCommentResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.GetCommentListResponseDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.GetCommentReplyListResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.UpdateCommentResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.service.CommentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +35,7 @@ public class CommentController {
     }
 
     @PostMapping("/posts/{postId}/comments")
-    @Operation(summary = "댓글 작성 API", description = "게시글에 댓글 또는 대댓글을 작성하는 API 입니다.")
+    @Operation(summary = "댓글 작성 API", description = "게시글의 댓글 또는 대댓글을 작성하는 API입니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "생성 완료"),
         @ApiResponse(responseCode = "400", description = "잘못된 요청"),
@@ -59,7 +60,7 @@ public class CommentController {
     }
 
     @GetMapping("/posts/{postId}/comments")
-    @Operation(summary = "댓글 목록 조회 API", description = "게시글의 댓글 목록을 페이지 기반으로 조회하는 API 입니다.")
+    @Operation(summary = "댓글 목록 조회 API", description = "게시글의 루트 댓글 목록을 페이지 기반으로 조회하는 API입니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "정상 응답"),
         @ApiResponse(responseCode = "404", description = "게시글 없음")
@@ -73,19 +74,23 @@ public class CommentController {
         CommentService.GetCommentListResult result =
                 commentService.getComments(userId, postId, page, size);
 
-        List<GetCommentListResponseDto.CommentSummaryDto> content =
+        List<GetCommentListResponseDto.CommentThreadDto> content =
                 result.content().stream()
                         .map(
-                                comment ->
-                                        new GetCommentListResponseDto.CommentSummaryDto(
-                                                comment.commentId(),
-                                                comment.parentCommentId(),
-                                                comment.content(),
-                                                comment.authorId(),
-                                                comment.authorNickname(),
-                                                comment.isMine(),
-                                                comment.likeCount(),
-                                                comment.createdAt()))
+                                comment -> new GetCommentListResponseDto.CommentThreadDto(
+                                        comment.commentId(),
+                                        comment.parentCommentId(),
+                                        comment.status(),
+                                        comment.content(),
+                                        comment.authorId(),
+                                        comment.authorNickname(),
+                                        comment.authorProfileImageUrl(),
+                                        comment.isMine(),
+                                        comment.likeCount(),
+                                        comment.createdAt(),
+                                        comment.updatedAt(),
+                                        comment.replyCount(),
+                                        List.of()))
                         .toList();
 
         return CommonResponse.success(
@@ -98,8 +103,55 @@ public class CommentController {
                         result.hasNext()));
     }
 
+    @GetMapping("/posts/{postId}/comments/{commentId}/replies")
+    @Operation(summary = "답글 목록 조회 API", description = "특정 루트 댓글의 답글 목록을 페이지 기반으로 조회하는 API입니다.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "정상 응답"),
+        @ApiResponse(responseCode = "404", description = "게시글/댓글 없음")
+    })
+    public CommonResponse<GetCommentReplyListResponseDto> getReplies(
+            @CurrentUserId Long userId,
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+
+        CommentService.GetCommentReplyListResult result =
+                commentService.getReplies(userId, postId, commentId, page, size);
+
+        List<GetCommentReplyListResponseDto.CommentReplyDto> content =
+                result.content().stream()
+                        .map(
+                                reply ->
+                                        new GetCommentReplyListResponseDto.CommentReplyDto(
+                                                reply.commentId(),
+                                                reply.parentCommentId(),
+                                                reply.replyToCommentId(),
+                                                reply.replyToNickname(),
+                                                reply.depth(),
+                                                reply.status(),
+                                                reply.content(),
+                                                reply.authorId(),
+                                                reply.authorNickname(),
+                                                reply.authorProfileImageUrl(),
+                                                reply.isMine(),
+                                                reply.likeCount(),
+                                                reply.createdAt(),
+                                                reply.updatedAt()))
+                        .toList();
+
+        return CommonResponse.success(
+                new GetCommentReplyListResponseDto(
+                        content,
+                        result.page(),
+                        result.size(),
+                        result.totalElements(),
+                        result.totalPages(),
+                        result.hasNext()));
+    }
+
     @PatchMapping("/comments/{commentId}")
-    @Operation(summary = "댓글 수정 API", description = "댓글 작성자가 본인 댓글을 수정하는 API 입니다.")
+    @Operation(summary = "댓글 수정 API", description = "댓글 작성자가 본인 댓글을 수정하는 API입니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "정상 응답"),
         @ApiResponse(responseCode = "401", description = "인증 필요"),
@@ -119,7 +171,7 @@ public class CommentController {
     }
 
     @DeleteMapping("/comments/{commentId}")
-    @Operation(summary = "댓글 삭제 API", description = "댓글 작성자가 본인의 댓글을 삭제하는 API 입니다.")
+    @Operation(summary = "댓글 삭제 API", description = "댓글 작성자가 본인 댓글을 삭제하는 API입니다.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "정상 응답"),
         @ApiResponse(responseCode = "401", description = "인증 필요"),

@@ -9,7 +9,7 @@ interface MascotProps {
 
 export const Mascot = ({ src, speech, className = '', style = {} }: MascotProps) => (
   <div className={`flex flex-col items-center gap-6 ${className}`}>
-    <div className="relative">
+    <div className="relative inline-block">
       <img
         src={src}
         alt="Mascot"
@@ -18,9 +18,18 @@ export const Mascot = ({ src, speech, className = '', style = {} }: MascotProps)
       />
 
       {speech && (
-        <div className="absolute -top-8 -right-8 lg:-right-12 bg-white rounded-3xl rounded-bl-none px-6 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.08)] border border-gray-50 font-bold text-[14px] lg:text-[16px] text-gray-800 leading-relaxed max-w-[220px] lg:max-w-[280px] break-keep">
-          {speech}
-          <div className="absolute bottom-[-6px] left-0 w-4 h-4 bg-white border-l border-b border-gray-50 rotate-45 -translate-x-1/2"></div>
+        <div className="absolute bottom-[85%] left-[60%] lg:bottom-[80%] lg:left-[70%] bg-white/70 backdrop-blur-md rounded-2xl px-4 lg:px-5 py-3 lg:py-4 shadow-[0_8px_24px_rgba(30,58,138,0.08)] font-bold text-[13px] lg:text-[14px] text-gray-800 leading-[1.5] w-max max-w-[200px] lg:max-w-[240px] break-keep tracking-tight z-20 transition-all duration-700 hover:scale-[1.02] hover:-rotate-1">
+          <span className="relative z-10">{speech}</span>
+
+          {}
+          <svg
+            className="absolute -bottom-[12px] left-[16px] w-[20px] h-[16px] text-white/70 drop-shadow-[0_4px_8px_rgba(30,58,138,0.05)]"
+            viewBox="0 0 24 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M4 0 L24 0 L0 20 Z" fill="currentColor" />
+          </svg>
         </div>
       )}
     </div>

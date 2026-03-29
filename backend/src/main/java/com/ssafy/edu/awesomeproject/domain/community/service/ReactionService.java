@@ -53,6 +53,7 @@ public class ReactionService {
 
         validateTargetAccess(user, targetType, targetId);
 
+
         if (Boolean.TRUE.equals(active)) {
             registerReaction(user, targetType, targetId, reactionType);
         } else {
@@ -78,6 +79,7 @@ public class ReactionService {
     private void registerReaction(
             User user, ReactionTargetType targetType, Long targetId, ReactionType reactionType) {
 
+
         reactionRepository
                 .findByUser_IdAndTargetTypeAndTargetIdAndReactionType(
                         user.getId(), targetType, targetId, reactionType)
@@ -100,6 +102,7 @@ public class ReactionService {
     }
 
     private void validateTargetAccess(User user, ReactionTargetType targetType, Long targetId) {
+
         if (targetType == ReactionTargetType.POST) {
             Post post =
                     postRepository
@@ -126,6 +129,7 @@ public class ReactionService {
         if (board.getCategory() != BoardCategory.COHORT) {
             return;
         }
+
 
         if (user.getCohort() == null || board.getCategory() == null) {
             throw new CommunityException(

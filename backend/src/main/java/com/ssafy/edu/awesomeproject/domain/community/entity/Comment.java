@@ -58,6 +58,11 @@ public class Comment extends BaseEntity {
         this.deletedAt = LocalDateTime.now();
     }
 
+
+    public void blind() {
+        this.status = CommentStatus.BLINDED;
+    }
+
     public boolean isAuthor(Long userId) {
         return this.user.getId().equals(userId);
     }

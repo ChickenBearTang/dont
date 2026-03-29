@@ -1,25 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGetAccountDetail, useGetAccountTransactions } from '../hooks/useAccountQueries';
+
 
 export const AccountDetailPage: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
   const id = Number(accountId);
 
-  // 현재 날짜 기준 한 달 전~오늘까지의 거래 내역 조회 (더미 파라미터)
-  const today = new Date().toISOString().split('T')[0];
-  const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1))
-    .toISOString()
-    .split('T')[0];
+
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+
+
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const startDate = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1));
+  const endDate = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0));
+
+  const now = new Date();
+  const isCurrentMonth =
+    currentDate.getFullYear() === now.getFullYear() &&
+    currentDate.getMonth() === now.getMonth();
+
+  const handlePrevMonth = () => {
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    if (!isCurrentMonth) {
+      setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    }
+  };
 
   const { data: account, isLoading: isAccountLoading } = useGetAccountDetail(id);
   const { data: transactions, isLoading: isTxLoading } = useGetAccountTransactions(id, {
-    startDate: lastMonth,
-    endDate: today,
+    startDate,
+    endDate,
   });
 
-  if (isAccountLoading || isTxLoading) {
+  if (isAccountLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="w-10 h-10 border-4 border-light-gray border-t-primary-blue rounded-full animate-spin" />
@@ -40,6 +67,7 @@ export const AccountDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
+      {}
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 mb-6 text-gray hover:text-eel transition-colors"
@@ -56,6 +84,7 @@ export const AccountDetailPage: React.FC = () => {
         <span>뒤로</span>
       </button>
 
+      {}
       <header className="p-8 mb-8 bg-white border border-light-gray rounded-3xl shadow-sm">
         <div className="flex justify-between items-start mb-6">
           <div>
@@ -80,17 +109,47 @@ export const AccountDetailPage: React.FC = () => {
         </div>
       </header>
 
+      {}
       <section className="bg-white border border-light-gray rounded-3xl shadow-sm overflow-hidden">
         <div className="px-8 py-5 border-b border-light-gray flex justify-between items-center bg-gray/5">
-          <h3 className="font-black text-eel">거래 내역</h3>
-          <span className="text-xs text-gray">
-            {lastMonth} ~ {today}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handlePrevMonth}
+              className="text-gray hover:text-eel p-1 rounded-full hover:bg-light-gray transition-colors"
+              aria-label="이전 달"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h3 className="font-black text-eel text-lg">{currentDate.getMonth() + 1}월 거래 내역</h3>
+            <button
+              onClick={handleNextMonth}
+              disabled={isCurrentMonth}
+              className={`p-1 rounded-full transition-colors ${
+                isCurrentMonth
+                  ? 'text-gray/30 cursor-not-allowed'
+                  : 'text-gray hover:text-eel hover:bg-light-gray'
+              }`}
+              aria-label="다음 달"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          <span className="text-xs text-gray font-mono">
+            {startDate} ~ {endDate}
           </span>
         </div>
 
-        <div className="divide-y divide-light-gray">
-          {!transactions || transactions.length === 0 ? (
-            <div className="p-16 text-center text-gray">최근 거래 내역이 없습니다.</div>
+        <div className="divide-y divide-light-gray min-h-[200px] relative">
+          {isTxLoading ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm z-10">
+              <div className="w-8 h-8 border-4 border-light-gray border-t-primary-blue rounded-full animate-spin" />
+            </div>
+          ) : !transactions || transactions.length === 0 ? (
+            <div className="p-16 text-center text-gray">해당 월의 거래 내역이 없습니다.</div>
           ) : (
             transactions.map((tx) => (
               <div

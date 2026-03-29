@@ -11,9 +11,11 @@ export interface ToastMessage {
 interface UIState {
   toasts: ToastMessage[];
 
+
   addToast: (message: string, type?: ToastType) => void;
   removeToast: (id: string) => void;
 }
+
 
 export const useUIStore = create<UIState>((set) => ({
   toasts: [],
@@ -23,6 +25,7 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => ({
       toasts: [...state.toasts, { id, message, type }],
     }));
+
 
     setTimeout(() => {
       set((state) => ({

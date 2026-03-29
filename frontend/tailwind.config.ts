@@ -1,25 +1,63 @@
-import type { Config } from 'tailwindcss'
+import type { Config } from 'tailwindcss';
 
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          '"Pretendard Variable"',
+          'Pretendard',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'system-ui',
+          'Roboto',
+          '"Helvetica Neue"',
+          '"Segoe UI"',
+          '"Apple SD Gothic Neo"',
+          '"Noto Sans KR"',
+          '"Malgun Gothic"',
+          '"Apple Color Emoji"',
+          '"Segoe UI Emoji"',
+          '"Segoe UI Symbol"',
+          'sans-serif',
+        ],
+      },
       colors: {
         'primary-blue': 'var(--primary-blue)',
         'secondary-blue': 'var(--secondary-blue)',
         'blue-bg': 'var(--blue-bg)',
-        'eel': 'var(--eel)',
-        'gray': 'var(--gray)',
+        eel: 'var(--eel)',
+        gray: {
+          DEFAULT: 'var(--gray)',
+        },
         'light-gray': 'var(--light-gray)',
-        'background': 'var(--background)',
-        'white': 'var(--white)',
+        background: 'var(--background)',
+        white: 'var(--white)',
         'error-red': 'var(--error-red)',
         'kakao-yellow': 'var(--kakao-yellow)',
-      }
+        accent: 'var(--accent)',
+        'accent-strong': 'var(--accent-strong)',
+        'accent-soft': 'var(--accent-soft)',
+        'brand-night': 'var(--brand-night)',
+        'brand-teal': 'var(--brand-teal)',
+        'surface-base': 'var(--surface-base)',
+        'surface-muted': 'var(--surface-muted)',
+        'surface-soft': 'var(--surface-soft)',
+        'surface-page': 'var(--surface-page)',
+        'surface-success': 'var(--surface-success)',
+        'surface-danger': 'var(--surface-danger)',
+        'line-soft': 'var(--line-soft)',
+        'line-strong': 'var(--line-strong)',
+        'text-strong': 'var(--text-strong)',
+        'text-muted': 'var(--text-muted)',
+        'text-subtle': 'var(--text-subtle)',
+        danger: 'var(--danger)',
+        'danger-strong': 'var(--danger-strong)',
+        'danger-soft': 'var(--danger-soft)',
+        success: 'var(--success)',
+      },
     },
   },
   plugins: [],
-} satisfies Config
+} satisfies Config;

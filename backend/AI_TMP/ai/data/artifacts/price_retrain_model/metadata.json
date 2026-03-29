@@ -1,0 +1,28 @@
+{
+  "schema_version": "price-engine-mvp-v1",
+  "model_family": "lightgbm_regressor",
+  "target_name": "current_effective_price",
+  "feature_names": [
+    "current_effective_price",
+    "avg_price_7d",
+    "avg_price_30d",
+    "min_price_30d",
+    "max_price_30d",
+    "price_volatility_30d",
+    "seller_count_same_product",
+    "release_age_days",
+    "shipping_fee_mode_30d",
+    "price_vs_avg_7d",
+    "price_vs_avg_30d",
+    "price_to_min_30d_gap",
+    "price_to_max_30d_gap",
+    "brand",
+    "category",
+    "seller_type",
+    "availability_status"
+  ],
+  "trained_at": "2026-03-29T18:51:43.473450+00:00",
+  "train_row_count": 67,
+  "test_row_count": 0,
+  "total_row_count": 67
+}

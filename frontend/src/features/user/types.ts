@@ -7,12 +7,14 @@ export interface UserData {
   connected: boolean;
 }
 
+
 export interface OnboardingPayload {
-  cohortId: number;
-  goalAmount: number;
+  recommendedAmount: number;
 }
 
+
 export interface OnboardingResponse {
-  success: boolean;
+  onboardingStatus: string;
   onboardingCompleted: boolean;
+  recommendedAmount: number | null;
 }

@@ -30,7 +30,8 @@ public record AccountListResponse(List<AccountDetail> accounts) {
             String oneTimeTransferLimit,
             String accountBalance,
             String lastTransactionDate,
-            String currencyCode) {
+            String currencyCode,
+            Boolean isPrimary) {
         public static AccountDetail from(OpenBankResponse.Rec rec) {
             return AccountDetail.builder()
                     .bankCode(rec.bankCode())
@@ -47,6 +48,7 @@ public record AccountListResponse(List<AccountDetail> accounts) {
                     .accountBalance(rec.accountBalance())
                     .lastTransactionDate(rec.lastTransactionDate())
                     .currencyCode(rec.currency())
+                    .isPrimary(false)
                     .build();
         }
     }

@@ -1,4 +1,4 @@
-export type UserRole = 'ROLE_USER' | 'ROLE_ADMIN';
+export type UserRole = 'USER' | 'ADMIN';
 
 export interface UserProfile {
   userId: number;
@@ -39,19 +39,55 @@ export interface AuthResponse {
 
 export interface SignUpRequestPayload {
   email: string;
-  password?: string;
-  realName: string;
+  password: string;
+  name: string;
   birthDate: string;
-  nickname: string;
   cohortId: number;
   termsAgreed: boolean;
 }
 
-export interface SignUpResponseData {
-  userId: number;
+export type SignUpResponseData = null;
+
+export interface EmailVerificationSendPayload {
   email: string;
-  nickname: string;
-  onboardingRequired: boolean;
-  onboardingStatus: string;
-  createdAt: string;
+}
+
+export interface EmailVerificationSendResponseData {
+  email: string;
+  expiresInSeconds: number;
+}
+
+export interface EmailVerificationConfirmPayload {
+  email: string;
+  code: string;
+}
+
+export interface EmailVerificationConfirmResponseData {
+  email: string;
+  verified: boolean;
+  verifiedExpiresInSeconds: number;
+}
+
+export interface EmailAvailabilityResponseData {
+  email: string;
+  available: boolean;
+}
+
+export interface PasswordResetRequestPayload {
+  email: string;
+}
+
+export interface PasswordResetRequestResponseData {
+  message: string;
+  expiresInSeconds: number;
+}
+
+export interface PasswordResetConfirmPayload {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+export interface PasswordResetConfirmResponseData {
+  resetCompleted: boolean;
 }

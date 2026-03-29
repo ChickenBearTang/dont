@@ -11,9 +11,12 @@ public class CardSummaryResponse {
     private boolean success;
     private String code;
     private String message;
+
     private Long totalAmount;
 
     private List<RankColum> RankColumList;
+
+    private AiAnalysisResponse aiReport;
 
     @Getter
     @Builder

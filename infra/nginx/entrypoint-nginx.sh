@@ -11,7 +11,7 @@ KEY_FILE=/etc/nginx/certs/privkey.pem
 if [ "${SSL_ENABLED:-false}" = "true" ]; then
   if [ ! -s "${CERT_FILE}" ] || [ ! -s "${KEY_FILE}" ]; then
     echo "SSL enabled but certificate files are missing or empty."
-    echo "Set SSL_ENABLED=false for HTTP-only mode, or provide valid SSL_CERT_PATH and SSL_KEY_PATH." 
+    echo "Set SSL_ENABLED=false for HTTP-only mode, or provide valid SSL_CERT_PATH and SSL_KEY_PATH."
     exit 1
   fi
   cp "${HTTPS_TEMPLATE}" "${OUTPUT_CONFIG}"

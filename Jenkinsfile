@@ -10,7 +10,7 @@ pipeline {
     environment {
         COMPOSE_FILE = 'docker-compose.yml'
         ENV_FILE = '.env'
-        APP_SERVICES = 'redis backend frontend edge-nginx'
+        APP_SERVICES = 'redis backend frontend edge-nginx loki alloy grafana'
     }
 
     stages {
@@ -42,7 +42,7 @@ pipeline {
                     set +x
 
                     test -f "${ENV_FILE}" || {
-                      echo "Missing ${ENV_FILE}. Copy .env.example to .env and set RDS/Redis/JWT values."
+                      echo "Missing ${ENV_FILE}. Provide required runtime env values (RDS/Redis/JWT, etc.)."
                       exit 1
                     }
 
@@ -173,6 +173,33 @@ pipeline {
                     docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" ps
                     exit 1
                 '''
+            }
+        }
+
+        stage('Notification') {
+            steps {
+                success {
+                    script {
+                        def Author_ID = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
+                        def Author_Name = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
+                        mattermostSend(color: 'good',
+                            message: "빌드 성공: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
+                            endpoint: 'https://meeting.ssafy.com/hooks/kip759cnntfw8nr3mpaqqqacgcL',
+                            channel: 'a605_noti_channel'
+                                )
+                        }
+                    }
+                failure {
+                    script {
+                        def Author_ID = sh(script: "git show -s --pretty=%an", returnStdout: true).trim()
+                        def Author_Name = sh(script: "git show -s --pretty=%ae", returnStdout: true).trim()
+                        mattermostSend(color: 'danger',
+                            message: "빌드 실패: ${env.JOB_NAME} #${env.BUILD_NUMBER} by ${Author_ID}(${Author_Name})\n(<${env.BUILD_URL}|Details>)",
+                            endpoint: 'https://meeting.ssafy.com/hooks/kip759cnntfw8nr3mpaqqqacgc',
+                            channel: 'a605_noti_channel'
+                                )
+                    }
+                }
             }
         }
     }

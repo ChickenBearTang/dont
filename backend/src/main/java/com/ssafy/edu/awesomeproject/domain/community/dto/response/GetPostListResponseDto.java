@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
 public record GetPostListResponseDto(
         List<PostSummaryDto> content,
         int page,
@@ -11,17 +12,21 @@ public record GetPostListResponseDto(
         long totalElements,
         int totalPages,
         boolean hasNext) {
+
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record PostSummaryDto(
             Long postId,
             String category,
             Integer generationNo,
+            String status,
             String title,
             Long authorId,
             String authorNickname,
+            String authorProfileImageUrl,
             Boolean isMine,
             Integer likeCount,
             Integer commentCount,
+            Integer attachmentCount,
             LocalDateTime createdAt,
             PostExtraSummaryDto extraSummary) {}
 
@@ -37,7 +42,12 @@ public record GetPostListResponseDto(
             Boolean isExpired) {}
 
     public record PrSummaryDto(
-            String status, String resultStatus, Long totalVoteCount, LocalDateTime deadlineAt) {}
+            String status,
+            String resultStatus,
+            String itemName,
+            Long priceAmount,
+            Long totalVoteCount,
+            LocalDateTime deadlineAt) {}
 
     public record PollSummaryDto(
             String question,

@@ -2,15 +2,127 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .bg-pattern-dots {
+    background-image: radial-gradient(rgba(148, 163, 184, 0.15) 1.5px, transparent 1.5px);
+    background-size: 20px 20px;
+  }
+
+  .bg-pattern-grid {
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .bg-glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.5) 100%);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+  }
+}
+
+@layer components {
+
+  .glass-premium {
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.04);
+  }
+
+  .hover-glass {
+    @apply transition-all duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.02)];
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+
+  .hover-glass:hover {
+    @apply -translate-y-2 shadow-[0_20px_50px_rgba(31,38,135,0.12)];
+    background-color: rgba(255, 255, 255, 1);
+    border-color: rgba(10, 101, 255, 0.2);
+  }
+}
+
+@layer base {
+
+  html,
+  body {
+
+    font-family:
+      'Pretendard Variable',
+      Pretendard,
+      -apple-system,
+      BlinkMacSystemFont,
+      system-ui,
+      Roboto,
+      'Helvetica Neue',
+      'Segoe UI',
+      'Apple SD Gothic Neo',
+      'Noto Sans KR',
+      'Malgun Gothic',
+      'Apple Color Emoji',
+      'Segoe UI Emoji',
+      'Segoe UI Symbol',
+      sans-serif;
+    letter-spacing: -0.015em;
+    word-break: keep-all;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--blue-bg);
+    color: var(--primary-blue);
+  }
+}
+
 :root {
-  --primary-blue: #0A65FF;
+  --primary-blue: #0a65ff;
   --secondary-blue: #004ecc;
-  --blue-bg: #E6F0FF;
-  --eel: #2A2A2A;
-  --gray: #8F9BB3;
-  --light-gray: #F0F4F8;
-  --background: #FFFFFF;
-  --white: #FFFFFF;
-  --error-red: #FF3B30;
-  --kakao-yellow: #FEE500;
+  --blue-bg: #e6f0ff;
+  --eel: #2a2a2a;
+  --gray: #8f9bb3;
+  --light-gray: #f0f4f8;
+  --background: #ffffff;
+  --white: #ffffff;
+  --error-red: #ff3b30;
+  --kakao-yellow: #fee500;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-soft: #dbeafe;
+  --brand-night: #0f172a;
+  --brand-teal: #14b8a6;
+  --surface-base: #ffffff;
+  --surface-muted: #f8fbff;
+  --surface-soft: #f1f5f9;
+  --surface-page: #f3f7fb;
+  --surface-success: #dcfce7;
+  --surface-danger: #fff1f2;
+  --line-soft: #d9e2ec;
+  --line-strong: #bfdbfe;
+  --text-strong: #0f172a;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+  --danger: #e11d48;
+  --danger-strong: #f43f5e;
+  --danger-soft: #ffe4e6;
+  --success: #15803d;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-dropdown {
+  animation: dropdownFadeIn 0.2s ease-out forwards;
 }

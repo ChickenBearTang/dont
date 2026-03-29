@@ -1,10 +1,14 @@
-﻿export const formatDate = (date: Date | string | number): string => {
+
+
+
+export const formatDate = (date: Date | string | number): string => {
   const d = new Date(date);
   const year = String(d.getFullYear()).slice(-2);
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}.${month}.${day}`;
 };
+
 
 export const formatRelativeTime = (date: Date | string | number): string => {
   const start = new Date(date).getTime();
@@ -32,6 +36,7 @@ export const formatRelativeTime = (date: Date | string | number): string => {
 
   return '방금 전';
 };
+
 
 export const isToday = (date: Date | string | number): boolean => {
   const d = new Date(date);

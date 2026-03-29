@@ -23,7 +23,7 @@ export interface TransactionItemDto {
   merchantName: string;
   transactionDate: string;
   transactionTime: string;
-  transactionAmount: string; // the swagger says string
+  transactionAmount: string;
 }
 
 export interface GetCardTransactionsResponse {

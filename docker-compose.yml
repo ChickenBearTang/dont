@@ -2,6 +2,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
     command:
       ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     ports:
@@ -16,6 +18,70 @@ services:
     networks:
       - app-net
 
+  ai-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
+      POSTGRES_DB: ${AI_POSTGRES_DB:-ai_crawl}
+      POSTGRES_USER: ${AI_POSTGRES_USER:-ai_user}
+      POSTGRES_PASSWORD: ${AI_POSTGRES_PASSWORD:-ai_password}
+    ports:
+      - "${AI_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - ai-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${AI_POSTGRES_USER:-ai_user} -d ${AI_POSTGRES_DB:-ai_crawl}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-net
+
+  ai-python:
+    build:
+      context: ./backend/AI_TMP/ai
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TZ: Asia/Seoul
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      AI_POSTGRES_DSN: postgresql://${AI_POSTGRES_USER:-ai_user}:${AI_POSTGRES_PASSWORD:-ai_password}@ai-postgres:5432/${AI_POSTGRES_DB:-ai_crawl}
+      AI_POSTGRES_HOST: ai-postgres
+      AI_POSTGRES_PORT: 5432
+      AI_POSTGRES_DB: ${AI_POSTGRES_DB:-ai_crawl}
+      AI_POSTGRES_USER: ${AI_POSTGRES_USER:-ai_user}
+      AI_POSTGRES_PASSWORD: ${AI_POSTGRES_PASSWORD:-ai_password}
+      PYTHONUNBUFFERED: "1"
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "18000"]
+    depends_on:
+      ai-postgres:
+        condition: service_healthy
+    ports:
+      - "${AI_PYTHON_PORT:-18000}:18000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18000/health', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-net
+
   backend:
     build:
       context: ./backend
@@ -24,10 +90,23 @@ services:
     env_file:
       - .env
     environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+        TZ: Asia/Seoul
+        REDIS_HOST: redis
+        REDIS_PORT: 6379
+        AI_SERVER_URL: http://ai-python:18000
+        AI_SERVER_CONNECT_TIMEOUT_MS: "3000"
+        AI_SERVER_READ_TIMEOUT_MS: "60000"
+        AI_POSTGRES_HOST: ai-postgres
+        AI_POSTGRES_PORT: 5432
+        AI_POSTGRES_DB: ${AI_POSTGRES_DB:-ai_crawl}
+        AI_POSTGRES_USER: ${AI_POSTGRES_USER:-ai_user}
+        AI_POSTGRES_PASSWORD: ${AI_POSTGRES_PASSWORD:-ai_password}
+        API_PATH: "/api/v1"
+        DB_HIKARI_CONNECTION_TIMEOUT: "30000"
     depends_on:
       redis:
+        condition: service_healthy
+      ai-postgres:
         condition: service_healthy
     expose:
       - "8080"
@@ -41,6 +120,8 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
     restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
     expose:
       - "80"
     depends_on:
@@ -65,7 +146,45 @@ services:
       - ${SSL_KEY_PATH:-/dev/null}:/etc/nginx/certs/privkey.pem:ro
     command: ["sh", "/entrypoint-nginx.sh"]
     environment:
+      TZ: Asia/Seoul
       SSL_ENABLED: ${SSL_ENABLED:-false}
+    networks:
+      - app-net
+
+  loki:
+    image: grafana/loki:2.9.10
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./infra/observability/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    expose:
+      - "3100"
+    networks:
+      - app-net
+
+  alloy:
+    image: grafana/alloy:v1.9.2
+    restart: unless-stopped
+    command: ["run", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./infra/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - app-net
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    restart: unless-stopped
+    depends_on:
+      - loki
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
     networks:
       - app-net
 
@@ -86,10 +205,14 @@ services:
     networks:
       - app-net
 
+
 networks:
   app-net:
     driver: bridge
 
 volumes:
   redis-data:
+  ai-postgres-data:
   jenkins_home:
+  loki-data:
+  grafana-data:

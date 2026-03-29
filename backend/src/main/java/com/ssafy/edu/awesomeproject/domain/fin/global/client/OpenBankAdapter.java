@@ -28,6 +28,7 @@ public class OpenBankAdapter {
     @Value("${ssafy.api.key}")
     private String apiKey;
 
+
     public OpenBankCreateAccountResponse createDemandDepositAccount(
             String userKey, String accountTypeUniqueNo) {
         OpenBankCreateAccountRequest request =
@@ -57,9 +58,12 @@ public class OpenBankAdapter {
     }
 
     public AccountListResponse fetchDemandDepositAccounts(String userKey) {
+
         OpenBankRequest request = createAccountListRequest(userKey);
 
+
         OpenBankResponse response = openBankClient.fetchDemandDepositAccounts(request);
+
 
         return AccountListResponse.from(response);
     }
@@ -85,7 +89,9 @@ public class OpenBankAdapter {
     }
 
     public OpenBankDetailAccountResponse fetchAccountDetail(String userKey, String accountNo) {
+
         OpenBankDetailAccountRequest request = createAccountDetailRequest(userKey, accountNo);
+
 
         return openBankClient.fetchAccountDetail(request);
     }

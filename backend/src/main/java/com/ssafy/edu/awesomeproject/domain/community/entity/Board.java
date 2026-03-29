@@ -24,12 +24,14 @@ public class Board extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+
     @Enumerated(EnumType.STRING)
     @Column(name = "category", nullable = false, length = 50)
     private BoardCategory category;
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cohort_id")

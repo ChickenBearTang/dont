@@ -50,6 +50,7 @@ public class Post extends BaseEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+
     public Post(Board board, User user, String title, String content) {
         this.title = title;
         this.content = content;
@@ -59,6 +60,7 @@ public class Post extends BaseEntity {
         this.isSystemGenerated = false;
         this.status = PostStatus.ACTIVE;
     }
+
 
     public void update(String title, String content) {
         if (title != null && !title.isEmpty()) {
@@ -73,6 +75,12 @@ public class Post extends BaseEntity {
         this.status = PostStatus.DELETED;
         this.deletedAt = LocalDateTime.now();
     }
+
+
+    public void blind() {
+        this.status = PostStatus.BLINDED;
+    }
+
 
     public boolean isAuthor(Long userId) {
         return this.user.getId().equals(userId);
