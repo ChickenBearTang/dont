@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 import re
 from typing import Any
@@ -53,6 +54,13 @@ _UNIT_PRICE_HINT_PATTERN = re.compile(
 )
 _QUANTITY_TOKEN_PATTERN = re.compile(r"(\d{1,5})\s*(개|입|ea|pcs)", re.IGNORECASE)
 _AUDIT_STORE = JsonlXaiAuditLogStore()
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _fetch_page_text(url: str | None) -> tuple[str | None, str | None]:
@@ -255,8 +263,14 @@ def _provenance_value_to_int(value_obj: Any | None, default: int = 0) -> int:
 
 def _read_window_stats(
     price_value: int | None,
+    item_name: str | None,
+    purchase_url: str | None,
 ) -> tuple[dict[str, dict[str, float | int | None]], list[str]]:
     warnings: list[str] = []
+    item_family = PostgresCrawlStore.classify_item_family(
+        title=item_name,
+        url=purchase_url,
+    )
     dsn = None
     try:
         from config import get_env
@@ -268,10 +282,15 @@ def _read_window_stats(
     if dsn:
         try:
             store = PostgresCrawlStore(dsn)
-            return store.read_window_stats(), warnings
+            if item_family is None:
+                warnings.append("ITEM_FAMILY_UNCLASSIFIED")
+                return store.read_window_stats(), warnings
+            return store.read_window_stats(item_family=item_family), warnings
         except Exception:
             warnings.append("PRICE_HISTORY_READ_FAILED")
 
+    if item_family is None:
+        warnings.append("ITEM_FAMILY_UNCLASSIFIED")
     warnings.append("NO_PRICE_HISTORY")
     base_price = (
         float(price_value) if price_value is not None and price_value > 0 else None
@@ -342,7 +361,13 @@ def _collect_warnings(payload: dict[str, Any], seed_warnings: list[str]) -> list
             if (
                 isinstance(reason, str)
                 and reason
-                and reason not in {"price_model_disabled", "finance_model_disabled"}
+                and reason
+                not in {
+                    "price_model_disabled",
+                    "finance_model_disabled",
+                    "shap_disabled_by_config",
+                    "dice_disabled_by_config",
+                }
             ):
                 warnings.append(reason.upper())
     errors = payload.get("errors", [])
@@ -449,6 +474,116 @@ def _price_status(current_price: int | None, avg_price: float | None) -> str:
     return "neutral"
 
 
+def _is_finance_profile_empty_for_price_only(
+    request: PurchaseXaiEvaluationRequest,
+    *,
+    current_balance: float,
+    emergency_fund_balance: float,
+    savebox_balance: float,
+    expected_card_payment_amount: float,
+) -> bool:
+    # Spring can omit optional fixed income/expense fields. In that case, all core balances
+    # at zero means "no usable finance context" and we should fallback to price-only judgment.
+    has_core_signal = any(
+        value > 0.0
+        for value in (
+            max(current_balance, 0.0),
+            max(emergency_fund_balance, 0.0),
+            max(savebox_balance, 0.0),
+            max(expected_card_payment_amount, 0.0),
+        )
+    )
+    if has_core_signal:
+        return False
+
+    has_optional_signal = False
+    if request.finance_profile.available_fixed_expense is not None:
+        has_optional_signal = (
+            _provenance_value_to_float(request.finance_profile.available_fixed_expense, 0.0)
+            > 0.0
+        )
+    if request.finance_profile.available_fixed_income is not None:
+        has_optional_signal = has_optional_signal or (
+            _provenance_value_to_float(request.finance_profile.available_fixed_income, 0.0)
+            > 0.0
+        )
+    return not has_optional_signal
+
+
+def _price_only_decision(price_status: str) -> str:
+    normalized = price_status.strip().lower()
+    if normalized == "favorable":
+        return "BUY_NOW"
+    if normalized == "expensive":
+        return "WAIT"
+    return "REVIEW"
+
+
+def _price_only_summary(decision: str, price_status: str) -> str:
+    verdict_label = {
+        "BUY_NOW": "구매 권장",
+        "WAIT": "대기 권장",
+        "REVIEW": "추가 검토",
+        "NOT_RECOMMENDED": "비구매 권장",
+    }.get(decision, decision)
+    normalized = price_status.strip().lower()
+    if decision == "BUY_NOW":
+        reason = "현재 가격이 최근 평균 대비 낮거나 유리한 구간입니다."
+    elif decision == "WAIT":
+        reason = "현재 가격이 최근 평균 대비 높아 조정 구간을 기다리는 편이 좋습니다."
+    elif normalized == "degraded":
+        reason = "가격 이력 데이터가 부족해 가격 신호를 충분히 비교하기 어렵습니다."
+    else:
+        reason = "현재 가격이 평균 수준과 유사해 추가 관찰이 필요합니다."
+    return (
+        f"{verdict_label}. 핵심 근거: {reason} "
+        "개선 포인트: 재무 데이터가 부족해 가격 중심으로 판단했으며, "
+        "재무 데이터 확보 후 재평가를 권장합니다."
+    )
+
+
+def _price_only_top_factors(
+    *,
+    price_status: str,
+    current_price: int | None,
+    avg_price: float | None,
+) -> list[TopFactor]:
+    normalized = price_status.strip().lower()
+    if normalized == "favorable":
+        label = "현재 가격이 최근 평균 대비 낮게 형성되어 있습니다."
+        direction = "positive"
+        impact = 0.2
+    elif normalized == "expensive":
+        label = "현재 가격이 최근 평균 대비 높게 형성되어 있습니다."
+        direction = "negative"
+        impact = 0.2
+    elif normalized == "degraded":
+        label = "가격 이력 데이터가 부족해 가격 비교 신호가 약합니다."
+        direction = "negative"
+        impact = 0.15
+    else:
+        label = "현재 가격이 최근 평균과 유사한 수준입니다."
+        direction = "positive"
+        impact = 0.1
+
+    if (
+        current_price is not None
+        and isinstance(avg_price, (int, float))
+        and float(avg_price) > 0.0
+    ):
+        ratio = abs((float(current_price) / float(avg_price)) - 1.0)
+        impact = max(impact, min(ratio, 0.35))
+
+    return [
+        TopFactor(
+            code="PRICE_ONLY_FALLBACK",
+            label=label,
+            direction=direction,
+            impact=impact,
+        )
+    ]
+
+
 def _safe_non_negative_int(value: Any, default: int = 0) -> int:
     try:
         return max(int(float(value)), 0)
@@ -494,7 +629,11 @@ def evaluate_pr_purchase_xai(
     current_price = stated_price
     price_estimated = False
 
-    window_stats, stats_warnings = _read_window_stats(current_price)
+    window_stats, stats_warnings = _read_window_stats(
+        current_price,
+        request.purchase.item_name,
+        request.purchase.purchase_url,
+    )
     seed_warnings.extend(stats_warnings)
     price_model_path = _default_model_artifact_path("price_retrain_model")
     price_model_signal, price_model_state = predict_price_signal(
@@ -523,11 +662,11 @@ def evaluate_pr_purchase_xai(
     )
     available_fixed_expense = _provenance_value_to_float(
         request.finance_profile.available_fixed_expense,
-        expected_card_payment_amount,
+        0.0,
     )
     available_fixed_income = _provenance_value_to_float(
         request.finance_profile.available_fixed_income,
-        0.0,
+        1_000_000.0,
     )
 
     finance_profile = {
@@ -549,17 +688,25 @@ def evaluate_pr_purchase_xai(
         request.purchase.purchase_url
         or f"https://purchase-request.local/{request.purchase.post_id}"
     )
+    heavy_xai_enabled = _env_flag("AI_XAI_HEAVY_ENABLED", False)
+    shap_enabled = _env_flag("AI_XAI_SHAP_ENABLED", True)
+    dice_enabled = _env_flag("AI_XAI_DICE_ENABLED", heavy_xai_enabled)
 
     fallback_counterfactual_engine = CounterfactualEngine()
+    dice_engine: Any = fallback_counterfactual_engine
+    if dice_enabled:
+        dice_engine = DiceCounterfactualEngine(
+            fallback_engine=fallback_counterfactual_engine
+        )
+    shap_engine: Any = ShapContributionEngine() if shap_enabled else object()
+
     analyzer = ExplainabilityAnalyzer(
         finance_profile=finance_profile,
         price_model_signal=price_model_signal,
         finance_model_signal=finance_model_signal,
         counterfactual_engine=fallback_counterfactual_engine,
-        dice_counterfactual_engine=DiceCounterfactualEngine(
-            fallback_engine=fallback_counterfactual_engine
-        ),
-        shap_contribution_engine=ShapContributionEngine(),
+        dice_counterfactual_engine=dice_engine,
+        shap_contribution_engine=shap_engine,
     )
     payload = analyzer.analyze_crawl_result(
         CrawlResult(
@@ -578,10 +725,36 @@ def evaluate_pr_purchase_xai(
     )
     runtime_payload = payload.get("runtime_engines")
     if isinstance(runtime_payload, dict):
+        if not shap_enabled:
+            runtime_payload["shap"] = {
+                "enabled": False,
+                "backend": "disabled",
+                "reason": "shap_disabled_by_config",
+            }
+        if not dice_enabled:
+            runtime_payload["dice"] = {
+                "enabled": False,
+                "backend": "disabled",
+                "reason": "dice_disabled_by_config",
+            }
         runtime_payload["price_model"] = price_model_state
         runtime_payload["finance_model"] = finance_model_state
     else:
         payload["runtime_engines"] = {
+            "shap": {
+                "enabled": False,
+                "backend": "disabled",
+                "reason": "shap_disabled_by_config",
+            }
+            if not shap_enabled
+            else {},
+            "dice": {
+                "enabled": False,
+                "backend": "disabled",
+                "reason": "dice_disabled_by_config",
+            }
+            if not dice_enabled
+            else {},
             "price_model": price_model_state,
             "finance_model": finance_model_state,
         }
@@ -593,6 +766,10 @@ def evaluate_pr_purchase_xai(
         ((window_stats.get("30d", {}) or {}).get("avg_price"))
         if isinstance(window_stats, dict)
         else None
+    )
+    price_status = _price_status(
+        current_price,
+        avg_price if isinstance(avg_price, (int, float)) else None,
     )
     decision_confidence = float(item.get("decision_confidence", 0.0))
     projected_savebox_balance_after_purchase = (
@@ -610,14 +787,86 @@ def evaluate_pr_purchase_xai(
         finance_model_state=finance_model_state,
         fallback_status=fallback_financial_status,
     )
+    decision = str(item.get("decision", "REVIEW"))
+    summary = str(item.get("polished_summary", "XAI summary unavailable."))
+    top_factors = [
+        TopFactor(
+            code=str(reason.get("reason_code", "factor")),
+            label=str(reason.get("reason_text", reason.get("feature", "factor"))),
+            direction="positive"
+            if float(reason.get("score", 0.0)) >= 0
+            else "negative",
+            impact=abs(float(reason.get("score", 0.0))),
+        )
+        for reason in item.get("reasons", [])[:4]
+    ]
+    supporting_evidence = [
+        SupportingEvidence(
+            field=str(evidence.get("feature", "unknown")),
+            value=(
+                str(int(projected_savebox_balance_after_purchase))
+                if str(evidence.get("feature", "")) == "projected_balance_after_purchase"
+                else str(evidence.get("observed_value", evidence.get("score", "-")))
+            ),
+            source=(
+                request.purchase.price_amount.source
+                if str(evidence.get("feature", "")) == "current_price"
+                else "fastapi.xai"
+            ),
+            snapshotId=(
+                request.purchase.price_amount.snapshot_id
+                if str(evidence.get("feature", "")) == "current_price"
+                else str(item.get("data_snapshot_id", ""))
+            ),
+            isDefault=False,
+            isEstimated=str(evidence.get("feature", "")) == "current_price"
+            and price_estimated,
+            estimationMethod=("page_text_closest_numeric" if price_estimated else None),
+        )
+        for evidence in item.get("supporting_evidence", [])
+    ]
+    counterfactuals = [
+        Counterfactual(
+            label=str(counterfactual.get("message", "대체 조건을 확인하세요.")),
+            targetDecision=_counterfactual_target_decision(
+                current_decision=decision,
+                counterfactual=counterfactual,
+            ),
+            validated=str(counterfactual.get("type", "")) == "dice",
+        )
+        for counterfactual in item.get("counterfactuals", [])[:3]
+    ]
+
+    if _is_finance_profile_empty_for_price_only(
+        request,
+        current_balance=current_balance,
+        emergency_fund_balance=emergency_fund_balance,
+        savebox_balance=savebox_balance,
+        expected_card_payment_amount=expected_card_payment_amount,
+    ):
+        if "FINANCE_PROFILE_EMPTY_FALLBACK" not in warnings:
+            warnings.append("FINANCE_PROFILE_EMPTY_FALLBACK")
+        decision = _price_only_decision(price_status)
+        summary = _price_only_summary(decision, price_status)
+        top_factors = _price_only_top_factors(
+            price_status=price_status,
+            current_price=current_price,
+            avg_price=avg_price if isinstance(avg_price, (int, float)) else None,
+        )
+        supporting_evidence = [
+            evidence
+            for evidence in supporting_evidence
+            if "price" in evidence.field.lower()
+        ]
+        counterfactuals = []
+        financial_status = "degraded"
+        decision_confidence = min(decision_confidence, 0.55)
 
     response = PurchaseXaiEvaluationResponse(
         requestId=request.request_id,
         purchaseRequestId=request.purchase.post_id,
-        decision=str(item.get("decision", "REVIEW")),
-        summary=str(
-            item.get("polished_summary", "XAI 평가 요약을 생성하지 못했습니다.")
-        ),
+        decision=decision,
+        summary=summary,
         financialEvaluation=EvaluationSection(
             status=financial_status,
             keyMetrics=[
@@ -637,6 +886,11 @@ def evaluate_pr_purchase_xai(
                     value=f"{int(finance_profile['available_fixed_income']):,}원",
                 ),
                 EvaluationMetric(
+                    code="expected_card_payment_amount",
+                    label="이번 달 카드지출 합계",
+                    value=f"{int(finance_profile['expected_card_payment_amount']):,}원",
+                ),
+                EvaluationMetric(
                     code="days_until_card_due",
                     label="카드 결제일까지",
                     value=f"{int(finance_profile['days_until_card_due'])}일",
@@ -644,10 +898,7 @@ def evaluate_pr_purchase_xai(
             ],
         ),
         priceEvaluation=EvaluationSection(
-            status=_price_status(
-                current_price,
-                avg_price if isinstance(avg_price, (int, float)) else None,
-            ),
+            status=price_status,
             keyMetrics=[
                 EvaluationMetric(
                     code="current_effective_price",
@@ -669,55 +920,9 @@ def evaluate_pr_purchase_xai(
                 ),
             ],
         ),
-        topFactors=[
-            TopFactor(
-                code=str(reason.get("reason_code", "factor")),
-                label=str(reason.get("reason_text", reason.get("feature", "요인"))),
-                direction="positive"
-                if float(reason.get("score", 0.0)) >= 0
-                else "negative",
-                impact=abs(float(reason.get("score", 0.0))),
-            )
-            for reason in item.get("reasons", [])[:4]
-        ],
-        supportingEvidence=[
-            SupportingEvidence(
-                field=str(evidence.get("feature", "unknown")),
-                value=(
-                    str(int(projected_savebox_balance_after_purchase))
-                    if str(evidence.get("feature", "")) == "projected_balance_after_purchase"
-                    else str(evidence.get("observed_value", evidence.get("score", "-")))
-                ),
-                source=(
-                    request.purchase.price_amount.source
-                    if str(evidence.get("feature", "")) == "current_price"
-                    else "fastapi.xai"
-                ),
-                snapshotId=(
-                    request.purchase.price_amount.snapshot_id
-                    if str(evidence.get("feature", "")) == "current_price"
-                    else str(item.get("data_snapshot_id", ""))
-                ),
-                isDefault=False,
-                isEstimated=str(evidence.get("feature", "")) == "current_price"
-                and price_estimated,
-                estimationMethod=(
-                    "page_text_closest_numeric" if price_estimated else None
-                ),
-            )
-            for evidence in item.get("supporting_evidence", [])
-        ],
-        counterfactuals=[
-            Counterfactual(
-                label=str(counterfactual.get("message", "대체 조건을 확인하세요.")),
-                targetDecision=_counterfactual_target_decision(
-                    current_decision=str(item.get("decision", "REVIEW")),
-                    counterfactual=counterfactual,
-                ),
-                validated=str(counterfactual.get("type", "")) == "dice",
-            )
-            for counterfactual in item.get("counterfactuals", [])[:3]
-        ],
+        topFactors=top_factors,
+        supportingEvidence=supporting_evidence,
+        counterfactuals=counterfactuals,
         warnings=warnings,
         confidence=ConfidenceSection(
             decisionConfidence=decision_confidence,

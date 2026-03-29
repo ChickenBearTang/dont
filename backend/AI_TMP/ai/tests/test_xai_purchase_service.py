@@ -227,6 +227,29 @@ class XaiPurchaseServiceTest(unittest.TestCase):
         self.assertEqual(financial_metrics.get("available_fixed_income"), "300,000원")
         self.assertEqual(financial_metrics.get("days_until_card_due"), "10일")
 
+    def test_financial_metrics_use_default_fixed_income_and_zero_fixed_expense(self) -> None:
+        request = _request()
+
+        with patch(
+            "domain.xai_purchase.service._fetch_page_text",
+            return_value=(None, "MISSING_PURCHASE_URL"),
+        ), patch(
+            "domain.xai_purchase.service.predict_finance_signal",
+            return_value=(
+                {},
+                {"enabled": False, "backend": "disabled", "reason": "finance_model_disabled"},
+            ),
+        ):
+            response = evaluate_pr_purchase_xai(request)
+
+        financial_metrics = {
+            metric.code: metric.value
+            for metric in response.financial_evaluation.key_metrics
+        }
+        self.assertEqual(financial_metrics.get("available_fixed_expense"), "0원")
+        self.assertEqual(financial_metrics.get("available_fixed_income"), "1,000,000원")
+        self.assertEqual(financial_metrics.get("expected_card_payment_amount"), "150,000원")
+
     def test_jsonl_audit_store_persists_entries(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             store = JsonlXaiAuditLogStore(Path(tmp_dir) / "audit.jsonl")

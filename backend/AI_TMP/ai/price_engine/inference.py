@@ -160,12 +160,13 @@ def predict_price_signal(
 
     try:
         artifact = _load_cached_artifact(model_path)
-    except Exception:
+    except Exception as exc:
         return {}, {
             "enabled": False,
             "backend": "fallback",
             "reason": "model_load_failed",
             "artifact_path": model_path,
+            "error_type": type(exc).__name__,
         }
 
     metadata = artifact.metadata

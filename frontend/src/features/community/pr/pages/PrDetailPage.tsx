@@ -187,6 +187,7 @@ const xaiWarningLabelMap: Record<string, string> = {
   NO_PRICE_HISTORY: '가격 이력 데이터가 부족합니다.',
   PRICE_HISTORY_READ_FAILED: '가격 이력 조회에 실패했습니다.',
   MISSING_PURCHASE_URL: '구매 URL이 없어 크롤링을 생략했습니다.',
+  FINANCE_PROFILE_EMPTY_FALLBACK: '재무 데이터가 부족해 가격 중심으로 판단했습니다.',
 };
 
 const getXaiSectionStatusLabel = (status: string): string =>
@@ -670,6 +671,62 @@ export const PrDetailPage = () => {
           !isAvgPriceMetric(metric.code, metric.label),
       )
     : priceMetrics;
+  const financialMetricValueByCode = xaiEvaluation
+    ? new Map(
+        xaiEvaluation.financialEvaluation.keyMetrics.map((metric) => [metric.code, metric.value]),
+      )
+    : new Map<string, string>();
+  const saveboxBalanceLabel = financialMetricValueByCode.get('savebox_balance') ?? '-';
+  const fixedExpenseLabel =
+    financialMetricValueByCode.get('available_fixed_expense') ??
+    financialMetricValueByCode.get('monthly_fixed_expense') ??
+    '-';
+  const fixedIncomeLabel =
+    financialMetricValueByCode.get('available_fixed_income') ??
+    financialMetricValueByCode.get('monthly_fixed_income') ??
+    '-';
+  const cardSpendLabel =
+    financialMetricValueByCode.get('expected_card_payment_amount') ??
+    financialMetricValueByCode.get('monthly_card_spend') ??
+    '-';
+  const dueDaysLabel = financialMetricValueByCode.get('days_until_card_due') ?? '-';
+  const dueDaysValue = parseMetricNumericValue(dueDaysLabel);
+  const dueDayBadge = dueDaysValue === null ? '-' : `D-${Math.max(Math.round(dueDaysValue), 0)}`;
+
+  const saveboxBalanceValue = parseMetricNumericValue(saveboxBalanceLabel) ?? 0;
+  const fixedExpenseValue = parseMetricNumericValue(fixedExpenseLabel) ?? 0;
+  const fixedIncomeValue = parseMetricNumericValue(fixedIncomeLabel) ?? 0;
+  const cardSpendValue = parseMetricNumericValue(cardSpendLabel) ?? 0;
+  const financeScaleMax = Math.max(
+    saveboxBalanceValue,
+    fixedExpenseValue,
+    fixedIncomeValue,
+    cardSpendValue,
+    1,
+  );
+  const toFinanceBarPercent = (value: number): number =>
+    value <= 0 ? 0 : toComparisonBarPercent(value, financeScaleMax);
+  const saveboxBarPercent = toFinanceBarPercent(saveboxBalanceValue);
+  const fixedExpenseBarPercent = toFinanceBarPercent(fixedExpenseValue);
+  const fixedIncomeBarPercent = toFinanceBarPercent(fixedIncomeValue);
+  const cardSpendBarPercent = toFinanceBarPercent(cardSpendValue);
+  const monthlyCashflowGap = fixedIncomeValue - fixedExpenseValue;
+  const monthlyCashflowLabel =
+    monthlyCashflowGap >= 0
+      ? `+${formatWon(monthlyCashflowGap)}`
+      : `-${formatWon(Math.abs(monthlyCashflowGap))}`;
+  const monthlyCashflowToneClass = monthlyCashflowGap >= 0 ? 'text-success' : 'text-danger';
+
+  const majorTopFactors = xaiEvaluation ? xaiEvaluation.topFactors.slice(0, 3) : [];
+  const priceRatioBadge = priceComparison?.detailText ?? '비교 데이터 부족';
+  const isAnalysisVerified = xaiEvaluation
+    ? xaiEvaluation.confidence.dataCompleteness >= 0.8 &&
+      xaiEvaluation.confidence.explanationFidelity >= 0.8
+    : false;
+  const analysisStatusLabel = isAnalysisVerified ? '검증 완료' : '추가 확인';
+  const analysisStatusClass = isAnalysisVerified
+    ? 'bg-green-100 text-green-700'
+    : 'bg-amber-100 text-amber-700';
 
   return (
     <div className="grid grid-cols-1 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -981,98 +1038,196 @@ export const PrDetailPage = () => {
                 </Button>
               </div>
             ) : xaiEvaluation ? (
-              <>
-                <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4">
-                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">판단 요약</p>
-                  <div className="mt-2 space-y-1.5 text-sm font-semibold leading-relaxed text-eel/85">
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-light-gray bg-gradient-to-br from-amber-50 via-white to-surface-muted p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-widest text-primary-blue">
+                        최종 XAI 판단 결과
+                      </p>
+                      <p className="mt-2 break-keep text-3xl font-black leading-tight text-eel">
+                        {decisionLabelMap[xaiEvaluation.decision] ?? xaiEvaluation.decision}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex shrink-0 items-center rounded-full px-3 py-1 text-xs font-black ${analysisStatusClass}`}
+                    >
+                      {analysisStatusLabel}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-light-gray bg-white/90 px-2 py-2 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-text-subtle">
+                        판단 신뢰도
+                      </p>
+                      <p className="mt-1 text-lg font-black text-eel">
+                        {formatPercent(xaiEvaluation.confidence.decisionConfidence)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-light-gray bg-white/90 px-2 py-2 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-text-subtle">
+                        데이터 완성도
+                      </p>
+                      <p className="mt-1 text-lg font-black text-eel">
+                        {formatPercent(xaiEvaluation.confidence.dataCompleteness)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-light-gray bg-white/90 px-2 py-2 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-text-subtle">
+                        설명 충실도
+                      </p>
+                      <p className="mt-1 text-lg font-black text-eel">
+                        {formatPercent(xaiEvaluation.confidence.explanationFidelity)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1.5 rounded-xl border border-light-gray bg-white/80 px-3 py-2 text-sm font-semibold leading-relaxed text-eel/85">
+                    <p className="font-black text-eel">판단 요약</p>
                     <p>{xaiSummaryParts?.verdict ?? '-'}</p>
                     <p>핵심 근거: {xaiSummaryParts?.keyReason ?? '-'}</p>
                     <p>개선 포인트: {xaiSummaryParts?.improvementPoint ?? '-'}</p>
                   </div>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-2xl border border-light-gray bg-white p-4">
-                    <p className="text-xs font-black text-text-subtle uppercase tracking-widest">재무 평가</p>
-                    <p className="mt-2 text-sm font-bold text-eel">
-                      {getXaiSectionStatusLabel(xaiEvaluation.financialEvaluation.status)}
-                    </p>
+
+                <div className="space-y-3 rounded-2xl border border-light-gray bg-white p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-black text-eel">가격 평가 및 비교</p>
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-black text-amber-700">
+                      {priceRatioBadge}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-text-muted">
+                    상태: {getXaiSectionStatusLabel(xaiEvaluation.priceEvaluation.status)}
+                  </p>
+                  {priceComparison ? (
+                    <div className="rounded-xl border border-light-gray bg-surface-muted/40 p-3">
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-semibold text-eel/80">
+                            <span>현재 판단 가격</span>
+                            <span>{priceComparison.currentPriceLabel}</span>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full bg-light-gray">
+                            <div
+                              className="h-full rounded-full bg-primary-blue transition-all duration-700"
+                              style={{ width: `${priceComparison.currentBarPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-semibold text-eel/80">
+                            <span>30일 평균가</span>
+                            <span>{priceComparison.averagePriceLabel}</span>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full bg-light-gray">
+                            <div
+                              className="h-full rounded-full bg-slate-300 transition-all duration-700"
+                              style={{ width: `${priceComparison.averageBarPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <p className={`mt-3 text-xs font-extrabold ${priceComparison.summaryClassName}`}>
+                        {priceComparison.summaryText}
+                        {priceComparison.detailText ? ` (${priceComparison.detailText})` : ''}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium text-text-muted">가격 비교 데이터가 부족합니다.</p>
+                  )}
+                  {priceMetricList.length > 0 && (
                     <ul className="space-y-2">
-                      {xaiEvaluation.financialEvaluation.keyMetrics.map((metric) => (
+                      {priceMetricList.map((metric) => (
                         <li
                           key={metric.code}
-                          className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80"
+                          className="rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2 text-sm font-medium text-eel/80"
                         >
                           {toDisplayMetricLabel(metric.label)}: {metric.value}
                         </li>
                       ))}
                     </ul>
-                  </div>
-                  <div className="rounded-2xl border border-light-gray bg-white p-4">
-                    <p className="text-xs font-black text-text-subtle uppercase tracking-widest">가격 평가</p>
-                    <p className="mt-2 text-sm font-bold text-eel">
-                      {getXaiSectionStatusLabel(xaiEvaluation.priceEvaluation.status)}
+                  )}
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-light-gray bg-white p-4">
+                  <p className="text-sm font-black text-eel">재무 건전성</p>
+                  <p className="text-xs font-bold text-text-muted">
+                    상태: {getXaiSectionStatusLabel(xaiEvaluation.financialEvaluation.status)}
+                  </p>
+                  <div className="group rounded-xl border border-light-gray bg-surface-muted/40 p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-widest text-text-subtle">
+                      세이브박스 잔액
                     </p>
-                    {priceComparison && (
-                      <div className="mt-3 rounded-xl border border-light-gray bg-surface-muted/40 p-3">
-                        <p className="text-[11px] font-black uppercase tracking-widest text-text-subtle">
-                          현재가 비교
-                        </p>
-                        <p className={`mt-1 text-xs font-extrabold ${priceComparison.summaryClassName}`}>
-                          {priceComparison.headlineText}
-                        </p>
-                        <div className="mt-2 space-y-2">
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-xs font-semibold text-eel/80">
-                              <span>현재 판단 가격</span>
-                              <span>{priceComparison.currentPriceLabel}</span>
-                            </div>
-                            <div className="h-3 overflow-hidden rounded-full bg-light-gray">
-                              <div
-                                className="h-full rounded-full bg-danger transition-all duration-700"
-                                style={{ width: `${priceComparison.currentBarPercent}%` }}
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-xs font-semibold text-eel/80">
-                              <span>30일 평균가</span>
-                              <span>{priceComparison.averagePriceLabel}</span>
-                            </div>
-                            <div className="h-3 overflow-hidden rounded-full bg-light-gray">
-                              <div
-                                className="h-full rounded-full bg-primary-blue transition-all duration-700"
-                                style={{ width: `${priceComparison.averageBarPercent}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <p className={`mt-2 text-xs font-bold ${priceComparison.summaryClassName}`}>
-                          {priceComparison.summaryText}
-                          {priceComparison.detailText ? ` (${priceComparison.detailText})` : ''}
-                        </p>
+                    <p className="mt-1 break-all text-2xl font-black tracking-tight text-eel">
+                      {saveboxBalanceLabel}
+                    </p>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-light-gray">
+                      <div
+                        className="h-full rounded-full bg-primary-blue transition-all duration-700"
+                        style={{ width: `${saveboxBarPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-light-gray bg-white p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                      <p className="text-[11px] font-black text-text-subtle">이번 달 고정지출</p>
+                      <p className="mt-1 break-all text-lg font-black text-danger">{fixedExpenseLabel}</p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-light-gray">
+                        <div
+                          className="h-full rounded-full bg-danger transition-all duration-700"
+                          style={{ width: `${fixedExpenseBarPercent}%` }}
+                        />
                       </div>
-                    )}
-                    {priceMetricList.length > 0 && (
-                      <ul className="mt-2 space-y-2">
-                        {priceMetricList.map((metric) => (
-                          <li
-                            key={metric.code}
-                            className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80"
-                          >
-                            {toDisplayMetricLabel(metric.label)}: {metric.value}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    </div>
+                    <div className="rounded-xl border border-light-gray bg-white p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                      <p className="text-[11px] font-black text-text-subtle">이번 달 고정 수입</p>
+                      <p className="mt-1 break-all text-lg font-black text-success">{fixedIncomeLabel}</p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-light-gray">
+                        <div
+                          className="h-full rounded-full bg-success transition-all duration-700"
+                          style={{ width: `${fixedIncomeBarPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-light-gray bg-white p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                      <p className="text-[11px] font-black text-text-subtle">카드 결제일</p>
+                      <p className="mt-1 text-2xl font-black text-danger">{dueDayBadge}</p>
+                    </div>
+                    <div className="rounded-xl border border-light-gray bg-white p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                      <p className="text-[11px] font-black text-text-subtle">이번 달 카드지출 합계</p>
+                      <p className="mt-1 break-all text-lg font-black text-eel">{cardSpendLabel}</p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-light-gray">
+                        <div
+                          className="h-full rounded-full bg-accent transition-all duration-700"
+                          style={{ width: `${cardSpendBarPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2 text-xs font-bold">
+                    <span className="text-text-subtle">월간 수지</span>
+                    <span className={monthlyCashflowToneClass}>{monthlyCashflowLabel}</span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">상위 판단 요인</p>
-                  {xaiEvaluation.topFactors.length > 0 ? (
+
+                <div className="space-y-2 rounded-2xl border border-light-gray bg-white p-4">
+                  <p className="text-sm font-black text-eel">주요 판단 요인</p>
+                  {majorTopFactors.length > 0 ? (
                     <ul className="space-y-2">
-                      {xaiEvaluation.topFactors.map((factor) => (
-                        <li key={factor.code} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
-                          {factor.label} · 영향도 {formatImpactPercent(factor.impact)}
+                      {majorTopFactors.map((factor, index) => (
+                        <li
+                          key={factor.code}
+                          className="rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2"
+                        >
+                          <p className="text-sm font-semibold leading-relaxed text-eel/90">
+                            <span className="mr-2 text-primary-blue">{String(index + 1).padStart(2, '0')}</span>
+                            {factor.label}
+                          </p>
+                          <p className="mt-1 text-xs font-black text-primary-blue">
+                            영향도 {formatImpactPercent(factor.impact)}
+                          </p>
                         </li>
                       ))}
                     </ul>
@@ -1080,13 +1235,19 @@ export const PrDetailPage = () => {
                     <p className="text-sm font-medium text-text-muted">상위 판단 요인이 아직 없습니다.</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-black text-text-subtle uppercase tracking-widest">근거 데이터</p>
+
+                <div className="space-y-2 rounded-2xl border border-light-gray bg-white p-4">
+                  <p className="text-sm font-black text-eel">근거 데이터</p>
                   {xaiEvaluation.supportingEvidence.length > 0 ? (
                     <ul className="space-y-2">
                       {xaiEvaluation.supportingEvidence.map((evidence) => (
-                        <li key={`${evidence.field}-${evidence.snapshotId ?? evidence.source}`} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
-                          {getXaiEvidenceFieldLabel(evidence.field)}: {formatXaiEvidenceValue(evidence.field, evidence.value)} · {getXaiEvidenceSourceLabel(evidence.source)}
+                        <li
+                          key={`${evidence.field}-${evidence.snapshotId ?? evidence.source}`}
+                          className="rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2 text-sm font-medium text-eel/80"
+                        >
+                          {getXaiEvidenceFieldLabel(evidence.field)}:{' '}
+                          {formatXaiEvidenceValue(evidence.field, evidence.value)} ·{' '}
+                          {getXaiEvidenceSourceLabel(evidence.source)}
                           {(evidence.isDefault || evidence.isEstimated) && (
                             <span className="ml-2 text-xs font-bold text-amber-600">
                               {evidence.isEstimated ? '추정값' : '기본값'}
@@ -1099,16 +1260,22 @@ export const PrDetailPage = () => {
                     <p className="text-sm font-medium text-text-muted">노출할 근거 데이터가 없습니다.</p>
                   )}
                 </div>
+
                 {xaiEvaluation.decision.trim().toUpperCase() !== 'BUY_NOW' && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-black text-text-subtle uppercase tracking-widest">Counterfactual</p>
+                  <div className="space-y-2 rounded-2xl border border-light-gray bg-white p-4">
+                    <p className="text-sm font-black text-eel">Counterfactual</p>
                     {xaiEvaluation.counterfactuals.length > 0 ? (
                       <ul className="space-y-2">
                         {xaiEvaluation.counterfactuals.map((counterfactual) => (
-                          <li key={`${counterfactual.label}-${counterfactual.targetDecision}`} className="rounded-xl border border-light-gray bg-white px-3 py-2 text-sm font-medium text-eel/80">
+                          <li
+                            key={`${counterfactual.label}-${counterfactual.targetDecision}`}
+                            className="rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2 text-sm font-medium text-eel/80"
+                          >
                             {counterfactual.label}
                             <span className="ml-2 text-xs font-bold text-primary-blue">
-                              → {decisionLabelMap[counterfactual.targetDecision] ?? counterfactual.targetDecision}
+                              →{' '}
+                              {decisionLabelMap[counterfactual.targetDecision] ??
+                                counterfactual.targetDecision}
                             </span>
                           </li>
                         ))}
@@ -1118,40 +1285,21 @@ export const PrDetailPage = () => {
                     )}
                   </div>
                 )}
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4 text-center">
-                    <p className="text-[11px] font-black text-text-subtle uppercase tracking-widest">판단 신뢰도</p>
-                    <p className="mt-2 text-lg font-black text-eel">{formatPercent(xaiEvaluation.confidence.decisionConfidence)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4 text-center">
-                    <p className="text-[11px] font-black text-text-subtle uppercase tracking-widest">데이터 완성도</p>
-                    <p className="mt-2 text-lg font-black text-eel">{formatPercent(xaiEvaluation.confidence.dataCompleteness)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4 text-center">
-                    <p className="text-[11px] font-black text-text-subtle uppercase tracking-widest">설명 충실도</p>
-                    <p className="mt-2 text-lg font-black text-eel">{formatPercent(xaiEvaluation.confidence.explanationFidelity)}</p>
-                  </div>
-                </div>
+
                 {xaiEvaluation.warnings.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-black text-text-subtle uppercase tracking-widest">주의 사항</p>
+                  <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-sm font-black text-amber-700">주의 사항</p>
                     <ul className="space-y-2">
                       {xaiEvaluation.warnings.map((warning) => (
-                        <li key={warning} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                        <li key={warning} className="text-sm font-semibold text-amber-700">
                           {getXaiWarningLabel(warning)}
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-                <div className="rounded-2xl border border-light-gray bg-surface-muted/40 p-4 text-xs font-semibold text-text-muted">
-                  requestId: {xaiEvaluation.requestId}
-                  <br />
-                  generatedAt: {formatDateTime(xaiEvaluation.generatedAt)}
-                  <br />
-                  runtime: decision={xaiEvaluation.runtimeEngines.decision}, explanation={xaiEvaluation.runtimeEngines.explanation}, shap={xaiEvaluation.runtimeEngines.shap}, dice={xaiEvaluation.runtimeEngines.dice}
-                </div>
-              </>
+
+              </div>
             ) : (
               <div className="space-y-3">
                 <p className="text-sm font-medium text-text-muted">

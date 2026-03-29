@@ -6,11 +6,15 @@ import com.ssafy.edu.awesomeproject.domain.community.entity.PrPost;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PrPostRepository;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Locale;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +24,13 @@ public class PrXaiAvailabilityService {
 
     private static final String URL_MATCH_TYPE = "URL_EXACT";
     private static final String TITLE_PRICE_MATCH_TYPE = "TITLE_PRICE_SIMILAR";
+    private static final String FALLBACK_NO_MATCH_TYPE = "NO_MATCH_FALLBACK";
+    private static final String FALLBACK_CHECK_SKIPPED_TYPE = "CHECK_SKIPPED";
+    private static final String ITEM_WHITELIST_ONLY_TYPE = "ITEM_WHITELIST_ONLY";
+    private static final List<String> SUPPORTED_ITEM_NAMES =
+            List.of("F87", "VXE R1", "MX Master 3S");
+    private static final List<String> SUPPORTED_ITEM_TOKENS =
+            List.of("f87", "f87pro", "vxer1", "mxmaster3", "mxmaster3s");
 
     private final PrPostRepository prPostRepository;
     private final UserRepository userRepository;
@@ -60,6 +71,16 @@ public class PrXaiAvailabilityService {
                     false, "No purchase URL or item name.", null, null, null);
         }
 
+        if (!isWhitelistedItem(itemName, purchaseUrl)) {
+            return new PrXaiAvailabilityResponseDto(
+                    false,
+                    "XAI item support is limited to %s."
+                            .formatted(String.join(", ", SUPPORTED_ITEM_NAMES)),
+                    ITEM_WHITELIST_ONLY_TYPE,
+                    null,
+                    null);
+        }
+
         try (Connection connection = createConnection()) {
             CrawlItemMatch urlMatch = findUrlExactMatch(connection, purchaseUrl);
             if (urlMatch != null) {
@@ -81,12 +102,20 @@ public class PrXaiAvailabilityService {
                         titleMatch.url());
             }
         } catch (SQLException exception) {
-            throw new CommunityException(
-                    CommunityErrorCode.PURCHASE_REQUEST_XAI_UPSTREAM_ERROR, exception.getMessage());
+            return new PrXaiAvailabilityResponseDto(
+                    true,
+                    "Crawl matching check failed. XAI evaluation will proceed with PR request context.",
+                    FALLBACK_CHECK_SKIPPED_TYPE,
+                    null,
+                    purchaseUrl);
         }
 
         return new PrXaiAvailabilityResponseDto(
-                false, "No matching crawled item found yet.", null, null, null);
+                true,
+                "No matching crawled item found. XAI evaluation will proceed with PR request context.",
+                FALLBACK_NO_MATCH_TYPE,
+                null,
+                purchaseUrl);
     }
 
     private Connection createConnection() throws SQLException {
@@ -135,8 +164,8 @@ public class PrXaiAvailabilityService {
         }
     }
 
-    private CrawlItemMatch findTitleAndPriceMatch(Connection connection, String itemName, long priceAmount)
-            throws SQLException {
+    private CrawlItemMatch findTitleAndPriceMatch(
+            Connection connection, String itemName, long priceAmount) throws SQLException {
         if (itemName == null) {
             return null;
         }
@@ -180,6 +209,68 @@ public class PrXaiAvailabilityService {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private boolean isWhitelistedItem(String itemName, String purchaseUrl) {
+        String decodedPurchaseUrl = decodeUrlSafe(safe(purchaseUrl));
+        String normalizedContext =
+                normalizeForItemMatch("%s %s".formatted(safe(itemName), decodedPurchaseUrl));
+        if (normalizedContext.isEmpty()) {
+            return false;
+        }
+        if (SUPPORTED_ITEM_TOKENS.stream().anyMatch(normalizedContext::contains)) {
+            return true;
+        }
+        if (isF87Alias(normalizedContext)) {
+            return true;
+        }
+        return isMxMasterAlias(normalizedContext);
+    }
+
+    private boolean isF87Alias(String normalizedContext) {
+        if (normalizedContext.isEmpty()) {
+            return false;
+        }
+        boolean hasF87Keyword =
+                normalizedContext.contains("f87")
+                        || normalizedContext.contains("f87pro")
+                        || normalizedContext.contains("\uB3C5\uAC70\uBBF887");
+        boolean hasSpider87 =
+                normalizedContext.contains("\uB3C5\uAC70\uBBF8") && normalizedContext.contains("87");
+        return hasF87Keyword || hasSpider87;
+    }
+
+    private boolean isMxMasterAlias(String normalizedContext) {
+        if (normalizedContext.isEmpty()) {
+            return false;
+        }
+        boolean hasMxToken = normalizedContext.contains("mx");
+        boolean hasMasterLikeToken =
+                normalizedContext.contains("master")
+                        || normalizedContext.contains("\uB9C8\uC2A4\uD130")
+                        || normalizedContext.contains("\uB9C8\uC6B0\uC2A4")
+                        || normalizedContext.contains("\uB9C8\uC2A4\uC5B4");
+        boolean hasModelToken = normalizedContext.contains("3s") || normalizedContext.contains("3");
+        return hasMxToken && hasMasterLikeToken && hasModelToken;
+    }
+
+    private String decodeUrlSafe(String value) {
+        if (value.isBlank()) {
+            return value;
+        }
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException exception) {
+            return value;
+        }
+    }
+
+    private String normalizeForItemMatch(String value) {
+        return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9\\uac00-\\ud7a3]", "");
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 
     private record CrawlItemMatch(String title, String url) {}

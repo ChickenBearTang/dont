@@ -102,9 +102,11 @@ def build_finance_inference_payload(
     )
     available_fixed_expense = _as_float(
         finance_profile.get("available_fixed_expense"),
-        expected_card_payment_amount,
+        0.0,
     )
-    available_fixed_income = _as_float(finance_profile.get("available_fixed_income"), 0.0)
+    available_fixed_income = _as_float(
+        finance_profile.get("available_fixed_income"), 1_000_000.0
+    )
     product_price = (
         float(current_price)
         if isinstance(current_price, int) and current_price > 0
@@ -170,12 +172,13 @@ def predict_finance_signal(
 
     try:
         artifact = _load_cached_artifact(model_path)
-    except Exception:
+    except Exception as exc:
         return {}, {
             "enabled": False,
             "backend": "fallback",
             "reason": "model_load_failed",
             "artifact_path": model_path,
+            "error_type": type(exc).__name__,
         }
 
     metadata = artifact.metadata
