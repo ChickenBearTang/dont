@@ -1,5 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.fin.card.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request.OpenBankRequest;
@@ -26,10 +28,11 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.Duration;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,14 +48,20 @@ public class CardService {
     private static final String SUCCESS_CODE = "H0000";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter ISO_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
-    private static final long RECOMMENDATION_CACHE_TTL_MILLIS = 60_000L * 5;
+    private static final int RECOMMENDATION_CACHE_MAXIMUM_SIZE = 2_000;
+    private static final Duration RECOMMENDATION_CACHE_TTL = Duration.ofMinutes(5);
 
     private final OpenBankClient openBankClient;
     private final CardRepository cardRepository;
     private final CardTransactionRepository cardTransactionRepository;
     private final UserRepository userRepository;
     private final AiClient aiClient;
-    private final Map<String, CachedRecommendation> recommendationCache = new ConcurrentHashMap<>();
+    private final MonthlyTransactionFingerprintService monthlyTransactionFingerprintService;
+    private final Cache<String, CardRecommendationResponse> recommendationCache =
+            Caffeine.newBuilder()
+                    .maximumSize(RECOMMENDATION_CACHE_MAXIMUM_SIZE)
+                    .expireAfterWrite(RECOMMENDATION_CACHE_TTL)
+                    .build();
 
     @Value("${ssafy.api.key}")
     private String apiKey;
@@ -424,11 +433,12 @@ public class CardService {
     public CardRecommendationResponse getCardRecommendation(Long userId, String monthStr) {
         try {
             YearMonth yearMonth = YearMonth.parse(monthStr);
-            String transactionFingerprint = buildMonthlyTransactionFingerprint(userId, yearMonth);
+            String transactionFingerprint =
+                    monthlyTransactionFingerprintService.buildMonthlyFingerprint(userId, yearMonth);
             String cacheKey = recommendationCacheKey(userId, monthStr, transactionFingerprint);
-            CachedRecommendation cached = recommendationCache.get(cacheKey);
-            if (cached != null && !cached.isExpired()) {
-                return cached.response();
+            CardRecommendationResponse cached = recommendationCache.getIfPresent(cacheKey);
+            if (cached != null) {
+                return cached;
             }
 
             CardRecommendationResponse response =
@@ -440,11 +450,7 @@ public class CardService {
                         userId,
                         monthStr);
             } else {
-                recommendationCache.put(
-                        cacheKey,
-                        new CachedRecommendation(
-                                response,
-                                System.currentTimeMillis() + RECOMMENDATION_CACHE_TTL_MILLIS));
+                recommendationCache.put(cacheKey, response);
             }
             return response;
         } catch (Exception e) {
@@ -458,32 +464,11 @@ public class CardService {
     }
 
     private String recommendationCacheKey(Long userId, String monthStr, String transactionFingerprint) {
-        return userId + ":" + monthStr + ":" + transactionFingerprint;
-    }
-
-    private String buildMonthlyTransactionFingerprint(Long userId, YearMonth month) {
-        LocalDate startDate = month.atDay(1);
-        LocalDate endDate = month.atEndOfMonth();
-
-        CardTransactionRepository.MonthlyTransactionSnapshotProjection snapshot =
-                cardTransactionRepository.findMonthlyTransactionSnapshot(userId, startDate, endDate);
-
-        if (snapshot == null) {
-            return "0:0:-:-";
-        }
-
-        long txCount = snapshot.getTxCount() == null ? 0L : snapshot.getTxCount();
-        long totalAmount = snapshot.getTotalAmount() == null ? 0L : snapshot.getTotalAmount();
-        String lastDate = snapshot.getLastDate() == null ? "-" : snapshot.getLastDate().toString();
-        String lastTime = snapshot.getLastTime() == null ? "-" : snapshot.getLastTime();
-
-        return txCount + ":" + totalAmount + ":" + lastDate + ":" + lastTime;
-    }
-
-    private record CachedRecommendation(CardRecommendationResponse response, long expiresAtMillis) {
-        private boolean isExpired() {
-            return System.currentTimeMillis() >= expiresAtMillis;
-        }
+        return userId
+                + ":"
+                + monthStr
+                + ":"
+                + transactionFingerprint.toLowerCase(Locale.ROOT);
     }
 
     private record RefreshResult(boolean success, List<Card> cards, String message) {}

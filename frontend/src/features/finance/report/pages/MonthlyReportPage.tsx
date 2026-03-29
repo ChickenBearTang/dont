@@ -778,27 +778,23 @@ export const MonthlyReportPage = () => {
   const getAxiosStatus = (error: unknown): number | undefined =>
     (error as AxiosError | undefined)?.response?.status;
 
-  const applyMonthlyReportPayload = (payload?: AiReportPayload) => {
-    console.log('[MonthlyReport] cardRecommendation payload:', payload?.cardRecommendation ?? null);
+  const applyMonthlyReportPayload = (
+    payload?: AiReportPayload,
+    options?: { preserveCardRecommendationOnEmpty?: boolean }
+  ) => {
     setAiAnalysis(payload?.aiAnalysis ?? null);
-    setCardRecommendation(payload?.cardRecommendation ?? null);
-  };
+    const nextCardRecommendation = payload?.cardRecommendation ?? null;
+    const hasCardRecommendation =
+      !!nextCardRecommendation &&
+      typeof nextCardRecommendation === 'object' &&
+      Object.keys(nextCardRecommendation).length > 0;
 
-  const hydrateCardRecommendation = async (reportMonth: string, payload?: AiReportPayload) => {
-    const embedded = payload?.cardRecommendation;
-    const hasEmbedded =
-      !!embedded && typeof embedded === 'object' && Object.keys(embedded).length > 0;
-    if (hasEmbedded) return;
+    if (hasCardRecommendation) {
+      setCardRecommendation(nextCardRecommendation);
+      return;
+    }
 
-    try {
-      const directRecommendation = await getCardRecommendation(reportMonth);
-      console.log(
-        '[MonthlyReport] cardRecommendation direct API payload:',
-        directRecommendation ?? null
-      );
-      setCardRecommendation(directRecommendation ?? null);
-    } catch (error) {
-      console.error('[MonthlyReport] Failed to fetch direct card recommendation:', error);
+    if (!options?.preserveCardRecommendationOnEmpty) {
       setCardRecommendation(null);
     }
   };
@@ -807,7 +803,11 @@ export const MonthlyReportPage = () => {
     const reportMonth = formatToYYYYMM(currentDate);
     try {
       setCardRecommendLoading(true);
-      await hydrateCardRecommendation(reportMonth);
+      const directRecommendation = await getCardRecommendation(reportMonth);
+      setCardRecommendation(directRecommendation ?? null);
+    } catch (error) {
+      console.error('[MonthlyReport] Failed to fetch direct card recommendation:', error);
+      setCardRecommendation(null);
     } finally {
       setCardRecommendLoading(false);
     }
@@ -828,7 +828,6 @@ export const MonthlyReportPage = () => {
       const res = await getMonthlyAiReport(reportMonth);
       const payload = extractReportPayload(res);
       applyMonthlyReportPayload(payload);
-      await hydrateCardRecommendation(reportMonth, payload);
     } catch (error) {
       console.error('Failed to generate AI report:', error);
       alert('리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
@@ -849,7 +848,6 @@ export const MonthlyReportPage = () => {
       const res = await getMonthlyAiReport(reportMonth);
       const payload = extractReportPayload(res);
       applyMonthlyReportPayload(payload);
-      await hydrateCardRecommendation(reportMonth, payload);
     } catch (error) {
       console.error(error);
       throw error;
@@ -923,7 +921,6 @@ export const MonthlyReportPage = () => {
         const res = await getMonthlyAiReport(reportMonth);
         const payload = extractReportPayload(res);
         applyMonthlyReportPayload(payload);
-        await hydrateCardRecommendation(reportMonth, payload);
       } catch (error) {
         if (getAxiosStatus(error) !== 404) {
           console.error('Failed to fetch AI report:', error);
@@ -1173,7 +1170,9 @@ export const MonthlyReportPage = () => {
         <ReportChatbot
           targetMonth={formatToYYYYMM(currentDate)}
           onRegenerate={handleChatRegenerate}
-          onApplyRegeneratedReport={applyMonthlyReportPayload}
+          onApplyRegeneratedReport={(payload) =>
+            applyMonthlyReportPayload(payload, { preserveCardRecommendationOnEmpty: true })
+          }
         />
       )}
     </div>

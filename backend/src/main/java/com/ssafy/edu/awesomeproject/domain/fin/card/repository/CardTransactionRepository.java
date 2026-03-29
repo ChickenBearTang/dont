@@ -19,6 +19,24 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
 
     @Query(
             """
+            select ct.id as id,
+                   ct.transactionDate as transactionDate,
+                   ct.transactionTime as transactionTime,
+                   ct.transactionAmount as transactionAmount,
+                   ct.merchantName as merchantName,
+                   ct.categoryName as categoryName
+            from CardTransaction ct
+            where ct.userId = :userId
+              and ct.transactionDate between :startDate and :endDate
+            order by ct.transactionDate asc, ct.transactionTime asc, ct.id asc
+            """)
+    List<MonthlyTransactionFingerprintProjection> findMonthlyTransactionsForFingerprint(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query(
+            """
             select count(ct) as txCount,
                    coalesce(sum(ct.transactionAmount), 0) as totalAmount,
                    max(ct.transactionDate) as lastDate,
@@ -66,6 +84,20 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
         LocalDate getLastDate();
 
         String getLastTime();
+    }
+
+    interface MonthlyTransactionFingerprintProjection {
+        Long getId();
+
+        LocalDate getTransactionDate();
+
+        String getTransactionTime();
+
+        Long getTransactionAmount();
+
+        String getMerchantName();
+
+        String getCategoryName();
     }
 
     @Query(

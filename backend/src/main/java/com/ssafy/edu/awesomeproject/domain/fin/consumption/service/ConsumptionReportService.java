@@ -4,8 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardRecommendationResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
+import com.ssafy.edu.awesomeproject.domain.fin.card.service.MonthlyTransactionFingerprintService;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.client.ConsumptionAiClient;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.GenerateMonthlyReportRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.AvgCohort;
@@ -46,6 +47,7 @@ public class ConsumptionReportService {
     private final UserRepository userRepository;
     private final CardTransactionRepository cardTransactionRepository;
     private final CardService cardService;
+    private final MonthlyTransactionFingerprintService monthlyTransactionFingerprintService;
 
     private final ConsumptionAiClient consumptionAiClient;
     private final ObjectMapper objectMapper;
@@ -132,6 +134,7 @@ public class ConsumptionReportService {
         return toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public MonthlyReportResponse getLatestMonthlyReport(Long userId, String reportMonthText) {
         LocalDate reportMonth = toMonthStart(reportMonthText);
         FinConsumptionMonthlyReport report =
@@ -141,16 +144,7 @@ public class ConsumptionReportService {
                     () ->
                         new ConsumptionException(
                             ConsumptionErrorCode.REPORT_NOT_FOUND));
-
-        String yearMonth = YearMonth.from(reportMonth).toString();
-        Map<String, Object> enrichedPayload =
-            ensureCardRecommendationInPayload(report.getReportPayload(), userId, yearMonth);
-
-        if (!Objects.equals(report.getReportPayload(), enrichedPayload)) {
-            report.replaceReportPayload(enrichedPayload);
-            monthlyReportRepository.save(report);
-        }
-        return toResponse(report, enrichedPayload);
+        return toResponse(report);
     }
 
     public JustificationEvaluationResponse evaluateAndSaveJustification(
@@ -300,34 +294,6 @@ public class ConsumptionReportService {
         }
     }
 
-    private Map<String, Object> ensureCardRecommendationInPayload(
-        Map<String, Object> payload, Long userId, String reportMonth) {
-        Map<String, Object> mergedPayload = payload == null ? new LinkedHashMap<>() : new LinkedHashMap<>(payload);
-        String transactionFingerprint = buildTransactionFingerprint(userId, toMonthStart(reportMonth));
-        Object existingCardRecommendation = mergedPayload.get("cardRecommendation");
-        if (hasCardRecommendation(existingCardRecommendation)) {
-            mergedPayload.put(
-                "meta",
-                mergeReportMeta(mergedPayload, "OK", null, transactionFingerprint));
-            return mergedPayload;
-        }
-
-        CardRecommendationResponse cardRecommendation = loadCardRecommendation(userId, reportMonth);
-        mergedPayload.put("cardRecommendation", toMap(cardRecommendation));
-        String recommendationStatus = cardRecommendation == null ? "FAILED" : "OK";
-        mergedPayload.put(
-            "meta",
-            mergeReportMeta(mergedPayload, recommendationStatus, false, transactionFingerprint));
-        return mergedPayload;
-    }
-
-    private boolean hasCardRecommendation(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return !map.isEmpty();
-        }
-        return value != null;
-    }
-
     private Map<String, Object> toMap(CardRecommendationResponse cardRecommendation) {
         if (cardRecommendation == null) {
             return Map.of();
@@ -336,18 +302,7 @@ public class ConsumptionReportService {
     }
 
     private String buildTransactionFingerprint(Long userId, LocalDate reportMonth) {
-        LocalDate startDate = reportMonth.withDayOfMonth(1);
-        LocalDate endDate = reportMonth.withDayOfMonth(reportMonth.lengthOfMonth());
-        CardTransactionRepository.MonthlyTransactionSnapshotProjection snapshot =
-            cardTransactionRepository.findMonthlyTransactionSnapshot(userId, startDate, endDate);
-        if (snapshot == null) {
-            return "0:0:-:-";
-        }
-        long txCount = snapshot.getTxCount() == null ? 0L : snapshot.getTxCount();
-        long totalAmount = snapshot.getTotalAmount() == null ? 0L : snapshot.getTotalAmount();
-        String lastDate = snapshot.getLastDate() == null ? "-" : snapshot.getLastDate().toString();
-        String lastTime = snapshot.getLastTime() == null ? "-" : snapshot.getLastTime();
-        return txCount + ":" + totalAmount + ":" + lastDate + ":" + lastTime;
+        return monthlyTransactionFingerprintService.buildMonthlyFingerprint(userId, reportMonth);
     }
 
     private CardRecommendationResponse extractCardRecommendation(Map<String, Object> reportPayload) {
@@ -388,31 +343,6 @@ public class ConsumptionReportService {
         meta.put("recommendationStatus", cardRecommendation == null ? "FAILED" : "OK");
         meta.put("recommendationReused", recommendationReused);
         meta.put("transactionFingerprint", transactionFingerprint);
-        return meta;
-    }
-
-    private Map<String, Object> mergeReportMeta(
-        Map<String, Object> reportPayload,
-        String recommendationStatus,
-        Boolean recommendationReused,
-        String transactionFingerprint) {
-        Map<String, Object> meta = new LinkedHashMap<>();
-        Object currentMeta = reportPayload.get("meta");
-        if (currentMeta instanceof Map<?, ?> currentMetaMap) {
-            for (Map.Entry<?, ?> entry : currentMetaMap.entrySet()) {
-                if (entry.getKey() != null) {
-                    meta.put(String.valueOf(entry.getKey()), entry.getValue());
-                }
-            }
-        }
-
-        meta.put("recommendationStatus", recommendationStatus);
-        if (recommendationReused != null) {
-            meta.put("recommendationReused", recommendationReused);
-        }
-        if (transactionFingerprint != null) {
-            meta.put("transactionFingerprint", transactionFingerprint);
-        }
         return meta;
     }
 
