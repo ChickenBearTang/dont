@@ -91,6 +91,11 @@ public class User extends BaseEntity {
         this.monthlySavingGoalAmount = monthlySavingGoalAmount;
     }
 
+    public void resetOnboarding() {
+        this.onboardingStatus = OnboardingStatus.NOT_STARTED;
+        this.monthlySavingGoalAmount = null;
+    }
+
     public void changePassword(String encodedPassword) {
         this.password = encodedPassword;
     }
@@ -109,6 +114,10 @@ public class User extends BaseEntity {
 
     public void changeProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public void updateSsafyFinanceUserKey(String ssafyFinanceUserKey) {
+        this.ssafyFinanceUserKey = ssafyFinanceUserKey;
     }
 
     public void softDelete(LocalDateTime deletedAt) {

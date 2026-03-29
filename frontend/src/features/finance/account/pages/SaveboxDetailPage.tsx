@@ -6,6 +6,7 @@ import {
   useGetAccountTransactions,
 } from '../hooks/useAccountQueries';
 import { ManualSavingsModal } from '../components/ManualSavingsModal';
+import { ManualWithdrawalModal } from '../components/ManualWithdrawalModal';
 import { PrimaryAccountChangeModal } from '../components/PrimaryAccountChangeModal';
 
 /**
@@ -17,6 +18,7 @@ export const SaveboxDetailPage: React.FC = () => {
   const { data: accounts, isLoading: isLoadingAccounts } = useGetMyAccounts();
   const { data: setting, isLoading: isLoadingSetting } = useGetSavingsSetting();
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
   const [isPrimaryModalOpen, setIsPrimaryModalOpen] = useState(false);
 
   // Find the Savebox account based on the registered ID in settings
@@ -26,8 +28,10 @@ export const SaveboxDetailPage: React.FC = () => {
       (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
     );
 
-  // Find the linked primary account
-  const primaryAccount = accounts?.find((a) => a.id === setting?.primaryAccountId);
+  // Find the linked primary account with fallback
+  const primaryAccount = 
+    accounts?.find((a) => a.id === setting?.primaryAccountId) || 
+    accounts?.find((a) => a.isPrimary);
 
   // Get recent transactions for the savebox
   const now = new Date();
@@ -78,7 +82,7 @@ export const SaveboxDetailPage: React.FC = () => {
           <span className="text-primary-blue font-black">전용 금고</span>를 먼저 만들어보세요.
         </p>
         <button
-          onClick={() => navigate('/savebox-setup')}
+          onClick={() => navigate('/finance/savebox-setup')}
           className="px-10 py-5 bg-primary-blue text-white rounded-[24px] font-black text-lg shadow-xl shadow-blue-100 hover:scale-105 active:scale-95 transition-all"
         >
           세이브박스 개설하기
@@ -177,14 +181,14 @@ export const SaveboxDetailPage: React.FC = () => {
             )}
           </div>
 
-          <div className="relative z-10 mt-auto pt-4">
+          <div className="relative z-10 mt-auto pt-4 flex flex-col gap-3">
             <button
               onClick={() => setIsManualModalOpen(true)}
-              className="w-full py-4 bg-eel text-white rounded-2xl font-bold text-[16px] hover:bg-black active:scale-95 transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-2 group"
+              className="w-full py-4 bg-primary-blue text-white rounded-2xl font-black text-[16px] hover:bg-blue-600 active:scale-95 transition-all shadow-xl shadow-blue-50 flex items-center justify-center gap-2 group"
             >
               <span>지금 바로 저축하기</span>
               <svg
-                className="w-5 h-5 group-hover:translate-x-2 transition-transform"
+                className="w-5 h-5 group-hover:translate-x-1 transition-transform"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -196,6 +200,13 @@ export const SaveboxDetailPage: React.FC = () => {
                   d="M14 5l7 7-7 7"
                 />
               </svg>
+            </button>
+            <button
+              onClick={() => setIsWithdrawalModalOpen(true)}
+              className="w-full py-4 bg-gray-50 text-gray-400 rounded-2xl font-bold text-[15px] hover:bg-gray-100 hover:text-eel active:scale-95 transition-all flex items-center justify-center gap-2 group"
+            >
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity">💸</span>
+              <span>잔액 꺼내기</span>
             </button>
           </div>
         </div>
@@ -280,7 +291,7 @@ export const SaveboxDetailPage: React.FC = () => {
             )}
 
             <button
-              onClick={() => navigate('/savings-rule-setup')}
+              onClick={() => navigate('/finance/savings-rule-setup')}
               className="w-full mt-8 py-4 bg-eel text-white rounded-2xl font-bold text-[16px] hover:bg-black active:scale-95 transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-2 group"
             >
               <span> {setting ? '설정하기' : '설정하기'}</span>
@@ -291,12 +302,21 @@ export const SaveboxDetailPage: React.FC = () => {
 
       {/* Manual Savings Modal */}
       {savebox && (
-        <ManualSavingsModal
-          isOpen={isManualModalOpen}
-          onClose={() => setIsManualModalOpen(false)}
-          saveboxAccountName={savebox.accountName}
-          primaryAccountName={primaryAccount?.accountName}
-        />
+        <>
+          <ManualSavingsModal
+            isOpen={isManualModalOpen}
+            onClose={() => setIsManualModalOpen(false)}
+            saveboxAccountName={savebox.accountName}
+            primaryAccountName={primaryAccount?.accountName}
+          />
+          <ManualWithdrawalModal
+            isOpen={isWithdrawalModalOpen}
+            onClose={() => setIsWithdrawalModalOpen(false)}
+            saveboxAccountName={savebox.accountName}
+            primaryAccountName={primaryAccount?.accountName}
+            saveboxBalance={Number(savebox.accountBalance)}
+          />
+        </>
       )}
 
       {/* Primary Account Change Modal */}

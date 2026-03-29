@@ -37,7 +37,7 @@ export const LoginPage = () => {
           <div className="pt-20 lg:pt-32 relative group w-full flex justify-center lg:justify-start">
             <Mascot
               src="/assets/mascot_happy.png"
-              speech="다시 만나서 반가워요! 오늘은 얼마를 아껴볼까요?"
+              speech="만나서 반가워요! 오늘은 얼마를 아껴볼까요?"
               className="w-full max-w-[360px] transition-transform duration-700 hover:-translate-y-2 relative z-10"
             />
           </div>
@@ -46,7 +46,7 @@ export const LoginPage = () => {
         <Card className="!p-10 lg:!p-14 w-full max-w-[480px] mx-auto lg:mx-0 relative z-10">
           <div className="mb-10">
             <h3 className="text-[1.85rem] font-black text-eel tracking-tight drop-shadow-sm">
-              환영합니다, 루루
+              환영합니다!
             </h3>
             <p className="text-text-muted mt-2 font-bold text-[15px]">
               로그인하고 서비스를 이용해보세요.

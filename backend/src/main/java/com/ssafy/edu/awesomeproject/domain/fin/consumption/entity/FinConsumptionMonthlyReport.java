@@ -85,4 +85,8 @@ public class FinConsumptionMonthlyReport extends BaseEntity {
     public void markNotLatest() {
         this.isLatest = false;
     }
+
+    public void replaceReportPayload(Map<String, Object> reportPayload) {
+        this.reportPayload = reportPayload;
+    }
 }

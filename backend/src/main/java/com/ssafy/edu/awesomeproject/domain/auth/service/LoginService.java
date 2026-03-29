@@ -47,6 +47,17 @@ public class LoginService {
                 loginTokenResult.refreshTokenExpiresInSeconds());
     }
 
+    public void verifyPassword(Long userId, String password) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AuthException(AuthErrorCode.AUTHENTICATION_FAILED));
+
+        if (!passwordHashService.matches(password, user.getPassword())) {
+            throw new AuthException(AuthErrorCode.BAD_CREDENTIALS);
+        }
+    }
+
     public record LoginResult(
             Long userId,
             String email,

@@ -35,7 +35,7 @@ public class RankingEventListener {
         // 2. 🔥 최신화된 전체 랭킹 조회 (내 랭킹 데이터 포함)
         RankingListResponse totalRankingData =
                 RankingListResponse.of(
-                        rankingService.getTop10Ranking(null),
+                        rankingService.getTop100Ranking(null),
                         rankingService.getMyRanking(event.userId(), null));
 
         // 3. Payload 조립 및 SSE 브로드캐스트 직파!

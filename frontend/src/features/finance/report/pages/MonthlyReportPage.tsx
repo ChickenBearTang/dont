@@ -6,11 +6,17 @@ import {
   generateMonthlyAiReport,
   sendAiJustification,
   regenerateAiReport,
+  getCardRecommendation,
+  getConsumptionCompare,
 } from '../api/reportApi';
-
-// types import
-import type { SpendingSummaryResponse, SpendingSummaryRank, AiReportPayload, CardRecommendationResponse } from '../types';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import type {
+  SpendingSummaryResponse,
+  SpendingSummaryRank,
+  AiReportPayload,
+  CardRecommendationResponse,
+  CohortComparisonData,
+} from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import mascotAnalyze from '@/assets/character/mascot_analyze.png';
 import mascotJust from '@/assets/character/mascot_just.png';
@@ -40,6 +46,20 @@ const formatToYYYYMM = (date: Date) => {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   return `${yyyy}-${mm}`;
+};
+
+const parseReportMonth = (reportMonth: string | null) => {
+  if (!reportMonth || !/^\d{4}-\d{2}$/.test(reportMonth)) return null;
+
+  const [yearText, monthText] = reportMonth.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return null;
+  }
+
+  return new Date(year, month - 1, 1);
 };
 
 const getMonthRange = (date: Date) => {
@@ -93,6 +113,154 @@ const DonutChart = ({ data }: { data: SpendingSummaryRank[] }) => {
   );
 };
 
+const CohortComparisonCard = ({
+  summary,
+  comparison,
+  loading,
+}: {
+  summary: SpendingSummaryResponse | null;
+  comparison: CohortComparisonData | null;
+  loading: boolean;
+}) => {
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-center min-h-[120px]">
+        <div className="w-7 h-7 border-4 border-gray-100 border-t-indigo-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!comparison) {
+    return (
+      <div className="bg-white rounded-2xl p-5 border border-indigo-100 shadow-sm transition-shadow hover:shadow-md ring-1 ring-indigo-50 text-center text-gray-500 font-bold text-[14px]">
+        동기들의 지출 데이터를 불러올 수 없습니다.
+      </div>
+    );
+  }
+
+  const getMyCategoryAmount = (labels: string[]) => {
+    return summary?.rankColumList?.find((r) => labels.includes(r.categoryName))?.amount || 0;
+  };
+
+  const toWholeWon = (amount: number) => Math.round(Number(amount) || 0);
+
+  const compareList = [
+    {
+      label: '식사/음식',
+      myAmount: getMyCategoryAmount(['식사/음식', '식사/외식']),
+      avgAmount: toWholeWon(comparison.avg_food),
+    },
+    {
+      label: '카페/디저트',
+      myAmount: getMyCategoryAmount(['카페/디저트', '카페/간식']),
+      avgAmount: toWholeWon(comparison.avg_cafe),
+    },
+    {
+      label: '문화/여가',
+      myAmount: getMyCategoryAmount(['문화/여가']),
+      avgAmount: toWholeWon(comparison.avg_culture),
+    },
+    {
+      label: '편의점/마트',
+      myAmount: getMyCategoryAmount(['편의점/마트', '쇼핑/마트']),
+      avgAmount: toWholeWon(comparison.avg_market),
+    },
+    {
+      label: '의료/건강',
+      myAmount: getMyCategoryAmount(['의료/건강']),
+      avgAmount: toWholeWon(comparison.avg_medical),
+    },
+    {
+      label: '세이브박스',
+      myAmount: getMyCategoryAmount(['세이브박스']),
+      avgAmount: toWholeWon(comparison.avg_save_box),
+    },
+  ].filter(item => item.myAmount > 0 || item.avgAmount > 0);
+
+  if (compareList.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl p-5 border border-indigo-100 shadow-sm transition-shadow hover:shadow-md ring-1 ring-indigo-50 text-center text-gray-500 font-bold text-[14px]">
+        앗! 나와 동기들의 비교할 지출 데이터가 아직 부족해요.
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-indigo-100 shadow-sm transition-shadow hover:shadow-md ring-1 ring-indigo-50">
+      <h3 className="text-[15px] font-extrabold text-indigo-700 mb-5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🔥</span>
+          <span>나와 비슷한 {comparison.cohort}기 평균 지출액 비교</span>
+        </div>
+      </h3>
+
+      <div className="flex flex-col gap-6">
+        {compareList.map((item, idx) => {
+          const maxAmount = Math.max(item.myAmount, item.avgAmount, 1);
+          const myRatio = Math.round((item.myAmount / maxAmount) * 100);
+          const avgRatio = Math.round((item.avgAmount / maxAmount) * 100);
+
+          let diffElem = <span className="text-gray-500 font-bold">비슷하게</span>;
+          if (item.myAmount > item.avgAmount) {
+            const extra = item.avgAmount > 0 
+              ? `${Math.round(((item.myAmount - item.avgAmount) / item.avgAmount) * 100)}% 더 많이`
+              : '더 많이';
+            diffElem = <span className="text-rose-500 font-bold">{extra}</span>;
+          } else if (item.myAmount < item.avgAmount) {
+            const less = item.avgAmount > 0
+              ? Math.round(((item.avgAmount - item.myAmount) / item.avgAmount) * 100)
+              : 0;
+            diffElem = <span className="text-blue-500 font-bold">{less}% 덜</span>;
+          }
+
+          return (
+            <div key={idx} className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-end mb-1">
+                <span className="text-[14px] font-bold text-gray-800">{item.label}</span>
+                <span className="text-[12px] font-medium text-gray-400">
+                  동기들보다 {diffElem} 썼어요!
+                </span>
+              </div>
+
+              <div className="relative flex flex-col gap-2">
+                <div className="flex items-center w-full h-4">
+                  <div className="w-12 text-right text-[11px] text-blue-600 font-bold shrink-0 pr-2 leading-none">
+                    나
+                  </div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-full overflow-hidden relative">
+                    <div
+                      className="absolute top-0 left-0 h-full bg-blue-500 rounded-full transition-all duration-1000"
+                      style={{ width: `${myRatio}%` }}
+                    />
+                  </div>
+                  <div className="w-[72px] text-right text-[12px] font-bold text-gray-700 shrink-0 leading-none pl-2 truncate">
+                    {item.myAmount.toLocaleString()}원
+                  </div>
+                </div>
+
+                <div className="flex items-center w-full h-4">
+                  <div className="w-12 text-right text-[11px] text-indigo-500 font-bold shrink-0 pr-2 leading-none">
+                    {comparison.cohort}기
+                  </div>
+                  <div className="flex-1 bg-gray-100 rounded-full h-full overflow-hidden relative">
+                    <div
+                      className="absolute top-0 left-0 h-full bg-indigo-400 rounded-full transition-all duration-1000"
+                      style={{ width: `${avgRatio}%` }}
+                    />
+                  </div>
+                  <div className="w-[72px] text-right text-[12px] font-bold text-gray-500 shrink-0 leading-none pl-2 truncate">
+                    {item.avgAmount.toLocaleString()}원
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const AIAnalysisCard = ({
   analysis,
   cardRecommendation,
@@ -102,6 +270,8 @@ const AIAnalysisCard = ({
   generating,
   onGenerate,
   onNavigateToRecommend,
+  onRetryCardRecommendation,
+  onRetryReport,
 }: {
   analysis: AiReportPayload['aiAnalysis'] | null;
   cardRecommendation: CardRecommendationResponse | null;
@@ -111,6 +281,8 @@ const AIAnalysisCard = ({
   generating: boolean;
   onGenerate: () => void;
   onNavigateToRecommend: () => void;
+  onRetryCardRecommendation: () => void;
+  onRetryReport: () => void;
 }) => {
   const { user } = useAuthStore();
   if (loading) {
@@ -196,10 +368,8 @@ const AIAnalysisCard = ({
         </p>
       </div>
 
-<<<<<<< frontend/src/features/finance/report/pages/MonthlyReportPage.tsx
       <div className="flex-1 p-7 flex flex-col gap-6">
 
-        {/* AI 기반 소비 유형 및 카드 추천 결과 */}
         {cardRecommendLoading ? (
           <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm flex items-center justify-center min-h-[160px]">
             <div className="w-8 h-8 border-4 border-gray-100 border-t-purple-500 rounded-full animate-spin"></div>
@@ -210,7 +380,11 @@ const AIAnalysisCard = ({
               <div className="text-4xl text-indigo-500">🧑‍💻</div>
               <div>
                 <h3 className="text-[14px] font-bold text-indigo-500 tracking-tight">AI 분석 맞춤 소비 유형</h3>
-                <div className="text-[20px] font-black text-gray-900">{cardRecommendation.user_persona.name}</div>
+                <div className="text-[20px] font-black text-gray-900">
+                  {cardRecommendation.user_persona.nickname ||
+                    cardRecommendation.user_persona.name ||
+                    '소비 유형'}
+                </div>
               </div>
             </div>
             <p className="text-[14px] text-gray-700 leading-relaxed font-medium mb-6">
@@ -245,17 +419,32 @@ const AIAnalysisCard = ({
               맞춤 카드 추천 전체 결과 확인하기 <span className="text-[18px]">›</span>
             </button>
           </div>
-        ) : null}
+        ) : (
+          <div className="bg-white rounded-[24px] p-7 border border-amber-100 shadow-sm">
+            <div className="text-[14px] font-bold text-amber-700 mb-2">
+              카드 추천 데이터가 비어 있어요.
+            </div>
+            <p className="text-[13px] text-gray-600 mb-4">
+              리포트는 생성됐지만 추천 정보가 누락되어 다시 불러와야 합니다.
+            </p>
+            <button
+              onClick={onRetryCardRecommendation}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+            >
+              카드 추천 다시 불러오기
+            </button>
+            <button
+              onClick={onRetryReport}
+              className="w-full mt-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+            >
+              소비 리포트 다시 생성하기
+            </button>
+          </div>
+        )}
 
         <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
           <h3 className="text-[18px] font-extrabold text-gray-900 mb-5 flex items-center gap-2">
             <span className="text-xl">📊</span>
-=======
-      <div className="flex-1 p-5 flex flex-col gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
-          <h3 className="text-[16px] font-extrabold text-gray-900 mb-3 flex items-center gap-2">
-            <span className="text-lg">📊</span>
->>>>>>> frontend/src/features/finance/report/pages/MonthlyReportPage.tsx
             <span>이달의 소비 패턴</span>
           </h3>
           <div className="flex flex-col gap-3">
@@ -355,7 +544,6 @@ const ReportChatbot = ({
 
     try {
       const res = await sendAiJustification(targetMonth, msg);
-      // Safely access data depending on axios interceptor configuration
       const resData = (
         res as { data?: { data?: Record<string, unknown> } | Record<string, unknown> }
       )?.data;
@@ -363,7 +551,6 @@ const ReportChatbot = ({
         | Record<string, unknown>
         | undefined;
 
-      // Dummy fallback logic if no actual response is set yet
       const aiResponse = String(
         data?.ai_response ?? data?.aiResponse ?? '설득력이 있는 내용이네요. 내용을 검토하겠습니다.'
       );
@@ -557,19 +744,29 @@ const ReportChatbot = ({
 
 export const MonthlyReportPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const navigate = useNavigate();
 
+  const getNormalizedMonthDate = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), 1);
+
+  const [currentDate, setCurrentDate] = useState(() => {
+    const requestedDate = parseReportMonth(searchParams.get('reportMonth'));
+    return getNormalizedMonthDate(requestedDate ?? new Date());
+  });
 
   const [summary, setSummary] = useState<SpendingSummaryResponse | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
+
+  const [cohortComparison, setCohortComparison] = useState<CohortComparisonData | null>(null);
+  const [cohortComparisonLoading, setCohortComparisonLoading] = useState(false);
 
   const [aiAnalysis, setAiAnalysis] = useState<AiReportPayload['aiAnalysis'] | null>(null);
   const [aiLoading, setAiLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  const [cardRecommendation, setCardRecommendation] = useState<CardRecommendationResponse | null>(null);
+  const [cardRecommendation, setCardRecommendation] =
+    useState<CardRecommendationResponse | null>(null);
   const [cardRecommendLoading, setCardRecommendLoading] = useState(true);
 
   const extractReportPayload = (res: unknown): AiReportPayload | undefined =>
@@ -580,23 +777,55 @@ export const MonthlyReportPage = () => {
   const getAxiosStatus = (error: unknown): number | undefined =>
     (error as AxiosError | undefined)?.response?.status;
 
-  const applyMonthlyReportPayload = (payload?: AiReportPayload) => {
+  const isCardRecommendationResponse = (
+    value: AiReportPayload['cardRecommendation'] | null | undefined
+  ): value is CardRecommendationResponse => {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const candidate = value as Partial<CardRecommendationResponse>;
+    return (
+      !!candidate.user_persona &&
+      !!candidate.best_card &&
+      Array.isArray(candidate.all_cards) &&
+      typeof candidate.total_spend === 'number'
+    );
+  };
+
+  const applyMonthlyReportPayload = (
+    payload?: AiReportPayload,
+    options?: { preserveCardRecommendationOnEmpty?: boolean }
+  ) => {
     setAiAnalysis(payload?.aiAnalysis ?? null);
-    setCardRecommendation(payload?.cardRecommendation ?? null);
+    const nextCardRecommendation = payload?.cardRecommendation;
+    if (isCardRecommendationResponse(nextCardRecommendation)) {
+      setCardRecommendation(nextCardRecommendation);
+      return;
+    }
+
+    if (!options?.preserveCardRecommendationOnEmpty) {
+      setCardRecommendation(null);
+    }
+  };
+
+  const retryCardRecommendation = async () => {
+    const reportMonth = formatToYYYYMM(currentDate);
+    try {
+      setCardRecommendLoading(true);
+      const directRecommendation = await getCardRecommendation(reportMonth);
+      setCardRecommendation(directRecommendation ?? null);
+    } catch (error) {
+      console.error('[MonthlyReport] Failed to fetch direct card recommendation:', error);
+      setCardRecommendation(null);
+    } finally {
+      setCardRecommendLoading(false);
+    }
   };
 
   const isCurrentMonth =
     currentDate.getMonth() === new Date().getMonth() &&
     currentDate.getFullYear() === new Date().getFullYear();
-
-  const isLastMonth = (() => {
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    return (
-      currentDate.getFullYear() === lastMonth.getFullYear() &&
-      currentDate.getMonth() === lastMonth.getMonth()
-    );
-  })();
 
   const handleGenerateReport = async () => {
     try {
@@ -604,11 +833,11 @@ export const MonthlyReportPage = () => {
       const reportMonth = formatToYYYYMM(currentDate);
       await generateMonthlyAiReport(reportMonth);
 
-        // Reload AI report
-        setAiLoading(true);
-        setCardRecommendLoading(true);
-        const res = await getMonthlyAiReport(reportMonth);
-        applyMonthlyReportPayload(extractReportPayload(res));
+      setAiLoading(true);
+      setCardRecommendLoading(true);
+      const res = await getMonthlyAiReport(reportMonth);
+      const payload = extractReportPayload(res);
+      applyMonthlyReportPayload(payload);
     } catch (error) {
       console.error('Failed to generate AI report:', error);
       alert('리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
@@ -620,16 +849,15 @@ export const MonthlyReportPage = () => {
   };
 
   const handleChatRegenerate = async () => {
-    // 채팅에서 "재작성" 버튼 클릭 시 작동할 함수
     try {
       const reportMonth = formatToYYYYMM(currentDate);
       await regenerateAiReport(reportMonth);
 
-      // 새로고침 로직
       setAiLoading(true);
       setCardRecommendLoading(true);
       const res = await getMonthlyAiReport(reportMonth);
-      applyMonthlyReportPayload(extractReportPayload(res));
+      const payload = extractReportPayload(res);
+      applyMonthlyReportPayload(payload);
     } catch (error) {
       console.error(error);
       throw error;
@@ -638,12 +866,37 @@ export const MonthlyReportPage = () => {
       setCardRecommendLoading(false);
     }
   };
+
+  useEffect(() => {
+    const requestedDate = parseReportMonth(searchParams.get('reportMonth'));
+
+    if (!requestedDate) return;
+
+    const normalizedRequested = getNormalizedMonthDate(requestedDate);
+
+    if (formatToYYYYMM(normalizedRequested) !== formatToYYYYMM(currentDate)) {
+      setCurrentDate(normalizedRequested);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const normalizedCurrent = getNormalizedMonthDate(currentDate);
+    const currentParam = searchParams.get('reportMonth');
+    const nextMonth = formatToYYYYMM(normalizedCurrent);
+
+    if (currentParam === nextMonth) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('reportMonth', nextMonth);
+    setSearchParams(nextParams, { replace: true });
+  }, [currentDate, searchParams, setSearchParams]);
+
   useEffect(() => {
     const fetchSummary = async () => {
       try {
         setSummaryLoading(true);
         const { startDate, endDate } = getMonthRange(currentDate);
-        const res = await getSpendingSummary(startDate, endDate);
+        const res = await getSpendingSummary(startDate, endDate, false);
 
         let rankList = res.rankColumList || [];
         rankList = [...rankList].sort((a, b) => b.percentage - a.percentage);
@@ -661,12 +914,23 @@ export const MonthlyReportPage = () => {
     };
 
     const fetchAiReport = async () => {
+      const reportMonth = formatToYYYYMM(currentDate);
+      const currentMonth = formatToYYYYMM(new Date());
+
+      if (reportMonth === currentMonth) {
+        setAiAnalysis(null);
+        setCardRecommendation(null);
+        setAiLoading(false);
+        setCardRecommendLoading(false);
+        return;
+      }
+
       try {
         setAiLoading(true);
         setCardRecommendLoading(true);
-        const reportMonth = formatToYYYYMM(currentDate);
         const res = await getMonthlyAiReport(reportMonth);
-        applyMonthlyReportPayload(extractReportPayload(res));
+        const payload = extractReportPayload(res);
+        applyMonthlyReportPayload(payload);
       } catch (error) {
         if (getAxiosStatus(error) !== 404) {
           console.error('Failed to fetch AI report:', error);
@@ -679,8 +943,31 @@ export const MonthlyReportPage = () => {
       }
     };
 
+    const fetchCohortComparison = async () => {
+      const currentMonth = formatToYYYYMM(new Date());
+      const reportMonth = formatToYYYYMM(currentDate);
+
+      if (reportMonth !== currentMonth) {
+        setCohortComparison(null);
+        setCohortComparisonLoading(false);
+        return;
+      }
+
+      try {
+        setCohortComparisonLoading(true);
+        const res = await getConsumptionCompare();
+        setCohortComparison(res.data ?? null);
+      } catch (err) {
+        console.error('Failed to fetch cohort comparison:', err);
+        setCohortComparison(null);
+      } finally {
+        setCohortComparisonLoading(false);
+      }
+    };
+
     fetchSummary();
     fetchAiReport();
+    fetchCohortComparison();
   }, [currentDate]);
 
   const handlePrevMonth = () => {
@@ -708,6 +995,7 @@ export const MonthlyReportPage = () => {
         </svg>
         금융 홈으로
       </button>
+
       <div className="flex items-center justify-between w-full max-w-[260px] mx-auto bg-white/80 p-1.5 mb-6 rounded-2xl shadow-sm border border-gray-100/80 backdrop-blur-sm">
         <button
           onClick={handlePrevMonth}
@@ -723,9 +1011,11 @@ export const MonthlyReportPage = () => {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
+
         <div className="text-center font-black text-gray-900 text-[18px] tracking-tight">
           {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
         </div>
+
         <button
           onClick={handleNextMonth}
           disabled={
@@ -747,7 +1037,6 @@ export const MonthlyReportPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-        {/* 왼쪽 패널: 기존 소비 리포트 */}
         <div className="w-full bg-gray-50/30 rounded-[32px] overflow-hidden flex flex-col min-h-[450px] border border-gray-100/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="bg-white px-5 pt-6 pb-4 rounded-t-[32px]">
             <h1 className="text-[20px] font-bold text-gray-900 tracking-[-0.02em] flex items-center gap-2">
@@ -790,6 +1079,7 @@ export const MonthlyReportPage = () => {
                   <h3 className="text-[15px] font-extrabold text-gray-900 mb-4 tracking-tight">
                     어디에 가장 많이 썼을까요?
                   </h3>
+
                   {summary.rankColumList.length === 0 ? (
                     <div className="py-12 text-center text-[14px] font-bold text-gray-400 bg-gray-50 rounded-2xl">
                       해당 월의 결제 내역이 없습니다.
@@ -819,6 +1109,7 @@ export const MonthlyReportPage = () => {
                                   {idx + 1}위
                                 </span>
                               </div>
+
                               <div>
                                 <div className="text-[15px] font-extrabold text-gray-800 mb-0.5">
                                   {rank.categoryName}
@@ -828,6 +1119,7 @@ export const MonthlyReportPage = () => {
                                 </div>
                               </div>
                             </div>
+
                             <div className="text-right">
                               <div className="text-[16px] font-black tracking-tight text-gray-900 group-hover:text-blue-600 transition-colors">
                                 {rank.amount?.toLocaleString() || 0}원
@@ -853,27 +1145,44 @@ export const MonthlyReportPage = () => {
           </div>
         </div>
 
-        {/* 오른쪽 패널: AI 심층 리포트 */}
-        <AIAnalysisCard
-          analysis={aiAnalysis}
-          cardRecommendation={cardRecommendation}
-          cardRecommendLoading={cardRecommendLoading}
-          loading={aiLoading}
-          isCurrentMonth={isCurrentMonth}
-          generating={generating}
-          onGenerate={handleGenerateReport}
-          onNavigateToRecommend={() =>
-            navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`)
-          }
-        />
+        <div className="flex flex-col gap-6 w-full">
+          {isCurrentMonth && (
+            <CohortComparisonCard
+              summary={summary}
+              comparison={cohortComparison}
+              loading={cohortComparisonLoading}
+            />
+          )}
+
+          <AIAnalysisCard
+            analysis={aiAnalysis}
+            cardRecommendation={cardRecommendation}
+            cardRecommendLoading={cardRecommendLoading}
+            loading={aiLoading}
+            isCurrentMonth={isCurrentMonth}
+            generating={generating}
+            onGenerate={handleGenerateReport}
+            onRetryCardRecommendation={retryCardRecommendation}
+            onRetryReport={handleChatRegenerate}
+            onNavigateToRecommend={() =>
+              navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`, {
+                state: {
+                  prefetchedMonth: formatToYYYYMM(currentDate),
+                  prefetchedRecommendation: cardRecommendation,
+                },
+              })
+            }
+          />
+        </div>
       </div>
 
-      {/* 직전 달에만 채팅(반박) 버튼 표시 */}
-      {isLastMonth && aiAnalysis && (
+      {!isCurrentMonth && aiAnalysis && (
         <ReportChatbot
           targetMonth={formatToYYYYMM(currentDate)}
           onRegenerate={handleChatRegenerate}
-          onApplyRegeneratedReport={applyMonthlyReportPayload}
+          onApplyRegeneratedReport={(payload) =>
+            applyMonthlyReportPayload(payload, { preserveCardRecommendationOnEmpty: true })
+          }
         />
       )}
     </div>

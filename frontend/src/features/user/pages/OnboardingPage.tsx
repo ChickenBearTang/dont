@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/components';
 import { Mascot } from '@/shared/components/Mascot';
 import { fetchOnboardingStatus, submitOnboarding } from '../api/userApi';
+import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/shared/hooks';
 import { formatNumber } from '@/shared/utils';
 
@@ -16,13 +17,48 @@ const VARIABLE_COST_OPTIONS = [50000, 100000, 150000, 200000, 250000, 300000, 40
 export const OnboardingPage = () => {
   const navigate = useNavigate();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => Number(sessionStorage.getItem('onboarding_step')) || 1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isKdt, setIsKdt] = useState<boolean | null>(null);
-  const [fixedCostInput, setFixedCostInput] = useState('');
-  const [variableCostInput, setVariableCostInput] = useState('');
+  const [isKdt, setIsKdt] = useState<boolean | null>(() => {
+    const saved = sessionStorage.getItem('onboarding_isKdt');
+    return saved === null ? null : saved === 'true';
+  });
+  const [fixedCostInput, setFixedCostInput] = useState(() => sessionStorage.getItem('onboarding_fixedCost') || '');
+  const [variableCostInput, setVariableCostInput] = useState(() => sessionStorage.getItem('onboarding_variableCost') || '');
+  // 서버에서 가져온 추천액 (뒤로가기 시 로컬 값이 초기화되어도 안전하게 표시)
+  const [serverRecommendedAmount, setServerRecommendedAmount] = useState<number | null>(null);
+
+  // Handle browser back button: Step-by-step navigation
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (step > 1) {
+        e.preventDefault();
+        setStep((prev) => Math.max(1, prev - 1));
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [step]);
+
+  // Sync state to sessionStorage
+  useEffect(() => {
+    if (isKdt !== null) sessionStorage.setItem('onboarding_isKdt', String(isKdt));
+    sessionStorage.setItem('onboarding_fixedCost', fixedCostInput);
+    sessionStorage.setItem('onboarding_variableCost', variableCostInput);
+    sessionStorage.setItem('onboarding_step', String(step));
+  }, [isKdt, fixedCostInput, variableCostInput, step]);
+
+  // Push state on step increase to enable browser back button
+  const changeStep = (nextStep: number) => {
+    if (nextStep > step) {
+      window.history.pushState({ step: nextStep }, '', window.location.pathname);
+    }
+    setStep(nextStep);
+  };
 
   const resolveErrorMessage = (error: unknown) => {
     if (typeof error !== 'object' || error === null || !('response' in error)) {
@@ -46,10 +82,15 @@ export const OnboardingPage = () => {
         }
 
         if (onboardingStatus === 'IN_PROGRESS') {
-          setStep(4);
+          // 서버에 저장된 추천액을 로드 (뒤로가기 등으로 재진입 시 0원 방지)
+          if (statusResponse.data.recommendedAmount) {
+            setServerRecommendedAmount(statusResponse.data.recommendedAmount);
+          }
+          // 로컬 step이 1인 경우에만 4로 점프 (새로고침 시 등은 로컬 step 유지)
+          if (step === 1) setStep(4);
         }
       } catch (error) {
-        console.error('Failed to load onboarding data:', error);
+        console.error('Failed to load onborading data:', error);
         toast.error(resolveErrorMessage(error) ?? '온보딩 정보를 불러오지 못했습니다.');
       } finally {
         setIsLoading(false);
@@ -57,7 +98,7 @@ export const OnboardingPage = () => {
     };
 
     void loadOnboardingStatus();
-  }, [navigate, toast]);
+  }, [navigate, toast]); // step 의존성 제거 (무한루프 방지)
 
   const fixedCost = Number(fixedCostInput || 0);
   const variableCost = Number(variableCostInput || 0);
@@ -97,6 +138,8 @@ export const OnboardingPage = () => {
         response.success &&
         (response.data.onboardingStatus === 'IN_PROGRESS' || response.data.onboardingCompleted)
       ) {
+        // Invalidate the query so the recommended amount is fresh in the next page
+        void queryClient.invalidateQueries({ queryKey: ['onboardingStatus'] });
         setStep(4);
       }
     } catch (error) {
@@ -127,14 +170,16 @@ export const OnboardingPage = () => {
 
         {step <= TOTAL_STEPS && (
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-6">
-              <button
-                type="button"
-                onClick={() => (step === 1 ? navigate(-1) : setStep((prev) => prev - 1))}
-                className="h-10 w-10 rounded-full border border-line-soft bg-surface-base text-text-muted hover:text-text-strong hover:border-line-strong transition-colors"
-              >
-                ←
-              </button>
+            <div className={`flex items-center gap-3 mb-6 ${step === 1 ? 'justify-end' : ''}`}>
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStep((prev) => prev - 1)}
+                  className="h-10 w-10 rounded-full border border-line-soft bg-surface-base text-text-muted hover:text-text-strong hover:border-line-strong transition-colors"
+                >
+                  ←
+                </button>
+              )}
               <div className="flex-1 h-3 rounded-full bg-surface-soft overflow-hidden">
                 <div
                   className="h-full rounded-full bg-accent transition-all duration-300"
@@ -200,19 +245,8 @@ export const OnboardingPage = () => {
                 </p>
               </div>
 
-              <div className="w-full max-w-[720px] mx-auto mb-4">
-                <Button
-                  variant="outline"
-                  fullWidth={false}
-                  onClick={() => setStep(1)}
-                  className="h-[48px] min-w-[120px] rounded-[14px] px-5"
-                >
-                  이전
-                </Button>
-              </div>
-
               <div
-                className="w-full max-w-[720px] mx-auto mb-8 grid gap-3"
+                className="w-full max-w-[720px] mx-auto mb-10 grid gap-3"
                 style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
               >
                 {FIXED_COST_OPTIONS.map((preset) => (
@@ -223,13 +257,43 @@ export const OnboardingPage = () => {
                     fullWidth={false}
                     onClick={() => {
                       setFixedCostInput(String(preset));
-                      setStep(3);
+                      changeStep(3);
                     }}
                     className="w-full h-[88px] rounded-[20px] text-[20px] font-black"
                   >
                     {formatNumber(preset)}원
                   </Button>
                 ))}
+              </div>
+
+              <div className="w-full max-w-[720px] mx-auto pt-6 border-t border-line-soft">
+                <p className="text-center text-[13px] font-bold text-text-muted mb-4 uppercase tracking-wider">
+                  또는 직접 입력하기
+                </p>
+                <div className="flex flex-col gap-4">
+                  <div className="relative group">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={fixedCostInput ? Number(fixedCostInput).toLocaleString() : ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setFixedCostInput(val);
+                      }}
+                      className="w-full h-[80px] rounded-[24px] border-2 border-line-soft bg-surface-base px-8 text-[32px] font-black outline-none transition-all focus:border-accent text-text-strong pr-16"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[24px] font-black text-text-muted">원</span>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!fixedCostInput || Number(fixedCostInput) <= 0}
+                    onClick={() => changeStep(3)}
+                    className="h-[64px] rounded-[22px] text-lg"
+                  >
+                    입력 완료
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -239,26 +303,16 @@ export const OnboardingPage = () => {
               <div className="flex flex-col items-center text-center mb-10">
                 <Mascot src="/assets/mascot_happy.png" className="mb-3" />
                 <h2 className="text-[32px] md:text-[36px] font-black text-text-strong tracking-tight mb-3 leading-tight">
-                  월 변동비는 어느 정도인가요?
+                  고정비를 제외한 월 평균 지출은 어느 정도인가요?
                 </h2>
                 <p className="text-[15px] text-text-muted font-semibold">
-                  식비, 교통비, 쇼핑처럼 달마다 변하는 지출을 입력해주세요.
+                  식비, 생활비, 취미 생활 등 매달 나가는 평균적인 지출액을 알려주세요.
                 </p>
               </div>
 
-              <div className="w-full max-w-[720px] mx-auto mb-4">
-                <Button
-                  variant="outline"
-                  fullWidth={false}
-                  onClick={() => setStep(2)}
-                  className="h-[48px] min-w-[120px] rounded-[14px] px-5"
-                >
-                  이전
-                </Button>
-              </div>
 
               <div
-                className="w-full max-w-[720px] mx-auto mb-8 grid gap-3"
+                className="w-full max-w-[720px] mx-auto mb-10 grid gap-3"
                 style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
               >
                 {VARIABLE_COST_OPTIONS.map((preset) => (
@@ -275,6 +329,36 @@ export const OnboardingPage = () => {
                   </Button>
                 ))}
               </div>
+
+              <div className="w-full max-w-[720px] mx-auto pt-6 border-t border-line-soft">
+                <p className="text-center text-[13px] font-bold text-text-muted mb-4 uppercase tracking-wider">
+                  또는 직접 입력하기
+                </p>
+                <div className="flex flex-col gap-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={variableCostInput ? Number(variableCostInput).toLocaleString() : ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setVariableCostInput(val);
+                      }}
+                      className="w-full h-[80px] rounded-[24px] border-2 border-line-soft bg-surface-base px-8 text-[32px] font-black outline-none transition-all focus:border-accent text-text-strong pr-16"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-8 top-1/2 -translate-y-1/2 text-[24px] font-black text-text-muted">원</span>
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!variableCostInput || Number(variableCostInput) <= 0 || isSubmitting}
+                    onClick={() => void handleCompleteOnboarding()}
+                    className="h-[64px] rounded-[22px] text-lg"
+                  >
+                    {isSubmitting ? '저장 중...' : '계산하기'}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -288,25 +372,28 @@ export const OnboardingPage = () => {
 
               <div className="w-full bg-surface-base rounded-[30px] p-8 border border-line-soft shadow-[0_14px_30px_rgba(15,23,42,0.08)] mb-8">
                 <p className="text-[12px] text-text-subtle font-black tracking-[0.08em] mb-2">
-                  RECOMMENDED SAVING
+                  추천 저축액
                 </p>
                 <p className="text-5xl font-black text-accent tracking-tight">
-                  {formatNumber(recommendedAmount)}원
+                  {formatNumber(recommendedAmount || serverRecommendedAmount || 0)}원
                 </p>
-                <div className="mt-7 grid sm:grid-cols-2 gap-3 text-sm text-text-muted font-semibold">
-                  <p className="rounded-2xl bg-surface-muted px-4 py-3">
-                    기준 월 소득: {formatNumber(monthlyIncome)}원
-                  </p>
-                  <p className="rounded-2xl bg-surface-muted px-4 py-3">
-                    월 고정비: {formatNumber(fixedCost)}원
-                  </p>
-                  <p className="rounded-2xl bg-surface-muted px-4 py-3">
-                    월 변동비: {formatNumber(variableCost)}원
-                  </p>
-                  <p className="rounded-2xl bg-accent-soft text-accent px-4 py-3">
-                    월 가용금액: {formatNumber(availableAmount)}원
-                  </p>
-                </div>
+                {/* 로컬 계산 값이 있을 때만 상세 내역 표시 (뒤로가기 시 0원 노출 방지) */}
+                {monthlyIncome > 0 && (
+                  <div className="mt-7 grid sm:grid-cols-2 gap-3 text-sm text-text-muted font-semibold">
+                    <p className="rounded-2xl bg-surface-muted px-4 py-3">
+                      기준 월 소득: {formatNumber(monthlyIncome)}원
+                    </p>
+                    <p className="rounded-2xl bg-surface-muted px-4 py-3">
+                      월 고정비: {formatNumber(fixedCost)}원
+                    </p>
+                    <p className="rounded-2xl bg-surface-muted px-4 py-3">
+                      월 평균 지출 (고정비 제외): {formatNumber(variableCost)}원
+                    </p>
+                    <p className="rounded-2xl bg-accent-soft text-accent px-4 py-3">
+                      월 가용금액: {formatNumber(availableAmount)}원
+                    </p>
+                  </div>
+                )}
               </div>
 
               <Button

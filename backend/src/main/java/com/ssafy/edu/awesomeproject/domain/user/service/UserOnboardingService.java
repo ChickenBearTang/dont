@@ -5,6 +5,7 @@ import com.ssafy.edu.awesomeproject.common.error.CommonException;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.OnboardingStatus;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSettingRepository;
 import com.ssafy.edu.awesomeproject.domain.user.dto.response.OnboardingStatusResponseDto;
 import java.math.BigDecimal;
 import org.springframework.stereotype.Service;
@@ -13,9 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class UserOnboardingService {
     private final UserRepository userRepository;
+    private final SavingsSettingRepository savingsSettingRepository;
 
-    public UserOnboardingService(UserRepository userRepository) {
+    public UserOnboardingService(
+            UserRepository userRepository, SavingsSettingRepository savingsSettingRepository) {
         this.userRepository = userRepository;
+        this.savingsSettingRepository = savingsSettingRepository;
     }
 
     @Transactional(readOnly = true)
@@ -62,6 +66,13 @@ public class UserOnboardingService {
                 onboardingStatus.name(),
                 onboardingStatus == OnboardingStatus.COMPLETED,
                 recommendedAmount);
+    }
+
+    @Transactional
+    public void resetOnboarding(Long userId) {
+        User user = getUser(userId);
+        user.resetOnboarding();
+        savingsSettingRepository.deleteAllByUserId(userId);
     }
 
     private User getUser(Long userId) {

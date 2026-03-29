@@ -8,6 +8,7 @@ import {
 import { useCurrentMonthSpending } from '@/features/finance/report/hooks/useReportQueries';
 import { fetchMyPage } from '@/features/user/api/userApi';
 import { useQuery } from '@tanstack/react-query';
+import { useRankingSse } from '@/features/ranking/hooks/useRankingSse';
 
 const CATEGORY_COLORS = ['#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#10B981'];
 
@@ -26,18 +27,18 @@ const ExpenditureCard = () => {
   const rankList: { categoryName: string; amount: number; percentage: number }[] =
     (
       data as
-        | {
-            data?: {
-              rankColumList?: { categoryName: string; amount: number; percentage: number }[];
-            };
-            rankColumList?: { categoryName: string; amount: number; percentage: number }[];
-          }
-        | undefined
+      | {
+        data?: {
+          rankColumList?: { categoryName: string; amount: number; percentage: number }[];
+        };
+        rankColumList?: { categoryName: string; amount: number; percentage: number }[];
+      }
+      | undefined
     )?.data?.rankColumList ??
     (
       data as
-        | { rankColumList?: { categoryName: string; amount: number; percentage: number }[] }
-        | undefined
+      | { rankColumList?: { categoryName: string; amount: number; percentage: number }[] }
+      | undefined
     )?.rankColumList ??
     [];
 
@@ -130,6 +131,7 @@ export const DashboardPage = () => {
   const { user, updateUser } = useAuthStore();
   const { data: accounts, isLoading: isLoadingAccounts } = useGetMyAccounts();
   const { data: setting, isLoading: isLoadingSetting } = useGetSavingsSetting();
+  useRankingSse();
 
   const { data: profile } = useQuery({
     queryKey: ['myPage'],
@@ -137,12 +139,14 @@ export const DashboardPage = () => {
     staleTime: 1000 * 60 * 30, // 30분 동안은 캐시 유지
   });
 
-  // 닉네임이 스토어에 없으면 업데이트
+  // 닉네임 동기화: 서버 프로필 정보가 있으면 스토어 정보를 최신화합니다.
   useEffect(() => {
-    if (profile?.nickname && user && !user.nickname) {
+    if (profile?.nickname && user?.nickname !== profile.nickname) {
       updateUser({ nickname: profile.nickname });
     }
-  }, [profile?.nickname, user, updateUser]);
+  }, [profile?.nickname, user?.nickname, updateUser]);
+
+  const displayNickname = profile?.nickname || user?.nickname || '회원';
 
   const savebox =
     accounts?.find((a) => a.id === setting?.saveboxAccountId) ||
@@ -154,60 +158,64 @@ export const DashboardPage = () => {
   const balance = savebox ? Number(savebox.accountBalance) : 0;
 
   return (
-    <div className="space-y-10 max-w-[1200px] mx-auto pb-10">
+    <div className="space-y-10 max-w-[1400px] mx-auto w-full pt-4 lg:pt-6 xl:pt-8 pb-20 px-4">
       {/* 상단 환영 영역 */}
-      <div className="relative bg-glass rounded-[40px] p-10 lg:p-14 flex flex-row items-center justify-between gap-8 overflow-hidden transition-all duration-300 hover:shadow-[0_12px_44px_rgba(31,38,135,0.08)]">
+      <div className="relative glass-premium rounded-[48px] p-8 lg:p-12 xl:p-14 flex flex-col xl:flex-row items-center justify-between gap-10 overflow-hidden transition-all duration-500 hover:shadow-[0_20px_60px_rgba(31,38,135,0.12)] group">
+        {/* 장식용 화려한 배경 - 불투명도 상향 조정 */}
+        <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary-blue/15 rounded-full blur-[100px] pointer-events-none group-hover:scale-110 transition-transform duration-1000"></div>
+        <div className="absolute bottom-[-10%] left-[-5%] w-[300px] h-[300px] bg-accent/15 rounded-full blur-[80px] pointer-events-none group-hover:scale-110 transition-transform duration-1000 delay-150"></div>
+        
         {/* 배경 텍스처 */}
-        <div className="absolute inset-0 bg-pattern-dots opacity-[0.6] pointer-events-none mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-pattern-dots opacity-[0.4] pointer-events-none mix-blend-overlay"></div>
 
         {/* Left: Greeting text */}
         <div className="flex-1 min-w-0 relative z-10 text-left">
-          <h2 className="text-[1.75rem] lg:text-[2.25rem] font-black text-eel leading-[1.3] tracking-tight">
+          <h2 className="text-[2.25rem] lg:text-[2.75rem] xl:text-[3.25rem] font-black text-eel leading-[1.2] tracking-tighter">
             안녕하세요,{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-blue to-accent">
-              {profile?.nickname || user?.nickname || '회원'}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-blue via-indigo-500 to-accent animate-gradient-x">
+              {displayNickname}
             </span>
             님!
             <br />
             오늘도 현명한 소비 중이시네요.
           </h2>
-          <p className="text-text-muted font-bold text-[1rem] mt-3">
+          <p className="text-text-muted font-bold text-[1.1rem] mt-6 opacity-80">
             "작은 아낌이 모여 당신의 큰 꿈을 만듭니다."
           </p>
         </div>
 
         {/* Right: Savebox Balance Widget */}
-        <div className="shrink-0 w-[320px] lg:w-[500px] relative z-10">
-          <div className="flex flex-col items-center text-center bg-white px-8 py-7 rounded-[28px] border border-line-soft shadow-[0_12px_40px_rgba(15,23,42,0.06)] hover:border-line-strong transition-all duration-300">
-            <div className="flex items-center gap-3 mb-5">
-              <span className="text-[0.9rem] font-black tracking-tight text-text-muted">
+        <div className="shrink-0 w-full max-w-[450px] xl:w-[500px] relative z-10 mt-4 xl:mt-0">
+          <div className="flex flex-col items-center text-center bg-white/60 backdrop-blur-md px-10 py-10 rounded-[36px] border border-white/40 shadow-[0_15px_45px_rgba(15,23,42,0.08)] hover:border-primary-blue/40 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-[1rem] font-black tracking-tight text-text-muted">
                 현재 세이브박스 잔액
               </span>
             </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[2.5rem] lg:text-[3rem] font-black tracking-tighter text-primary-blue leading-none">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[3rem] lg:text-[3.5rem] xl:text-[4rem] font-black tracking-tighter text-primary-blue leading-none">
                 {isLoadingSavebox ? '...' : balance.toLocaleString()}
               </span>
-              <span className="text-[1.25rem] font-bold text-eel">원</span>
+              <span className="text-[1.5rem] font-bold text-eel">원</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* 메인 위젯 그리드 */}
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-10 xl:gap-12 relative z-10">
         {/* 지출 카드 */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 glass-premium hover-glass rounded-[40px] overflow-hidden">
           <ExpenditureCard />
         </div>
 
-        {/* 최근 알림 -> 랭킹 위젯 */}
-        <div className="lg:col-span-1">
+        {/* 랭킹 위젯 */}
+        <div className="lg:col-span-1 glass-premium hover-glass rounded-[40px] overflow-hidden">
           <RankingWidget />
         </div>
 
-        {/* 빈 칸 -> 토론 위젯 */}
-        <div className="lg:col-span-1">
+        {/* 토론 위젯 */}
+        <div className="lg:col-span-1 glass-premium hover-glass rounded-[40px] overflow-hidden">
           <PollWidget />
         </div>
       </div>
@@ -233,12 +241,12 @@ const RankingWidget = () => {
     queryKey: ['dashboard', 'ranking'],
     queryFn: async () => {
       const res = await axiosInstance.get('/ranking/cohort');
-      return res.data; // { data: { top10: [], myRanking: {} } }
+      return res.data; // { data: { top100: [], myRanking: {} } }
     },
   });
 
-  const myRanking = data?.data?.myRanking;
-  const top3 = data?.data?.top10?.slice(0, 3) || [];
+  const myRanking = data?.myRanking;
+  const top3 = data?.top100?.slice(0, 3) || [];
 
   return (
     <Card className="p-8 flex flex-col h-full border border-indigo-50 shadow-sm relative overflow-hidden group">
@@ -292,13 +300,12 @@ const RankingWidget = () => {
                 >
                   <div className="flex items-center gap-3 w-full">
                     <span
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                        user.rank === 1
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : user.rank === 2
-                            ? 'bg-slate-100 text-slate-600'
-                            : 'bg-orange-50 text-orange-600'
-                      }`}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${user.rank === 1
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : user.rank === 2
+                          ? 'bg-slate-100 text-slate-600'
+                          : 'bg-orange-50 text-orange-600'
+                        }`}
                     >
                       {user.rank}
                     </span>
