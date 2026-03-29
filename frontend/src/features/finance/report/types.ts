@@ -57,6 +57,12 @@ export interface AiReportPayload {
   };
   cardRecommendation?: CardRecommendationResponse;
   justifications: AiReportJustification[];
+  meta?: {
+    analysisStatus?: string;
+    recommendationStatus?: string;
+    recommendationReused?: boolean;
+    transactionFingerprint?: string;
+  };
 }
 
 export interface AiReportData {
@@ -109,6 +115,7 @@ export interface CardRecommendationResponse {
   best_card: CardResult;
   all_cards: CardResult[];
   total_spend: number;
+  type_spend_stats?: Record<string, number>;
 }
 
 export interface CohortComparisonData {

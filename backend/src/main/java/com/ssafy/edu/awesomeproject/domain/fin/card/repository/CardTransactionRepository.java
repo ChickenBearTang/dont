@@ -18,6 +18,21 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
                     Long userId, LocalDate startDate, LocalDate endDate);
 
     @Query(
+            """
+            select count(ct) as txCount,
+                   coalesce(sum(ct.transactionAmount), 0) as totalAmount,
+                   max(ct.transactionDate) as lastDate,
+                   max(ct.transactionTime) as lastTime
+            from CardTransaction ct
+            where ct.userId = :userId
+              and ct.transactionDate between :startDate and :endDate
+            """)
+    MonthlyTransactionSnapshotProjection findMonthlyTransactionSnapshot(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query(
             "select coalesce(sum(ct.transactionAmount), 0) from CardTransaction ct where ct.userId = :userId and ct.transactionDate between :startDate and :endDate")
     Long sumAmountByUserIdAndDateRange(
             @Param("userId") Long userId,
@@ -41,6 +56,16 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
         Long getCardId();
 
         Long getTotalAmount();
+    }
+
+    interface MonthlyTransactionSnapshotProjection {
+        Long getTxCount();
+
+        Long getTotalAmount();
+
+        LocalDate getLastDate();
+
+        String getLastTime();
     }
 
     @Query(

@@ -270,6 +270,8 @@ const AIAnalysisCard = ({
   generating,
   onGenerate,
   onNavigateToRecommend,
+  onRetryCardRecommendation,
+  onRetryReport,
 }: {
   analysis: AiReportPayload['aiAnalysis'] | null;
   cardRecommendation: CardRecommendationResponse | null;
@@ -279,6 +281,8 @@ const AIAnalysisCard = ({
   generating: boolean;
   onGenerate: () => void;
   onNavigateToRecommend: () => void;
+  onRetryCardRecommendation: () => void;
+  onRetryReport: () => void;
 }) => {
   const { user } = useAuthStore();
   if (loading) {
@@ -416,7 +420,28 @@ const AIAnalysisCard = ({
               맞춤 카드 추천 전체 결과 확인하기 <span className="text-[18px]">›</span>
             </button>
           </div>
-        ) : null}
+        ) : (
+          <div className="bg-white rounded-[24px] p-7 border border-amber-100 shadow-sm">
+            <div className="text-[14px] font-bold text-amber-700 mb-2">
+              카드 추천 데이터가 비어 있어요.
+            </div>
+            <p className="text-[13px] text-gray-600 mb-4">
+              리포트는 생성됐지만 추천 정보가 누락되어 다시 불러와야 합니다.
+            </p>
+            <button
+              onClick={onRetryCardRecommendation}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+            >
+              카드 추천 다시 불러오기
+            </button>
+            <button
+              onClick={onRetryReport}
+              className="w-full mt-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+            >
+              소비 리포트 다시 생성하기
+            </button>
+          </div>
+        )}
 
         <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
           <h3 className="text-[18px] font-extrabold text-gray-900 mb-5 flex items-center gap-2">
@@ -778,18 +803,19 @@ export const MonthlyReportPage = () => {
     }
   };
 
+  const retryCardRecommendation = async () => {
+    const reportMonth = formatToYYYYMM(currentDate);
+    try {
+      setCardRecommendLoading(true);
+      await hydrateCardRecommendation(reportMonth);
+    } finally {
+      setCardRecommendLoading(false);
+    }
+  };
+
   const isCurrentMonth =
     currentDate.getMonth() === new Date().getMonth() &&
     currentDate.getFullYear() === new Date().getFullYear();
-
-  const isLastMonth = (() => {
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    return (
-      currentDate.getFullYear() === lastMonth.getFullYear() &&
-      currentDate.getMonth() === lastMonth.getMonth()
-    );
-  })();
 
   const handleGenerateReport = async () => {
     try {
@@ -1129,6 +1155,8 @@ export const MonthlyReportPage = () => {
             isCurrentMonth={isCurrentMonth}
             generating={generating}
             onGenerate={handleGenerateReport}
+            onRetryCardRecommendation={retryCardRecommendation}
+            onRetryReport={handleChatRegenerate}
             onNavigateToRecommend={() =>
               navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`, {
                 state: {
@@ -1141,7 +1169,7 @@ export const MonthlyReportPage = () => {
         </div>
       </div>
 
-      {isLastMonth && aiAnalysis && (
+      {!isCurrentMonth && aiAnalysis && (
         <ReportChatbot
           targetMonth={formatToYYYYMM(currentDate)}
           onRegenerate={handleChatRegenerate}

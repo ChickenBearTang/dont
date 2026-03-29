@@ -3,8 +3,8 @@ package com.ssafy.edu.awesomeproject.domain.fin.consumption.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
-import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiCardRecommendationDbRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardRecommendationResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.client.ConsumptionAiClient;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.GenerateMonthlyReportRequest;
@@ -20,7 +20,6 @@ import com.ssafy.edu.awesomeproject.domain.fin.consumption.error.ConsumptionErro
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.error.ConsumptionException;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.repository.FinConsumptionJustificationRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.repository.FinConsumptionMonthlyReportRepository;
-import com.ssafy.edu.awesomeproject.domain.fin.global.client.AiClient;
 import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationReferenceType;
 import com.ssafy.edu.awesomeproject.domain.notification.entity.NotificationType;
 import com.ssafy.edu.awesomeproject.domain.notification.service.NotificationService;
@@ -46,9 +45,9 @@ public class ConsumptionReportService {
     private final FinConsumptionJustificationRepository justificationRepository;
     private final UserRepository userRepository;
     private final CardTransactionRepository cardTransactionRepository;
+    private final CardService cardService;
 
     private final ConsumptionAiClient consumptionAiClient;
-    private final AiClient aiClient;
     private final ObjectMapper objectMapper;
     private final Clock applicationClock;
     private final NotificationService notificationService;
@@ -69,6 +68,12 @@ public class ConsumptionReportService {
                 .findTopByUserIdAndReportMonthAndIsLatestTrue(userId, reportMonth)
                 .orElse(null);
 
+        String transactionFingerprint = buildTransactionFingerprint(userId, reportMonth);
+        CardRecommendationResponse previousCardRecommendation =
+            latest == null ? null : extractCardRecommendation(latest.getReportPayload());
+        String previousFingerprint =
+            latest == null ? null : extractTransactionFingerprint(latest.getReportPayload());
+
         if (latest != null) {
             latest.markNotLatest();
         }
@@ -81,20 +86,29 @@ public class ConsumptionReportService {
 
         ConsumptionAiClient.AiReportAnalysis aiAnalysis =
             consumptionAiClient.analyzeMonthlyReport(userId, reportMonth.toString());
+
+        boolean recommendationReused =
+            previousCardRecommendation != null
+                && Objects.equals(previousFingerprint, transactionFingerprint);
         CardRecommendationResponse cardRecommendation =
-            loadCardRecommendation(userId, reportMonth.toString());
+            recommendationReused
+                ? previousCardRecommendation
+                : loadCardRecommendation(userId, reportMonth.toString());
 
         List<Map<String, Object>> validJustifications =
             loadValidJustificationsForReport(userId, reportMonth);
 
-        Map<String, Object> reportPayload =
-            Map.of(
-                "justifications",
-                validJustifications,
-                "cardRecommendation",
-                toMap(cardRecommendation),
-                "aiAnalysis",
-                aiAnalysis.analysisPayload());
+        Map<String, Object> reportPayload = new LinkedHashMap<>();
+        reportPayload.put("justifications", validJustifications);
+        reportPayload.put("cardRecommendation", toMap(cardRecommendation));
+        reportPayload.put("aiAnalysis", aiAnalysis.analysisPayload());
+        reportPayload.put(
+            "meta",
+            buildReportMeta(
+                aiAnalysis.llmStatus(),
+                cardRecommendation,
+                recommendationReused,
+                transactionFingerprint));
 
         FinConsumptionMonthlyReport report =
             FinConsumptionMonthlyReport.builder()
@@ -118,7 +132,6 @@ public class ConsumptionReportService {
         return toResponse(saved);
     }
 
-    @Transactional(readOnly = true)
     public MonthlyReportResponse getLatestMonthlyReport(Long userId, String reportMonthText) {
         LocalDate reportMonth = toMonthStart(reportMonthText);
         FinConsumptionMonthlyReport report =
@@ -128,7 +141,16 @@ public class ConsumptionReportService {
                     () ->
                         new ConsumptionException(
                             ConsumptionErrorCode.REPORT_NOT_FOUND));
-        return toResponse(report);
+
+        String yearMonth = YearMonth.from(reportMonth).toString();
+        Map<String, Object> enrichedPayload =
+            ensureCardRecommendationInPayload(report.getReportPayload(), userId, yearMonth);
+
+        if (!Objects.equals(report.getReportPayload(), enrichedPayload)) {
+            report.replaceReportPayload(enrichedPayload);
+            monthlyReportRepository.save(report);
+        }
+        return toResponse(report, enrichedPayload);
     }
 
     public JustificationEvaluationResponse evaluateAndSaveJustification(
@@ -205,6 +227,11 @@ public class ConsumptionReportService {
     }
 
     private MonthlyReportResponse toResponse(FinConsumptionMonthlyReport saved) {
+        return toResponse(saved, saved.getReportPayload());
+    }
+
+    private MonthlyReportResponse toResponse(
+        FinConsumptionMonthlyReport saved, Map<String, Object> reportPayload) {
         return new MonthlyReportResponse(
             saved.getId(),
             saved.getReportMonth().toString(),
@@ -214,7 +241,7 @@ public class ConsumptionReportService {
             saved.getReportStatus(),
             saved.getGenerationSource(),
             saved.getGeneratedAt(),
-            saved.getReportPayload());
+            reportPayload);
     }
 
     private LocalDate toMonthStart(String reportMonthText) {
@@ -255,9 +282,7 @@ public class ConsumptionReportService {
 
     private CardRecommendationResponse loadCardRecommendation(Long userId, String reportMonth) {
         try {
-            CardRecommendationResponse response =
-                aiClient.getCardRecommendationFromDb(
-                new AiCardRecommendationDbRequest(userId, reportMonth));
+            CardRecommendationResponse response = cardService.getCardRecommendation(userId, reportMonth);
             if (response == null) {
                 log.warn(
                     "Card recommendation returned null. userId={}, reportMonth={}",
@@ -275,11 +300,127 @@ public class ConsumptionReportService {
         }
     }
 
+    private Map<String, Object> ensureCardRecommendationInPayload(
+        Map<String, Object> payload, Long userId, String reportMonth) {
+        Map<String, Object> mergedPayload = payload == null ? new LinkedHashMap<>() : new LinkedHashMap<>(payload);
+        String transactionFingerprint = buildTransactionFingerprint(userId, toMonthStart(reportMonth));
+        Object existingCardRecommendation = mergedPayload.get("cardRecommendation");
+        if (hasCardRecommendation(existingCardRecommendation)) {
+            mergedPayload.put(
+                "meta",
+                mergeReportMeta(mergedPayload, "OK", null, transactionFingerprint));
+            return mergedPayload;
+        }
+
+        CardRecommendationResponse cardRecommendation = loadCardRecommendation(userId, reportMonth);
+        mergedPayload.put("cardRecommendation", toMap(cardRecommendation));
+        String recommendationStatus = cardRecommendation == null ? "FAILED" : "OK";
+        mergedPayload.put(
+            "meta",
+            mergeReportMeta(mergedPayload, recommendationStatus, false, transactionFingerprint));
+        return mergedPayload;
+    }
+
+    private boolean hasCardRecommendation(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return !map.isEmpty();
+        }
+        return value != null;
+    }
+
     private Map<String, Object> toMap(CardRecommendationResponse cardRecommendation) {
         if (cardRecommendation == null) {
             return Map.of();
         }
         return objectMapper.convertValue(cardRecommendation, Map.class);
+    }
+
+    private String buildTransactionFingerprint(Long userId, LocalDate reportMonth) {
+        LocalDate startDate = reportMonth.withDayOfMonth(1);
+        LocalDate endDate = reportMonth.withDayOfMonth(reportMonth.lengthOfMonth());
+        CardTransactionRepository.MonthlyTransactionSnapshotProjection snapshot =
+            cardTransactionRepository.findMonthlyTransactionSnapshot(userId, startDate, endDate);
+        if (snapshot == null) {
+            return "0:0:-:-";
+        }
+        long txCount = snapshot.getTxCount() == null ? 0L : snapshot.getTxCount();
+        long totalAmount = snapshot.getTotalAmount() == null ? 0L : snapshot.getTotalAmount();
+        String lastDate = snapshot.getLastDate() == null ? "-" : snapshot.getLastDate().toString();
+        String lastTime = snapshot.getLastTime() == null ? "-" : snapshot.getLastTime();
+        return txCount + ":" + totalAmount + ":" + lastDate + ":" + lastTime;
+    }
+
+    private CardRecommendationResponse extractCardRecommendation(Map<String, Object> reportPayload) {
+        if (reportPayload == null) {
+            return null;
+        }
+        Object recommendation = reportPayload.get("cardRecommendation");
+        if (!(recommendation instanceof Map<?, ?> recommendationMap) || recommendationMap.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.convertValue(recommendationMap, CardRecommendationResponse.class);
+        } catch (IllegalArgumentException exception) {
+            log.warn("Failed to parse stored cardRecommendation payload", exception);
+            return null;
+        }
+    }
+
+    private String extractTransactionFingerprint(Map<String, Object> reportPayload) {
+        if (reportPayload == null) {
+            return null;
+        }
+        Object meta = reportPayload.get("meta");
+        if (!(meta instanceof Map<?, ?> metaMap)) {
+            return null;
+        }
+        Object fingerprint = metaMap.get("transactionFingerprint");
+        return fingerprint == null ? null : String.valueOf(fingerprint);
+    }
+
+    private Map<String, Object> buildReportMeta(
+        String llmStatus,
+        CardRecommendationResponse cardRecommendation,
+        boolean recommendationReused,
+        String transactionFingerprint) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("analysisStatus", normalizeAnalysisStatus(llmStatus));
+        meta.put("recommendationStatus", cardRecommendation == null ? "FAILED" : "OK");
+        meta.put("recommendationReused", recommendationReused);
+        meta.put("transactionFingerprint", transactionFingerprint);
+        return meta;
+    }
+
+    private Map<String, Object> mergeReportMeta(
+        Map<String, Object> reportPayload,
+        String recommendationStatus,
+        Boolean recommendationReused,
+        String transactionFingerprint) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        Object currentMeta = reportPayload.get("meta");
+        if (currentMeta instanceof Map<?, ?> currentMetaMap) {
+            for (Map.Entry<?, ?> entry : currentMetaMap.entrySet()) {
+                if (entry.getKey() != null) {
+                    meta.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+            }
+        }
+
+        meta.put("recommendationStatus", recommendationStatus);
+        if (recommendationReused != null) {
+            meta.put("recommendationReused", recommendationReused);
+        }
+        if (transactionFingerprint != null) {
+            meta.put("transactionFingerprint", transactionFingerprint);
+        }
+        return meta;
+    }
+
+    private String normalizeAnalysisStatus(String llmStatus) {
+        if (llmStatus == null || llmStatus.isBlank()) {
+            return "SKIPPED";
+        }
+        return llmStatus.trim().toUpperCase(Locale.ROOT);
     }
     @Transactional(readOnly = true)
     public AvgCohort avgCohort(Long userId) {

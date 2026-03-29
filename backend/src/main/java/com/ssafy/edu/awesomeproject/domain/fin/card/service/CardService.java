@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,12 +45,14 @@ public class CardService {
     private static final String SUCCESS_CODE = "H0000";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter ISO_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final long RECOMMENDATION_CACHE_TTL_MILLIS = 60_000L * 5;
 
     private final OpenBankClient openBankClient;
     private final CardRepository cardRepository;
     private final CardTransactionRepository cardTransactionRepository;
     private final UserRepository userRepository;
     private final AiClient aiClient;
+    private final Map<String, CachedRecommendation> recommendationCache = new ConcurrentHashMap<>();
 
     @Value("${ssafy.api.key}")
     private String apiKey;
@@ -420,7 +423,14 @@ public class CardService {
     @Transactional(readOnly = true)
     public CardRecommendationResponse getCardRecommendation(Long userId, String monthStr) {
         try {
-            YearMonth.parse(monthStr);
+            YearMonth yearMonth = YearMonth.parse(monthStr);
+            String transactionFingerprint = buildMonthlyTransactionFingerprint(userId, yearMonth);
+            String cacheKey = recommendationCacheKey(userId, monthStr, transactionFingerprint);
+            CachedRecommendation cached = recommendationCache.get(cacheKey);
+            if (cached != null && !cached.isExpired()) {
+                return cached.response();
+            }
+
             CardRecommendationResponse response =
                     aiClient.getCardRecommendationFromDb(
                     new AiCardRecommendationDbRequest(userId, monthStr));
@@ -429,6 +439,12 @@ public class CardService {
                         "Card recommendation returned null from AI. userId={}, month={}",
                         userId,
                         monthStr);
+            } else {
+                recommendationCache.put(
+                        cacheKey,
+                        new CachedRecommendation(
+                                response,
+                                System.currentTimeMillis() + RECOMMENDATION_CACHE_TTL_MILLIS));
             }
             return response;
         } catch (Exception e) {
@@ -438,6 +454,35 @@ public class CardService {
                     monthStr,
                     e);
             return null;
+        }
+    }
+
+    private String recommendationCacheKey(Long userId, String monthStr, String transactionFingerprint) {
+        return userId + ":" + monthStr + ":" + transactionFingerprint;
+    }
+
+    private String buildMonthlyTransactionFingerprint(Long userId, YearMonth month) {
+        LocalDate startDate = month.atDay(1);
+        LocalDate endDate = month.atEndOfMonth();
+
+        CardTransactionRepository.MonthlyTransactionSnapshotProjection snapshot =
+                cardTransactionRepository.findMonthlyTransactionSnapshot(userId, startDate, endDate);
+
+        if (snapshot == null) {
+            return "0:0:-:-";
+        }
+
+        long txCount = snapshot.getTxCount() == null ? 0L : snapshot.getTxCount();
+        long totalAmount = snapshot.getTotalAmount() == null ? 0L : snapshot.getTotalAmount();
+        String lastDate = snapshot.getLastDate() == null ? "-" : snapshot.getLastDate().toString();
+        String lastTime = snapshot.getLastTime() == null ? "-" : snapshot.getLastTime();
+
+        return txCount + ":" + totalAmount + ":" + lastDate + ":" + lastTime;
+    }
+
+    private record CachedRecommendation(CardRecommendationResponse response, long expiresAtMillis) {
+        private boolean isExpired() {
+            return System.currentTimeMillis() >= expiresAtMillis;
         }
     }
 

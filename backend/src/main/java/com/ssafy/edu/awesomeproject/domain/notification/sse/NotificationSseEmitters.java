@@ -19,34 +19,20 @@ public class NotificationSseEmitters {
 
     public SseEmitter add(Long userId, SseEmitter emitter) {
         SseEmitter oldEmitter = emitters.put(userId, emitter);
-
-        if (oldEmitter != null) {
-            try {
-                oldEmitter.complete();
-            } catch (Exception ignored) {
-            }
+        if (oldEmitter != null && oldEmitter != emitter) {
+            safeComplete(oldEmitter);
         }
 
-        emitter.onCompletion(() -> {
-            emitters.remove(userId, emitter);
-        });
+        emitter.onCompletion(() -> emitters.remove(userId, emitter));
 
         emitter.onTimeout(() -> {
-            log.info("알림 SSE 타임아웃 - userId={}", userId);
+            log.info("Notification SSE timeout - userId={}", userId);
             emitters.remove(userId, emitter);
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-            }
         });
 
         emitter.onError((e) -> {
-            log.debug("알림 SSE 연결 종료(onError) - userId={}", userId);
+            log.debug("Notification SSE connection closed by error - userId={}", userId);
             emitters.remove(userId, emitter);
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-            }
         });
 
         return emitter;
@@ -78,19 +64,11 @@ public class NotificationSseEmitters {
             String jsonPayload = objectMapper.writeValueAsString(payload);
             emitter.send(SseEmitter.event().name("notification-created").data(jsonPayload));
         } catch (IOException | IllegalStateException e) {
-            log.debug("알림 SSE 발송 중 종료된 연결 정리 - userId={}", userId);
+            log.debug("Notification SSE send skipped. Emitter is already closed - userId={}", userId);
             emitters.remove(userId, emitter);
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-            }
         } catch (Exception e) {
-            log.warn("알림 SSE payload 직렬화/발송 실패 - userId={}", userId, e);
+            log.warn("Notification SSE payload send failed - userId={}", userId, e);
             emitters.remove(userId, emitter);
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-            }
         }
     }
 
@@ -103,19 +81,18 @@ public class NotificationSseEmitters {
         try {
             emitter.send(SseEmitter.event().name(eventName).data(data));
         } catch (IOException | IllegalStateException e) {
-            log.debug("알림 SSE {} 발송 중 종료된 연결 정리 - userId={}", eventName, userId);
+            log.debug("Notification SSE {} send skipped. Emitter is already closed - userId={}", eventName, userId);
             emitters.remove(userId, emitter);
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-            }
         } catch (Exception e) {
-            log.warn("알림 SSE {} 발송 실패 - userId={}", eventName, userId, e);
+            log.warn("Notification SSE {} send failed - userId={}", eventName, userId, e);
             emitters.remove(userId, emitter);
-            try {
-                emitter.complete();
-            } catch (Exception ignored) {
-            }
+        }
+    }
+
+    private void safeComplete(SseEmitter emitter) {
+        try {
+            emitter.complete();
+        } catch (Exception ignored) {
         }
     }
 }
