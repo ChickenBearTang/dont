@@ -2,6 +2,7 @@ package com.ssafy.edu.awesomeproject.domain.fin.account.service;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.auth.service.LoginService;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankCreateAccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransactionHistoryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.client.dto.response.OpenBankTransferResponse;
@@ -58,6 +59,7 @@ public class AccountService {
     private final AccountTransactionRepository accountTransactionRepository;
     private final SavingsSettingRepository savingsSettingRepository;
     private final UserRepository userRepository;
+    private final LoginService loginService;
     private final ApplicationEventPublisher eventPublisher;
     private final NotificationService notificationService;
 
@@ -635,7 +637,12 @@ public class AccountService {
                 .orElse(null);
     }
 
-    public void manualSavings(Long userId, BigDecimal amount) {
+    /** 수동 저축(지금 채우기) 실행 (비밀번호 검증 포함) */
+    @Transactional
+    public void manualSavings(Long userId, BigDecimal amount, String password) {
+        // 0. 비밀번호 검증
+        loginService.verifyPassword(userId, password);
+
         SavingsSetting setting =
                 savingsSettingRepository
                         .findByUserIdAndIsActiveTrue(userId)

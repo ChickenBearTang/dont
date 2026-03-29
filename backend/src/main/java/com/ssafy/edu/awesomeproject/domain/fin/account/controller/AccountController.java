@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
+import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.ManualSavingsRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SavingsSettingRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountApiResponse;
@@ -153,11 +154,11 @@ public class AccountController {
                 AccountApiResponse.success("ACC_200_7", "저축 설정이 완료되었습니다.", response));
     }
 
-    @Operation(summary = "수동 저축 실행", description = "설정된 주계좌에서 세이브박스로 직접 금액을 이체합니다.")
+    @Operation(summary = "수동 저축 실행", description = "설정된 주계좌에서 세이브박스로 직접 금액을 이체합니다. (비밀번호 검증 포함)")
     @PostMapping("/manual-savings")
     public ResponseEntity<AccountApiResponse<Void>> manualSavings(
-            @CurrentUserId Long userId, @RequestParam java.math.BigDecimal amount) {
-        accountService.manualSavings(userId, amount);
+            @CurrentUserId Long userId, @Valid @RequestBody ManualSavingsRequest request) {
+        accountService.manualSavings(userId, request.amount(), request.password());
         return ResponseEntity.ok(AccountApiResponse.success("ACC_200_8", "저축 이체가 완료되었습니다.", null));
     }
 }

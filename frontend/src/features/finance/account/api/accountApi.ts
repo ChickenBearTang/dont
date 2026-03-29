@@ -78,10 +78,8 @@ export const accountApi = {
   /**
    * 주계좌에서 세이브박스로 직접 금액을 이체합니다.
    */
-  executeManualSavings: (amount: number): Promise<ApiResponse<void>> => {
-    return axiosInstance.post('/fin/accounts/manual-savings', null, {
-      params: { amount },
-    });
+  executeManualSavings: (amount: number, password: string): Promise<ApiResponse<void>> => {
+    return axiosInstance.post('/fin/accounts/manual-savings', { amount, password });
   },
 
   /**
