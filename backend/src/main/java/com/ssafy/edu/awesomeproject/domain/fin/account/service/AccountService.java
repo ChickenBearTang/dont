@@ -727,6 +727,7 @@ public class AccountService {
                 userRepository
                         .findById(userId)
                         .orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
+        Optional<SavingsSetting> activeSettingOpt = savingsSettingRepository.findByUserIdAndIsActiveTrue(userId);
 
         String userKey = user.getSsafyFinanceUserKey();
         if (userKey == null || userKey.isBlank()) {
@@ -752,7 +753,7 @@ public class AccountService {
                 existingAccount.updateDynamicInfo(
                         detail.accountName(), balance, AccountStatus.ACTIVE);
 
-                if (existingAccount.getAccountRole() == AccountRole.SAVE_BOX
+                if (isRankingTargetAccount(existingAccount, activeSettingOpt)
                         && oldBalance.compareTo(balance) != 0) {
                     Integer cohortNo = user.getCohort() != null ? user.getCohort().getGenerationNo() : null;
                     eventPublisher.publishEvent(
@@ -785,7 +786,7 @@ public class AccountService {
 
                 accountRepository.save(newAccount);
 
-                if (newAccount.getAccountRole() == AccountRole.SAVE_BOX) {
+                if (isRankingTargetAccount(newAccount, activeSettingOpt)) {
                     Integer cohortNo = user.getCohort() != null ? user.getCohort().getGenerationNo() : null;
                     eventPublisher.publishEvent(
                             new SaveboxBalanceUpdatedEvent(
@@ -793,6 +794,17 @@ public class AccountService {
                 }
             }
         }
+    }
+
+    private boolean isRankingTargetAccount(Account account, Optional<SavingsSetting> activeSettingOpt) {
+        if (account.getAccountRole() == AccountRole.SAVE_BOX) {
+            return true;
+        }
+
+        return activeSettingOpt
+                .map(SavingsSetting::getSaveboxAccountId)
+                .map(saveboxAccountId -> saveboxAccountId.equals(account.getId()))
+                .orElse(false);
     }
 
     private String resolveDisplayName(String nickname) {
@@ -928,4 +940,3 @@ public class AccountService {
                 saveboxAccount.getId());
     }
 }
-
