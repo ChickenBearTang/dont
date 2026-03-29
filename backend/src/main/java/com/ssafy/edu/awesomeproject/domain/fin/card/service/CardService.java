@@ -1,5 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.fin.card.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request.OpenBankRequest;
@@ -26,28 +28,40 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.time.Duration;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class CardService {
 
     private static final String SUCCESS_CODE = "H0000";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter ISO_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final int RECOMMENDATION_CACHE_MAXIMUM_SIZE = 2_000;
+    private static final Duration RECOMMENDATION_CACHE_TTL = Duration.ofMinutes(5);
 
     private final OpenBankClient openBankClient;
     private final CardRepository cardRepository;
     private final CardTransactionRepository cardTransactionRepository;
     private final UserRepository userRepository;
     private final AiClient aiClient;
+    private final MonthlyTransactionFingerprintService monthlyTransactionFingerprintService;
+    private final Cache<String, CardRecommendationResponse> recommendationCache =
+            Caffeine.newBuilder()
+                    .maximumSize(RECOMMENDATION_CACHE_MAXIMUM_SIZE)
+                    .expireAfterWrite(RECOMMENDATION_CACHE_TTL)
+                    .build();
 
     @Value("${ssafy.api.key}")
     private String apiKey;
@@ -130,6 +144,12 @@ public class CardService {
 
     @Transactional(readOnly = true)
     public CardSummaryResponse getCardSummary(Long userId, String startDate, String endDate) {
+        return getCardSummary(userId, startDate, endDate, true);
+    }
+
+    @Transactional(readOnly = true)
+    public CardSummaryResponse getCardSummary(
+            Long userId, String startDate, String endDate, boolean includeAi) {
         LocalDate start = parseDateOrThrow(startDate, "startDate");
         LocalDate end = parseDateOrThrow(endDate, "endDate");
         if (start.isAfter(end)) {
@@ -174,7 +194,7 @@ public class CardService {
                 .message("Card summary retrieved.")
                 .totalAmount(totalAmount)
                 .RankColumList(rankColumList)
-                .aiReport(getAiAnalysis(userId, start, end))
+                .aiReport(includeAi ? getAiAnalysis(userId, start, end) : null)
                 .build();
     }
 
@@ -412,13 +432,43 @@ public class CardService {
     @Transactional(readOnly = true)
     public CardRecommendationResponse getCardRecommendation(Long userId, String monthStr) {
         try {
-            YearMonth.parse(monthStr);
-            return aiClient.getCardRecommendationFromDb(
+            YearMonth yearMonth = YearMonth.parse(monthStr);
+            String transactionFingerprint =
+                    monthlyTransactionFingerprintService.buildMonthlyFingerprint(userId, yearMonth);
+            String cacheKey = recommendationCacheKey(userId, monthStr, transactionFingerprint);
+            CardRecommendationResponse cached = recommendationCache.getIfPresent(cacheKey);
+            if (cached != null) {
+                return cached;
+            }
+
+            CardRecommendationResponse response =
+                    aiClient.getCardRecommendationFromDb(
                     new AiCardRecommendationDbRequest(userId, monthStr));
+            if (response == null) {
+                log.warn(
+                        "Card recommendation returned null from AI. userId={}, month={}",
+                        userId,
+                        monthStr);
+            } else {
+                recommendationCache.put(cacheKey, response);
+            }
+            return response;
         } catch (Exception e) {
-            System.err.println("AI Card Recommendation failed: " + e.getMessage());
+            log.warn(
+                    "AI Card Recommendation failed. userId={}, month={}",
+                    userId,
+                    monthStr,
+                    e);
             return null;
         }
+    }
+
+    private String recommendationCacheKey(Long userId, String monthStr, String transactionFingerprint) {
+        return userId
+                + ":"
+                + monthStr
+                + ":"
+                + transactionFingerprint.toLowerCase(Locale.ROOT);
     }
 
     private record RefreshResult(boolean success, List<Card> cards, String message) {}

@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Button } from '@/shared/components';
 import { getPosts } from '../api/communityApi';
+import { fetchMyPage } from '@/features/user/api/userApi';
 import type { BoardCategory, GetPostListResponseDto, PostSummaryDto } from '../types';
+import type { MyPageResponse } from '@/features/user/mypage/types';
 import { UserAvatar } from '../components/UserAvatar';
+import { useAuthStore } from '@/features/auth/store/useAuthStore';
 
 const PAGE_SIZE = 12;
 const PR_STATUS_FILTERS = ['OPEN', 'MERGED', 'CLOSED'] as const;
@@ -32,10 +36,9 @@ const formatRelativeDate = (dateStr: string) => {
   if (diffMin < 60) return `${diffMin}분 전`;
   if (diffHour < 24) return `${diffHour}시간 전`;
 
-  return date.toLocaleDateString('ko-KR', {
-    month: 'numeric',
-    day: 'numeric',
-  });
+  const month = date.getMonth() + 1;
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${month}.${day}`;
 };
 
 const formatDateTime = (dateStr: string | null | undefined) => {
@@ -84,6 +87,14 @@ const getCategoryDot = (category: BoardCategory | undefined) => {
 
 const normalizePrStatus = (status: string | undefined) => status?.trim().toUpperCase() ?? 'OPEN';
 
+const getStatusLabelWithEmoji = (status: string | undefined): string => {
+  const normalized = normalizePrStatus(status);
+  if (normalized === 'OPEN') return '📂 OPEN';
+  if (normalized === 'MERGED') return '✔️ MERGED';
+  if (normalized === 'CLOSED') return '🚫 CLOSED';
+  return normalized;
+};
+
 const getPrStatusTone = (status: string | undefined) => {
   const normalizedStatus = normalizePrStatus(status);
 
@@ -95,34 +106,29 @@ const getPrStatusTone = (status: string | undefined) => {
 
 const getPollStatusTone = (isClosed: boolean) =>
   isClosed
-    ? 'bg-slate-100 text-slate-700 border-slate-200'
-    : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    ? 'bg-rose-50 text-rose-700 border-rose-100'
+    : 'bg-blue-50 text-blue-700 border-blue-100';
 
 const getHotdealStatusTone = (isExpired: boolean | null | undefined) =>
   isExpired
-    ? 'bg-slate-100 text-slate-700 border-slate-200'
-    : 'bg-rose-50 text-rose-700 border-rose-100';
+    ? 'bg-rose-50 text-rose-700 border-rose-100'
+    : 'bg-blue-50 text-blue-700 border-blue-100';
 
-const getBoardFilterTone = (status: BoardStatusFilter, category: 'POLL' | 'HOTDEAL') => {
+const getBoardFilterTone = (status: BoardStatusFilter) => {
   if (status === 'OPEN') {
-    return category === 'POLL'
-      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-      : 'bg-rose-50 text-rose-700 border-rose-100';
+    return 'bg-blue-50 text-blue-700 border-blue-100';
   }
-
-  return 'bg-slate-100 text-slate-700 border-slate-200';
+  return 'bg-rose-50 text-rose-700 border-rose-100';
 };
 
 const BoardStatusFilterBar = ({
   selectedStatuses,
   onToggleStatus,
   onSelectAllStatuses,
-  category,
 }: {
   selectedStatuses: BoardStatusFilter[];
   onToggleStatus: (status: BoardStatusFilter) => void;
   onSelectAllStatuses: () => void;
-  category: 'POLL' | 'HOTDEAL';
 }) => (
   <div className="flex flex-wrap items-center gap-2">
     <button
@@ -144,11 +150,11 @@ const BoardStatusFilterBar = ({
           type="button"
           onClick={() => onToggleStatus(status)}
           className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition ${isSelected
-              ? getBoardFilterTone(status, category)
+              ? getBoardFilterTone(status)
               : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
             }`}
         >
-          {status}
+          {getStatusLabelWithEmoji(status)}
         </button>
       );
     })}
@@ -170,7 +176,7 @@ const AttachmentCountChip = ({ count }: { count: number }) =>
   ) : null;
 
 const AuthorMeta = ({ post }: { post: PostSummaryDto }) => (
-  <div className="flex items-center gap-2 min-w-0">
+  <div className="flex w-full items-center justify-start gap-2 min-w-0">
     <UserAvatar
       profileImageUrl={post.authorProfileImageUrl}
       nickname={post.authorNickname}
@@ -210,7 +216,6 @@ const HotdealBoardList = ({
         selectedStatuses={selectedStatuses}
         onToggleStatus={onToggleStatus}
         onSelectAllStatuses={onSelectAllStatuses}
-        category="HOTDEAL"
       />
 
       {posts.length === 0 ? (
@@ -245,7 +250,7 @@ const HotdealBoardList = ({
                           hotdeal?.isExpired
                         )}`}
                       >
-                        {hotdeal?.isExpired ? 'CLOSED' : 'OPEN'}
+                        {getStatusLabelWithEmoji(hotdeal?.isExpired ? 'CLOSED' : 'OPEN')}
                       </span>
                     </div>
                     <div>
@@ -293,7 +298,7 @@ const HotdealBoardList = ({
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
                   <AuthorMeta post={post} />
-                  <span>{formatRelativeDate(post.createdAt)}</span>
+                  <span className="whitespace-nowrap shrink-0">{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
             );
@@ -334,7 +339,6 @@ const PollBoardList = ({
         selectedStatuses={selectedStatuses}
         onToggleStatus={onToggleStatus}
         onSelectAllStatuses={onSelectAllStatuses}
-        category="POLL"
       />
 
       {posts.length === 0 ? (
@@ -368,7 +372,7 @@ const PollBoardList = ({
                           poll?.isClosed ?? false
                         )}`}
                       >
-                        {poll?.isClosed ? 'CLOSED' : 'OPEN'}
+                        {getStatusLabelWithEmoji(poll?.isClosed ? 'CLOSED' : 'OPEN')}
                       </span>
                     </div>
                     <div>
@@ -428,7 +432,7 @@ const PollBoardList = ({
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
                   <AuthorMeta post={post} />
-                  <span>{formatRelativeDate(post.createdAt)}</span>
+                  <span className="whitespace-nowrap shrink-0">{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
             );
@@ -489,7 +493,7 @@ const PrBoardList = ({
                   : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-600'
                 }`}
             >
-              {status}
+              {getStatusLabelWithEmoji(status)}
             </button>
           );
         })}
@@ -520,7 +524,7 @@ const PrBoardList = ({
                           pr?.resultStatus ?? pr?.status
                         )}`}
                       >
-                        {normalizePrStatus(pr?.resultStatus ?? pr?.status)}
+                        {getStatusLabelWithEmoji(pr?.resultStatus ?? pr?.status)}
                       </span>
                     </div>
                     <div>
@@ -563,7 +567,7 @@ const PrBoardList = ({
 
                 <div className="mt-4 flex items-center justify-between text-[12px] font-medium text-gray-400">
                   <AuthorMeta post={post} />
-                  <span>{formatRelativeDate(post.createdAt)}</span>
+                  <span className="whitespace-nowrap shrink-0">{formatRelativeDate(post.createdAt)}</span>
                 </div>
               </button>
             );
@@ -575,8 +579,15 @@ const PrBoardList = ({
 };
 
 export const CommunityPage = () => {
+  const { user } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: myPageData } = useQuery<MyPageResponse>({
+    queryKey: ['myPage'],
+    queryFn: () => fetchMyPage().then((res) => res.data),
+    enabled: !!user,
+  });
+  const cohortNo = myPageData?.cohortGenerationNo ?? user?.cohortId;
 
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const category = searchParams.get('category') as BoardCategory | null;
@@ -714,13 +725,17 @@ export const CommunityPage = () => {
   const categoryTitle = keyword
     ? `'${keyword}' 검색 결과`
     : category
-      ? `${getCategoryName(category)} 게시판`
+      ? category === 'COHORT' && cohortNo
+        ? `${cohortNo}기 게시판`
+        : `${getCategoryName(category)} 게시판`
       : '전체 게시판';
 
   const categoryDescription = keyword
     ? `${totalElements}개의 게시글을 찾았습니다.`
     : category === 'PR'
       ? '구매 요청을 올리고 다른 사용자의 의견을 받아보세요.'
+      : category === 'COHORT'
+        ? `${cohortNo ?? ''}기 동기들과 자유롭게 소통하고 정보를 나누어보세요.`
       : category === 'POLL'
         ? '찬반이 갈리는 주제를 올리고 기한 안에 의견을 모아보세요.'
         : category === 'HOTDEAL'
@@ -795,14 +810,15 @@ export const CommunityPage = () => {
               placeholder="검색"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              className="bg-gray-50 border border-gray-100 text-[13px] rounded-lg pl-9 pr-3 py-2 w-[180px] outline-none focus:border-gray-200 focus:bg-white transition-all font-medium text-gray-600 placeholder:text-gray-300"
+              className="bg-gray-50 border border-gray-100 text-[13px] rounded-xl pl-10 pr-4 h-[44px] w-[210px] outline-none focus:border-gray-200 focus:bg-white transition-all font-semibold text-gray-600 placeholder:text-gray-300"
             />
           </form>
 
           <Button
             type="button"
             onClick={() => navigate(getWritePath())}
-            className="inline-flex items-center gap-2 rounded-xl border border-blue-600 bg-blue-600 px-4 py-2.5 text-[14px] font-bold text-white shadow-sm transition hover:border-blue-700 hover:bg-blue-700 focus:outline-none"
+            fullWidth={false}
+            className="!inline-flex items-center gap-2 rounded-xl border-0 !bg-blue-600 px-6 h-[44px] text-[14px] font-black text-white shadow-md transition hover:!bg-blue-700 hover:-translate-y-0.5 active:scale-95 focus:outline-none"
           >
             <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -923,11 +939,11 @@ export const CommunityPage = () => {
                       </div>
                     </div>
 
-                    <div className="col-span-2 flex justify-center text-gray-500 text-[13px] font-medium min-w-0">
+                    <div className="col-span-2 flex justify-start text-gray-500 text-[13px] font-medium min-w-0">
                       <AuthorMeta post={post} />
                     </div>
 
-                    <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium">
+                    <div className="col-span-2 text-right text-gray-400 text-[12px] font-medium whitespace-nowrap">
                       {formatRelativeDate(post.createdAt)}
                     </div>
                   </div>

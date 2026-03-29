@@ -81,57 +81,71 @@ export const FinanceHomePage: React.FC = () => {
   const isLoading = isLoadingAccounts || (isLoadingSetting && !setting);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 pt-0 pb-8 h-[calc(100vh-80px)] flex flex-col justify-start overflow-hidden">
+    <div className="max-w-[1240px] mx-auto px-6 pt-4 lg:pt-6 xl:pt-10 pb-20 w-full mb-8 relative">
+      {/* 배경 데코레이션 블롭 - 가독성을 해치지 않는선에서 선명하게 조정 */}
+      <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-primary-blue/12 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-[20%] right-[-10%] w-[400px] h-[400px] bg-accent/12 rounded-full blur-[100px] pointer-events-none"></div>
+
       {/* Heading Section */}
-      <div className="mb-8">
-        <h1 className="text-[2.2rem] font-black tracking-tight mb-2">
+      <div className="mb-10 lg:mb-14 relative z-10">
+        <h1 className="text-[2.5rem] lg:text-[3rem] font-black tracking-tighter mb-4">
           <span className="text-primary-blue">금융</span>
         </h1>
-        <p className="text-gray-400 font-medium text-[15px]">
+        <p className="text-gray-400 font-bold text-[18px] max-w-2xl leading-relaxed">
           모든 금융 자산을 스마트하게 관리하고 더 나은 미래를 계획해 보세요.
+          <br/>
+          <span className="text-[14px] opacity-70 mt-2 block font-medium">실시간 데이터 동기화로 자산 현황을 한눈에 파악할 수 있습니다.</span>
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 xl:gap-12 relative z-10">
         {/* 1. 세이브박스 */}
-        <CategoryCard
-          title="세이브박스"
-          description="목표 금액을 정하고 똑똑하게 돈을 모으는 전용 금고를 만드세요."
-          icon="🎁"
-          path="/finance/savebox"
-          color="from-amber-400 to-amber-500"
-          isLoading={isLoading}
-        />
+        <div className="glass-premium hover-glass rounded-[32px]">
+          <CategoryCard
+            title="세이브박스"
+            description="목표 금액을 정하고 똑똑하게 돈을 모으는 전용 금고를 만드세요."
+            icon="🎁"
+            path="/finance/savebox"
+            color="from-amber-400 to-amber-500"
+            isLoading={isLoading}
+          />
+        </div>
 
         {/* 2. 내 결제내역 */}
-        <CategoryCard
-          title="내 결제내역"
-          description="이번 달 지출 현황을 한눈에 살펴보세요."
-          icon="📊"
-          path="/finance/report"
-          color="from-blue-400 to-blue-500"
-          isLoading={!spendingData}
-        />
+        <div className="glass-premium hover-glass rounded-[32px]">
+          <CategoryCard
+            title="내 결제내역"
+            description="이번 달 지출 현황을 한눈에 살펴보세요."
+            icon="📊"
+            path="/finance/report"
+            color="from-blue-400 to-blue-500"
+            isLoading={!spendingData}
+          />
+        </div>
 
         {/* 3. 내 계좌 */}
-        <CategoryCard
-          title="내 계좌"
-          description="연결된 모든 은행 계좌의 잔액과 거래 내역을 한눈에 관리하세요."
-          icon="🏦"
-          path="/account"
-          color="from-purple-400 to-purple-500"
-          isLoading={isLoadingAccounts}
-        />
+        <div className="glass-premium hover-glass rounded-[32px]">
+          <CategoryCard
+            title="내 계좌"
+            description="연결된 모든 은행 계좌의 잔액과 거래 내역을 한눈에 관리하세요."
+            icon="🏦"
+            path="/account"
+            color="from-purple-400 to-purple-500"
+            isLoading={isLoadingAccounts}
+          />
+        </div>
 
         {/* 4. 내 카드 */}
-        <CategoryCard
-          title="내 카드"
-          description="사용 중인 카드의 결제 예정 금액과 혜택 정보를 확인하세요."
-          icon="💳"
-          path="/finance/cards"
-          color="from-cyan-400 to-cyan-500"
-          isLoading={false}
-        />
+        <div className="glass-premium hover-glass rounded-[32px]">
+          <CategoryCard
+            title="내 카드"
+            description="사용 중인 카드의 결제 예정 금액과 혜택 정보를 확인하세요."
+            icon="💳"
+            path="/finance/cards"
+            color="from-cyan-400 to-cyan-500"
+            isLoading={false}
+          />
+        </div>
       </div>
 
       {/* Manual Savings Modal context */}

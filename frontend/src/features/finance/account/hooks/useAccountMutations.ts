@@ -13,6 +13,8 @@ export const useCreateSaveBox = () => {
     onSuccess: () => {
       // 계좌 목록 정보 무효화
       queryClient.invalidateQueries({ queryKey: accountKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ['ranking'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'ranking'] });
     },
   });
 };
@@ -68,9 +70,45 @@ export const useExecuteManualSavings = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (amount: number) => accountApi.executeManualSavings(amount),
+    mutationFn: ({ amount, password }: { amount: number; password: string }) =>
+      accountApi.executeManualSavings(amount, password),
     onSuccess: () => {
       // 잔액 변동이 있으므로 전체 무효화
+      queryClient.invalidateQueries({ queryKey: accountKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['ranking'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'ranking'] });
+    },
+  });
+};
+
+/**
+ * 수동 출금 실행 mutation 훅
+ */
+export const useExecuteManualWithdrawal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ amount, password }: { amount: number; password: string }) =>
+      accountApi.executeManualWithdrawal(amount, password),
+    onSuccess: () => {
+      // 잔액 변동이 있으므로 전체 무효화
+      queryClient.invalidateQueries({ queryKey: accountKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['ranking'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'ranking'] });
+    },
+  });
+};
+
+/**
+ * 금융 계좌 연동 mutation 훅
+ */
+export const useLinkFinanceAccount = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: accountApi.linkFinanceAccount,
+    onSuccess: () => {
+      // 연동 성공 시 전체 계좌 정보를 무효화하여 새로 불러옴
       queryClient.invalidateQueries({ queryKey: accountKeys.all });
     },
   });

@@ -123,7 +123,7 @@ class AccountServiceTest {
                 .willReturn(apiResponse);
 
         // when
-        accountService.manualSavings(userId, amount);
+        accountService.manualSavings(userId, amount, "password123!");
 
         // then
         verify(openBankAdapter, times(1))
@@ -243,7 +243,8 @@ class AccountServiceTest {
                         "1000",
                         "5000",
                         "20240101",
-                        "KRW");
+                        "KRW",
+                        false);
         AccountListResponse apiResponse = new AccountListResponse(java.util.List.of(detail));
         given(openBankAdapter.fetchDemandDepositAccounts("user-key")).willReturn(apiResponse);
         given(accountRepository.findByAccountNo("123-456")).willReturn(Optional.empty());

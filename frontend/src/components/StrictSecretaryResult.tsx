@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import './StrictSecretaryResult.css';
+import { useEffect, useRef, useState } from 'react';
 import axiosInstance from '@/shared/api/axiosInstance';
 import ApprovedImg from '@/assets/approved.mp4';
 import RejectedImg from '@/assets/rejected.mp4';
+import './StrictSecretaryResult.css';
 
 export interface AIResultData {
   is_approved: boolean;
@@ -14,6 +14,7 @@ interface StrictSecretaryResultProps {
   status: 'RESULT' | 'RETRY';
   data?: AIResultData;
   audioUrl?: string;
+  ttsEnabled?: boolean;
   onRetry: () => void;
   onReset: () => void;
 }
@@ -22,6 +23,7 @@ export default function StrictSecretaryResult({
   status,
   data,
   audioUrl,
+  ttsEnabled = true,
   onRetry,
   onReset,
 }: StrictSecretaryResultProps) {
@@ -30,7 +32,6 @@ export default function StrictSecretaryResult({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasAutoPlayedRef = useRef(false);
 
-  // 컴포넌트 언마운트 시 오디오 재생 정지
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -40,7 +41,6 @@ export default function StrictSecretaryResult({
     };
   }, []);
 
-  // 컴포넌트 언마운트 시 캐싱된 오디오 URL 메모리 해제
   useEffect(() => {
     return () => {
       if (localAudioUrl) {
@@ -49,29 +49,27 @@ export default function StrictSecretaryResult({
     };
   }, [localAudioUrl]);
 
-  // 결과 페이지 도달 시 audioUrl이 있으면 자동 재생
   useEffect(() => {
-    if (status === 'RESULT' && audioUrl && !hasAutoPlayedRef.current) {
-      hasAutoPlayedRef.current = true;
-      const audio = new Audio(audioUrl);
-
-      audio.onended = () => {
-        setTtsState('idle');
-        audioRef.current = null;
-      };
-
-      audioRef.current = audio;
-      audio
-        .play()
-        .then(() => setTtsState('playing'))
-        .catch((err) => console.warn('자동 재생 실패:', err));
+    if (status !== 'RESULT' || !audioUrl || !ttsEnabled || hasAutoPlayedRef.current) {
+      return;
     }
-  }, [status, audioUrl]);
+
+    hasAutoPlayedRef.current = true;
+    const audio = new Audio(audioUrl);
+    audio.onended = () => {
+      setTtsState('idle');
+      audioRef.current = null;
+    };
+    audioRef.current = audio;
+    audio
+      .play()
+      .then(() => setTtsState('playing'))
+      .catch((err) => console.warn('자동 재생 실패:', err));
+  }, [status, audioUrl, ttsEnabled]);
 
   const handlePlayVoice = async () => {
-    if (!data) return;
+    if (!data || !ttsEnabled) return;
 
-    // 이미 재생 중이면 정지
     if (ttsState === 'playing' && audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -79,10 +77,9 @@ export default function StrictSecretaryResult({
       return;
     }
 
-    // 미리 생성된 audioUrl이나 로컬에 캐싱된 URL이 있으면 그걸 재사용
-    const targetUrl = audioUrl || localAudioUrl;
-    if (targetUrl) {
-      const audio = new Audio(targetUrl);
+    const cachedUrl = audioUrl || localAudioUrl;
+    if (cachedUrl) {
+      const audio = new Audio(cachedUrl);
       audio.onended = () => {
         setTtsState('idle');
         audioRef.current = null;
@@ -93,16 +90,15 @@ export default function StrictSecretaryResult({
       return;
     }
 
-    // 재생 가능한 URL이 한 번도 없었다면 직접 TTS API 호출 (fallback)
     setTtsState('loading');
     try {
-      const { data: blob } = await axiosInstance.post(
+      const blob: any = await axiosInstance.post(
         '/fin/strict-secretary/tts',
         { text: data.fact_violence_comment },
         { responseType: 'blob' }
       );
       const url = URL.createObjectURL(blob);
-      setLocalAudioUrl(url); // 상태에 저장하여 캐싱 유지
+      setLocalAudioUrl(url);
 
       const audio = new Audio(url);
       audio.onended = () => {
@@ -114,7 +110,7 @@ export default function StrictSecretaryResult({
       setTtsState('playing');
     } catch (err) {
       console.error('TTS error:', err);
-      alert('음성 생성에 실패했습니다. ELEVEN_API_KEY를 .env에 추가했는지 확인해주세요.');
+      alert('음성 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
       setTtsState('idle');
     }
   };
@@ -163,12 +159,12 @@ export default function StrictSecretaryResult({
             <button
               className="ss-tts-btn"
               onClick={handlePlayVoice}
-              disabled={ttsState === 'loading'}
-              aria-label="팩트폭력 음성으로 듣기"
+              disabled={ttsState === 'loading' || !ttsEnabled}
+              aria-label="텍스트를 음성으로 듣기"
             >
-              {ttsState === 'idle' && '🔊 다시 듣기'}
-              {ttsState === 'loading' && '⏳ 생성 중...'}
-              {ttsState === 'playing' && '⏹ 정지'}
+              {ttsState === 'idle' && (ttsEnabled ? '🔊 다시 듣기' : '음성 비활성')}
+              {ttsState === 'loading' && '🔄 생성 중...'}
+              {ttsState === 'playing' && '⏸ 정지'}
             </button>
           </div>
           <p>"{fact_violence_comment}"</p>

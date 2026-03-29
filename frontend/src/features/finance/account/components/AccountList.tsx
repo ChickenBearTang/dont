@@ -72,16 +72,10 @@ export const AccountList: React.FC = () => {
   // 4. 성공 상탱: 리스트 렌더링
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between px-2">
+      <div className="px-2">
         <h2 className="text-xl font-black text-eel">
           내 계좌 <span className="text-primary-blue">{accounts.length}</span>
         </h2>
-        <button
-          onClick={() => void refetch()}
-          className="text-sm font-bold text-gray hover:text-primary-blue transition-colors"
-        >
-          새로고침
-        </button>
       </div>
 
       <div className="grid gap-4 grid-cols-1">

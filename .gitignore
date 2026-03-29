@@ -52,6 +52,11 @@ __pycache__/
 *.pyc
 ai/data/*.db
 
+# Python virtual environments
+.venv/
+venv/
+env/
+
 # CDT-specific (C/C++ Development Tooling)
 .cproject
 

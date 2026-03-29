@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ReportReasonCode, ReportTargetType } from '../types';
 import { createReport } from '../api/communityApi';
+import { useUIStore } from '@/shared/store/useUIStore';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -22,12 +23,18 @@ export const ReportModal = ({ isOpen, onClose, targetType, targetId }: ReportMod
   const [reasonCode, setReasonCode] = useState<ReportReasonCode | ''>('');
   const [detailText, setDetailText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { addToast } = useUIStore();
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reasonCode) return;
+
+    if (reasonCode === 'OTHER' && !detailText.trim()) {
+      addToast('기타 사유 선택 시 상세 내용을 입력해 주세요.', 'info');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -37,13 +44,13 @@ export const ReportModal = ({ isOpen, onClose, targetType, targetId }: ReportMod
         reasonCode: reasonCode as ReportReasonCode,
         detailText: detailText.trim() || undefined,
       });
-      alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.');
+      addToast('신고가 접수되었습니다. 검토 후 조치하겠습니다.', 'success');
       onClose();
       // Reset state
       setReasonCode('');
       setDetailText('');
     } catch {
-      alert('신고 제출에 실패했습니다. 다시 시도해 주세요.');
+      addToast('신고 제출에 실패했습니다. 다시 시도해 주세요.', 'error');
     } finally {
       setSubmitting(false);
     }

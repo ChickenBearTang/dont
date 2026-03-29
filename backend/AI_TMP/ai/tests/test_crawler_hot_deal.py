@@ -109,6 +109,25 @@ class HotDealCrawlerTest(unittest.TestCase):
         self.assertEqual(result.items[0].title, "Mouse deal")
         self.assertEqual(result.source, requested_urls[0])
 
+    def test_parse_hot_deals_extracts_posted_at_when_date_tag_exists(self) -> None:
+        html = """
+        <div class="market-info-list">
+          <p class="tit">
+            <a href="/bbs/qb_saleinfo/views/10" class="subject-link ">
+              Date deal
+            </a>
+          </p>
+          <div class="market-info-sub">
+            <span class="date">2026.03.25</span>
+          </div>
+        </div>
+        """
+
+        items = parse_hot_deals(html)
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].posted_at, "2026.03.25")
+
 
 if __name__ == "__main__":
     unittest.main()

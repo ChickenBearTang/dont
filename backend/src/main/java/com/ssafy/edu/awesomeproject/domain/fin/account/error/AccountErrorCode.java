@@ -13,6 +13,9 @@ public enum AccountErrorCode implements ErrorCode {
     SAVEBOX_ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "ACC_404_5", "세이브박스 계좌을 찾을 수 없습니다."),
     FINANCE_USER_KEY_NOT_FOUND(
             HttpStatus.BAD_REQUEST, "ACC_400_2", "사용자의 Finance User Key가 설정되지 않았습니다."),
+    DUPLICATE_FINANCE_KEY(
+            HttpStatus.CONFLICT, "ACC_409_1", "중복된 API 키입니다. 이미 다른 계정에 연동되어 있습니다."),
+    INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "ACC_400_3", "계좌 잔액이 부족합니다."),
     API_RESPONSE_ERROR(
             HttpStatus.INTERNAL_SERVER_ERROR, "ACC_500_1", "금융 API 응답이 올바르지 않거나 처리에 실패했습니다.");
 

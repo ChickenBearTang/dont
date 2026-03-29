@@ -1,6 +1,7 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
+import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.ManualSavingsRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SavingsSettingRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountApiResponse;
@@ -33,6 +34,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class AccountController {
 
     private final AccountService accountService;
+
+    @Operation(summary = "[테스트용] 더미 유저 수동 동기화", description = "로그인 불가능한 더미 유저의 잔액을 오픈뱅킹과 강제 동기화하고 랭킹 이벤트를 발생시킵니다.")
+    @GetMapping("/test-sync/{userId}")
+    public ResponseEntity<AccountApiResponse<String>> testSyncDummy(@PathVariable Long userId) {
+        accountService.refreshAccountList(userId);
+        boolean published = accountService.forcePublishSaveboxEvent(userId);
+
+        if (published) {
+            return ResponseEntity.ok(
+                    AccountApiResponse.success("ACC_200_TEST", "더미 유저 강제 동기화 및 랭킹 업데이트를 완료했습니다.", "OK"));
+        } else {
+            return ResponseEntity.ok(
+                    AccountApiResponse.success("ACC_200_TEST_FAIL", "동기화는 성공했으나, 해당 유저의 SAVE_BOX 계좌가 DB에 존재하지 않아 랭킹에 등록되지 않았습니다.", "NO_SAVEBOX"));
+        }
+    }
 
     @Operation(summary = "계좌 목록 조회", description = "사용자의 수시입출금 계좌 목록을 조회합니다. (주 계좌 설정용)")
     @GetMapping
@@ -78,6 +94,17 @@ public class AccountController {
                 AccountApiResponse.success("ACC_200_3", "계좌 정보가 동기화되었습니다.", response));
     }
 
+    @Operation(summary = "금융 계좌 연동", description = "SSAFY Finance API 키를 등록하고 계좌 정보를 동기화합니다.")
+    @PostMapping("/link")
+    public ResponseEntity<AccountApiResponse<AccountListResponse>> linkFinanceAccount(
+            @CurrentUserId Long userId, @RequestParam String userKey) {
+
+        AccountListResponse response = accountService.linkFinanceAccount(userId, userKey);
+
+        return ResponseEntity.ok(
+                AccountApiResponse.success("ACC_200_9", "금융 계좌가 연동되었습니다.", response));
+    }
+
     @Operation(summary = "주 계좌 설정", description = "특정 계좌를 사용자의 '주 계좌'로 설정합니다.")
     @PatchMapping("/{accountId}/primary")
     public ResponseEntity<AccountApiResponse<AccountResponse>> setPrimaryAccount(
@@ -95,10 +122,10 @@ public class AccountController {
             @CurrentUserId Long userId,
             @PathVariable Long accountId,
             @Parameter(description = "조회 시작일 (YYYYMMDD)", example = "20240101")
-                    @RequestParam(defaultValue = "20240101")
+                    @RequestParam(required = false)
                     String startDate,
             @Parameter(description = "조회 종료일 (YYYYMMDD)", example = "20241231")
-                    @RequestParam(defaultValue = "20241231")
+                    @RequestParam(required = false)
                     String endDate) {
 
         AccountTransactionResponse response =
@@ -127,11 +154,19 @@ public class AccountController {
                 AccountApiResponse.success("ACC_200_7", "저축 설정이 완료되었습니다.", response));
     }
 
-    @Operation(summary = "수동 저축 실행", description = "설정된 주계좌에서 세이브박스로 직접 금액을 이체합니다.")
+    @Operation(summary = "수동 저축 실행", description = "설정된 주계좌에서 세이브박스로 직접 금액을 이체합니다. (비밀번호 검증 포함)")
     @PostMapping("/manual-savings")
     public ResponseEntity<AccountApiResponse<Void>> manualSavings(
-            @CurrentUserId Long userId, @RequestParam java.math.BigDecimal amount) {
-        accountService.manualSavings(userId, amount);
+            @CurrentUserId Long userId, @Valid @RequestBody ManualSavingsRequest request) {
+        accountService.manualSavings(userId, request.amount(), request.password());
         return ResponseEntity.ok(AccountApiResponse.success("ACC_200_8", "저축 이체가 완료되었습니다.", null));
+    }
+
+    @Operation(summary = "수동 출금 실행", description = "세이브박스에서 주계좌로 직접 금액을 꺼냅니다. (비밀번호 검증 포함)")
+    @PostMapping("/manual-withdrawal")
+    public ResponseEntity<AccountApiResponse<Void>> manualWithdrawal(
+            @CurrentUserId Long userId, @Valid @RequestBody ManualSavingsRequest request) {
+        accountService.manualWithdrawal(userId, request.amount(), request.password());
+        return ResponseEntity.ok(AccountApiResponse.success("ACC_200_10", "출금 이체가 완료되었습니다.", null));
     }
 }

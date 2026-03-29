@@ -12,6 +12,7 @@ import {
   fetchMyPage,
   updateMyPage,
   withdraw,
+  resetOnboarding,
 } from '@/features/user/api/userApi';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useToast } from '@/shared/hooks';
@@ -131,8 +132,7 @@ export const MyPagePage = () => {
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['myPage'],
-    queryFn: fetchMyPage,
-    select: (response) => response.data,
+    queryFn: () => fetchMyPage().then((res) => res.data),
   });
 
   const [draftForm, setDraftForm] = useState<MyPageFormState | null>(null);
@@ -164,6 +164,9 @@ export const MyPagePage = () => {
   });
   const withdrawMutation = useMutation({
     mutationFn: withdraw,
+  });
+  const resetOnboardingMutation = useMutation({
+    mutationFn: resetOnboarding,
   });
 
   if (isLoading) {
@@ -495,7 +498,31 @@ export const MyPagePage = () => {
       error(message);
     }
   };
+ 
+  const handleResetOnboarding = async () => {
+    const confirmed = window.confirm(
+      '온보딩을 다시 시작하시겠습니까? 현재의 자동 저축 설정이 초기화됩니다.'
+    );
+    if (!confirmed) return;
+ 
+    try {
+      await resetOnboardingMutation.mutateAsync();
+      queryClient.invalidateQueries({ queryKey: ['myPage'] });
+      queryClient.invalidateQueries({ queryKey: ['account'] });
+      
+      // 온보딩 세션 데이터 초기화
+      sessionStorage.removeItem('onboarding_step');
+      sessionStorage.removeItem('onboarding_isKdt');
+      sessionStorage.removeItem('onboarding_fixedCost');
+      sessionStorage.removeItem('onboarding_variableCost');
 
+      success('온보딩 단계로 이동합니다. 설정을 다시 진행해 주세요!');
+      navigate('/onboarding', { replace: true });
+    } catch (mutationError) {
+      error('초기화 중 오류가 발생했습니다.');
+    }
+  };
+ 
   const eyeButtonClassName =
     'flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-surface-soft';
 
@@ -796,6 +823,29 @@ export const MyPagePage = () => {
             }
           >
             {passwordChangeMutation.isPending ? '변경 중...' : '비밀번호 변경'}
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="rounded-none border border-line-soft p-0 shadow-none">
+        <div className="border-b border-line-soft px-6 py-5">
+          <h3 className="text-[24px] font-black text-text-strong">온보딩 다시하기</h3>
+          <p className="mt-1 text-sm font-medium text-text-muted">
+            자동 저축 규칙을 다시 설정하고 추천 저축액을 새롭게 계산합니다.
+          </p>
+        </div>
+        <div className="flex justify-between items-center px-6 py-5">
+          <div className="text-sm font-semibold text-text-muted">
+            온보딩 정보 및 저축 규칙 재설정
+          </div>
+          <Button
+            fullWidth={false}
+            variant="outline"
+            className="border-danger text-danger hover:bg-danger/5"
+            onClick={() => void handleResetOnboarding()}
+            disabled={resetOnboardingMutation.isPending}
+          >
+            온보딩 다시하기
           </Button>
         </div>
       </Card>

@@ -12,17 +12,38 @@ export default function StrictSecretaryLanding({ onVideoEnded }: StrictSecretary
   const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = isMuted;
-      videoRef.current.play().catch((error) => {
+    let cancelled = false;
+    const video = videoRef.current;
+
+    if (!video) return;
+
+    video.muted = isMuted;
+    video
+      .play()
+      .catch((error: unknown) => {
+        if (cancelled) return;
+
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+
         console.warn('Auto-play with sound failed, falling back to muted:', error);
         setIsMuted(true);
-        if (videoRef.current) {
-          videoRef.current.muted = true;
-          videoRef.current.play().catch(e => console.error("Even muted autoplay failed", e));
-        }
+
+        if (!videoRef.current) return;
+        videoRef.current.muted = true;
+        videoRef.current.play().catch((mutedError: unknown) => {
+          if (cancelled) return;
+          if (mutedError instanceof DOMException && mutedError.name === 'AbortError') {
+            return;
+          }
+          console.error('Even muted autoplay failed', mutedError);
+        });
       });
-    }
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const toggleMute = () => {
@@ -53,6 +74,7 @@ export default function StrictSecretaryLanding({ onVideoEnded }: StrictSecretary
           onEnded={onVideoEnded}
           playsInline
           autoPlay
+          loop
         />
       </div>
     </div>
