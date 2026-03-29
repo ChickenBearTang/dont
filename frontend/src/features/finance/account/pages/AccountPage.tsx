@@ -4,9 +4,7 @@ import { useGetMyAccounts, useGetSavingsSetting } from '../hooks/useAccountQueri
 import { AccountCard } from '../components/AccountCard';
 import { useNavigate } from 'react-router-dom';
 
-/**
- * 내 계좌 통합 관리 페이지
- */
+
 export const AccountPage: React.FC = () => {
   const navigate = useNavigate();
   const { mutate: refreshAccounts, isPending } = useRefreshAccounts();
@@ -17,7 +15,7 @@ export const AccountPage: React.FC = () => {
     refreshAccounts();
   };
 
-  // Find the primary account from the list
+
   const primaryAccount = accounts?.find((a) => a.id === setting?.primaryAccountId);
 
   if (isLoadingAccounts || isLoadingSetting) {
@@ -48,7 +46,7 @@ export const AccountPage: React.FC = () => {
           금융 홈으로
         </button>
 
-        {/* 페이지 헤더 */}
+        {}
         <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="text-center md:text-left">
             <h1 className="text-3xl font-black text-eel mb-2">내 계좌</h1>
@@ -71,7 +69,7 @@ export const AccountPage: React.FC = () => {
           </button>
         </header>
 
-        {/* 주계좌 히어로 섹션 */}
+        {}
         {primaryAccount && (
           <section className="mb-12">
             <div className="flex items-center gap-2 mb-4 px-2">
@@ -86,12 +84,12 @@ export const AccountPage: React.FC = () => {
           </section>
         )}
 
-        {/* 계좌 목록 컴포넌트 */}
+        {}
         <main>
           <AccountList />
         </main>
 
-        {/* 푸터 영역 (선택 사항) */}
+        {}
         <footer className="mt-16 text-center text-sm text-gray/50 pb-8">
           © 2026 Awesome Project Finance Inc.
         </footer>

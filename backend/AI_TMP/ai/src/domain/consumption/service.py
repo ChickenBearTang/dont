@@ -48,17 +48,17 @@ class ReportService:
             self.profiles = load_user_profiles(USER_PROFILE_PATH)
         except Exception:
             self.profiles = []
-            
+
         self._profiles_by_id = {profile.user_id: profile for profile in self.profiles}
         self._profiles_by_name = {
             profile.name.lower(): profile for profile in self.profiles
         }
-        
+
         try:
             self.card_transactions = load_card_transactions(CARD_TRANSACTIONS_PATH)
         except Exception:
             self.card_transactions = []
-            
+
         try:
             self.account_transactions = load_account_transactions(ACCOUNT_TRANSACTIONS_PATH)
         except Exception:
@@ -147,9 +147,9 @@ class ReportService:
 
         overview = build_overview(profile, cards, monthly)
         fallback_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
-        
+
         justifications = self.load_justifications(profile.user_id, start)
-        
+
         llm_payload = {
             "overview": overview,
             "monthly": monthly,
@@ -452,9 +452,7 @@ class ReportService:
         cards: list[InternalCard] = []
         for tx in request.card_transactions:
             try:
-                # Handle YYYYMMDD or YYYY-MM-DD
                 dt_str = tx.transaction_date.replace("-", "")
-                # Ensure time is 6 digits
                 t_str = tx.transaction_time.ljust(6, "0")[:6]
                 dt = datetime.strptime(dt_str + t_str, "%Y%m%d%H%M%S")
             except Exception:

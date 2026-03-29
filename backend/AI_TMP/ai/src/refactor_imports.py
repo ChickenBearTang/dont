@@ -40,7 +40,7 @@ mapping = {
 
     r"from strict_secretary\.loader": "from domain.strict_secretary.loader",
     r"import strict_secretary\.loader": "import domain.strict_secretary.loader",
-    
+
     r"from strict_secretary\.agent": "from domain.strict_secretary.agent",
     r"import strict_secretary\.agent": "import domain.strict_secretary.agent",
 }

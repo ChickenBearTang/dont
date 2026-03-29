@@ -56,8 +56,8 @@ export default function StrictSecretaryLanding({ onVideoEnded }: StrictSecretary
   return (
     <div className="ss-landing-overlay">
       <div className="ss-landing-container" style={{ position: 'relative' }}>
-        <button 
-          className="ss-mute-btn" 
+        <button
+          className="ss-mute-btn"
           onClick={toggleMute}
           aria-label={isMuted ? '소리 켜기' : '소리 끄기'}
           title={isMuted ? '소리 켜기' : '소리 끄기'}

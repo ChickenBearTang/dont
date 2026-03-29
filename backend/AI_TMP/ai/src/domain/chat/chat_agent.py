@@ -84,7 +84,6 @@ User's Latest Message:
                 )
                 continue
 
-        # Fallback if all models fail or return bad JSON
         return {
             "is_valid": False,
             "response": "죄송해요, 변명을 분석하는 중에 문제가 발생했어요. 다시 한 번 말씀해 주시겠어요?",

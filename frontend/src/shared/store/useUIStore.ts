@@ -11,14 +11,12 @@ export interface ToastMessage {
 interface UIState {
   toasts: ToastMessage[];
 
-  // Actions
+
   addToast: (message: string, type?: ToastType) => void;
   removeToast: (id: string) => void;
 }
 
-/**
- * 전역 UI 상태 관리 (Toast 알림 등)
- */
+
 export const useUIStore = create<UIState>((set) => ({
   toasts: [],
 
@@ -28,7 +26,7 @@ export const useUIStore = create<UIState>((set) => ({
       toasts: [...state.toasts, { id, message, type }],
     }));
 
-    // 3초 뒤 자동 삭제
+
     setTimeout(() => {
       set((state) => ({
         toasts: state.toasts.filter((t) => t.id !== id),

@@ -177,7 +177,7 @@ public class NotificationService {
                 savedNotification.getReferenceId(),
                 savedNotification.getPushedAt());
 
-        // 트랜잭션이 실제 커밋된 뒤에만 SSE 발송
+
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(
                 new TransactionSynchronization() {

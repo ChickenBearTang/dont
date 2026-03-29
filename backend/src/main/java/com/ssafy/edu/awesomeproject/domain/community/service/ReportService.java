@@ -314,7 +314,7 @@ public class ReportService {
         commentRepository.save(comment);
     }
 
-    // 신고 대상이 이미 삭제되었거나 블라인드 처리되었을 경우
+
     private void validateBlindable(Post post) {
         if (post.getStatus() == PostStatus.DELETED || post.getStatus() == PostStatus.BLINDED) {
             throw new CommunityException(CommunityErrorCode.REPORT_ALREADY_PROCESSED);

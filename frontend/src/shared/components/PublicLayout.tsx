@@ -2,10 +2,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { logout as logoutApi } from '@/features/auth/api/authApi';
 
-/**
- * 공개 페이지 레이아웃 (헤더 없음)
- * 랜딩, 로그인, 온보딩 등 전용
- */
+
 const PublicLayout = () => {
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -24,7 +21,7 @@ const PublicLayout = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col relative w-full">
-      {/* 글로벌 네비게이션 느낌의 심플 헤더 */}
+      {}
       <header className="h-[64px] flex items-center justify-between px-6 lg:px-10 max-w-7xl w-full mx-auto">
         <h1
           className="text-[28px] font-black text-primary-blue tracking-tighter cursor-pointer"

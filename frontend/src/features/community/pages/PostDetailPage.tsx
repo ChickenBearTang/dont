@@ -1068,7 +1068,7 @@ export const PostDetailPage = () => {
         setCommentPage(nextPage);
       }
     } catch {
-      // Failed to load more comments
+
     } finally {
       setLoadingMoreComments(false);
     }
@@ -1644,7 +1644,7 @@ export const PostDetailPage = () => {
         targetId={reportModalState.targetId}
       />
 
-      {/* 게시글 삭제 확인 모달 */}
+      {}
       <Modal
         isOpen={isDeletePostModalOpen}
         onClose={() => setIsDeletePostModalOpen(false)}
@@ -1673,7 +1673,7 @@ export const PostDetailPage = () => {
         </p>
       </Modal>
 
-      {/* 댓글 삭제 확인 모달 */}
+      {}
       <Modal
         isOpen={commentIdToDelete !== null}
         onClose={() => setCommentIdToDelete(null)}

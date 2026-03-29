@@ -62,8 +62,8 @@ const AdminReportPage: React.FC = () => {
 
   useEffect(() => {
     void loadReports();
-    // Deliberately keyed only to paging/filter state to avoid effect loops from toast object identity.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+
   }, [currentPage, filterStatus]);
 
   const handleViewDetail = async (reportId: number) => {

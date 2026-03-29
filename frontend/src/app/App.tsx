@@ -82,7 +82,7 @@ export function App() {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <AppBootstrap />
-        {/* <ReactQueryDevtools initialIsOpen={false} /> */}
+        {}
       </QueryClientProvider>
     </StrictMode>
   );

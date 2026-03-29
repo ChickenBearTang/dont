@@ -22,17 +22,17 @@ import mascotAnalyze from '@/assets/character/mascot_analyze.png';
 import mascotJust from '@/assets/character/mascot_just.png';
 
 const CATEGORY_COLORS = [
-  '#3B82F6', // Blue
-  '#8B5CF6', // Purple
-  '#F59E0B', // Amber
-  '#EC4899', // Pink
-  '#10B981', // Emerald
-  '#6366F1', // Indigo
-  '#14B8A6', // Teal
-  '#F43F5E', // Rose
-  '#84CC16', // Lime
-  '#06B6D4', // Cyan
-  '#9CA3AF', // Gray (fallback)
+  '#3B82F6',
+  '#8B5CF6',
+  '#F59E0B',
+  '#EC4899',
+  '#10B981',
+  '#6366F1',
+  '#14B8A6',
+  '#F43F5E',
+  '#84CC16',
+  '#06B6D4',
+  '#9CA3AF',
 ];
 
 const formatToYYYYMMDD = (date: Date) => {
@@ -202,7 +202,7 @@ const CohortComparisonCard = ({
 
           let diffElem = <span className="text-gray-500 font-bold">비슷하게</span>;
           if (item.myAmount > item.avgAmount) {
-            const extra = item.avgAmount > 0 
+            const extra = item.avgAmount > 0
               ? `${Math.round(((item.myAmount - item.avgAmount) / item.avgAmount) * 100)}% 더 많이`
               : '더 많이';
             diffElem = <span className="text-rose-500 font-bold">{extra}</span>;

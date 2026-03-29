@@ -21,7 +21,7 @@ public class CardListResponse {
         private String cardIssuerName;
         private String cardName;
 
-        // 해당달 총 지출금액
+
         private long monthlyCardExpense;
     }
 }

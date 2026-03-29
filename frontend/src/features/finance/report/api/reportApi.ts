@@ -13,14 +13,14 @@ export const getSpendingSummary = async (
 ): Promise<SpendingSummaryResponse> => {
   return await axiosInstance.get('/fin/cards/spending-summary', {
     params: { startDate, endDate, includeAi },
-    timeout: 120000, // 2 minutes
+    timeout: 120000,
   });
 };
 
 export const getMonthlyAiReport = async (reportMonth: string): Promise<AiReportResponse> => {
   return await axiosInstance.get('/fin/consumption/reports/monthly', {
     params: { reportMonth },
-    timeout: 120000, // 2 minutes
+    timeout: 120000,
   });
 };
 
@@ -28,7 +28,7 @@ export const generateMonthlyAiReport = async (reportMonth: string): Promise<AiRe
   return await axiosInstance.post(
     '/fin/consumption/reports/monthly',
     { reportMonth },
-    { timeout: 120000 } // 2 minutes
+    { timeout: 120000 }
   );
 };
 
@@ -42,7 +42,7 @@ export const sendAiJustification = async (
       targetMonth,
       message,
     },
-    { timeout: 120000 } // 2 minutes
+    { timeout: 120000 }
   );
 };
 
@@ -52,7 +52,7 @@ export const regenerateAiReport = async (reportMonth: string): Promise<AiReportR
     {
       reportMonth,
     },
-    { timeout: 120000 } // 2 minutes
+    { timeout: 120000 }
   );
 };
 

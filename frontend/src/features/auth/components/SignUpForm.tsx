@@ -15,9 +15,7 @@ import { fetchCohorts, fetchOnboardingStatus } from '@/features/user/api/userApi
 import type { SignUpRequestPayload } from '@/features/auth/types';
 import type { Cohort, SelectOption } from '@/shared/types';
 
-/**
- * 회원가입 결과 상태
- */
+
 interface FormState {
   success: boolean;
   message: string;
@@ -48,7 +46,7 @@ export const SignUpForm = () => {
   const [verificationExpiresIn, setVerificationExpiresIn] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
 
-  // --- Controlled Form State ---
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -59,7 +57,7 @@ export const SignUpForm = () => {
     termsAgreed: false,
   });
 
-  // 기수 정보 불러오기
+
   useEffect(() => {
     const loadCohorts = async () => {
       try {

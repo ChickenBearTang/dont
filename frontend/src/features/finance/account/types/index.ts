@@ -1,15 +1,9 @@
-/**
- * 계좌 도메인 관련 타입 정의
- */
 
-/**
- * 계좌 상태 정보
- */
+
+
 export type AccountStatus = 'ACTIVE' | 'INACTIVE' | 'CLOSED';
 
-/**
- * 계좌 상세 정보 (목록 조회 시 각 항목)
- */
+
 export interface AccountDetail {
   id: number;
   bankCode: string;
@@ -29,9 +23,7 @@ export interface AccountDetail {
   isPrimary: boolean;
 }
 
-/**
- * 계좌 요약 정보 (AccountResponse)
- */
+
 export interface Account {
   id: number;
   bankName: string;
@@ -44,14 +36,12 @@ export interface Account {
   isPrimary: boolean;
 }
 
-/**
- * 계좌 거래 내역 항목
- */
+
 export interface TransactionItem {
   transactionUniqueNo: string;
   transactionDate: string;
   transactionTime: string;
-  transactionType: '1' | '2'; // 1: 입금, 2: 출금
+  transactionType: '1' | '2';
   transactionTypeName: string;
   transactionAmount: string;
   afterBalance: string;
@@ -59,9 +49,7 @@ export interface TransactionItem {
   transactionMemo: string;
 }
 
-/**
- * 저축 설정 정보
- */
+
 export interface SavingsSetting {
   id?: number;
   primaryAccountId: number;
@@ -71,7 +59,6 @@ export interface SavingsSetting {
   isActive: boolean;
 }
 
-/* --- API Requests --- */
 
 export interface SaveBoxCreateRequest {
   accountTypeUniqueNo: string;
@@ -85,7 +72,6 @@ export interface SavingsSettingRequest {
   isActive: boolean;
 }
 
-/* --- API Responses --- */
 
 export interface AccountListResponse {
   accounts: AccountDetail[];

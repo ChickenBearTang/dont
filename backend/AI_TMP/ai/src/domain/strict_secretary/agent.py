@@ -154,7 +154,6 @@ Return ONLY strict JSON with the following structure:
                 )
                 continue
 
-        # Fallback
         return SecretaryResponse(
             is_approved=False,
             fact_violence_comment="답변을 생성하는 중에 문제가 생겼어요. 일단 사지 마세요.",

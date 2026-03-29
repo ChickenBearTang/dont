@@ -20,13 +20,10 @@ def fetch_url_text(url: str) -> str:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             html = resp.read().decode('utf-8', errors='ignore')
-            # Remove scripts and styles first
             html = re.sub(r'<(script|style)[^>]*>.*?</\1>', ' ', html, flags=re.IGNORECASE | re.DOTALL)
-            # Remove remaining tags
             text = re.sub(r'<[^>]+>', ' ', html)
-            # Squash whitespace
             text = re.sub(r'\s+', ' ', text)
-            return text.strip()[:20000]  # Increased limit 
+            return text.strip()[:20000]  # Increased limit
     except Exception as e:
         return f"웹페이지 내용을 가져오지 못했습니다. 오류: {str(e)}"
 
@@ -39,8 +36,7 @@ def evaluate_purchase_intention(data_dir: Path, request: PurchaseRequest) -> Sec
     recent_txs = get_recent_card_transactions(data_dir, request.user_id, months_back=2)
     explain_logs = get_explain_logs(data_dir, request.user_id)
     ai_report = get_latest_ai_report(data_dir, request.user_id)
-    
-    # summarize recent txs for the LLM to avoid token overflow
+
     tx_summary = []
     for tx in recent_txs[-50:]:  # max 50 recent transactions
         tx_summary.append({
@@ -49,14 +45,14 @@ def evaluate_purchase_intention(data_dir: Path, request: PurchaseRequest) -> Sec
             "amount": tx.amount,
             "category": tx.category
         })
-        
+
     profile_dict = {
         "monthly_income": profile.monthly_income,
         "job": profile.job,
         "age": profile.age,
         "residence": profile.residence_type
     }
-    
+
     page_content = fetch_url_text(request.item_link)
 
     agent = StrictSecretaryAgent()
@@ -70,5 +66,5 @@ def evaluate_purchase_intention(data_dir: Path, request: PurchaseRequest) -> Sec
         explain_logs=explain_logs,
         ai_report=ai_report
     )
-    
+
     return response

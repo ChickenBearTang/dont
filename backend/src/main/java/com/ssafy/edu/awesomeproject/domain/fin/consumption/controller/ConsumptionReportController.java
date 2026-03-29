@@ -27,7 +27,7 @@ public class ConsumptionReportController {
 
     private final ConsumptionReportService consumptionReportService;
 
-    // 월에 해당하는 리포트 만들기
+
     @PostMapping("/monthly")
     @Operation(summary = "특정 월의 리포트 작성", description = "특정 월의 리포트를 작성합니다.")
     public ResponseEntity<CommonResponse<MonthlyReportResponse>> generateMonthlyReport(
@@ -39,7 +39,7 @@ public class ConsumptionReportController {
         return ResponseEntity.ok(CommonResponse.success(response));
     }
 
-    // 월헤 해당하는 리포트 불러오기
+
     @GetMapping("/monthly")
     @Operation(summary = "특정 월의 리포트 조회", description = "특정월의 리포트를 조회합니다")
     public ResponseEntity<CommonResponse<MonthlyReportResponse>> getLatestMonthlyReport(
@@ -49,7 +49,7 @@ public class ConsumptionReportController {
         return ResponseEntity.ok(CommonResponse.success(response));
     }
 
-    // 반박 평가
+
     @PostMapping("/justifications/evaluate")
     @Operation(summary = "반박을 합니다.", description = "리포트에 대해 반박을 수행합니다.")
     public ResponseEntity<CommonResponse<JustificationEvaluationResponse>> evaluateJustification(

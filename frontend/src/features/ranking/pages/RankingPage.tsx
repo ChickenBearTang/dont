@@ -10,7 +10,7 @@ import type { Cohort } from '@/shared/types';
 import type { MyPageResponse } from '@/features/user/mypage/types';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 
-// 백엔드(CommonResponse)에서 내려주는 JSON 포맷 인터페이스
+
 interface RankingResponse {
   status: string;
   message: string;
@@ -20,7 +20,7 @@ interface RankingResponse {
   };
 }
 
-// 초기 데이터 조회 Fetcher
+
 const fetchRanking = async (
   type: 'total' | 'cohort',
   cohortNo?: number
@@ -29,7 +29,7 @@ const fetchRanking = async (
   return await axiosInstance.get(`/ranking/${type}${params}`);
 };
 
-// 등락 지표 컴포넌트
+
 const TrendBadge: React.FC<{ diff?: number | null }> = ({ diff }) => {
   if (diff === null) {
     return (
@@ -62,7 +62,7 @@ const TrendBadge: React.FC<{ diff?: number | null }> = ({ diff }) => {
   );
 };
 
-// 프로필 아바타 컴포넌트
+
 const ProfileAvatar: React.FC<{ url?: string; rank: number; size?: string; userId?: number }> = ({
   url,
   rank,
@@ -81,7 +81,7 @@ const ProfileAvatar: React.FC<{ url?: string; rank: number; size?: string; userI
           : 'ring-[var(--line-soft)]';
 
   return (
-    <motion.div 
+    <motion.div
       layoutId={userId ? `avatar-${userId}` : undefined}
       className="relative"
     >
@@ -126,7 +126,7 @@ const ProfileAvatar: React.FC<{ url?: string; rank: number; size?: string; userI
   );
 };
 
-// ─── 포디엄 (명예의 전당) 컴포넌트 ───
+
 const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
   const first = top3.find((u) => u.rank === 1);
   const second = top3.find((u) => u.rank === 2);
@@ -150,28 +150,28 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
       <div className="flex flex-col items-center w-full">
         {user ? (
           <>
-            {/* 메달 */}
+            {}
             <div className="relative mb-1">
               <span className="text-3xl drop-shadow-sm">{medal}</span>
-              {/* 포디엄 등락 배지 */}
+              {}
               <div className="absolute -right-6 top-0 rotate-12 scale-90">
                 <TrendBadge diff={user.rankDiff} />
               </div>
             </div>
-            {/* 아바타 */}
+            {}
             <div className="mb-2">
-              <ProfileAvatar 
-                url={user.profileImageUrl} 
-                rank={user.rank} 
-                size={avatarSize} 
-                userId={user.userId} 
+              <ProfileAvatar
+                url={user.profileImageUrl}
+                rank={user.rank}
+                size={avatarSize}
+                userId={user.userId}
               />
             </div>
-            {/* 닉네임 */}
+            {}
             <p className="text-sm font-black text-[var(--text-strong)] text-center truncate w-full px-1 mb-0.5">
               {user.nickname || `유저 ${user.userId}`}
             </p>
-            {/* 기수 */}
+            {}
             {user.cohortNo && (
               <span className="text-[10px] font-bold text-[var(--accent)] bg-[var(--accent-soft)] px-2 py-0.5 rounded-md mb-2">
                 {user.cohortNo}기
@@ -200,12 +200,12 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
   return (
     <LayoutGroup id="ranking-container">
       <div className="mx-4 mb-6">
-        <motion.div 
-          layout 
+        <motion.div
+          layout
           transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 1 }}
           className="flex items-end justify-center gap-2 px-4"
         >
-          {/* 2위 (왼쪽) */}
+          {}
           <PodiumSlot
             user={second}
             medal="🥈"
@@ -215,7 +215,7 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
             order="order-1"
             delay={0.1}
           />
-          {/* 1위 (가운데) */}
+          {}
           <PodiumSlot
             user={first}
             medal="🥇"
@@ -225,7 +225,7 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
             order="order-2"
             delay={0}
           />
-          {/* 3위 (오른쪽) */}
+          {}
           <PodiumSlot
             user={third}
             medal="🥉"
@@ -243,17 +243,17 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
 
 export const RankingPage = () => {
   const qClient = useQueryClient();
-  // 1. SSE 실시간 업데이트
+
   useRankingSse();
   const isUpdating = useRankingStore((state) => state.isUpdating);
 
-  // 2. 탭 상태 관리
+
   const [activeTab, setActiveTab] = useState<'total' | 'cohort'>('total');
 
-  // 3. 기수 드롭다운 상태
+
   const [selectedCohortNo, setSelectedCohortNo] = useState<number | undefined>(undefined);
 
-  // 4. 내 정보
+
   const { data: myPageData } = useQuery<MyPageResponse>({
     queryKey: ['myPage'],
     queryFn: () => axiosInstance.get('/users/me').then((res) => (res as any).data),
@@ -267,7 +267,7 @@ export const RankingPage = () => {
     }
   }, [activeTab, myCohortNo, selectedCohortNo]);
 
-  // 5. 기수 목록
+
   const { data: cohortsData } = useQuery({
     queryKey: ['cohorts'],
     queryFn: fetchCohorts,
@@ -276,7 +276,7 @@ export const RankingPage = () => {
   });
   const cohorts: Cohort[] = cohortsData?.data || [];
 
-  // 6. 랭킹 데이터
+
   const queryKey =
     activeTab === 'cohort' ? ['ranking', 'cohort', selectedCohortNo] : ['ranking', 'total'];
 
@@ -285,21 +285,21 @@ export const RankingPage = () => {
     queryFn: () => fetchRanking(activeTab, selectedCohortNo),
     staleTime: 1000 * 60 * 5,
     enabled: activeTab === 'total' || selectedCohortNo !== undefined,
-    // [시니어 디테일: 제로 플리커] 백그라운드 리프레시 중에도 기존 데이터를 유지하여 깜빡임 방지
+
     placeholderData: (previousData) => previousData,
   });
 
   const top100 = data?.data?.top100 || [];
   const myRanking = data?.data?.myRanking;
 
-  // 실제 데이터가 없고 로딩 중일 때만 스켈레톤 표시 (깜빡임 방지 핵심)
+
   const showSkeleton = isLoading && !data;
 
-  // 포디엄용 상위 3명 + 나머지 (4위부터)
+
   const top3 = top100.filter((u: RankingUser) => u.rank <= 3);
   const restRanking = top100.filter((u: RankingUser) => u.rank > 3);
 
-  // 7. 랭킹 강제 동기화 (DB -> Redis)
+
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const addToast = useUIStore((state) => state.addToast);
@@ -326,13 +326,13 @@ export const RankingPage = () => {
 
   return (
     <div className="w-full max-w-[1240px] mx-auto py-8 px-4 md:px-6 relative">
-      {/* 배경 데코레이션 블롭 */}
+      {}
       <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-primary-blue/10 rounded-full blur-[120px] pointer-events-none -z-10"></div>
       <div className="absolute bottom-[20%] right-[-10%] w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none -z-10"></div>
 
       <div className="min-h-[600px] rounded-[48px] glass-premium overflow-hidden relative z-10 transition-all duration-500">
-        
-        {/* 헤더 섹션: 타이틀 및 동기화 버튼 */}
+
+        {}
         <div className="px-8 pt-8 flex items-center justify-between">
           <div className="flex flex-col">
             <h1 className="text-3xl font-black text-[var(--text-strong)] tracking-tight">실시간 랭킹</h1>
@@ -344,17 +344,17 @@ export const RankingPage = () => {
             onClick={handleForceSync}
             disabled={isSyncing}
             className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black shadow-sm transition-all ${
-              isSyncing 
+              isSyncing
                 ? 'bg-[var(--surface-soft)] text-[var(--text-muted)] cursor-not-allowed'
                 : 'bg-white text-[var(--accent)] border-2 border-[var(--accent-soft)] hover:border-[var(--accent)] hover:shadow-md'
             }`}
           >
-            <motion.svg 
+            <motion.svg
               animate={isSyncing ? { rotate: 360 } : {}}
               transition={isSyncing ? { repeat: Infinity, duration: 1, ease: 'linear' } : {}}
-              className="w-4 h-4" 
-              fill="none" 
-              viewBox="0 0 24 24" 
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
               stroke="currentColor"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -363,7 +363,7 @@ export const RankingPage = () => {
           </motion.button>
         </div>
 
-        {/* ─── 탭 전환 ─── */}
+        {}
         <div className="px-6 pt-6 pb-4 flex flex-col items-center gap-4">
           <div className="flex bg-[var(--surface-soft)] p-1 rounded-2xl w-full max-w-sm">
             {(['total', 'cohort'] as const).map((tab) => (
@@ -381,7 +381,7 @@ export const RankingPage = () => {
             ))}
           </div>
 
-          {/* 기수 드롭다운 */}
+          {}
           {activeTab === 'cohort' && cohorts.length > 0 && (
             <select
               value={selectedCohortNo ?? ''}
@@ -405,11 +405,11 @@ export const RankingPage = () => {
           )}
         </div>
 
-        {/* ─── 내 랭킹 Hero (내 기수 또는 전체 랭킹일 때만 표시) ─── */}
+        {}
         {(activeTab === 'total' || selectedCohortNo === myCohortNo) && (
         <div className="mx-4 mb-6">
           <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[var(--accent)] via-[#1e5fd9] to-[var(--secondary-blue,#004ecc)] p-6 text-white shadow-[0_12px_40px_rgba(10,101,255,0.25)]">
-            {/* 배경 장식 */}
+            {}
             <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
             <div className="absolute -right-4 -bottom-10 w-32 h-32 rounded-full bg-white/5" />
             <div className="absolute left-1/2 top-0 w-28 h-28 rounded-full bg-white/5 -translate-x-1/2 -translate-y-1/2" />
@@ -445,7 +445,7 @@ export const RankingPage = () => {
                         <span className="text-6xl font-black tracking-tight leading-none">{myRanking.rank}</span>
                         <span className="text-2xl font-bold ml-1 text-white/80">위</span>
                       </div>
-                      {/* 내 랭킹 등락 지표 */}
+                      {}
                       <div className="bg-white/20 backdrop-blur-sm rounded-lg px-2 py-1 h-fit transform scale-110 flex items-center gap-2">
                         <TrendBadge diff={myRanking.rankDiff} />
                         {isUpdating && (
@@ -473,12 +473,12 @@ export const RankingPage = () => {
         </div>
         )}
 
-        {/* ─── 포디엄 (명예의 전당) ─── */}
+        {}
         {!showSkeleton && !isError && top3.length > 0 && (
           <Podium top3={top3} />
         )}
 
-        {/* ─── 4위 이하 리스트 ─── */}
+        {}
         <div className="px-6 pb-8">
           {showSkeleton && (
             <div className="flex flex-col gap-3 animate-pulse">
@@ -512,12 +512,12 @@ export const RankingPage = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.98 }}
-                      transition={{ 
-                        type: 'spring', 
-                        stiffness: 300, 
+                      transition={{
+                        type: 'spring',
+                        stiffness: 300,
                         damping: 30,
                         mass: 1,
-                        layout: { type: 'spring', stiffness: 300, damping: 30, mass: 1 } 
+                        layout: { type: 'spring', stiffness: 300, damping: 30, mass: 1 }
                       }}
                       className="flex items-center justify-between p-5 rounded-[28px] glass-premium hover-glass transition-shadow duration-300 group cursor-default"
                     >
@@ -537,7 +537,7 @@ export const RankingPage = () => {
                           )}
                         </motion.div>
                       </div>
-                      
+
                       <motion.div layout="position">
                         <TrendBadge diff={user.rankDiff} />
                       </motion.div>
@@ -550,7 +550,7 @@ export const RankingPage = () => {
         </div>
       </div>
 
-      {/* 랭킹 동기화 모달 */}
+      {}
       <RankingSyncModal
         isOpen={isSyncModalOpen}
         onClose={() => setIsSyncModalOpen(false)}

@@ -83,14 +83,14 @@ public class FinanceProfileService {
             LocalDate dueDate = LocalDate.parse(value, BASIC_DATE);
             return (int) today.until(dueDate).getDays();
         } catch (DateTimeException ignored) {
-            // fall through
+
         }
 
         try {
             LocalDate dueDate = LocalDate.parse(value, ISO_DATE);
             return (int) today.until(dueDate).getDays();
         } catch (DateTimeException ignored) {
-            // fall through
+
         }
 
         try {

@@ -7,9 +7,7 @@ import { accountKeys } from '../queries/accountKeys';
 import { Button } from '@/shared/components';
 import type { AccountDetail } from '../types';
 
-/**
- * 전용 선택 가능 계좌 카드 컴포넌트
- */
+
 const SelectableAccountCard: React.FC<{
   account: AccountDetail;
   isSelected: boolean;
@@ -49,19 +47,17 @@ const SelectableAccountCard: React.FC<{
   );
 };
 
-/**
- * 세이브박스 개설 및 주계좌 설정 온보딩 페이지
- */
+
 export const SaveboxSetupPage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-  
-  // Finance Linking States
+
+
   const [userKey, setUserKey] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
   const { mutate: linkAccount, isPending: isLinking } = useLinkFinanceAccount();
 
-  // Handle browser back button: always return to onboarding start
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
@@ -71,17 +67,17 @@ export const SaveboxSetupPage: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [navigate]);
 
-  // 데이터 조회
+
   const { data: accounts, isLoading, isError } = useGetMyAccounts();
 
-  // 금융 계좌 연동 핸들러
+
   const handleLinkAccount = () => {
     if (!userKey.trim()) return;
     setLinkError(null);
     linkAccount(userKey, {
       onSuccess: () => {
         setUserKey('');
-        // account 관련 쿼리 무효화로 인해 자동으로 계좌 목록이 새로고침됨
+
       },
       onError: (err: any) => {
         const errorData = err.response?.data;
@@ -94,7 +90,7 @@ export const SaveboxSetupPage: React.FC = () => {
     });
   };
 
-  // Mutations
+
   const queryClient = useQueryClient();
   const { mutateAsync: setPrimary } = useSetPrimaryAccount();
   const { mutateAsync: createSaveBox } = useCreateSaveBox();
@@ -103,14 +99,14 @@ export const SaveboxSetupPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Smart Skip: Check if a 세이브박스 already exists
+
   useEffect(() => {
     if (accounts && accounts.length > 0) {
       const savebox = accounts.find(
         (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
       );
       if (savebox) {
-        // Automatically skip if savebox already exists
+
         navigate('/finance/savings-rule-setup');
       }
     }
@@ -121,15 +117,15 @@ export const SaveboxSetupPage: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      // 1. 주계좌 설정
+
       await setPrimary(selectedAccountId);
-      // 2. 세이브박스 개설 (백엔드 스펙에 맞춰 accountTypeUniqueNo 전달)
+
       await createSaveBox({ accountTypeUniqueNo: '999-1-792bcf290d6a48' });
-      // 3. 계좌 목록 동기화 (새 세이브박스를 캐시에 즉시 반영)
+
       await refreshAccounts();
       await queryClient.refetchQueries({ queryKey: accountKeys.lists() });
 
-      // 성공 상태로 전환
+
       setIsSuccess(true);
     } catch (error) {
       console.error('Onboarding Setup Failed:', error);
@@ -169,7 +165,7 @@ export const SaveboxSetupPage: React.FC = () => {
     );
   }
 
-  // Find if a savebox already exists to show loading instead of the setup UI
+
   const hasExistingSavebox = accounts?.some(
     (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
   );
@@ -251,7 +247,7 @@ export const SaveboxSetupPage: React.FC = () => {
                 </Button>
               </div>
             </div>
-            
+
             <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
               <h4 className="text-xs font-bold text-primary-blue mb-1">💡 안내</h4>
               <p className="text-[11px] text-gray leading-relaxed">

@@ -11,9 +11,7 @@ interface ManualWithdrawalModalProps {
   saveboxBalance?: number;
 }
 
-/**
- * 세이브박스 출금(꺼내기) 금액 입력 모달
- */
+
 export const ManualWithdrawalModal: React.FC<ManualWithdrawalModalProps> = ({
   isOpen,
   onClose,
@@ -58,7 +56,7 @@ export const ManualWithdrawalModal: React.FC<ManualWithdrawalModalProps> = ({
         onClose();
       },
       onError: (err: any) => {
-        // 백엔드에서 던지는 구체적인 에러 메시지(잔액 부족 등) 반영
+
         const errorMsg = err?.response?.data?.message || '출금 처리 중 오류가 발생했습니다.';
         setError(errorMsg);
       },

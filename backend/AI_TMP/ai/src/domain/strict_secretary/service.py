@@ -20,13 +20,10 @@ def fetch_url_text(url: str) -> str:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             html = resp.read().decode('utf-8', errors='ignore')
-            # Remove scripts and styles first
             html = re.sub(r'<(script|style)[^>]*>.*?</\1>', ' ', html, flags=re.IGNORECASE | re.DOTALL)
-            # Remove remaining tags
             text = re.sub(r'<[^>]+>', ' ', html)
-            # Squash whitespace
             text = re.sub(r'\s+', ' ', text)
-            return text.strip()[:20000]  # Increased limit 
+            return text.strip()[:20000]  # Increased limit
     except Exception as e:
         return f"웹페이지 내용을 가져오지 못했습니다. 오류: {str(e)}"
 
@@ -41,8 +38,7 @@ def evaluate_purchase_intention(request: PurchaseIntentionRequest) -> SecretaryR
         "age": 30,         # Default
         "residence": "Unknown"
     }
-    
-    # summarize recent txs for the LLM
+
     tx_summary = []
     for tx in request.recent_transactions[-50:]:  # max 50 recent transactions
         tx_summary.append({
@@ -51,7 +47,7 @@ def evaluate_purchase_intention(request: PurchaseIntentionRequest) -> SecretaryR
             "amount": tx.transaction_amount,
             "category": tx.category_name
         })
-    
+
     page_content = fetch_url_text(request.item_link)
 
     agent = StrictSecretaryAgent()
@@ -65,5 +61,5 @@ def evaluate_purchase_intention(request: PurchaseIntentionRequest) -> SecretaryR
         explain_logs=[], # Currently not passed from backend
         ai_report=request.ai_report_context
     )
-    
+
     return response

@@ -2,21 +2,19 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGetAccountDetail, useGetAccountTransactions } from '../hooks/useAccountQueries';
 
-/**
- * 특정 계좌의 상세 정보 및 거래 내역을 조회하는 페이지
- */
+
 export const AccountDetailPage: React.FC = () => {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
   const id = Number(accountId);
 
-  // 현재 선택된 월 상태 관리 (기본값: 이번 달 1일)
+
   const [currentDate, setCurrentDate] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
-  // 날짜를 YYYY-MM-DD 형식으로 포맷팅
+
   const formatDate = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -69,7 +67,7 @@ export const AccountDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      {/* 뒤로가기 버튼 */}
+      {}
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 mb-6 text-gray hover:text-eel transition-colors"
@@ -86,7 +84,7 @@ export const AccountDetailPage: React.FC = () => {
         <span>뒤로</span>
       </button>
 
-      {/* 계좌 요약 헤더 */}
+      {}
       <header className="p-8 mb-8 bg-white border border-light-gray rounded-3xl shadow-sm">
         <div className="flex justify-between items-start mb-6">
           <div>
@@ -111,12 +109,12 @@ export const AccountDetailPage: React.FC = () => {
         </div>
       </header>
 
-      {/* 거래 내역 리스트 */}
+      {}
       <section className="bg-white border border-light-gray rounded-3xl shadow-sm overflow-hidden">
         <div className="px-8 py-5 border-b border-light-gray flex justify-between items-center bg-gray/5">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={handlePrevMonth} 
+            <button
+              onClick={handlePrevMonth}
               className="text-gray hover:text-eel p-1 rounded-full hover:bg-light-gray transition-colors"
               aria-label="이전 달"
             >
@@ -125,12 +123,12 @@ export const AccountDetailPage: React.FC = () => {
               </svg>
             </button>
             <h3 className="font-black text-eel text-lg">{currentDate.getMonth() + 1}월 거래 내역</h3>
-            <button 
-              onClick={handleNextMonth} 
+            <button
+              onClick={handleNextMonth}
               disabled={isCurrentMonth}
               className={`p-1 rounded-full transition-colors ${
-                isCurrentMonth 
-                  ? 'text-gray/30 cursor-not-allowed' 
+                isCurrentMonth
+                  ? 'text-gray/30 cursor-not-allowed'
                   : 'text-gray hover:text-eel hover:bg-light-gray'
               }`}
               aria-label="다음 달"

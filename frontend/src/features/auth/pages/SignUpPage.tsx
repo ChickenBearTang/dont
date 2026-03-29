@@ -1,16 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { SignUpForm } from '@/features/auth/components/SignUpForm';
 
-/**
- * 회원가입 페이지
- * Mascot과 SignUpForm을 조합하여 전체 화면을 구성합니다.
- */
+
 export const SignUpPage = () => {
   const navigate = useNavigate();
 
   return (
     <div className="w-full max-w-[600px] px-4 mx-auto py-10">
-      {/* 타이틀 영역 */}
+      {}
       <div className="text-center mb-10">
         <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-tight">
           똑똑한 자산 관리의 시작,
@@ -23,7 +20,7 @@ export const SignUpPage = () => {
       </div>
 
       <div className="bg-[#F8FAFC] p-8 lg:p-12 rounded-[40px] shadow-sm border border-gray-100 relative overflow-visible">
-        {/* 상단 장식용 마스코트 배너 */}
+        {}
         <div className="absolute top-0 right-0 w-32 h-32 opacity-10 pointer-events-none">
           <img
             src="/assets/mascot_happy.png"

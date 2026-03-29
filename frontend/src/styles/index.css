@@ -24,7 +24,7 @@
 }
 
 @layer components {
-  /* 프리미엄 글래스모피즘 라이브러리 - 기본 시인성 강화 */
+
   .glass-premium {
     background-color: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(24px);
@@ -48,7 +48,7 @@
 
   html,
   body {
-    /* 프리텐다드를 기본 폰트로 적용하고, 세련된 자간(-0.015em) 및 단어 끊김(keep-all) 설정 */
+
     font-family:
       'Pretendard Variable',
       Pretendard,

@@ -498,19 +498,19 @@ export const MyPagePage = () => {
       error(message);
     }
   };
- 
+
   const handleResetOnboarding = async () => {
     const confirmed = window.confirm(
       '온보딩을 다시 시작하시겠습니까? 현재의 자동 저축 설정이 초기화됩니다.'
     );
     if (!confirmed) return;
- 
+
     try {
       await resetOnboardingMutation.mutateAsync();
       queryClient.invalidateQueries({ queryKey: ['myPage'] });
       queryClient.invalidateQueries({ queryKey: ['account'] });
-      
-      // 온보딩 세션 데이터 초기화
+
+
       sessionStorage.removeItem('onboarding_step');
       sessionStorage.removeItem('onboarding_isKdt');
       sessionStorage.removeItem('onboarding_fixedCost');
@@ -522,7 +522,7 @@ export const MyPagePage = () => {
       error('초기화 중 오류가 발생했습니다.');
     }
   };
- 
+
   const eyeButtonClassName =
     'flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-surface-soft';
 

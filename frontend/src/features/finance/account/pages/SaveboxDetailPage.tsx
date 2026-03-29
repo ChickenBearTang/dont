@@ -9,10 +9,7 @@ import { ManualSavingsModal } from '../components/ManualSavingsModal';
 import { ManualWithdrawalModal } from '../components/ManualWithdrawalModal';
 import { PrimaryAccountChangeModal } from '../components/PrimaryAccountChangeModal';
 
-/**
- * 세이브박스 상세 대시보드 페이지
- * 고감도 프리미엄 디자인 및 국문 최적화 버전
- */
+
 export const SaveboxDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: accounts, isLoading: isLoadingAccounts } = useGetMyAccounts();
@@ -21,19 +18,19 @@ export const SaveboxDetailPage: React.FC = () => {
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
   const [isPrimaryModalOpen, setIsPrimaryModalOpen] = useState(false);
 
-  // Find the Savebox account based on the registered ID in settings
+
   const savebox =
     accounts?.find((a) => a.id === setting?.saveboxAccountId) ||
     accounts?.find(
       (a) => a.accountName.includes('세이브박스') || a.accountTypeName.includes('세이브박스')
     );
 
-  // Find the linked primary account with fallback
-  const primaryAccount = 
-    accounts?.find((a) => a.id === setting?.primaryAccountId) || 
+
+  const primaryAccount =
+    accounts?.find((a) => a.id === setting?.primaryAccountId) ||
     accounts?.find((a) => a.isPrimary);
 
-  // Get recent transactions for the savebox
+
   const now = new Date();
   const past = new Date();
   past.setDate(now.getDate() - 30);
@@ -119,7 +116,7 @@ export const SaveboxDetailPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* Balance Card (금액) */}
+        {}
         <div className="bg-white p-12 rounded-[48px] border border-gray-100 shadow-sm flex flex-col justify-between min-h-[340px] relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-blue-50 to-transparent opacity-40 rounded-bl-[120px] transition-transform group-hover:scale-110" />
 
@@ -211,9 +208,9 @@ export const SaveboxDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Side Cards */}
+        {}
         <div className="space-y-8">
-          {/* Primary Account Mini Card (주거래 통장) */}
+          {}
           <div className="bg-white p-8 rounded-[36px] border border-gray-100 shadow-sm flex items-center justify-between group hover:border-primary-blue/20 transition-all">
             <div className="flex items-center gap-5">
               <div className="min-w-0 flex flex-col items-start gap-2.5">
@@ -245,7 +242,7 @@ export const SaveboxDetailPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Savings Rule Card (자동저축 설정) */}
+          {}
           <div className="bg-white p-10 rounded-[40px] border border-gray-100 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between mb-10">
               <span className="text-sm font-black text-gray-400 uppercase tracking-widest">
@@ -300,7 +297,7 @@ export const SaveboxDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Manual Savings Modal */}
+      {}
       {savebox && (
         <>
           <ManualSavingsModal
@@ -319,7 +316,7 @@ export const SaveboxDetailPage: React.FC = () => {
         </>
       )}
 
-      {/* Primary Account Change Modal */}
+      {}
       <PrimaryAccountChangeModal
         isOpen={isPrimaryModalOpen}
         onClose={() => setIsPrimaryModalOpen(false)}

@@ -98,7 +98,7 @@ export const RequireCompletedOnboardingRoute = () => {
   }
 
   if (status !== 'COMPLETED') {
-    // Allow the dashboard to be visited even if onboarding is incomplete (Logo click exit)
+
     if (window.location.pathname === '/dashboard') {
       return <Outlet />;
     }

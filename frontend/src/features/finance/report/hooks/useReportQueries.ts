@@ -1,9 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getSpendingSummary } from '../api/reportApi';
 
-/**
- * 특정 날짜 범위의 소비 요약 정보를 조회하는 훅
- */
+
 export const useSpendingSummary = (startDate: string, endDate: string) => {
   return useQuery({
     queryKey: ['spendingSummary', startDate, endDate],
@@ -12,9 +10,7 @@ export const useSpendingSummary = (startDate: string, endDate: string) => {
   });
 };
 
-/**
- * 현재 달의 소비 요약 정보를 조회하는 훅 (편의용)
- */
+
 export const useCurrentMonthSpending = () => {
   const now = new Date();
   const year = now.getFullYear();

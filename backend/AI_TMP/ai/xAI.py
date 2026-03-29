@@ -16,12 +16,6 @@ SEED = 42
 rng = np.random.default_rng(SEED)
 
 
-# ============================================================
-# 1) 가짜 학습 데이터 생성(Mock)
-# ============================================================
-
-
-# 가격 데이터
 def make_price_data(n: int = 1500) -> pd.DataFrame:
     brands = ["Apple", "Samsung", "Sony", "LG"]
     categories = ["earbuds", "tablet", "watch"]
@@ -85,7 +79,6 @@ def make_price_data(n: int = 1500) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# 재무 데이터
 def make_finance_data(n: int = 1500) -> pd.DataFrame:
     trends = ["increase", "stable", "decrease"]
     label_map = {"low": 0, "medium": 1, "high": 2}
@@ -172,12 +165,6 @@ def make_finance_data(n: int = 1500) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# ============================================================
-# 2) 모델 3개 학습
-# ============================================================
-
-
-# 가격 모델 학습
 def train_price_model(
     df: pd.DataFrame,
 ) -> Tuple[CatBoostClassifier, List[str], List[str]]:
@@ -214,7 +201,6 @@ def train_price_model(
     return model, feature_cols, cat_cols
 
 
-# 재무 모델 학습
 def train_finance_model(
     df: pd.DataFrame,
 ) -> Tuple[lgb.LGBMClassifier, List[str], List[str]]:
@@ -257,11 +243,9 @@ def train_finance_model(
     return model, feature_cols, cat_cols
 
 
-# DiCE를 위한 재무 모델 학습
 def train_finance_model_for_dice(
     df: pd.DataFrame,
 ) -> Tuple[lgb.LGBMClassifier, List[str]]:
-    # DiCE 호환성을 위해 numeric-only 모델 사용
     feature_cols = [
         "monthly_total_spending",
         "monthly_fixed_spending",
@@ -296,9 +280,6 @@ def train_finance_model_for_dice(
     return model, feature_cols
 
 
-# ============================================================
-# 3) Decision engine
-# ============================================================
 def apply_decision_rule(
     price_bucket: str,
     expected_drop_prob: float,
@@ -321,9 +302,6 @@ def apply_decision_rule(
         return "REVIEW"
 
 
-# ============================================================
-# 4) Reason mapping
-# ============================================================
 REASON_CODE_MAP = {
     "avg_price_30d": ("PRICE_RELATIVE_TO_30D_AVG", "price_shap"),
     "current_price": ("CURRENT_PRICE_LEVEL", "price_shap"),
@@ -378,9 +356,6 @@ def extract_top_reasons_from_shap(
     return reasons
 
 
-# ============================================================
-# 5) DiCE + fallback
-# ============================================================
 def build_dice_from_finance_training(
     df_train: pd.DataFrame,
     model_for_dice,
@@ -396,12 +371,10 @@ def build_dice_from_finance_training(
         backend="sklearn",
         model_type="classifier",
     )
-    # multiclass에서는 genetic이 더 안정적인 편
     return Dice(dice_data, dice_model, method="genetic")
 
 
 def get_desired_finance_class(current_class: str) -> int:
-    # low=0, medium=1, high=2
     if current_class == "high":
         return 1  # 너무 aggressive한 high->low 대신 high->medium
     elif current_class == "medium":
@@ -523,9 +496,6 @@ def generate_counterfactuals(
         return build_counterfactual_fallback(finance_row_original)
 
 
-# ============================================================
-# 6) Main
-# ============================================================
 def main():
     price_df = make_price_data()
     finance_df = make_finance_data()
@@ -536,7 +506,6 @@ def main():
         finance_df
     )
 
-    # sample request
     price_row = pd.DataFrame(
         [
             {
@@ -588,9 +557,6 @@ def main():
         categories=["increase", "stable", "decrease"],
     )
 
-    # ------------------------------------------------------------
-    # predictions
-    # ------------------------------------------------------------
     price_bucket = str(price_model.predict(price_row).flatten()[0])
     price_proba = price_model.predict_proba(price_row)[0]
     cheap_idx = list(price_model.classes_).index("cheap")
@@ -603,9 +569,6 @@ def main():
     affordability_score = float(finance_proba[low_idx])
     stress_score = float(1 - affordability_score)
 
-    # ------------------------------------------------------------
-    # decision
-    # ------------------------------------------------------------
     decision_code = apply_decision_rule(
         price_bucket=price_bucket,
         expected_drop_prob=float(expected_drop_prob),
@@ -613,9 +576,6 @@ def main():
         affordability_score=float(affordability_score),
     )
 
-    # ------------------------------------------------------------
-    # SHAP - price
-    # ------------------------------------------------------------
     price_explainer = shap.TreeExplainer(price_model)
     price_shap_values = price_explainer.shap_values(price_row)
 
@@ -632,9 +592,6 @@ def main():
         top_k=3,
     )
 
-    # ------------------------------------------------------------
-    # SHAP - finance
-    # ------------------------------------------------------------
     finance_explainer = shap.TreeExplainer(finance_model)
     finance_shap_values = finance_explainer.shap_values(finance_row_for_model)
 
@@ -657,9 +614,6 @@ def main():
         top_k=3,
     )
 
-    # ------------------------------------------------------------
-    # DiCE
-    # ------------------------------------------------------------
     dice_exp = build_dice_from_finance_training(
         finance_df,
         finance_model_for_dice,
@@ -677,9 +631,6 @@ def main():
         finance_row_original=finance_row,
     )
 
-    # ------------------------------------------------------------
-    # final payload
-    # ------------------------------------------------------------
     payload = {
         "decision": decision_code,
         "price_engine": {

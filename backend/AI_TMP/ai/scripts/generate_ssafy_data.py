@@ -15,11 +15,9 @@ def clear_directory(target_dir: Path) -> None:
     for path in target_dir.rglob("*"):
         if path.is_file():
             path.unlink()
-    # Let empty dirs remain or delete them as needed if it's fine.
 
 def generate_users() -> list[dict]:
     users = []
-    # 10 SSAFY trainees
     for i in range(1, 11):
         users.append({
             "user_id": f"U{2000+i}",
@@ -35,7 +33,6 @@ def generate_users() -> list[dict]:
     return users
 
 def get_ssafy_merchants(category: str) -> list[str]:
-    # 강남역/역삼역 근처 오프라인 매장 및 온라인 매장
     if category == "식비":
         return ["역삼동 샐러디", "강남역 국밥집", "맥도날드 역삼점", "싸피 구내식당", "역삼 마라탕", "배달의민족", "요기요"]
     elif category == "카페/간식":
@@ -49,15 +46,13 @@ def get_ssafy_merchants(category: str) -> list[str]:
     return ["기타 매장"]
 
 def get_random_datetime(base_month: datetime, is_weekend: bool = False, late_night: bool = False) -> datetime:
-    # 1일부터 28일 사이
     day = random.randint(1, 28)
     dt = base_month.replace(day=day)
-    
-    # Adjust for weekend / weekday if strictly needed, but roughly
+
     while (dt.weekday() >= 5) != is_weekend:
         day = random.randint(1, 28)
         dt = base_month.replace(day=day)
-        
+
     hour = random.randint(23, 24) % 24 if late_night else random.randint(8, 22)
     minute = random.randint(0, 59)
     return dt.replace(hour=hour, minute=minute)
@@ -73,9 +68,8 @@ def generate_transactions(users: list[dict], months: list[datetime]) -> tuple[li
 
     for user in users:
         balance = 5000000  # Default starting balance
-        
+
         for month in months:
-            # Paycheck on 10th
             dt_payday = month.replace(day=10, hour=10, minute=0)
             balance += user["monthly_income"]
             account_transactions.append({
@@ -90,11 +84,10 @@ def generate_transactions(users: list[dict], months: list[datetime]) -> tuple[li
                 "balance_after": balance
             })
             acc_tx_id_counter += 1
-            
+
             target_spend = int(user["monthly_income"] * random.uniform(0.8, 1.1))
             current_spend = 0
-            
-            # Subscriptions
+
             for sub in ["넷플릭스", "유튜브프리미엄"]:
                 amount = 17000 if sub == "넷플릭스" else 14900
                 dt = month.replace(day=1, hour=10, minute=0)
@@ -112,25 +105,24 @@ def generate_transactions(users: list[dict], months: list[datetime]) -> tuple[li
                 })
                 card_tx_id_counter += 1
                 current_spend += amount
-                
-            # Random spending
+
             while current_spend < target_spend:
                 cat = random.choices(categories, weights=weights)[0]
                 merchant = random.choice(get_ssafy_merchants(cat))
-                
+
                 is_weekend = random.random() < 0.2
                 late_night = random.random() < 0.05
                 dt = get_random_datetime(month, is_weekend, late_night)
-                
+
                 amount = random.randint(4000, 30000)
                 if cat == "쇼핑/온라인":
                     amount = random.randint(15000, 100000)
                 elif merchant == "싸피 구내식당":
                     amount = 5500
-                    
+
                 if cat == "쇼핑/온라인" and late_night:
                     amount = random.randint(50000, 300000)
-                    
+
                 if current_spend + amount > target_spend * 1.1:
                     break
 
@@ -148,8 +140,7 @@ def generate_transactions(users: list[dict], months: list[datetime]) -> tuple[li
                 })
                 card_tx_id_counter += 1
                 current_spend += amount
-                
-            # Deduct the total card bill for this month from the account (e.g., on the 25th)
+
             dt_bill = month.replace(day=25, hour=18, minute=0)
             balance -= current_spend
             account_transactions.append({
@@ -171,17 +162,16 @@ def main():
     print("Clearing old data...")
     clear_directory(RAW_DATA_DIR)
     clear_directory(GENERATED_DATA_DIR)
-    
+
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
     GENERATED_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     print("Generating SSAFY users...")
     users = generate_users()
     with open(RAW_DATA_DIR / "user_profile.json", "w", encoding="utf-8") as f:
         json.dump(users, f, ensure_ascii=False, indent=2)
-        
+
     print("Generating SSAFY transactions...")
-    # Generate around 6 months of data ending in 2026-03
     start_date = datetime(2025, 10, 1)
     months = [
         datetime(2025, 10, 1),
@@ -191,26 +181,25 @@ def main():
         datetime(2026, 2, 1),
         datetime(2026, 3, 1)
     ]
-    
+
     card_transactions, account_transactions = generate_transactions(users, months)
-    
+
     with open(RAW_DATA_DIR / "card_transactions.csv", "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=[
-            "transaction_id", "user_id", "approved_at", "merchant_name", 
+            "transaction_id", "user_id", "approved_at", "merchant_name",
             "amount", "category", "subcategory", "payment_method", "status", "is_recurring"
         ])
         writer.writeheader()
         writer.writerows(card_transactions)
-        
-    # Mock account transactions
+
     with open(RAW_DATA_DIR / "account_transactions.csv", "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=[
-            "transaction_id", "user_id", "transacted_at", "type", 
+            "transaction_id", "user_id", "transacted_at", "type",
             "counterparty", "amount", "category", "subcategory", "balance_after"
         ])
         writer.writeheader()
         writer.writerows(account_transactions)
-        
+
     print("New SSAFY mock data generated successfully in data/raw.")
     print("You should now run `scripts/regenerate_reports.py` to recreate AI reports.")
 

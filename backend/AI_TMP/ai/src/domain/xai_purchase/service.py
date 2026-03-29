@@ -482,8 +482,6 @@ def _is_finance_profile_empty_for_price_only(
     savebox_balance: float,
     expected_card_payment_amount: float,
 ) -> bool:
-    # Spring can omit optional fixed income/expense fields. In that case, all core balances
-    # at zero means "no usable finance context" and we should fallback to price-only judgment.
     has_core_signal = any(
         value > 0.0
         for value in (
@@ -624,8 +622,6 @@ def evaluate_pr_purchase_xai(
         else None
     )
 
-    # Product page crawling is intentionally disabled for PR XAI.
-    # Current price is treated as the submitted PR request price.
     current_price = stated_price
     price_estimated = False
 

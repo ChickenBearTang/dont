@@ -48,7 +48,7 @@ public record AccountListResponse(List<AccountDetail> accounts) {
                     .accountBalance(rec.accountBalance())
                     .lastTransactionDate(rec.lastTransactionDate())
                     .currencyCode(rec.currency())
-                    .isPrimary(false) // API response from OpenBank doesn't have isPrimary, defaults to false
+                    .isPrimary(false)
                     .build();
         }
     }

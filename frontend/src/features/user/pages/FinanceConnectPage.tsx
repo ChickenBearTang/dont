@@ -12,7 +12,7 @@ export const FinanceConnectPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [recommendedAmount, setRecommendedAmount] = useState<number | null>(null);
 
-  // Handle browser back button: always return to onboarding start
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();

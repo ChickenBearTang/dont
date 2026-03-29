@@ -27,7 +27,7 @@ const getMonthRange = (date: Date) => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0); // Last day of the month
+  const lastDay = new Date(year, month + 1, 0);
   return {
     startDate: formatToYYYYMMDD(firstDay),
     endDate: formatToYYYYMMDD(lastDay),
@@ -85,11 +85,11 @@ export const CardDetailPage = () => {
 
   const formatTransactionDate = (dateStr: string, timeStr: string) => {
     if (!dateStr) return '';
-    // Format YYYYMMDD and HHMMSS (handle both raw digits and HH:mm:ss)
+
     const year = dateStr.slice(0, 4);
     const month = dateStr.slice(4, 6);
     const day = dateStr.slice(6, 8);
-    
+
     const cleanTime = timeStr ? timeStr.replace(/:/g, '') : '000000';
     const hour = cleanTime.slice(0, 2).padStart(2, '0');
     const min = cleanTime.slice(2, 4).padStart(2, '0');
@@ -163,7 +163,7 @@ export const CardDetailPage = () => {
       </div>
 
       <div className="px-7 py-6 flex-1 flex flex-col">
-        {/* 월 선택 헤더 */}
+        {}
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={handlePrevMonth}

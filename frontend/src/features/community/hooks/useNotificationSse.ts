@@ -36,7 +36,7 @@ export const useNotificationSse = (enabled: boolean) => {
     });
 
     eventSource.addEventListener('heartbeat', () => {
-      // no-op
+
     });
 
     eventSource.addEventListener('notification-created', async () => {

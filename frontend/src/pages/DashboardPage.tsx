@@ -17,7 +17,7 @@ const ExpenditureCard = () => {
   const monthLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월`;
   const { data, isLoading, isError } = useCurrentMonthSpending();
 
-  // totalAmount 추출 — axios interceptor 구조에 따라 중첩된 data 처리
+
   const totalAmount: number =
     (data as { data?: { totalAmount?: number }; totalAmount?: number } | undefined)?.data
       ?.totalAmount ??
@@ -65,7 +65,7 @@ const ExpenditureCard = () => {
         </div>
       ) : (
         <div className="flex-1 flex flex-col">
-          {/* 총 지출 */}
+          {}
           <div className="flex flex-col items-center justify-center py-6 bg-gradient-to-b from-surface-soft/40 to-transparent rounded-[24px] border border-line-soft shadow-inner mb-6">
             <p className="text-[13px] font-bold text-text-muted mb-2">이번 달 총 지출액</p>
             <div className="flex items-baseline gap-1.5">
@@ -76,7 +76,7 @@ const ExpenditureCard = () => {
             </div>
           </div>
 
-          {/* 카테고리 TOP3 */}
+          {}
           <div className="flex-1 flex flex-col justify-end">
             <h4 className="text-[14px] font-extrabold text-eel mb-3">많이 쓴 카테고리 TOP 3</h4>
             {top3.length > 0 ? (
@@ -136,10 +136,10 @@ export const DashboardPage = () => {
   const { data: profile } = useQuery({
     queryKey: ['myPage'],
     queryFn: () => fetchMyPage().then((res) => res.data),
-    staleTime: 1000 * 60 * 30, // 30분 동안은 캐시 유지
+    staleTime: 1000 * 60 * 30,
   });
 
-  // 닉네임 동기화: 서버 프로필 정보가 있으면 스토어 정보를 최신화합니다.
+
   useEffect(() => {
     if (profile?.nickname && user?.nickname !== profile.nickname) {
       updateUser({ nickname: profile.nickname });
@@ -159,16 +159,16 @@ export const DashboardPage = () => {
 
   return (
     <div className="space-y-10 max-w-[1400px] mx-auto w-full pt-4 lg:pt-6 xl:pt-8 pb-20 px-4">
-      {/* 상단 환영 영역 */}
+      {}
       <div className="relative glass-premium rounded-[48px] p-8 lg:p-12 xl:p-14 flex flex-col xl:flex-row items-center justify-between gap-10 overflow-hidden transition-all duration-500 hover:shadow-[0_20px_60px_rgba(31,38,135,0.12)] group">
-        {/* 장식용 화려한 배경 - 불투명도 상향 조정 */}
+        {}
         <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary-blue/15 rounded-full blur-[100px] pointer-events-none group-hover:scale-110 transition-transform duration-1000"></div>
         <div className="absolute bottom-[-10%] left-[-5%] w-[300px] h-[300px] bg-accent/15 rounded-full blur-[80px] pointer-events-none group-hover:scale-110 transition-transform duration-1000 delay-150"></div>
-        
-        {/* 배경 텍스처 */}
+
+        {}
         <div className="absolute inset-0 bg-pattern-dots opacity-[0.4] pointer-events-none mix-blend-overlay"></div>
 
-        {/* Left: Greeting text */}
+        {}
         <div className="flex-1 min-w-0 relative z-10 text-left">
           <h2 className="text-[2.25rem] lg:text-[2.75rem] xl:text-[3.25rem] font-black text-eel leading-[1.2] tracking-tighter">
             안녕하세요,{' '}
@@ -184,7 +184,7 @@ export const DashboardPage = () => {
           </p>
         </div>
 
-        {/* Right: Savebox Balance Widget */}
+        {}
         <div className="shrink-0 w-full max-w-[450px] xl:w-[500px] relative z-10 mt-4 xl:mt-0">
           <div className="flex flex-col items-center text-center bg-white/60 backdrop-blur-md px-10 py-10 rounded-[36px] border border-white/40 shadow-[0_15px_45px_rgba(15,23,42,0.08)] hover:border-primary-blue/40 transition-all duration-300">
             <div className="flex items-center gap-3 mb-6">
@@ -202,19 +202,19 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* 메인 위젯 그리드 */}
+      {}
       <div className="grid lg:grid-cols-3 gap-10 xl:gap-12 relative z-10">
-        {/* 지출 카드 */}
+        {}
         <div className="lg:col-span-1 glass-premium hover-glass rounded-[40px] overflow-hidden">
           <ExpenditureCard />
         </div>
 
-        {/* 랭킹 위젯 */}
+        {}
         <div className="lg:col-span-1 glass-premium hover-glass rounded-[40px] overflow-hidden">
           <RankingWidget />
         </div>
 
-        {/* 토론 위젯 */}
+        {}
         <div className="lg:col-span-1 glass-premium hover-glass rounded-[40px] overflow-hidden">
           <PollWidget />
         </div>
@@ -223,7 +223,7 @@ export const DashboardPage = () => {
   );
 };
 
-// --- 신규 위젯 컴포넌트 추가 ---
+
 import axiosInstance from '@/shared/api/axiosInstance';
 import { getPosts } from '@/features/community/api/communityApi';
 import { useNavigate } from 'react-router-dom';
@@ -241,7 +241,7 @@ const RankingWidget = () => {
     queryKey: ['dashboard', 'ranking'],
     queryFn: async () => {
       const res = await axiosInstance.get('/ranking/cohort');
-      return res.data; // { data: { top100: [], myRanking: {} } }
+      return res.data;
     },
   });
 
@@ -250,7 +250,7 @@ const RankingWidget = () => {
 
   return (
     <Card className="p-8 flex flex-col h-full border border-indigo-50 shadow-sm relative overflow-hidden group">
-      {/* 장식용 배경 */}
+      {}
       <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100 rounded-full blur-[60px] opacity-60 -mr-10 -mt-10 pointer-events-none" />
 
       <div className="flex items-center justify-between mb-6 relative z-10">
@@ -275,7 +275,7 @@ const RankingWidget = () => {
         </div>
       ) : (
         <div className="flex-1 flex flex-col justify-between relative z-10">
-          {/* 내 랭킹 */}
+          {}
           <div className="flex flex-col items-center justify-center py-5 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-md mb-5 text-white">
             <p className="text-[12px] font-bold text-indigo-100 mb-1">내 현재 순위</p>
             {myRanking && myRanking.rank !== -1 ? (
@@ -290,7 +290,7 @@ const RankingWidget = () => {
             )}
           </div>
 
-          {/* TOP 3 리스트 */}
+          {}
           <div className="flex-1 flex flex-col justify-end gap-2">
             {top3.length > 0 ? (
               top3.map((user: RankingUser) => (
@@ -345,7 +345,7 @@ const PollWidget = () => {
 
   return (
     <Card className="p-8 flex flex-col h-full border border-amber-50 shadow-sm relative overflow-hidden group">
-      {/* 장식용 배경 */}
+      {}
       <div className="absolute top-0 right-0 w-32 h-32 bg-amber-100 rounded-full blur-[60px] opacity-50 -mr-10 -mt-10 pointer-events-none" />
 
       <div className="flex items-center justify-between mb-6 relative z-10">
@@ -373,7 +373,7 @@ const PollWidget = () => {
           onClick={() => navigate(`/community/${pollPost.postId}`)}
           className="flex-1 flex flex-col justify-between relative z-10 cursor-pointer group/card"
         >
-          {/* 폴 질문 */}
+          {}
           <div className="bg-white p-5 rounded-2xl border border-line-soft shadow-sm mb-4 group-hover/card:border-amber-300 transition-colors">
             <h4 className="text-[15px] font-extrabold text-eel mb-2 leading-snug line-clamp-2 gap-1.5 flex">
               <span className="text-amber-500 shrink-0">Q.</span>
@@ -387,7 +387,7 @@ const PollWidget = () => {
             </div>
           </div>
 
-          {/* 옵션 VS */}
+          {}
           <div className="flex flex-col gap-2 mt-auto">
             <div className="flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-100 relative overflow-hidden">
               <div

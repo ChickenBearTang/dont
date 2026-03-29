@@ -17,11 +17,11 @@ public class SavingsScheduler {
     private final SavingsSettingRepository savingsSettingRepository;
     private final AccountService accountService;
 
-    /** 1시간마다 활성 자동저축 설정이 있는 사용자들의 계좌 정보를 동기화합니다. (부하 분산 및 확장성 고려) */
-    @Scheduled(fixedDelay = 3600000) // 1시간
+
+    @Scheduled(fixedDelay = 3600000)
     public void scheduleAutomaticSavings() {
         log.info("--- [Background] 자동 저축 스케줄러 시작 ---");
-        
+
         List<SavingsSetting> activeSettings = savingsSettingRepository.findAllByIsActiveTrue();
         log.info("감지된 활성 자동 저축 설정 수: {}", activeSettings.size());
 
@@ -30,11 +30,11 @@ public class SavingsScheduler {
                 log.info("사용자(ID: {})에 대한 동기화 및 자동저축 검토 중...", setting.getUserId());
                 accountService.refreshAccountList(setting.getUserId());
             } catch (Exception e) {
-                log.error("사용자 {}의 자동 저축 동기화 중 오류 발생: {}", 
+                log.error("사용자 {}의 자동 저축 동기화 중 오류 발생: {}",
                         setting.getUserId(), e.getMessage());
             }
         }
-        
+
         log.info("--- [Background] 자동 저축 스케줄러 완료 ---");
     }
 }

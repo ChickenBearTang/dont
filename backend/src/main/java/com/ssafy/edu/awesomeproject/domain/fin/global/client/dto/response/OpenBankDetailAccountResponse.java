@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankResHeader;
 
-/** 외부 은행 API의 '계좌 상세 조회' 응답을 위한 DTO record를 사용하여 불변 객체로 설계 */
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record OpenBankDetailAccountResponse(
         @JsonProperty("Header") OpenBankResHeader header, @JsonProperty("REC") Rec rec) {

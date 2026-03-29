@@ -46,7 +46,7 @@ export const ReportModal = ({ isOpen, onClose, targetType, targetId }: ReportMod
       });
       addToast('신고가 접수되었습니다. 검토 후 조치하겠습니다.', 'success');
       onClose();
-      // Reset state
+
       setReasonCode('');
       setDetailText('');
     } catch {
@@ -58,13 +58,13 @@ export const ReportModal = ({ isOpen, onClose, targetType, targetId }: ReportMod
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop */}
+      {}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
-      {/* Modal Container */}
+      {}
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <h2 className="text-[18px] font-bold text-gray-900 tracking-tight">

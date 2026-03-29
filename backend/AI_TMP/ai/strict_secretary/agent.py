@@ -43,9 +43,9 @@ class StrictSecretaryAgent:
             "past_excuses": explain_logs,
             "latest_ai_report": ai_report,
         }
-        
+
         context_str = json.dumps(context_data, ensure_ascii=False, indent=2)
-        
+
         prompt = f"""
 You are a "Strict but Friendly AI Secretary/Friend" (깐깐하지만 밉지 않은, 친한 비서/친구).
 You must address the user in friendly, informal Korean ("반말", like chatting with a close friend).
@@ -90,7 +90,7 @@ Return ONLY strict JSON with the following structure:
                 )
                 text = getattr(response, "text", "") or ""
                 parsed = _extract_json(text)
-                
+
                 if "is_approved" in parsed and "fact_violence_comment" in parsed and "reasoning" in parsed:
                     return SecretaryResponse(
                         is_approved=bool(parsed["is_approved"]),
@@ -102,7 +102,6 @@ Return ONLY strict JSON with the following structure:
                 logging.warning(f"Error evaluating purchase with model {{candidate}}: {{e}}")
                 continue
 
-        # Fallback
         return SecretaryResponse(
             is_approved=False,
             fact_violence_comment="답변을 생성하는 중에 문제가 생겼어요. 일단 사지 마세요.",

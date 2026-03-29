@@ -28,10 +28,10 @@ export const OnboardingPage = () => {
   });
   const [fixedCostInput, setFixedCostInput] = useState(() => sessionStorage.getItem('onboarding_fixedCost') || '');
   const [variableCostInput, setVariableCostInput] = useState(() => sessionStorage.getItem('onboarding_variableCost') || '');
-  // 서버에서 가져온 추천액 (뒤로가기 시 로컬 값이 초기화되어도 안전하게 표시)
+
   const [serverRecommendedAmount, setServerRecommendedAmount] = useState<number | null>(null);
 
-  // Handle browser back button: Step-by-step navigation
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       if (step > 1) {
@@ -44,7 +44,7 @@ export const OnboardingPage = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [step]);
 
-  // Sync state to sessionStorage
+
   useEffect(() => {
     if (isKdt !== null) sessionStorage.setItem('onboarding_isKdt', String(isKdt));
     sessionStorage.setItem('onboarding_fixedCost', fixedCostInput);
@@ -52,7 +52,7 @@ export const OnboardingPage = () => {
     sessionStorage.setItem('onboarding_step', String(step));
   }, [isKdt, fixedCostInput, variableCostInput, step]);
 
-  // Push state on step increase to enable browser back button
+
   const changeStep = (nextStep: number) => {
     if (nextStep > step) {
       window.history.pushState({ step: nextStep }, '', window.location.pathname);
@@ -82,11 +82,11 @@ export const OnboardingPage = () => {
         }
 
         if (onboardingStatus === 'IN_PROGRESS') {
-          // 서버에 저장된 추천액을 로드 (뒤로가기 등으로 재진입 시 0원 방지)
+
           if (statusResponse.data.recommendedAmount) {
             setServerRecommendedAmount(statusResponse.data.recommendedAmount);
           }
-          // 로컬 step이 1인 경우에만 4로 점프 (새로고침 시 등은 로컬 step 유지)
+
           if (step === 1) setStep(4);
         }
       } catch (error) {
@@ -98,7 +98,7 @@ export const OnboardingPage = () => {
     };
 
     void loadOnboardingStatus();
-  }, [navigate, toast]); // step 의존성 제거 (무한루프 방지)
+  }, [navigate, toast]);
 
   const fixedCost = Number(fixedCostInput || 0);
   const variableCost = Number(variableCostInput || 0);
@@ -138,7 +138,7 @@ export const OnboardingPage = () => {
         response.success &&
         (response.data.onboardingStatus === 'IN_PROGRESS' || response.data.onboardingCompleted)
       ) {
-        // Invalidate the query so the recommended amount is fresh in the next page
+
         void queryClient.invalidateQueries({ queryKey: ['onboardingStatus'] });
         setStep(4);
       }
@@ -377,7 +377,7 @@ export const OnboardingPage = () => {
                 <p className="text-5xl font-black text-accent tracking-tight">
                   {formatNumber(recommendedAmount || serverRecommendedAmount || 0)}원
                 </p>
-                {/* 로컬 계산 값이 있을 때만 상세 내역 표시 (뒤로가기 시 0원 노출 방지) */}
+                {}
                 {monthlyIncome > 0 && (
                   <div className="mt-7 grid sm:grid-cols-2 gap-3 text-sm text-text-muted font-semibold">
                     <p className="rounded-2xl bg-surface-muted px-4 py-3">

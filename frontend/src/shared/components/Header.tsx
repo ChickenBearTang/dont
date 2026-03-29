@@ -21,9 +21,7 @@ const NAV_TABS = [
   { label: '커뮤니티', path: '/community' },
 ];
 
-/**
- * referenceId가 202603 형태로 올 때 2026-03으로 변환
- */
+
 const formatReferenceMonth = (referenceId?: number | null) => {
   if (!referenceId) return null;
 
@@ -116,7 +114,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
   const { data: profile } = useQuery({
     queryKey: ['myPage'],
     queryFn: () => fetchMyPage().then((res) => res.data),
-    staleTime: 1000 * 60 * 30, // 30분 동안은 캐시 유지
+    staleTime: 1000 * 60 * 30,
   });
 
   const {
@@ -145,7 +143,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
       fetchNotifications();
       void useNotificationStore.getState().fetchUnreadCount();
 
-      // SSE가 끊겼을 때를 대비한 fallback polling
+
       startPolling(5 * 60 * 1000);
     } else {
       stopPolling();
@@ -178,7 +176,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
 
     setIsDropdownOpen(false);
 
-    // 소비리포트 알림 클릭 시 해당 월 리포트로 이동
+
     if (notif.notificationType === 'CONSUMPTION_REPORT_READY') {
       const targetMonth = formatReferenceMonth(notif.referenceId);
 
@@ -190,7 +188,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
       return;
     }
 
-    // 금융 알림 클릭 시 분기
+
     if (notif.referenceType === 'FINANCE') {
       if (
         notif.notificationType === 'MANUAL_SAVINGS_COMPLETED' ||
@@ -215,7 +213,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
       return;
     }
 
-    // 댓글 / 답글 알림 처리
+
     if (notif.postId && notif.commentId) {
       navigate(`/community/${notif.postId}?commentId=${notif.commentId}`);
       return;
@@ -231,7 +229,7 @@ const Header = ({ user, onLogout, isAuthenticated }: HeaderProps) => {
       return;
     }
 
-    // 관리자 신고 처리 알림 등 클릭 시 별도 이동 없음
+
     if (notif.notificationType?.includes?.('REPORT_PROCESSED') && isAdmin) {
       return;
     }

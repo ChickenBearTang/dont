@@ -14,7 +14,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     Optional<Comment> findByIdAndStatusIn(Long id, Collection<CommentStatus> statuses);
 
-    // 목록 조회
+
     Page<Comment> findByPost_IdAndStatus(Long postId, CommentStatus status, Pageable pageable);
 
     Page<Comment> findByPost_IdAndStatusIn(
@@ -23,7 +23,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     List<Comment> findByPost_IdAndStatusInOrderByIdAsc(
             Long postId, Collection<CommentStatus> statuses);
 
-    // 댓글 count
+
     long countByPost_IdAndStatus(Long postId, CommentStatus status);
 
     long countByPost_IdAndStatusIn(Long postId, Collection<CommentStatus> statuses);

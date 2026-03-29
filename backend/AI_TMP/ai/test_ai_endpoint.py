@@ -4,7 +4,7 @@ from datetime import datetime
 
 def test_ai_analyze():
     url = "http://localhost:8000/api/v1/analyze"
-    
+
     payload = {
         "user_profile": {
             "user_id": "user123",
@@ -58,7 +58,7 @@ def test_ai_analyze():
 
 def test_strict_sec():
     url = "http://localhost:8000/api/v1/strict-secretary"
-    
+
     payload = {
         "user_profile": {
             "user_id": "user123",
@@ -96,7 +96,7 @@ def test_tts(text):
     if not text: return
     url = "http://localhost:8000/api/v1/strict-secretary/tts"
     payload = {"text": text}
-    
+
     print(f"\nTesting TTS at: {url}")
     try:
         response = requests.post(url, json=payload, timeout=30)

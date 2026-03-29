@@ -125,9 +125,9 @@ class ReportService:
 
         overview = build_overview(profile, cards, monthly)
         fallback_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
-        
+
         justifications = self.load_justifications(profile.user_id, start)
-        
+
         llm_payload = {
             "overview": overview,
             "monthly": monthly,
@@ -184,28 +184,28 @@ class ReportService:
     def get_card_recommendation(self, user_name: str, month: str) -> dict:
         profile = self._resolve_profile(user_name=user_name)
         cards = filter_card_transactions(self.card_transactions, profile.user_id, month, month)
-        
+
         if not cards:
             return {"error": "해당 월에 카드 결제 내역이 없습니다."}
-            
+
         raw_data = [
             {
-                "storeName": tx.merchant_name, 
-                "amount": tx.amount, 
-                "category": tx.category, 
+                "storeName": tx.merchant_name,
+                "amount": tx.amount,
+                "category": tx.category,
                 "subcategory": tx.subcategory
             } for tx in cards
         ]
-        
+
         from consumption_poc.recommendation import AIConsumptionEngine
         from consumption_poc.config import RAW_DATA_DIR
         import json
-        
+
         with open(RAW_DATA_DIR / "persons.json", "r", encoding="utf-8") as f:
             personas = json.load(f)
         with open(RAW_DATA_DIR / "cards.json", "r", encoding="utf-8") as f:
             cards_data = json.load(f)
-            
+
         engine = AIConsumptionEngine(personas, cards_data)
         return engine.run(raw_data)
 

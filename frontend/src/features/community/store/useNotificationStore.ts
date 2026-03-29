@@ -52,7 +52,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         const nextUnreadCount = res.data.unreadCount;
         set({ unreadCount: nextUnreadCount });
 
-        // 새 알림이 생겼으면 목록도 같이 갱신
+
         if (nextUnreadCount > prevUnreadCount) {
           await get().fetchNotifications();
         }

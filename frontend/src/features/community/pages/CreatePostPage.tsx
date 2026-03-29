@@ -697,7 +697,6 @@ export const CreatePostPage = () => {
         )}
 
 
-
         <div className="flex justify-end gap-3 pt-2 shrink-0">
           <Button variant="outline" type="button" onClick={handleCancel} className="!px-5">
             취소

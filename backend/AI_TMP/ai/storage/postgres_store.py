@@ -165,7 +165,6 @@ class PostgresCrawlStore:
         if amount is None:
             return None
 
-        # "¥" can represent both JPY and CNY; prioritize explicit CNY markers.
         if _CNY_PATTERN.search(price_text):
             return int(round(amount * PostgresCrawlStore._CNY_TO_KRW))
         if _JPY_PATTERN.search(price_text):

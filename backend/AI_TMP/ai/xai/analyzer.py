@@ -350,8 +350,6 @@ class ExplainabilityAnalyzer:
             if isinstance(avg_price_raw, (int, float)) and float(avg_price_raw) > 0
             else 0.0
         )
-        # Keep recommendation amount stable across repeated calls:
-        # when 30d average exists, anchor target only to avg price + savebox context.
         if avg_price_30d > 0:
             target_after_purchase = max(avg_price_30d * 15.0, 0.0)
         else:

@@ -6,10 +6,6 @@ import { useGetMyAccounts, useGetSavingsSetting } from '../account/hooks/useAcco
 import { ManualSavingsModal } from '../account/components/ManualSavingsModal';
 
 
-/**
- * 금융 카테고리 카드 컴포넌트
- * 크기를 줄여 한 화면에 들어오도록 최적화
- */
 const CategoryCard: React.FC<{
   title: string;
   description: string;
@@ -26,13 +22,13 @@ const CategoryCard: React.FC<{
       onClick={() => navigate(path)}
       className="group relative !p-6 lg:!p-8 !rounded-[32px] cursor-pointer min-h-[200px] flex flex-col justify-between"
     >
-      {/* Subtle background accent circle in top-right */}
+      {}
       <div
         className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${color} opacity-5 rounded-bl-[80px] transition-transform group-hover:scale-110`}
       />
 
       <div className="relative z-10 flex flex-col h-full">
-        {/* Icon */}
+        {}
         <div className="text-3xl mb-4 inline-block drop-shadow-sm transition-transform duration-500">
           {icon}
         </div>
@@ -54,24 +50,21 @@ const CategoryCard: React.FC<{
           )}
         </div>
 
-        {/* Dynamic content (e.g., Spending box) */}
+        {}
         {extraContent && <div className="mt-4">{extraContent}</div>}
       </div>
     </Card>
   );
 };
 
-/**
- * 금융 통합 홈 페이지
- * No-Scroll / No-Icon-Motion 최적화 버전
- */
+
 export const FinanceHomePage: React.FC = () => {
   const { data: spendingData } = useCurrentMonthSpending();
   const { data: accounts, isLoading: isLoadingAccounts } = useGetMyAccounts();
   const { data: setting, isLoading: isLoadingSetting } = useGetSavingsSetting();
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
 
-  // Find the savebox account based on registered settings ID
+
   const savebox =
     accounts?.find((a) => a.id === setting?.saveboxAccountId) ||
     accounts?.find(
@@ -82,11 +75,11 @@ export const FinanceHomePage: React.FC = () => {
 
   return (
     <div className="max-w-[1240px] mx-auto px-6 pt-4 lg:pt-6 xl:pt-10 pb-20 w-full mb-8 relative">
-      {/* 배경 데코레이션 블롭 - 가독성을 해치지 않는선에서 선명하게 조정 */}
+      {}
       <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-primary-blue/12 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[20%] right-[-10%] w-[400px] h-[400px] bg-accent/12 rounded-full blur-[100px] pointer-events-none"></div>
 
-      {/* Heading Section */}
+      {}
       <div className="mb-10 lg:mb-14 relative z-10">
         <h1 className="text-[2.5rem] lg:text-[3rem] font-black tracking-tighter mb-4">
           <span className="text-primary-blue">금융</span>
@@ -99,7 +92,7 @@ export const FinanceHomePage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 xl:gap-12 relative z-10">
-        {/* 1. 세이브박스 */}
+        {}
         <div className="glass-premium hover-glass rounded-[32px]">
           <CategoryCard
             title="세이브박스"
@@ -111,7 +104,7 @@ export const FinanceHomePage: React.FC = () => {
           />
         </div>
 
-        {/* 2. 내 결제내역 */}
+        {}
         <div className="glass-premium hover-glass rounded-[32px]">
           <CategoryCard
             title="내 결제내역"
@@ -123,7 +116,7 @@ export const FinanceHomePage: React.FC = () => {
           />
         </div>
 
-        {/* 3. 내 계좌 */}
+        {}
         <div className="glass-premium hover-glass rounded-[32px]">
           <CategoryCard
             title="내 계좌"
@@ -135,7 +128,7 @@ export const FinanceHomePage: React.FC = () => {
           />
         </div>
 
-        {/* 4. 내 카드 */}
+        {}
         <div className="glass-premium hover-glass rounded-[32px]">
           <CategoryCard
             title="내 카드"
@@ -148,7 +141,7 @@ export const FinanceHomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Manual Savings Modal context */}
+      {}
       {savebox && (
         <ManualSavingsModal
           isOpen={isManualModalOpen}

@@ -24,17 +24,15 @@ interface AccountCardProps {
   account: AccountDetail;
 }
 
-/**
- * 개별 계좌 정보를 표시하는 카드 컴포넌트
- */
+
 export const AccountCard: React.FC<AccountCardProps> = ({ account }) => {
   const navigate = useNavigate();
   const { bankName, accountName, accountNo, accountBalance, currencyCode } = account;
 
-  // 잔액 포맷팅 (콤마 추가)
+
   const formattedBalance = Number(accountBalance).toLocaleString();
 
-  // 계좌 클릭 시 상세 페이지로 이동
+
   const handleCardClick = () => {
     navigate(`/account/${account.id}`);
   };

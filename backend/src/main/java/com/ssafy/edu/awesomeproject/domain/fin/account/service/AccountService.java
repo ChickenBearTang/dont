@@ -65,7 +65,7 @@ public class AccountService {
 
     private final ConcurrentHashMap<Long, Lock> userLocks = new ConcurrentHashMap<>();
 
-    /** '세이브 박스' 계좌를 신규 개설합니다. (Stateless) */
+
     public AccountCreateResponse createSaveBox(Long userId, SaveBoxCreateRequest request) {
         User user =
                 userRepository
@@ -213,7 +213,7 @@ public class AccountService {
         return new AccountListResponse(accountDetails);
     }
 
-    // ★ 수정 1: refreshAccountList - 하드코딩 날짜 → 동적 날짜
+
     public AccountListResponse refreshAccountList(Long userId) {
         syncAccounts(userId);
 
@@ -246,7 +246,7 @@ public class AccountService {
         if (saveboxes.isEmpty()) {
             List<Account> ssafyBankAccounts = allAccounts.stream()
                     .filter(a -> a.getAccountRole() == AccountRole.LINKED_DEPOSIT)
-                    .filter(a -> a.getBankName() != null && 
+                    .filter(a -> a.getBankName() != null &&
                                  (a.getBankName().contains("싸피") || a.getBankName().contains("SSAFY")))
                     .sorted((a1, a2) -> a2.getId().compareTo(a1.getId()))
                     .collect(Collectors.toList());
@@ -271,7 +271,7 @@ public class AccountService {
         return true;
     }
 
-    // ★ 수정 2: linkFinanceAccount - 하드코딩 날짜 → 동적 날짜
+
     @Transactional
     public AccountListResponse linkFinanceAccount(Long userId, String userKey) {
         if (userRepository.existsBySsafyFinanceUserKey(userKey)) {
@@ -304,7 +304,7 @@ public class AccountService {
         return getAccountList(userId);
     }
 
-    // ★ 수정 3: getAccountTransactions - 기본값도 동적 날짜로 변경
+
     public AccountTransactionResponse getAccountTransactions(
             Long userId, Long accountId, String startDate, String endDate) {
 
@@ -434,7 +434,7 @@ public class AccountService {
             }
         }
 
-        // 미처리 거래 전체를 대상으로 자동저축 검사 (이미 DB에 있던 거래도 포함)
+
         List<AccountTransaction> unprocessed =
                 accountTransactionRepository.findAllByAccountIdAndAutoSavingsProcessedFalse(
                         account.getId());
@@ -637,10 +637,10 @@ public class AccountService {
                 .orElse(null);
     }
 
-    /** 수동 저축(지금 채우기) 실행 (비밀번호 검증 포함) */
+
     @Transactional
     public void manualSavings(Long userId, BigDecimal amount, String password) {
-        // 0. 비밀번호 검증
+
         loginService.verifyPassword(userId, password);
 
         SavingsSetting setting =
@@ -860,10 +860,10 @@ public class AccountService {
 
         return AccountResponse.from(account);
     }
-    /** 수동 출금(꺼내기) 실행 (비밀번호 검증 포함) */
+
     @Transactional
     public void manualWithdrawal(Long userId, BigDecimal amount, String password) {
-        // 0. 비밀번호 검증
+
         loginService.verifyPassword(userId, password);
 
         User user =
@@ -897,10 +897,10 @@ public class AccountService {
                                         new AccountException(
                                                 AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
 
-        // 소수점 제거
+
         BigDecimal transferAmount = amount.setScale(0, RoundingMode.DOWN);
 
-        // 1. 세이브박스 잔액 확인 (가계부 로직상 DB 잔액과 동기화 전이라도 체크)
+
         if (saveboxAccount.getBalance().compareTo(transferAmount) < 0) {
             throw new AccountException(AccountErrorCode.INSUFFICIENT_BALANCE);
         }

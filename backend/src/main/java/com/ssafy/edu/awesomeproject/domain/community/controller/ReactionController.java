@@ -42,10 +42,10 @@ public class ReactionController {
         ReactionService.ToggleReactionResult result =
                 reactionService.toggleReaction(
                         userId,
-                        toggleReactionRequestDto.targetType(), // POST, COMMENT
-                        toggleReactionRequestDto.targetId(), // postId
-                        toggleReactionRequestDto.reactionType(), // LIKE, DISLIKE
-                        toggleReactionRequestDto.active()); // true, false (등록, 취소)
+                        toggleReactionRequestDto.targetType(),
+                        toggleReactionRequestDto.targetId(),
+                        toggleReactionRequestDto.reactionType(),
+                        toggleReactionRequestDto.active());
 
         return CommonResponse.success(
                 new ToggleReactionResponseDto(

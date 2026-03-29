@@ -9,9 +9,7 @@ interface RankingSyncModalProps {
   isSyncing: boolean;
 }
 
-/**
- * 랭킹 갱신 확인 모달
- */
+
 export const RankingSyncModal: React.FC<RankingSyncModalProps> = ({
   isOpen,
   onClose,

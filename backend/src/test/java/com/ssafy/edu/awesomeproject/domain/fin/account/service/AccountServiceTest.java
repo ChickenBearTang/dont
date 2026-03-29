@@ -58,7 +58,7 @@ class AccountServiceTest {
     @Test
     @DisplayName("[시나리오 A] getAccount - 타인 계좌 조회 시 BOLA 방어 (AccountException 발생)")
     void getAccount_BolaDefense() {
-        // given
+
         Long requesterId = 1L;
         Long otherUserId = 999L;
         Long accountId = 100L;
@@ -67,7 +67,7 @@ class AccountServiceTest {
         given(otherAccount.getUserId()).willReturn(otherUserId);
         given(accountRepository.findById(accountId)).willReturn(Optional.of(otherAccount));
 
-        // when & then
+
         AccountException exception =
                 assertThrows(
                         AccountException.class,
@@ -81,7 +81,7 @@ class AccountServiceTest {
     @Test
     @DisplayName("[시나리오 B] manualSavings - 정상적인 수동 저축 실행 (성공)")
     void manualSavings_Success() {
-        // given
+
         Long userId = 1L;
         BigDecimal amount = new BigDecimal("10000");
 
@@ -122,10 +122,10 @@ class AccountServiceTest {
                                 anyString()))
                 .willReturn(apiResponse);
 
-        // when
+
         accountService.manualSavings(userId, amount, "password123!");
 
-        // then
+
         verify(openBankAdapter, times(1))
                 .fetchAccountTransfer(
                         eq("user-key"),
@@ -139,7 +139,7 @@ class AccountServiceTest {
     @Test
     @DisplayName("[시나리오 C] createSaveBox - 외부 API 에러 시 AccountException(API_RESPONSE_ERROR) 발생")
     void createSaveBox_ApiError() {
-        // given
+
         Long userId = 1L;
         SaveBoxCreateRequest request = new SaveBoxCreateRequest("unique-no");
 
@@ -149,14 +149,14 @@ class AccountServiceTest {
 
         OpenBankCreateAccountResponse apiResponse = mock(OpenBankCreateAccountResponse.class);
         OpenBankResHeader header = mock(OpenBankResHeader.class);
-        given(header.getResponseCode()).willReturn("500"); // 에러 코드
+        given(header.getResponseCode()).willReturn("500");
         given(apiResponse.getHeader()).willReturn(header);
         given(apiResponse.getRec()).willReturn(mock(OpenBankCreateAccountResponse.Rec.class));
 
         given(openBankAdapter.createDemandDepositAccount(anyString(), anyString()))
                 .willReturn(apiResponse);
 
-        // when & then
+
         AccountException exception =
                 assertThrows(
                         AccountException.class,
@@ -170,17 +170,17 @@ class AccountServiceTest {
     @Test
     @DisplayName("getAccountList - 데이터가 있는 경우 성공")
     void getAccountList_Success_WithData() {
-        // given
+
         Long userId = 1L;
         Account account1 = mock(Account.class);
         Account account2 = mock(Account.class);
         given(accountRepository.findAllByUserId(userId))
                 .willReturn(java.util.List.of(account1, account2));
 
-        // when
+
         AccountListResponse response = accountService.getAccountList(userId);
 
-        // then
+
         assertEquals(2, response.accounts().size());
         verify(accountRepository, times(1)).findAllByUserId(userId);
     }
@@ -188,15 +188,15 @@ class AccountServiceTest {
     @Test
     @DisplayName("getAccountList - 데이터가 없는 경우 빈 리스트 반환")
     void getAccountList_Success_Empty() {
-        // given
+
         Long userId = 1L;
         given(accountRepository.findAllByUserId(userId))
                 .willReturn(java.util.Collections.emptyList());
 
-        // when
+
         AccountListResponse response = accountService.getAccountList(userId);
 
-        // then
+
         assertEquals(0, response.accounts().size());
         verify(accountRepository, times(1)).findAllByUserId(userId);
     }
@@ -204,24 +204,24 @@ class AccountServiceTest {
     @Test
     @DisplayName("getAccount - 정상적인 내 계좌 상세 조회 성공")
     void getAccount_Success() {
-        // given
+
         Long userId = 1L;
         Long accountId = 100L;
         Account account = mock(Account.class);
         given(account.getUserId()).willReturn(userId);
         given(accountRepository.findById(accountId)).willReturn(Optional.of(account));
 
-        // when
+
         accountService.getAccount(userId, accountId);
 
-        // then
+
         verify(accountRepository, times(1)).findById(accountId);
     }
 
     @Test
     @DisplayName("refreshAccountList - 오픈뱅킹 연동을 통한 동기화 성공")
     void refreshAccountList_Success() {
-        // given
+
         Long userId = 1L;
         User user = mock(User.class);
         given(user.getSsafyFinanceUserKey()).willReturn("user-key");
@@ -249,10 +249,10 @@ class AccountServiceTest {
         given(openBankAdapter.fetchDemandDepositAccounts("user-key")).willReturn(apiResponse);
         given(accountRepository.findByAccountNo("123-456")).willReturn(Optional.empty());
 
-        // when
+
         accountService.refreshAccountList(userId);
 
-        // then
+
         verify(openBankAdapter, times(1)).fetchDemandDepositAccounts("user-key");
         verify(accountRepository, times(1)).save(any(Account.class));
     }
@@ -260,7 +260,7 @@ class AccountServiceTest {
     @Test
     @DisplayName("setPrimaryAccount - 주계좌 설정 및 기존 주계좌 해제 성공")
     void setPrimaryAccount_Success() {
-        // given
+
         Long userId = 1L;
         Long accountId = 100L;
 
@@ -276,10 +276,10 @@ class AccountServiceTest {
         given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId))
                 .willReturn(Optional.of(setting));
 
-        // when
+
         accountService.setPrimaryAccount(userId, accountId);
 
-        // then
+
         verify(oldPrimary, times(1)).unsetPrimary();
         verify(newPrimary, times(1)).setAsPrimary();
         verify(setting, times(1)).updatePrimaryAccount(accountId);
@@ -288,7 +288,7 @@ class AccountServiceTest {
     @Test
     @DisplayName("getAccountTransactions - 검색 기간 내 거래 내역 조회 성공")
     void getAccountTransactions_Success_WithData() {
-        // given
+
         Long userId = 1L;
         Long accountId = 100L;
         Account account = mock(Account.class);
@@ -312,16 +312,16 @@ class AccountServiceTest {
                                 anyString()))
                 .willReturn(apiResponse);
 
-        // syncTransactions 내부의 null 체크 통과를 위해
+
         OpenBankTransactionHistoryResponse.Rec rec =
                 mock(OpenBankTransactionHistoryResponse.Rec.class);
         given(apiResponse.getRec()).willReturn(rec);
         given(rec.getList()).willReturn(java.util.Collections.emptyList());
 
-        // then
+
         accountService.getAccountTransactions(userId, accountId, "20240101", "20240131");
 
-        // then
+
         verify(openBankAdapter, times(1))
                 .fetchTransactionHistory(
                         eq("user-key"),
@@ -338,7 +338,7 @@ class AccountServiceTest {
     @Test
     @DisplayName("getAccountTransactions - 검색 기간 내 거래 내역이 없는 경우 빈 리스트 반환")
     void getAccountTransactions_Success_Empty() {
-        // given
+
         Long userId = 1L;
         Long accountId = 100L;
         Account account = mock(Account.class);
@@ -357,7 +357,7 @@ class AccountServiceTest {
                                 anyString(),
                                 anyString(),
                                 anyString()))
-                .willReturn(null); // API 결과가 없는 상황 가정
+                .willReturn(null);
 
         given(
                         accountTransactionRepository
@@ -365,34 +365,34 @@ class AccountServiceTest {
                                         eq(accountId), any(), any()))
                 .willReturn(java.util.Collections.emptyList());
 
-        // when
+
         AccountTransactionResponse response =
                 accountService.getAccountTransactions(userId, accountId, "20240101", "20240131");
 
-        // then
+
         assertEquals(0, response.transactions().size());
     }
 
     @Test
     @DisplayName("getSavingsSetting - 설정 정보 조회 성공")
     void getSavingsSetting_Success() {
-        // given
+
         Long userId = 1L;
         SavingsSetting setting = mock(SavingsSetting.class);
         given(savingsSettingRepository.findByUserIdAndIsActiveTrue(userId))
                 .willReturn(Optional.of(setting));
 
-        // when
+
         accountService.getSavingsSetting(userId);
 
-        // then
+
         verify(savingsSettingRepository, times(1)).findByUserIdAndIsActiveTrue(userId);
     }
 
     @Test
     @DisplayName("createOrUpdateSavingsSetting - 설정 저장 및 계좌 소유권 검증 성공")
     void createOrUpdateSavingsSetting_Success() {
-        // given
+
         Long userId = 1L;
         SavingsSettingRequest request =
                 new SavingsSettingRequest(10L, 20L, "월급", new BigDecimal("10000"), true);
@@ -409,10 +409,10 @@ class AccountServiceTest {
         given(savingsSettingRepository.save(any(SavingsSetting.class)))
                 .willAnswer(i -> i.getArgument(0));
 
-        // when
+
         accountService.createOrUpdateSavingsSetting(userId, request);
 
-        // then
+
         verify(accountRepository, times(1)).findById(10L);
         verify(accountRepository, times(1)).findById(20L);
         verify(savingsSettingRepository, times(1)).save(any(SavingsSetting.class));

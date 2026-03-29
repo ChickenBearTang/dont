@@ -7,9 +7,7 @@ import { fetchOnboardingStatus, completeOnboarding } from '@/features/user/api/u
 import { useGetSavingsSetting, useGetMyAccounts } from '../hooks/useAccountQueries';
 import { useSaveSavingsSetting } from '../hooks/useAccountMutations';
 
-/**
- * 자동 저축 규칙 설정 페이지
- */
+
 export const SavingsRuleSetupPage: React.FC = () => {
   const navigate = useNavigate();
   const { data: initialSetting, isLoading: isFetchingSetting } = useGetSavingsSetting();
@@ -24,7 +22,7 @@ export const SavingsRuleSetupPage: React.FC = () => {
   const { mutate: saveSetting, isPending: isSubmitting } = useSaveSavingsSetting();
   const { success, error: toastError } = useToast();
 
-  // Form states
+
   const [keyword, setKeyword] = useState('삼성SSAFY');
   const [amount, setAmount] = useState<number>(0);
   const [isActive, setIsActive] = useState(true);
@@ -43,19 +41,19 @@ export const SavingsRuleSetupPage: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [navigate, initialSetting]);
 
-  // 온보딩 추천 금액을 최우선으로 적용하고, 키워드/활성화는 기존 설정에서 불러옴
+
   useEffect(() => {
     if (isInitialized.current) return;
-    // 두 쿼리가 모두 완료될 때까지 대기 (레이스 컨디션 방지)
+
     if (isFetchingOnboarding || isFetchingSetting) return;
 
-    // 1. 기존 저축 설정이 있으면 키워드와 활성화 상태를 불러옴
+
     if (initialSetting) {
       setKeyword(initialSetting.keyword || '삼성SSAFY');
       setIsActive(initialSetting.isActive ?? true);
     }
 
-    // 2. 저축 금액: 온보딩 추천액 > 기존 설정값 순서로 적용
+
     if (onboardingData?.recommendedAmount) {
       setAmount(onboardingData.recommendedAmount);
     } else if (initialSetting?.savingsAmount) {
@@ -104,11 +102,11 @@ export const SavingsRuleSetupPage: React.FC = () => {
       {
         onSuccess: async () => {
           if (initialSetting) {
-            // 기존 사용자가 규칙을 수정한 경우
+
             success('자동 저축 규칙이 변경되었습니다.');
             navigate('/finance/savebox');
           } else {
-            // 온보딩 중인 신규 사용자인 경우
+
             try {
               await completeOnboarding();
               success('자동 저축 규칙이 저장되었습니다! 모든 온보딩이 완료되었습니다.');
@@ -165,7 +163,7 @@ export const SavingsRuleSetupPage: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
         <div className="space-y-8 flex-1">
-          {/* 계좌 정보 카드 (Read Only) */}
+          {}
           <div className="grid grid-cols-2 gap-3">
             <Card className="p-4 border-2 border-line-thin bg-surface-soft">
               <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2 block">

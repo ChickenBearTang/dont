@@ -21,7 +21,7 @@ export const Mascot = ({ src, speech, className = '', style = {} }: MascotProps)
         <div className="absolute bottom-[85%] left-[60%] lg:bottom-[80%] lg:left-[70%] bg-white/70 backdrop-blur-md rounded-2xl px-4 lg:px-5 py-3 lg:py-4 shadow-[0_8px_24px_rgba(30,58,138,0.08)] font-bold text-[13px] lg:text-[14px] text-gray-800 leading-[1.5] w-max max-w-[200px] lg:max-w-[240px] break-keep tracking-tight z-20 transition-all duration-700 hover:scale-[1.02] hover:-rotate-1">
           <span className="relative z-10">{speech}</span>
 
-          {/* 말풍선 꼬리 (SVG) */}
+          {}
           <svg
             className="absolute -bottom-[12px] left-[16px] w-[20px] h-[16px] text-white/70 drop-shadow-[0_4px_8px_rgba(30,58,138,0.05)]"
             viewBox="0 0 24 20"

@@ -8,7 +8,7 @@ export const LoginPage = () => {
 
   return (
     <div className="relative w-full flex-1 min-h-[calc(100vh-80px)] flex items-center justify-center p-6 lg:p-12 overflow-hidden bg-gradient-to-br from-[#F8F9FA] via-[#f4f7fb] to-[#E2E8F0]">
-      {/* Texture & Layout decoration */}
+      {}
       <div className="absolute inset-0 bg-pattern-grid opacity-50 z-0"></div>
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
         <div className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] rounded-full bg-gradient-to-br from-primary-blue/5 to-transparent blur-[120px] opacity-80"></div>
@@ -18,7 +18,7 @@ export const LoginPage = () => {
       <div className="relative z-10 grid lg:grid-cols-2 gap-16 lg:gap-24 items-center w-full max-w-[1100px] mx-auto">
         <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-8">
           <div className="space-y-4 relative">
-            {/* Soft backdrop glow behind main text to separate from grid */}
+            {}
             <div className="absolute -inset-4 bg-white/40 blur-2xl z-0 rounded-[100px]"></div>
 
             <h2 className="relative z-10 text-[2.5rem] lg:text-[3.25rem] font-black text-eel tracking-tight leading-[1.2] drop-shadow-sm">

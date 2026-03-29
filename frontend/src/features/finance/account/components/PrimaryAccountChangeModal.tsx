@@ -10,9 +10,7 @@ interface PrimaryAccountChangeModalProps {
   currentPrimaryAccountId?: number;
 }
 
-/**
- * 주계좌를 변경하기 위한 선택 모달
- */
+
 export const PrimaryAccountChangeModal: React.FC<PrimaryAccountChangeModalProps> = ({
   isOpen,
   onClose,
@@ -22,7 +20,7 @@ export const PrimaryAccountChangeModal: React.FC<PrimaryAccountChangeModalProps>
   const { mutate: setPrimary, isPending } = useSetPrimaryAccount();
   const addToast = useUIStore((state) => state.addToast);
 
-  // 세이브박스 계좌를 제외한 일반 계좌들만 필터링
+
   const eligibleAccounts = accounts?.filter(
     (a) => !a.accountName.includes('세이브박스') && !a.accountTypeName.includes('세이브박스')
   );

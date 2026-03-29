@@ -50,7 +50,7 @@ public class Post extends BaseEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    // 게시글(post) 기본 상태
+
     public Post(Board board, User user, String title, String content) {
         this.title = title;
         this.content = content;
@@ -61,9 +61,7 @@ public class Post extends BaseEntity {
         this.status = PostStatus.ACTIVE;
     }
 
-    // title이 비어있지 않고 content도 비어있지 않으면
-    // table에 not null 설정
-    // update 가능
+
     public void update(String title, String content) {
         if (title != null && !title.isEmpty()) {
             this.title = title;
@@ -78,12 +76,12 @@ public class Post extends BaseEntity {
         this.deletedAt = LocalDateTime.now();
     }
 
-    // 게시물 blind 메서드 추가
+
     public void blind() {
         this.status = PostStatus.BLINDED;
     }
 
-    // 사용자가 맞는지 확인
+
     public boolean isAuthor(Long userId) {
         return this.user.getId().equals(userId);
     }

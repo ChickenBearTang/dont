@@ -2,9 +2,7 @@ import React from 'react';
 import { useGetMyAccounts } from '../hooks/useAccountQueries';
 import { AccountCard } from './AccountCard';
 
-/**
- * 로딩 중일 때 표시할 스켈레톤 UI
- */
+
 const AccountSkeleton = () => (
   <div className="w-full p-6 bg-white border border-light-gray rounded-2xl animate-pulse">
     <div className="flex justify-between mb-4">
@@ -21,13 +19,11 @@ const AccountSkeleton = () => (
   </div>
 );
 
-/**
- * 내 계좌 목록을 보여주는 컨테이너 컴포넌트
- */
+
 export const AccountList: React.FC = () => {
   const { data: accounts, isLoading, isError, refetch } = useGetMyAccounts();
 
-  // 1. 로딩 상태 처리
+
   if (isLoading) {
     return (
       <div className="grid gap-4 grid-cols-1">
@@ -38,7 +34,7 @@ export const AccountList: React.FC = () => {
     );
   }
 
-  // 2. 에러 상태 처리
+
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center bg-white border border-light-gray rounded-2xl">
@@ -55,7 +51,7 @@ export const AccountList: React.FC = () => {
     );
   }
 
-  // 3. 데이터가 없는 상태 처리
+
   if (!accounts || accounts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center bg-blue-bg/30 border-2 border-dashed border-light-gray rounded-2xl">
@@ -69,7 +65,7 @@ export const AccountList: React.FC = () => {
     );
   }
 
-  // 4. 성공 상탱: 리스트 렌더링
+
   return (
     <div className="space-y-6">
       <div className="px-2">

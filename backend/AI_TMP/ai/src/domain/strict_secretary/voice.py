@@ -14,7 +14,6 @@ for parent in _resolved_file.parents:
     if candidate.exists():
         _env_candidates.append(candidate)
 
-# 루트 .env를 우선 적용하기 위해 상위 경로부터 읽는다.
 for env_file in reversed(_env_candidates):
     load_dotenv(dotenv_path=env_file, override=False)
 

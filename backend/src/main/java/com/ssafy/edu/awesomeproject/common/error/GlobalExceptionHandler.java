@@ -59,7 +59,7 @@ public class GlobalExceptionHandler {
             .body(CommonResponse.fail(CommonErrorCode.VALIDATION_FAILED, errors));
     }
 
-    // sse용 예외처리
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleUnexpected(Exception ex, HttpServletRequest request)
         throws Exception {

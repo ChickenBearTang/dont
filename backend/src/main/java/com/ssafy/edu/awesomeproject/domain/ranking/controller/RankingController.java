@@ -23,7 +23,7 @@ public class RankingController {
     private final RankingService rankingService;
     private final UserRepository userRepository;
 
-    /** 전체 세이브박스 랭킹 Top 100 및 내 랭킹 조회 */
+
     @GetMapping("/total")
     public CommonResponse<RankingListResponse> getTotalRanking(@CurrentUserId Long userId) {
         List<RankingUserDto> top100 = rankingService.getTop100Ranking(null);
@@ -32,16 +32,12 @@ public class RankingController {
         return CommonResponse.success(RankingListResponse.of(top100, myRanking));
     }
 
-    /**
-     * 기수(Cohort)별 세이브박스 랭킹 Top 100 및 내 랭킹 조회
-     *
-     * @param cohortNo 조회할 기수 번호 (없으면 로그인 유저의 기수 사용)
-     */
+
     @GetMapping("/cohort")
     public CommonResponse<RankingListResponse> getCohortRanking(
             @CurrentUserId Long userId, @RequestParam(required = false) Integer cohortNo) {
 
-        // cohortNo 파라미터가 없으면 로그인 유저의 기수를 기본값으로 사용
+
         if (cohortNo == null) {
             User user =
                     userRepository
@@ -59,7 +55,7 @@ public class RankingController {
         return CommonResponse.success(RankingListResponse.of(top100, myRanking));
     }
 
-    /** [관리자/개발자용] DB 잔액을 기준으로 Redis 랭킹 원천 동기화 수행 */
+
     @PostMapping("/sync")
     public CommonResponse<String> syncRanking(@CurrentUserId Long userId) {
         rankingService.syncRankingFromDb();
