@@ -297,10 +297,10 @@ export const OnboardingPage = () => {
               <div className="flex flex-col items-center text-center mb-10">
                 <Mascot src="/assets/mascot_happy.png" className="mb-3" />
                 <h2 className="text-[32px] md:text-[36px] font-black text-text-strong tracking-tight mb-3 leading-tight">
-                  월 변동비는 어느 정도인가요?
+                  고정비를 제외한 월 평균 지출은 어느 정도인가요?
                 </h2>
                 <p className="text-[15px] text-text-muted font-semibold">
-                  식비, 교통비, 쇼핑처럼 달마다 변하는 지출을 입력해주세요.
+                  식비, 생활비, 취미 생활 등 매달 나가는 평균적인 지출액을 알려주세요.
                 </p>
               </div>
 
@@ -391,7 +391,7 @@ export const OnboardingPage = () => {
                       월 고정비: {formatNumber(fixedCost)}원
                     </p>
                     <p className="rounded-2xl bg-surface-muted px-4 py-3">
-                      월 변동비: {formatNumber(variableCost)}원
+                      월 평균 지출 (고정비 제외): {formatNumber(variableCost)}원
                     </p>
                     <p className="rounded-2xl bg-accent-soft text-accent px-4 py-3">
                       월 가용금액: {formatNumber(availableAmount)}원
