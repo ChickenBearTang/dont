@@ -1,10 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { EventSourcePolyfill } from 'event-source-polyfill';
+import { refreshAccessToken } from '@/features/auth/api/authApi';
+import { getErrorStatusCode, isSessionExpiredStatus } from '@/shared/auth/authErrorPolicy';
+import { handleSessionExpired } from '@/shared/auth/handleSessionExpired';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import { useRankingStore } from '../store/useRankingStore';
-import { EventSourcePolyfill } from 'event-source-polyfill';
 
-// --- (도메인 타입 힌트 예시) ---
+const REFRESH_COOLDOWN_MS = 10000;
+
 export interface RankingUser {
   userId: number;
   nickname?: string;
@@ -33,27 +37,25 @@ export interface RankingUpdatePayload {
   cohortTop100?: RankingUser[];
 }
 
-/**
- * 실시간 랭킹 SSE 구독 및 서버 무과부하 렌더링을 관장하는 커스텀 훅
- */
 export const useRankingSse = () => {
   const queryClient = useQueryClient();
   const token = useAuthStore((state) => state.accessToken);
+  const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const setIsUpdating = useRankingStore((state) => state.setIsUpdating);
 
-  // 최신 값들을 참조하기 위한 REF (의존성 배열에서 제외하여 리렌더링 방지)
   const queryClientRef = useRef(queryClient);
   const setIsUpdatingRef = useRef(setIsUpdating);
-  const eventSourceRef = useRef<any>(null);
+  const setAccessTokenRef = useRef(setAccessToken);
+  const eventSourceRef = useRef<EventSource | null>(null);
   const lastTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     queryClientRef.current = queryClient;
     setIsUpdatingRef.current = setIsUpdating;
-  }, [queryClient, setIsUpdating]);
+    setAccessTokenRef.current = setAccessToken;
+  }, [queryClient, setIsUpdating, setAccessToken]);
 
   useEffect(() => {
-    // 토큰이 없거나, 이전과 같은 토큰이면 연결을 유지 (불필요한 재연결 방지)
     if (!token) {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -66,8 +68,8 @@ export const useRankingSse = () => {
       return;
     }
 
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
-    const streamUrl = `${API_BASE_URL}/ranking/stream`;
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+    const streamUrl = `${apiBaseUrl}/ranking/stream`;
 
     lastTokenRef.current = token;
 
@@ -75,7 +77,10 @@ export const useRankingSse = () => {
       eventSourceRef.current.close();
     }
 
-    const eventSource = new (EventSourcePolyfill as any)(streamUrl, {
+    let refreshInFlight = false;
+    let lastRefreshAt = 0;
+
+    const eventSource = new EventSourcePolyfill(streamUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -83,65 +88,82 @@ export const useRankingSse = () => {
       heartbeatTimeout: 60000,
     });
 
-    eventSourceRef.current = eventSource;
-
-    eventSource.onopen = () => {
-    };
-
-    eventSource.addEventListener('connect', () => {
-    });
+    eventSourceRef.current = eventSource as unknown as EventSource;
 
     eventSource.addEventListener('ranking-update', (event: Event) => {
       try {
         const payload: RankingUpdatePayload = JSON.parse((event as MessageEvent).data);
         const qClient = queryClientRef.current;
-        
-        // 1. 캐시 즉시 업데이트
-        qClient.setQueryData<RankingListResponse>(['ranking', 'total'], (oldData: RankingListResponse | undefined) => {
+
+        qClient.setQueryData<RankingResponse>(['ranking', 'total'], (oldData) => {
           if (!oldData) return oldData;
           return {
             ...oldData,
-            top100: payload.totalTop100
+            data: {
+              ...oldData.data,
+              top100: payload.totalTop100,
+            },
           };
         });
 
-        if (payload.cohortNo) {
-          qClient.setQueryData<RankingListResponse>(
-            ['ranking', 'cohort', payload.cohortNo],
-            (oldData: RankingListResponse | undefined) => {
-              if (!oldData || !payload.cohortTop100) return oldData;
-              return {
-                ...oldData,
-                top100: payload.cohortTop100
-              };
-            }
-          );
+        if (payload.cohortNo && payload.cohortTop100) {
+          qClient.setQueryData<RankingResponse>(['ranking', 'cohort', payload.cohortNo], (oldData) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                top100: payload.cohortTop100 ?? oldData.data.top100,
+              },
+            };
+          });
         }
 
-        // 2. 전체 데이터 보정 (지연 호출로 UI 흔들림 방지)
         setIsUpdatingRef.current(true);
         setTimeout(() => {
           qClient.invalidateQueries({ queryKey: ['ranking'] }).finally(() => {
             setIsUpdatingRef.current(false);
           });
         }, 1000 + Math.random() * 1000);
-
       } catch (err) {
-        console.error('❌ [SSE] Payload error:', err);
+        console.error('Ranking SSE payload parse error:', err);
       }
     });
 
-    eventSource.onerror = (err: any) => {
-      console.error('❌ [SSE] Connection error:', err);
-    };
+    eventSource.addEventListener('error', async () => {
+      const now = Date.now();
+
+      if (refreshInFlight || now - lastRefreshAt < REFRESH_COOLDOWN_MS) {
+        return;
+      }
+
+      refreshInFlight = true;
+      lastRefreshAt = now;
+
+      try {
+        const response = await refreshAccessToken();
+        const nextToken = response.data.accessToken;
+        setAccessTokenRef.current(nextToken);
+        eventSource.close();
+      } catch (error) {
+        const statusCode = getErrorStatusCode(error);
+        if (isSessionExpiredStatus(statusCode)) {
+          handleSessionExpired();
+          eventSource.close();
+          return;
+        }
+        console.warn('Ranking SSE token refresh skipped due to non-auth error:', error);
+      } finally {
+        refreshInFlight = false;
+      }
+    });
 
     return () => {
-      // 컴포넌트 언마운트 시에만 정리 (토큰 변경 시엔 위에서 별도 처리)
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
       lastTokenRef.current = null;
     };
-  }, [token]); // 오직 토큰 값 기반으로만 재작동 여부 결정
+  }, [token]);
 };

@@ -349,7 +349,7 @@ class ReportService:
             for row in card_rows
         ]
 
-        from consumption_poc.recommendation import AIConsumptionEngine
+        from ai.consumption_poc.recommendation import AIConsumptionEngine
         from config import RAW_DATA_DIR
 
         with open(RAW_DATA_DIR / "persons.json", "r", encoding="utf-8") as f:

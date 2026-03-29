@@ -4,10 +4,14 @@ import sys
 from pathlib import Path
 
 SRC_DIR = Path(__file__).resolve().parent
+AI_DIR = Path(__file__).resolve().parents[1]
 AI_TMP_DIR = Path(__file__).resolve().parents[2]
 
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
+
+if str(AI_DIR) not in sys.path:
+    sys.path.insert(0, str(AI_DIR))
 
 if str(AI_TMP_DIR) not in sys.path:
     sys.path.insert(0, str(AI_TMP_DIR))
