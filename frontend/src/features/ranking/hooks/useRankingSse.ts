@@ -69,7 +69,6 @@ export const useRankingSse = () => {
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
     const streamUrl = `${API_BASE_URL}/ranking/stream`;
 
-    console.info('📡 [SSE] Creating new stable connection...');
     lastTokenRef.current = token;
 
     if (eventSourceRef.current) {
@@ -87,15 +86,12 @@ export const useRankingSse = () => {
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => {
-      console.info('✅ [SSE] Server-sent events connected.');
     };
 
-    eventSource.addEventListener('connect', (event: Event) => {
-      console.log('🚀 [SSE Debug] Pipeline active:', (event as MessageEvent).data);
+    eventSource.addEventListener('connect', () => {
     });
 
     eventSource.addEventListener('ranking-update', (event: Event) => {
-      console.log('📡 [SSE Debug] ranking-update received');
       try {
         const payload: RankingUpdatePayload = JSON.parse((event as MessageEvent).data);
         const qClient = queryClientRef.current;
@@ -141,7 +137,6 @@ export const useRankingSse = () => {
 
     return () => {
       // 컴포넌트 언마운트 시에만 정리 (토큰 변경 시엔 위에서 별도 처리)
-      console.info('🧹 [SSE] Cleaning up on unmount');
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;

@@ -469,16 +469,10 @@ public class AccountService {
         SavingsSetting setting = settingOpt.get();
         String keyword = setting.getKeyword();
 
-        log.info("자동저축 검사 시작 - userId: {}, accountNo: {}", userId, primaryAccount.getAccountNo());
-        log.info("자동저축 키워드: {}", keyword);
-        log.info("미처리 거래 수: {}", transactions.size());
+        log.info("자동저축 검사 시작 - userId: {}, accountNo: {}, 미처리: {}", userId, primaryAccount.getAccountNo(), transactions.size());
 
         for (AccountTransaction t : transactions) {
-            log.info(
-                    "자동저축 후보 거래 - type: {}, summary: {}, memo: {}",
-                    t.getTransactionType(),
-                    t.getTransactionSummary(),
-                    t.getTransactionMemo());
+
 
             if ("1".equals(t.getTransactionType())
                     && ((t.getTransactionSummary() != null
