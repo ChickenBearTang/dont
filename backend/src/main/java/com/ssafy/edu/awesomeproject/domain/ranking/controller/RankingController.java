@@ -10,7 +10,9 @@ import com.ssafy.edu.awesomeproject.domain.ranking.service.RankingService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -21,30 +23,46 @@ public class RankingController {
     private final RankingService rankingService;
     private final UserRepository userRepository;
 
-    /** 전체 세이브박스 랭킹 Top 10 및 내 랭킹 조회 */
+    /** 전체 세이브박스 랭킹 Top 100 및 내 랭킹 조회 */
     @GetMapping("/total")
     public CommonResponse<RankingListResponse> getTotalRanking(@CurrentUserId Long userId) {
-        List<RankingUserDto> top10 = rankingService.getTop10Ranking(null);
+        List<RankingUserDto> top100 = rankingService.getTop100Ranking(null);
         RankingUserDto myRanking = rankingService.getMyRanking(userId, null);
 
-        return CommonResponse.success(RankingListResponse.of(top10, myRanking));
+        return CommonResponse.success(RankingListResponse.of(top100, myRanking));
     }
 
-    /** 기수(Cohort)별 세이브박스 랭킹 Top 10 및 내 랭킹 조회 */
+    /**
+     * 기수(Cohort)별 세이브박스 랭킹 Top 100 및 내 랭킹 조회
+     *
+     * @param cohortNo 조회할 기수 번호 (없으면 로그인 유저의 기수 사용)
+     */
     @GetMapping("/cohort")
-    public CommonResponse<RankingListResponse> getCohortRanking(@CurrentUserId Long userId) {
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(
-                                () -> new IllegalArgumentException("User not found: " + userId));
+    public CommonResponse<RankingListResponse> getCohortRanking(
+            @CurrentUserId Long userId, @RequestParam(required = false) Integer cohortNo) {
 
-        // 유저 엔티티의 Lazy 로딩된 Cohort 객체에서 기수 번호를 안전하게 추출
-        Integer cohortNo = (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
+        // cohortNo 파라미터가 없으면 로그인 유저의 기수를 기본값으로 사용
+        if (cohortNo == null) {
+            User user =
+                    userRepository
+                            .findById(userId)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    "User not found: " + userId));
+            cohortNo = (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
+        }
 
-        List<RankingUserDto> top10 = rankingService.getTop10Ranking(cohortNo);
+        List<RankingUserDto> top100 = rankingService.getTop100Ranking(cohortNo);
         RankingUserDto myRanking = rankingService.getMyRanking(userId, cohortNo);
 
-        return CommonResponse.success(RankingListResponse.of(top10, myRanking));
+        return CommonResponse.success(RankingListResponse.of(top100, myRanking));
+    }
+
+    /** [관리자/개발자용] DB 잔액을 기준으로 Redis 랭킹 원천 동기화 수행 */
+    @PostMapping("/sync")
+    public CommonResponse<String> syncRanking(@CurrentUserId Long userId) {
+        rankingService.syncRankingFromDb();
+        return CommonResponse.success("Ranking synchronization completed successfully.");
     }
 }

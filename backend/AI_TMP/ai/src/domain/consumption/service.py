@@ -349,7 +349,7 @@ class ReportService:
             for row in card_rows
         ]
 
-        from consumption_poc.recommendation import AIConsumptionEngine
+        from ai.consumption_poc.recommendation import AIConsumptionEngine
         from config import RAW_DATA_DIR
 
         with open(RAW_DATA_DIR / "persons.json", "r", encoding="utf-8") as f:
@@ -363,6 +363,7 @@ class ReportService:
             result["user_persona"] = {
                 "type_id": "UNKNOWN",
                 "name": f"{db_profile.name}님의 소비 유형",
+                "nickname": f"{db_profile.name}님의 소비 유형",
                 "description": "분석할 소비 유형 데이터가 충분하지 않습니다.",
                 "total_amount": 0,
                 "count": 0,

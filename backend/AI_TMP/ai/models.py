@@ -9,6 +9,7 @@ class HotDeal:
     title: str
     url: str
     price: str | None = None
+    posted_at: str | None = None
 
 
 @dataclass(frozen=True)

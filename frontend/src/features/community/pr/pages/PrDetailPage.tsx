@@ -3,6 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Card } from '@/shared/components';
 import { closePr, getPrDetail, submitPrVote } from '@/features/community/pr';
 import type { PrDetailResponseData } from '@/features/community/pr';
+import { getPrXaiAvailability, getPrXaiEvaluation } from '@/features/community/pr/api/prXaiApi';
+import type {
+  PrXaiAvailabilityResponseData,
+  PrXaiEvaluationResponseData,
+} from '@/features/community/pr/xaiTypes';
 import { useUIStore } from '@/shared/store/useUIStore';
 import { formatRelativeTime } from '@/shared/utils/date';
 import { UserAvatar } from '@/features/community/components/UserAvatar';
@@ -29,6 +34,14 @@ const formatAbsoluteDate = (value: string): string =>
   });
 
 const normalizePrStatus = (status: string): string => status.trim().toUpperCase();
+
+const getStatusLabelWithEmoji = (status: string): string => {
+  const normalized = normalizePrStatus(status);
+  if (normalized === 'OPEN') return '📂 OPEN';
+  if (normalized === 'MERGED') return '✔️ MERGED';
+  if (normalized === 'CLOSED') return '🚫 CLOSED';
+  return normalized;
+};
 
 const getStatusBadgeClass = (status: string): string => {
   const normalizedStatus = normalizePrStatus(status);
@@ -74,6 +87,198 @@ interface ContentSection {
   title: string;
   body: string;
 }
+
+interface XaiSummaryParts {
+  verdict: string;
+  keyReason: string;
+  improvementPoint: string;
+}
+
+const decisionLabelMap: Record<string, string> = {
+  BUY_NOW: '지금 구매 권장',
+  WAIT: '관망 권장',
+  REVIEW: '추가 검토 필요',
+  NOT_RECOMMENDED: '비구매 권장',
+};
+
+const getDecisionBadgeClass = (decision: string): string => {
+  const normalized = decision.trim().toUpperCase();
+  if (normalized === 'BUY_NOW') return 'bg-success/10 text-success ring-1 ring-success/30';
+  if (normalized === 'WAIT') return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
+  if (normalized === 'NOT_RECOMMENDED') return 'bg-danger/10 text-danger ring-1 ring-danger/30';
+  return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
+};
+
+const formatPercent = (value: number): string => `${Math.round(value * 100)}%`;
+
+const formatImpactPercent = (value: number): string => {
+  const absoluteValue = Math.abs(value);
+  if (absoluteValue <= 1) return `${Math.round(absoluteValue * 100)}%`;
+  if (absoluteValue <= 100) return `${Math.round(absoluteValue)}%`;
+  return `${Math.round(Math.min(absoluteValue / 100, 100))}%`;
+};
+
+const parseMetricNumericValue = (rawValue: string): number | null => {
+  const sanitized = rawValue.replace(/[^\d.-]/g, '');
+  if (!sanitized) return null;
+  const parsed = Number(sanitized);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+};
+
+const toComparisonBarPercent = (value: number, maxValue: number): number => {
+  if (value <= 0 || maxValue <= 0) return 0;
+  const rawPercent = (value / maxValue) * 100;
+  return Math.min(Math.max(rawPercent, 8), 100);
+};
+
+const formatWon = (value: number): string => `${Math.round(value).toLocaleString('ko-KR')}원`;
+
+const normalizeMetricCode = (code: string): string =>
+  code.trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+const normalizeMetricLabelToken = (label: string): string => label.replace(/\s+/g, '').trim();
+
+const isCurrentPriceMetric = (code: string, label: string): boolean => {
+  const normalizedCode = normalizeMetricCode(code);
+  const normalizedLabel = normalizeMetricLabelToken(label);
+  return (
+    normalizedCode === 'current_price' ||
+    normalizedCode === 'price_current' ||
+    normalizedLabel.includes('현재판단가격') ||
+    normalizedLabel.includes('현재가격')
+  );
+};
+
+const isAvgPriceMetric = (code: string, label: string): boolean => {
+  const normalizedCode = normalizeMetricCode(code);
+  const normalizedLabel = normalizeMetricLabelToken(label);
+  return (
+    normalizedCode === 'avg_price_30d' ||
+    normalizedCode === 'average_price_30d' ||
+    normalizedCode === 'price_avg_30d' ||
+    normalizedLabel.includes('30일평균가') ||
+    normalizedLabel.includes('평균가')
+  );
+};
+
+const toDisplayMetricLabel = (label: string): string => {
+  const normalizedLabel = normalizeMetricLabelToken(label);
+  if (normalizedLabel === '사용가능고정지출') return '이번 달 고정지출';
+  if (normalizedLabel === '사용가능고정수입') return '이번 달 고정 수입';
+  return label;
+};
+
+const xaiSectionStatusLabelMap: Record<string, string> = {
+  critical: '위험',
+  tight: '주의',
+  healthy: '양호',
+  degraded: '데이터 부족',
+  favorable: '유리',
+  expensive: '고가',
+  neutral: '보통',
+};
+
+const xaiWarningLabelMap: Record<string, string> = {
+  CRAWL_FETCH_FAILED: '상품 페이지 크롤링에 실패했습니다.',
+  PRICE_ESTIMATED_FROM_REQUEST: '요청 가격 기준으로 대체 계산했습니다.',
+  SHAP_UNAVAILABLE: 'SHAP 설명 엔진을 사용할 수 없습니다.',
+  DICE_UNAVAILABLE: 'DICE 반사실 설명 엔진을 사용할 수 없습니다.',
+  NO_PRICE_HISTORY: '가격 이력 데이터가 부족합니다.',
+  PRICE_HISTORY_READ_FAILED: '가격 이력 조회에 실패했습니다.',
+  MISSING_PURCHASE_URL: '구매 URL이 없어 크롤링을 생략했습니다.',
+  FINANCE_PROFILE_EMPTY_FALLBACK: '재무 데이터가 부족해 가격 중심으로 판단했습니다.',
+};
+
+const getXaiSectionStatusLabel = (status: string): string =>
+  xaiSectionStatusLabelMap[status.trim().toLowerCase()] ?? status;
+
+const getXaiWarningLabel = (warning: string): string => xaiWarningLabelMap[warning] ?? warning;
+
+const cleanSummarySegment = (value: string): string =>
+  value.replace(/^[\s.·\-:]+/, '').replace(/\s+/g, ' ').trim();
+
+const parseXaiSummary = (summary: string): XaiSummaryParts => {
+  const raw = summary ?? '';
+  const keyMarker = '핵심 근거:';
+  const improveMarker = '개선 포인트:';
+  const keyIndex = raw.indexOf(keyMarker);
+  const improveIndex = raw.indexOf(improveMarker);
+
+  const normalizeVerdict = (value: string): string =>
+    cleanSummarySegment(value).replace(/[.。]+$/, '').trim();
+
+  if (keyIndex < 0 && improveIndex < 0) {
+    return {
+      verdict: normalizeVerdict(raw) || '-',
+      keyReason: '-',
+      improvementPoint: '-',
+    };
+  }
+
+  const verdictEndCandidates = [keyIndex, improveIndex].filter((index) => index >= 0);
+  const verdictEnd =
+    verdictEndCandidates.length > 0 ? Math.min(...verdictEndCandidates) : raw.length;
+
+  const keyReasonStart = keyIndex >= 0 ? keyIndex + keyMarker.length : -1;
+  const keyReasonEnd = improveIndex >= 0 ? improveIndex : raw.length;
+  const keyReason =
+    keyReasonStart >= 0 ? cleanSummarySegment(raw.slice(keyReasonStart, keyReasonEnd)) : '-';
+
+  const improvementStart = improveIndex >= 0 ? improveIndex + improveMarker.length : -1;
+  const improvementPoint =
+    improvementStart >= 0 ? cleanSummarySegment(raw.slice(improvementStart)) : '-';
+
+  return {
+    verdict: normalizeVerdict(raw.slice(0, verdictEnd)) || '-',
+    keyReason: keyReason || '-',
+    improvementPoint: improvementPoint || '-',
+  };
+};
+
+const xaiEvidenceFieldLabelMap: Record<string, string> = {
+  current_price: '현재 판단 가격',
+  projected_balance_after_purchase: '구매 후 예상 잔액',
+  days_until_card_due: '카드 결제일까지',
+  avg_price_30d: '30일 평균가',
+  emergency_fund_balance: '비상자금',
+  current_balance: '현재 잔액',
+};
+
+const xaiEvidenceSourceLabelMap: Record<string, string> = {
+  'spring.pr_post': 'PR 요청값',
+  'spring.finance_profile': '재무 프로필',
+  'fastapi.xai': 'AI 계산값',
+};
+
+const getXaiEvidenceFieldLabel = (field: string): string => {
+  if (field === 'projected_balance_after_purchase') {
+    return '구매 후 세이브박스 잔액';
+  }
+  return xaiEvidenceFieldLabelMap[field] ?? field;
+};
+
+const getXaiEvidenceSourceLabel = (source: string): string =>
+  xaiEvidenceSourceLabelMap[source] ?? source;
+
+const formatXaiEvidenceValue = (field: string, rawValue: string): string => {
+  const normalized = rawValue.trim();
+  if (normalized.length === 0) return rawValue;
+  const numeric = Number(normalized.replaceAll(',', ''));
+  if (!Number.isFinite(numeric)) return rawValue;
+
+  if (field === 'days_until_card_due') return `${Math.round(numeric)}일`;
+  if (
+    field === 'current_price' ||
+    field === 'projected_balance_after_purchase' ||
+    field === 'avg_price_30d' ||
+    field === 'emergency_fund_balance' ||
+    field === 'current_balance'
+  ) {
+    return `${Math.round(numeric).toLocaleString('ko-KR')}원`;
+  }
+  return rawValue;
+};
 
 const parseEventPayload = (payload: Record<string, unknown> | null): EventPayload => {
   if (!payload) return {};
@@ -228,6 +433,12 @@ export const PrDetailPage = () => {
   const [voteOpinion, setVoteOpinion] = useState('');
   const [isSubmittingVote, setIsSubmittingVote] = useState(false);
   const [isClosingPr, setIsClosingPr] = useState(false);
+  const [xaiEvaluation, setXaiEvaluation] = useState<PrXaiEvaluationResponseData | null>(null);
+  const [xaiAvailability, setXaiAvailability] = useState<PrXaiAvailabilityResponseData | null>(null);
+  const [isXaiAvailabilityLoading, setIsXaiAvailabilityLoading] = useState(false);
+  const [isXaiLoading, setIsXaiLoading] = useState(false);
+  const [xaiError, setXaiError] = useState<string | null>(null);
+  const [hasRequestedXai, setHasRequestedXai] = useState(false);
 
   const loadDetail = useCallback(async () => {
     if (!parsedPostId || Number.isNaN(parsedPostId)) {
@@ -253,6 +464,63 @@ export const PrDetailPage = () => {
   useEffect(() => {
     void loadDetail();
   }, [loadDetail]);
+
+  useEffect(() => {
+    setXaiEvaluation(null);
+    setXaiAvailability(null);
+    setIsXaiAvailabilityLoading(false);
+    setXaiError(null);
+    setIsXaiLoading(false);
+    setHasRequestedXai(false);
+  }, [parsedPostId]);
+
+  useEffect(() => {
+    if (!detail) return;
+    let isMounted = true;
+
+    const loadAvailability = async () => {
+      setIsXaiAvailabilityLoading(true);
+      try {
+        const response = await getPrXaiAvailability(detail.postId);
+        if (!isMounted) return;
+        setXaiAvailability(response.data);
+      } catch {
+        if (!isMounted) return;
+        setXaiAvailability({
+          enabled: false,
+          reason: 'XAI 활성화 상태를 확인하지 못했습니다.',
+        });
+      } finally {
+        if (isMounted) {
+          setIsXaiAvailabilityLoading(false);
+        }
+      }
+    };
+
+    void loadAvailability();
+    return () => {
+      isMounted = false;
+    };
+  }, [detail]);
+
+  const handleFetchXaiEvaluation = useCallback(async () => {
+    if (!detail || isXaiLoading || !xaiAvailability?.enabled) return;
+
+    setHasRequestedXai(true);
+    setXaiEvaluation(null);
+    setIsXaiLoading(true);
+    setXaiError(null);
+
+    try {
+      const response = await getPrXaiEvaluation(detail.postId);
+      setXaiEvaluation(response.data);
+    } catch {
+      setXaiEvaluation(null);
+      setXaiError('XAI 구매 판단 결과를 불러오지 못했습니다.');
+    } finally {
+      setIsXaiLoading(false);
+    }
+  }, [detail, isXaiLoading, xaiAvailability?.enabled]);
 
   const handleVote = async (voteValue: 'AGREE' | 'DISAGREE') => {
     if (!detail || detail.status !== 'OPEN' || isSubmittingVote) return;
@@ -330,6 +598,135 @@ export const PrDetailPage = () => {
     detail.events && detail.events.length > 0
       ? detail.events[detail.events.length - 1].createdAt
       : detail.closedAt ?? detail.updatedAt;
+  const xaiSummaryParts = xaiEvaluation ? parseXaiSummary(xaiEvaluation.summary) : null;
+  const priceMetrics = xaiEvaluation
+    ? xaiEvaluation.priceEvaluation.keyMetrics.filter(
+        (metric) => metric.code !== 'requested_price_amount',
+      )
+    : [];
+  const priceComparison = (() => {
+    const currentPriceMetric = priceMetrics.find((metric) =>
+      isCurrentPriceMetric(metric.code, metric.label),
+    );
+    const averagePriceMetric = priceMetrics.find((metric) =>
+      isAvgPriceMetric(metric.code, metric.label),
+    );
+    if (!currentPriceMetric || !averagePriceMetric) return null;
+
+    const currentPrice = parseMetricNumericValue(currentPriceMetric.value);
+    const averagePrice = parseMetricNumericValue(averagePriceMetric.value);
+    if (currentPrice === null || averagePrice === null) return null;
+
+    const maxPrice = Math.max(currentPrice, averagePrice, 1);
+    const gap = currentPrice - averagePrice;
+    const ratio = averagePrice > 0 ? currentPrice / averagePrice : null;
+
+    if (gap > 0) {
+      return {
+        currentPrice,
+        averagePrice,
+        currentPriceLabel: currentPriceMetric.value,
+        averagePriceLabel: averagePriceMetric.value,
+        currentBarPercent: toComparisonBarPercent(currentPrice, maxPrice),
+        averageBarPercent: toComparisonBarPercent(averagePrice, maxPrice),
+        headlineText: '현재 판단 가격 > 30일 평균가',
+        summaryText: `현재 판단 가격이 평균가보다 ${formatWon(Math.abs(gap))} 높습니다.`,
+        detailText: ratio ? `평균가의 ${ratio.toFixed(2)}배` : null,
+        summaryClassName: 'text-danger',
+      };
+    }
+
+    if (gap < 0) {
+      return {
+        currentPrice,
+        averagePrice,
+        currentPriceLabel: currentPriceMetric.value,
+        averagePriceLabel: averagePriceMetric.value,
+        currentBarPercent: toComparisonBarPercent(currentPrice, maxPrice),
+        averageBarPercent: toComparisonBarPercent(averagePrice, maxPrice),
+        headlineText: '현재 판단 가격 < 30일 평균가',
+        summaryText: `현재 판단 가격이 평균가보다 ${formatWon(Math.abs(gap))} 낮습니다.`,
+        detailText: ratio ? `평균가의 ${ratio.toFixed(2)}배` : null,
+        summaryClassName: 'text-success',
+      };
+    }
+
+    return {
+      currentPrice,
+      averagePrice,
+      currentPriceLabel: currentPriceMetric.value,
+      averagePriceLabel: averagePriceMetric.value,
+      currentBarPercent: toComparisonBarPercent(currentPrice, maxPrice),
+      averageBarPercent: toComparisonBarPercent(averagePrice, maxPrice),
+      headlineText: '현재 판단 가격 = 30일 평균가',
+      summaryText: '현재 판단 가격과 30일 평균가가 같습니다.',
+      detailText: null,
+      summaryClassName: 'text-text-muted',
+    };
+  })();
+  const priceMetricList = priceComparison
+    ? priceMetrics.filter(
+        (metric) =>
+          !isCurrentPriceMetric(metric.code, metric.label) &&
+          !isAvgPriceMetric(metric.code, metric.label),
+      )
+    : priceMetrics;
+  const financialMetricValueByCode = xaiEvaluation
+    ? new Map(
+        xaiEvaluation.financialEvaluation.keyMetrics.map((metric) => [metric.code, metric.value]),
+      )
+    : new Map<string, string>();
+  const saveboxBalanceLabel = financialMetricValueByCode.get('savebox_balance') ?? '-';
+  const fixedExpenseLabel =
+    financialMetricValueByCode.get('available_fixed_expense') ??
+    financialMetricValueByCode.get('monthly_fixed_expense') ??
+    '-';
+  const fixedIncomeLabel =
+    financialMetricValueByCode.get('available_fixed_income') ??
+    financialMetricValueByCode.get('monthly_fixed_income') ??
+    '-';
+  const cardSpendLabel =
+    financialMetricValueByCode.get('expected_card_payment_amount') ??
+    financialMetricValueByCode.get('monthly_card_spend') ??
+    '-';
+  const dueDaysLabel = financialMetricValueByCode.get('days_until_card_due') ?? '-';
+  const dueDaysValue = parseMetricNumericValue(dueDaysLabel);
+  const dueDayBadge = dueDaysValue === null ? '-' : `D-${Math.max(Math.round(dueDaysValue), 0)}`;
+
+  const saveboxBalanceValue = parseMetricNumericValue(saveboxBalanceLabel) ?? 0;
+  const fixedExpenseValue = parseMetricNumericValue(fixedExpenseLabel) ?? 0;
+  const fixedIncomeValue = parseMetricNumericValue(fixedIncomeLabel) ?? 0;
+  const cardSpendValue = parseMetricNumericValue(cardSpendLabel) ?? 0;
+  const financeScaleMax = Math.max(
+    saveboxBalanceValue,
+    fixedExpenseValue,
+    fixedIncomeValue,
+    cardSpendValue,
+    1,
+  );
+  const toFinanceBarPercent = (value: number): number =>
+    value <= 0 ? 0 : toComparisonBarPercent(value, financeScaleMax);
+  const saveboxBarPercent = toFinanceBarPercent(saveboxBalanceValue);
+  const fixedExpenseBarPercent = toFinanceBarPercent(fixedExpenseValue);
+  const fixedIncomeBarPercent = toFinanceBarPercent(fixedIncomeValue);
+  const cardSpendBarPercent = toFinanceBarPercent(cardSpendValue);
+  const monthlyCashflowGap = fixedIncomeValue - fixedExpenseValue;
+  const monthlyCashflowLabel =
+    monthlyCashflowGap >= 0
+      ? `+${formatWon(monthlyCashflowGap)}`
+      : `-${formatWon(Math.abs(monthlyCashflowGap))}`;
+  const monthlyCashflowToneClass = monthlyCashflowGap >= 0 ? 'text-success' : 'text-danger';
+
+  const majorTopFactors = xaiEvaluation ? xaiEvaluation.topFactors.slice(0, 3) : [];
+  const priceRatioBadge = priceComparison?.detailText ?? '비교 데이터 부족';
+  const isAnalysisVerified = xaiEvaluation
+    ? xaiEvaluation.confidence.dataCompleteness >= 0.8 &&
+      xaiEvaluation.confidence.explanationFidelity >= 0.8
+    : false;
+  const analysisStatusLabel = isAnalysisVerified ? '검증 완료' : '추가 확인';
+  const analysisStatusClass = isAnalysisVerified
+    ? 'bg-green-100 text-green-700'
+    : 'bg-amber-100 text-amber-700';
 
   return (
     <div className="grid grid-cols-1 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -340,7 +737,7 @@ export const PrDetailPage = () => {
               <span
                 className={`rounded-full border px-4 py-1 text-xs font-bold uppercase tracking-wider ${getStatusBadgeClass(detail.status)} shadow-sm`}
               >
-                {normalizePrStatus(detail.status)}
+                {getStatusLabelWithEmoji(detail.status)}
               </span>
               <span className="text-xs font-bold text-text-subtle tracking-tight bg-surface-soft px-2.5 py-1 rounded-lg">PR #{detail.postId}</span>
             </div>
@@ -521,7 +918,7 @@ export const PrDetailPage = () => {
                 현재 종료된 요청구루 🐾
               </h3>
               <p className="mt-3 text-lg font-bold text-text-muted">
-                최종 결과: <span className="text-accent uppercase">{detail.status}</span>
+                최종 결과: <span className="text-accent uppercase">{getStatusLabelWithEmoji(detail.status)}</span>
               </p>
             </div>
           </Card>
@@ -603,6 +1000,339 @@ export const PrDetailPage = () => {
 
         <Card className="!p-0 overflow-hidden border-light-gray shadow-xl">
           <div className="flex items-center justify-between border-b border-light-gray bg-surface-muted/50 px-6 py-5">
+            <h3 className="text-xl font-black text-eel tracking-tight">XAI 구매 판단</h3>
+            {xaiEvaluation ? (
+              <span
+                className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider ${getDecisionBadgeClass(xaiEvaluation.decision)}`}
+              >
+                {decisionLabelMap[xaiEvaluation.decision] ?? xaiEvaluation.decision}
+              </span>
+            ) : null}
+          </div>
+          <div className="p-6 space-y-4">
+            {isXaiLoading ? (
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-muted">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-light-gray border-t-primary-blue" />
+                XAI가 재무·가격·근거를 분석하고 있습니다.
+              </div>
+            ) : xaiError ? (
+              <div className="space-y-3">
+                <p className="rounded-xl border border-danger/20 bg-danger/5 px-3 py-2 text-sm font-semibold text-danger">
+                  {xaiError}
+                </p>
+                {isXaiAvailabilityLoading ? (
+                  <p className="text-xs font-semibold text-text-subtle">
+                    XAI 활성화 가능 여부를 확인 중입니다.
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-text-subtle">
+                    {xaiAvailability?.reason ?? 'XAI 활성화 상태 정보가 없습니다.'}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  className="!w-auto !rounded-xl !px-4 !py-2 !text-xs"
+                  onClick={() => void handleFetchXaiEvaluation()}
+                >
+                  다시 판단하기
+                </Button>
+              </div>
+            ) : xaiEvaluation ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-light-gray bg-gradient-to-br from-amber-50 via-white to-surface-muted p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-widest text-primary-blue">
+                        최종 XAI 판단 결과
+                      </p>
+                      <p className="mt-2 break-keep text-3xl font-black leading-tight text-eel">
+                        {decisionLabelMap[xaiEvaluation.decision] ?? xaiEvaluation.decision}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex shrink-0 items-center rounded-full px-3 py-1 text-xs font-black ${analysisStatusClass}`}
+                    >
+                      {analysisStatusLabel}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-light-gray bg-white/90 px-2 py-2 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-text-subtle">
+                        판단 신뢰도
+                      </p>
+                      <p className="mt-1 text-lg font-black text-eel">
+                        {formatPercent(xaiEvaluation.confidence.decisionConfidence)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-light-gray bg-white/90 px-2 py-2 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-text-subtle">
+                        데이터 완성도
+                      </p>
+                      <p className="mt-1 text-lg font-black text-eel">
+                        {formatPercent(xaiEvaluation.confidence.dataCompleteness)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-light-gray bg-white/90 px-2 py-2 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-text-subtle">
+                        설명 충실도
+                      </p>
+                      <p className="mt-1 text-lg font-black text-eel">
+                        {formatPercent(xaiEvaluation.confidence.explanationFidelity)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1.5 rounded-xl border border-light-gray bg-white/80 px-3 py-2 text-sm font-semibold leading-relaxed text-eel/85">
+                    <p className="font-black text-eel">판단 요약</p>
+                    <p>{xaiSummaryParts?.verdict ?? '-'}</p>
+                    <p>핵심 근거: {xaiSummaryParts?.keyReason ?? '-'}</p>
+                    <p>개선 포인트: {xaiSummaryParts?.improvementPoint ?? '-'}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-light-gray bg-white p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-black text-eel">가격 평가 및 비교</p>
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-black text-amber-700">
+                      {priceRatioBadge}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-text-muted">
+                    상태: {getXaiSectionStatusLabel(xaiEvaluation.priceEvaluation.status)}
+                  </p>
+                  {priceComparison ? (
+                    <div className="rounded-xl border border-light-gray bg-surface-muted/40 p-3">
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-semibold text-eel/80">
+                            <span>현재 판단 가격</span>
+                            <span>{priceComparison.currentPriceLabel}</span>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full bg-light-gray">
+                            <div
+                              className="h-full rounded-full bg-primary-blue transition-all duration-700"
+                              style={{ width: `${priceComparison.currentBarPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-semibold text-eel/80">
+                            <span>30일 평균가</span>
+                            <span>{priceComparison.averagePriceLabel}</span>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full bg-light-gray">
+                            <div
+                              className="h-full rounded-full bg-slate-300 transition-all duration-700"
+                              style={{ width: `${priceComparison.averageBarPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <p className={`mt-3 text-xs font-extrabold ${priceComparison.summaryClassName}`}>
+                        {priceComparison.summaryText}
+                        {priceComparison.detailText ? ` (${priceComparison.detailText})` : ''}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium text-text-muted">가격 비교 데이터가 부족합니다.</p>
+                  )}
+                  {priceMetricList.length > 0 && (
+                    <ul className="space-y-2">
+                      {priceMetricList.map((metric) => (
+                        <li
+                          key={metric.code}
+                          className="rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2 text-sm font-medium text-eel/80"
+                        >
+                          {toDisplayMetricLabel(metric.label)}: {metric.value}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-light-gray bg-white p-4">
+                  <p className="text-sm font-black text-eel">재무 건전성</p>
+                  <p className="text-xs font-bold text-text-muted">
+                    상태: {getXaiSectionStatusLabel(xaiEvaluation.financialEvaluation.status)}
+                  </p>
+                  <div className="group rounded-xl border border-light-gray bg-surface-muted/40 p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-widest text-text-subtle">
+                      세이브박스 잔액
+                    </p>
+                    <p className="mt-1 break-all text-2xl font-black tracking-tight text-eel">
+                      {saveboxBalanceLabel}
+                    </p>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-light-gray">
+                      <div
+                        className="h-full rounded-full bg-primary-blue transition-all duration-700"
+                        style={{ width: `${saveboxBarPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-light-gray bg-white p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                      <p className="text-[11px] font-black text-text-subtle">이번 달 고정지출</p>
+                      <p className="mt-1 break-all text-lg font-black text-danger">{fixedExpenseLabel}</p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-light-gray">
+                        <div
+                          className="h-full rounded-full bg-danger transition-all duration-700"
+                          style={{ width: `${fixedExpenseBarPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-light-gray bg-white p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                      <p className="text-[11px] font-black text-text-subtle">이번 달 고정 수입</p>
+                      <p className="mt-1 break-all text-lg font-black text-success">{fixedIncomeLabel}</p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-light-gray">
+                        <div
+                          className="h-full rounded-full bg-success transition-all duration-700"
+                          style={{ width: `${fixedIncomeBarPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-light-gray bg-white p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                      <p className="text-[11px] font-black text-text-subtle">카드 결제일</p>
+                      <p className="mt-1 text-2xl font-black text-danger">{dueDayBadge}</p>
+                    </div>
+                    <div className="rounded-xl border border-light-gray bg-white p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
+                      <p className="text-[11px] font-black text-text-subtle">이번 달 카드지출 합계</p>
+                      <p className="mt-1 break-all text-lg font-black text-eel">{cardSpendLabel}</p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-light-gray">
+                        <div
+                          className="h-full rounded-full bg-accent transition-all duration-700"
+                          style={{ width: `${cardSpendBarPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2 text-xs font-bold">
+                    <span className="text-text-subtle">월간 수지</span>
+                    <span className={monthlyCashflowToneClass}>{monthlyCashflowLabel}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-2xl border border-light-gray bg-white p-4">
+                  <p className="text-sm font-black text-eel">주요 판단 요인</p>
+                  {majorTopFactors.length > 0 ? (
+                    <ul className="space-y-2">
+                      {majorTopFactors.map((factor, index) => (
+                        <li
+                          key={factor.code}
+                          className="rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2"
+                        >
+                          <p className="text-sm font-semibold leading-relaxed text-eel/90">
+                            <span className="mr-2 text-primary-blue">{String(index + 1).padStart(2, '0')}</span>
+                            {factor.label}
+                          </p>
+                          <p className="mt-1 text-xs font-black text-primary-blue">
+                            영향도 {formatImpactPercent(factor.impact)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm font-medium text-text-muted">상위 판단 요인이 아직 없습니다.</p>
+                  )}
+                </div>
+
+                <div className="space-y-2 rounded-2xl border border-light-gray bg-white p-4">
+                  <p className="text-sm font-black text-eel">근거 데이터</p>
+                  {xaiEvaluation.supportingEvidence.length > 0 ? (
+                    <ul className="space-y-2">
+                      {xaiEvaluation.supportingEvidence.map((evidence) => (
+                        <li
+                          key={`${evidence.field}-${evidence.snapshotId ?? evidence.source}`}
+                          className="rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2 text-sm font-medium text-eel/80"
+                        >
+                          {getXaiEvidenceFieldLabel(evidence.field)}:{' '}
+                          {formatXaiEvidenceValue(evidence.field, evidence.value)} ·{' '}
+                          {getXaiEvidenceSourceLabel(evidence.source)}
+                          {(evidence.isDefault || evidence.isEstimated) && (
+                            <span className="ml-2 text-xs font-bold text-amber-600">
+                              {evidence.isEstimated ? '추정값' : '기본값'}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm font-medium text-text-muted">노출할 근거 데이터가 없습니다.</p>
+                  )}
+                </div>
+
+                {xaiEvaluation.decision.trim().toUpperCase() !== 'BUY_NOW' && (
+                  <div className="space-y-2 rounded-2xl border border-light-gray bg-white p-4">
+                    <p className="text-sm font-black text-eel">Counterfactual</p>
+                    {xaiEvaluation.counterfactuals.length > 0 ? (
+                      <ul className="space-y-2">
+                        {xaiEvaluation.counterfactuals.map((counterfactual) => (
+                          <li
+                            key={`${counterfactual.label}-${counterfactual.targetDecision}`}
+                            className="rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2 text-sm font-medium text-eel/80"
+                          >
+                            {counterfactual.label}
+                            <span className="ml-2 text-xs font-bold text-primary-blue">
+                              →{' '}
+                              {decisionLabelMap[counterfactual.targetDecision] ??
+                                counterfactual.targetDecision}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm font-medium text-text-muted">counterfactual이 아직 없습니다.</p>
+                    )}
+                  </div>
+                )}
+
+                {xaiEvaluation.warnings.length > 0 && (
+                  <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-sm font-black text-amber-700">주의 사항</p>
+                    <ul className="space-y-2">
+                      {xaiEvaluation.warnings.map((warning) => (
+                        <li key={warning} className="text-sm font-semibold text-amber-700">
+                          {getXaiWarningLabel(warning)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-text-muted">
+                  아직 XAI 판단 결과를 조회하지 않았습니다.
+                </p>
+                {isXaiAvailabilityLoading ? (
+                  <p className="text-xs font-semibold text-text-subtle">
+                    XAI 활성화 가능 여부를 확인 중입니다.
+                  </p>
+                ) : (
+                  <p className="text-xs font-semibold text-text-subtle">
+                    {xaiAvailability?.reason ?? 'XAI 활성화 상태 정보가 없습니다.'}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  className="!w-auto !rounded-xl !px-4 !py-2 !text-xs"
+                  disabled={
+                    isXaiAvailabilityLoading ||
+                    !xaiAvailability?.enabled ||
+                    (hasRequestedXai && isXaiLoading)
+                  }
+                  onClick={() => void handleFetchXaiEvaluation()}
+                >
+                  XAI 판단 보기
+                </Button>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card className="!p-0 overflow-hidden border-light-gray shadow-xl">
+          <div className="flex items-center justify-between border-b border-light-gray bg-surface-muted/50 px-6 py-5">
             <h3 className="text-xl font-black text-eel tracking-tight">투표 현황</h3>
             <span className="text-xs font-black text-text-subtle uppercase px-2 py-1 bg-white border border-light-gray rounded-lg">{detail.totalVoteCount} Members</span>
           </div>
@@ -617,7 +1347,7 @@ export const PrDetailPage = () => {
                   <>
                     {detail.agreeCount > 0 && (
                       <div
-                        className="h-full bg-success transition-all duration-1000 flex items-center justify-center"
+                        className={`h-full bg-success transition-all duration-1000 flex items-center justify-center ${detail.disagreeCount === 0 ? 'rounded-full' : 'rounded-l-full'}`}
                         style={{ width: `${agreeRatio}%` }}
                       >
                         {agreeRatio > 15 && <span className="text-[9px] font-black text-white/80">{Math.round(agreeRatio)}%</span>}
@@ -625,7 +1355,7 @@ export const PrDetailPage = () => {
                     )}
                     {detail.disagreeCount > 0 && (
                       <div
-                        className="h-full bg-danger transition-all duration-1000 flex items-center justify-center border-l-2 border-white/20"
+                        className={`h-full bg-danger transition-all duration-1000 flex items-center justify-center ${detail.agreeCount === 0 ? 'rounded-full' : 'rounded-r-full'} ${detail.agreeCount > 0 ? 'border-l-2 border-white/20' : ''}`}
                         style={{ width: `${100 - agreeRatio}%` }}
                       >
                         {(100 - agreeRatio) > 15 && <span className="text-[9px] font-black text-white/80">{Math.round(100 - agreeRatio)}%</span>}

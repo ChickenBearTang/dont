@@ -1,5 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.fin.secretary.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,7 +12,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StrictSecretaryResponse {
-    private boolean is_approved;
-    private String fact_violence_comment;
+    @JsonProperty("is_approved")
+    private boolean approved;
+
+    @JsonProperty("fact_violence_comment")
+    private String factViolenceComment;
+
+    @JsonProperty("reasoning")
     private List<String> reasoning;
 }

@@ -6,10 +6,13 @@ export type NotificationType =
   | 'REPORT_PROCESSED_REJECTED'
   | 'POST_BLINDED'
   | 'COMMENT_BLINDED'
+  | 'MANUAL_SAVINGS_COMPLETED'
+  | 'AUTO_SAVINGS_COMPLETED'
   | 'FINANCE_GENERIC'
+  | 'CONSUMPTION_REPORT_READY'
   | string;
 
-export type NotificationReferenceType = 'POST' | 'COMMENT' | string;
+export type NotificationReferenceType = 'POST' | 'COMMENT' | 'FINANCE' | string;
 
 export interface NotificationSummaryDto {
   notificationId: number;

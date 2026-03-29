@@ -45,9 +45,17 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   fetchUnreadCount: async () => {
     try {
+      const prevUnreadCount = get().unreadCount;
       const res = await notificationApi.getUnreadCount();
+
       if (res.data) {
-        set({ unreadCount: res.data.unreadCount });
+        const nextUnreadCount = res.data.unreadCount;
+        set({ unreadCount: nextUnreadCount });
+
+        // 새 알림이 생겼으면 목록도 같이 갱신
+        if (nextUnreadCount > prevUnreadCount) {
+          await get().fetchNotifications();
+        }
       }
     } catch (error) {
       console.error('Failed to fetch unread count:', error);
@@ -116,6 +124,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     if (pollingInterval) return;
 
     get().fetchUnreadCount();
+    get().fetchNotifications();
 
     const interval = window.setInterval(() => {
       get().fetchUnreadCount();

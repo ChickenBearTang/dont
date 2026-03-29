@@ -37,6 +37,7 @@ const getMonthRange = (date: Date) => {
 export const CardDetailPage = () => {
   const { cardId } = useParams<{ cardId: string }>();
   const navigate = useNavigate();
+  const isNumericCardId = !!cardId && /^\d+$/.test(cardId);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [cardInfo, setCardInfo] = useState<CardDetailDto | null>(null);
@@ -44,7 +45,7 @@ export const CardDetailPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!cardId) return;
+    if (!cardId || !isNumericCardId) return;
 
     const fetchDetail = async () => {
       try {
@@ -72,7 +73,7 @@ export const CardDetailPage = () => {
     };
 
     fetchDetail();
-  }, [cardId, currentDate]);
+  }, [cardId, currentDate, isNumericCardId]);
 
   const handlePrevMonth = () => {
     setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -100,6 +101,20 @@ export const CardDetailPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
         <div className="w-8 h-8 border-4 border-gray-100 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isNumericCardId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <h2 className="text-lg font-bold text-gray-800">AI 추천 카드 코드(C01 등)는 상세 조회를 지원하지 않습니다.</h2>
+        <button
+          onClick={() => navigate('/finance/cards/recommend')}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          추천 목록으로 돌아가기
+        </button>
       </div>
     );
   }
