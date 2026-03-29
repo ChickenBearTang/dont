@@ -90,9 +90,9 @@ export const useRankingSse = () => {
 
     eventSourceRef.current = eventSource as unknown as EventSource;
 
-    eventSource.addEventListener('ranking-update', (event: Event) => {
+    eventSource.addEventListener('ranking-update', (event) => {
       try {
-        const payload: RankingUpdatePayload = JSON.parse((event as MessageEvent).data);
+        const payload: RankingUpdatePayload = JSON.parse((event as MessageEvent<string>).data);
         const qClient = queryClientRef.current;
 
         qClient.setQueryData<RankingResponse>(['ranking', 'total'], (oldData) => {

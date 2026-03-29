@@ -31,8 +31,8 @@ export const useNotificationSse = (enabled: boolean) => {
       heartbeatTimeout: 60 * 1000,
     });
 
-    eventSource.addEventListener('connect', (event: Event) => {
-      console.log('Notification SSE connected:', (event as MessageEvent).data);
+    eventSource.addEventListener('connect', (event) => {
+      console.log('Notification SSE connected:', (event as MessageEvent<string>).data);
     });
 
     eventSource.addEventListener('heartbeat', () => {
