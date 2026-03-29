@@ -138,17 +138,43 @@ const CohortComparisonCard = ({
     );
   }
 
-  const getMyCategoryAmount = (label: string) => {
-    return summary?.rankColumList?.find((r) => r.categoryName === label)?.amount || 0;
+  const getMyCategoryAmount = (labels: string[]) => {
+    return summary?.rankColumList?.find((r) => labels.includes(r.categoryName))?.amount || 0;
   };
 
+  const toWholeWon = (amount: number) => Math.round(Number(amount) || 0);
+
   const compareList = [
-    { label: '식사/음식', myAmount: getMyCategoryAmount('식사/음식'), avgAmount: comparison.avg_food },
-    { label: '카페/디저트', myAmount: getMyCategoryAmount('카페/디저트'), avgAmount: comparison.avg_cafe },
-    { label: '문화/여가', myAmount: getMyCategoryAmount('문화/여가'), avgAmount: comparison.avg_culture },
-    { label: '편의점/마트', myAmount: getMyCategoryAmount('편의점/마트'), avgAmount: comparison.avg_market },
-    { label: '의료/건강', myAmount: getMyCategoryAmount('의료/건강'), avgAmount: comparison.avg_medical },
-    { label: '세이브박스', myAmount: getMyCategoryAmount('세이브박스'), avgAmount: comparison.avg_save_box },
+    {
+      label: '식사/음식',
+      myAmount: getMyCategoryAmount(['식사/음식', '식사/외식']),
+      avgAmount: toWholeWon(comparison.avg_food),
+    },
+    {
+      label: '카페/디저트',
+      myAmount: getMyCategoryAmount(['카페/디저트', '카페/간식']),
+      avgAmount: toWholeWon(comparison.avg_cafe),
+    },
+    {
+      label: '문화/여가',
+      myAmount: getMyCategoryAmount(['문화/여가']),
+      avgAmount: toWholeWon(comparison.avg_culture),
+    },
+    {
+      label: '편의점/마트',
+      myAmount: getMyCategoryAmount(['편의점/마트', '쇼핑/마트']),
+      avgAmount: toWholeWon(comparison.avg_market),
+    },
+    {
+      label: '의료/건강',
+      myAmount: getMyCategoryAmount(['의료/건강']),
+      avgAmount: toWholeWon(comparison.avg_medical),
+    },
+    {
+      label: '세이브박스',
+      myAmount: getMyCategoryAmount(['세이브박스']),
+      avgAmount: toWholeWon(comparison.avg_save_box),
+    },
   ].filter(item => item.myAmount > 0 || item.avgAmount > 0);
 
   if (compareList.length === 0) {
@@ -244,6 +270,8 @@ const AIAnalysisCard = ({
   generating,
   onGenerate,
   onNavigateToRecommend,
+  onRetryCardRecommendation,
+  onRetryReport,
 }: {
   analysis: AiReportPayload['aiAnalysis'] | null;
   cardRecommendation: CardRecommendationResponse | null;
@@ -253,6 +281,8 @@ const AIAnalysisCard = ({
   generating: boolean;
   onGenerate: () => void;
   onNavigateToRecommend: () => void;
+  onRetryCardRecommendation: () => void;
+  onRetryReport: () => void;
 }) => {
   const { user } = useAuthStore();
   if (loading) {
@@ -340,7 +370,6 @@ const AIAnalysisCard = ({
 
       <div className="flex-1 p-7 flex flex-col gap-6">
 
-        {/* AI 기반 소비 유형 및 카드 추천 결과 */}
         {cardRecommendLoading ? (
           <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm flex items-center justify-center min-h-[160px]">
             <div className="w-8 h-8 border-4 border-gray-100 border-t-purple-500 rounded-full animate-spin"></div>
@@ -390,7 +419,28 @@ const AIAnalysisCard = ({
               맞춤 카드 추천 전체 결과 확인하기 <span className="text-[18px]">›</span>
             </button>
           </div>
-        ) : null}
+        ) : (
+          <div className="bg-white rounded-[24px] p-7 border border-amber-100 shadow-sm">
+            <div className="text-[14px] font-bold text-amber-700 mb-2">
+              카드 추천 데이터가 비어 있어요.
+            </div>
+            <p className="text-[13px] text-gray-600 mb-4">
+              리포트는 생성됐지만 추천 정보가 누락되어 다시 불러와야 합니다.
+            </p>
+            <button
+              onClick={onRetryCardRecommendation}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+            >
+              카드 추천 다시 불러오기
+            </button>
+            <button
+              onClick={onRetryReport}
+              className="w-full mt-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+            >
+              소비 리포트 다시 생성하기
+            </button>
+          </div>
+        )}
 
         <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
           <h3 className="text-[18px] font-extrabold text-gray-900 mb-5 flex items-center gap-2">
@@ -727,43 +777,44 @@ export const MonthlyReportPage = () => {
   const getAxiosStatus = (error: unknown): number | undefined =>
     (error as AxiosError | undefined)?.response?.status;
 
-  const applyMonthlyReportPayload = (payload?: AiReportPayload) => {
-
+  const applyMonthlyReportPayload = (
+    payload?: AiReportPayload,
+    options?: { preserveCardRecommendationOnEmpty?: boolean }
+  ) => {
     setAiAnalysis(payload?.aiAnalysis ?? null);
-    setCardRecommendation(payload?.cardRecommendation ?? null);
+    const nextCardRecommendation = payload?.cardRecommendation ?? null;
+    const hasCardRecommendation =
+      !!nextCardRecommendation &&
+      typeof nextCardRecommendation === 'object' &&
+      Object.keys(nextCardRecommendation).length > 0;
+
+    if (hasCardRecommendation) {
+      setCardRecommendation(nextCardRecommendation);
+      return;
+    }
+
+    if (!options?.preserveCardRecommendationOnEmpty) {
+      setCardRecommendation(null);
+    }
   };
 
-  const hydrateCardRecommendation = async (reportMonth: string, payload?: AiReportPayload) => {
-    const embedded = payload?.cardRecommendation;
-    const hasEmbedded =
-      !!embedded && typeof embedded === 'object' && Object.keys(embedded).length > 0;
-    if (hasEmbedded) return;
-
+  const retryCardRecommendation = async () => {
+    const reportMonth = formatToYYYYMM(currentDate);
     try {
+      setCardRecommendLoading(true);
       const directRecommendation = await getCardRecommendation(reportMonth);
-      console.log(
-        '[MonthlyReport] cardRecommendation direct API payload:',
-        directRecommendation ?? null
-      );
       setCardRecommendation(directRecommendation ?? null);
     } catch (error) {
       console.error('[MonthlyReport] Failed to fetch direct card recommendation:', error);
       setCardRecommendation(null);
+    } finally {
+      setCardRecommendLoading(false);
     }
   };
 
   const isCurrentMonth =
     currentDate.getMonth() === new Date().getMonth() &&
     currentDate.getFullYear() === new Date().getFullYear();
-
-  const isLastMonth = (() => {
-    const lastMonth = new Date();
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
-    return (
-      currentDate.getFullYear() === lastMonth.getFullYear() &&
-      currentDate.getMonth() === lastMonth.getMonth()
-    );
-  })();
 
   const handleGenerateReport = async () => {
     try {
@@ -776,7 +827,6 @@ export const MonthlyReportPage = () => {
       const res = await getMonthlyAiReport(reportMonth);
       const payload = extractReportPayload(res);
       applyMonthlyReportPayload(payload);
-      await hydrateCardRecommendation(reportMonth, payload);
     } catch (error) {
       console.error('Failed to generate AI report:', error);
       alert('리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
@@ -797,7 +847,6 @@ export const MonthlyReportPage = () => {
       const res = await getMonthlyAiReport(reportMonth);
       const payload = extractReportPayload(res);
       applyMonthlyReportPayload(payload);
-      await hydrateCardRecommendation(reportMonth, payload);
     } catch (error) {
       console.error(error);
       throw error;
@@ -871,7 +920,6 @@ export const MonthlyReportPage = () => {
         const res = await getMonthlyAiReport(reportMonth);
         const payload = extractReportPayload(res);
         applyMonthlyReportPayload(payload);
-        await hydrateCardRecommendation(reportMonth, payload);
       } catch (error) {
         if (getAxiosStatus(error) !== 404) {
           console.error('Failed to fetch AI report:', error);
@@ -1103,18 +1151,27 @@ export const MonthlyReportPage = () => {
             isCurrentMonth={isCurrentMonth}
             generating={generating}
             onGenerate={handleGenerateReport}
+            onRetryCardRecommendation={retryCardRecommendation}
+            onRetryReport={handleChatRegenerate}
             onNavigateToRecommend={() =>
-              navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`)
+              navigate(`/finance/cards/recommendation?month=${formatToYYYYMM(currentDate)}`, {
+                state: {
+                  prefetchedMonth: formatToYYYYMM(currentDate),
+                  prefetchedRecommendation: cardRecommendation,
+                },
+              })
             }
           />
         </div>
       </div>
 
-      {isLastMonth && aiAnalysis && (
+      {!isCurrentMonth && aiAnalysis && (
         <ReportChatbot
           targetMonth={formatToYYYYMM(currentDate)}
           onRegenerate={handleChatRegenerate}
-          onApplyRegeneratedReport={applyMonthlyReportPayload}
+          onApplyRegeneratedReport={(payload) =>
+            applyMonthlyReportPayload(payload, { preserveCardRecommendationOnEmpty: true })
+          }
         />
       )}
     </div>

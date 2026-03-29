@@ -8,19 +8,38 @@ import { logout as logoutApi } from '@/features/auth/api/authApi';
 import { PrDetailPage } from '@/features/community/pr';
 import { fetchOnboardingStatus } from '@/features/user/api/userApi';
 
+const AuthLoadingFallback = () => <div className="min-h-screen bg-surface-page" />;
+
 export const HomeRoute = () => {
+  const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  if (isAuthInitializing) {
+    return <AuthLoadingFallback />;
+  }
+
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />;
 };
 
 export const RequireAuthRoute = () => {
+  const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  if (isAuthInitializing) {
+    return <AuthLoadingFallback />;
+  }
+
   return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export const RequireAdminRoute = () => {
+  const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const role = useAuthStore((state) => state.user?.role);
+
+  if (isAuthInitializing) {
+    return <AuthLoadingFallback />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -34,6 +53,7 @@ export const RequireAdminRoute = () => {
 };
 
 export const RequireCompletedOnboardingRoute = () => {
+  const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [status, setStatus] = useState<'loading' | 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'>(
     'loading'
@@ -65,6 +85,10 @@ export const RequireCompletedOnboardingRoute = () => {
     void load();
   }, [isAuthenticated]);
 
+  if (isAuthInitializing) {
+    return <AuthLoadingFallback />;
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -85,6 +109,7 @@ export const RequireCompletedOnboardingRoute = () => {
 };
 
 export const AuthenticatedLayoutRoute = () => {
+  const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
@@ -99,8 +124,8 @@ export const AuthenticatedLayoutRoute = () => {
     }
   };
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (isAuthInitializing) {
+    return <AuthLoadingFallback />;
   }
 
   if (!isAuthenticated) {
@@ -111,16 +136,38 @@ export const AuthenticatedLayoutRoute = () => {
 };
 
 export const DashboardRoute = () => {
+  const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  if (isAuthInitializing) {
+    return <AuthLoadingFallback />;
+  }
+
   return isAuthenticated ? <DashboardPage /> : <Navigate to="/" replace />;
 };
 
 export const PrDetailRoute = () => {
+  const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  if (isAuthInitializing) {
+    return <AuthLoadingFallback />;
+  }
+
   return isAuthenticated ? <PrDetailPage /> : <Navigate to="/" replace />;
 };
 
 export const PrCreateRoute = () => {
+  const isAuthInitializing = useAuthStore((state) => state.isAuthInitializing);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <Navigate to="/community/write?category=PR" replace /> : <Navigate to="/" replace />;
+
+  if (isAuthInitializing) {
+    return <AuthLoadingFallback />;
+  }
+
+  return isAuthenticated ? (
+    <Navigate to="/community/write?category=PR" replace />
+  ) : (
+    <Navigate to="/" replace />
+  );
 };

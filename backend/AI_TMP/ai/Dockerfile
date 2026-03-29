@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/workspace/AI_TMP/ai:/workspace/AI_TMP/ai/src:/workspace/AI_TMP
 
 WORKDIR /workspace/AI_TMP
 
