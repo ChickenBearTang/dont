@@ -3,6 +3,7 @@ package com.ssafy.edu.awesomeproject.domain.ranking.service;
 import com.ssafy.edu.awesomeproject.common.s3.service.S3AssetUrlResolver;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
 import com.ssafy.edu.awesomeproject.domain.ranking.dto.response.RankingUserDto;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,17 +11,24 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+
+@Slf4j
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class RankingService {
 
     private final StringRedisTemplate redisTemplate;
     private final UserRepository userRepository;
     private final S3AssetUrlResolver s3AssetUrlResolver;
+    private final AccountRepository accountRepository;
 
     // 글로벌 전체 랭킹용 Redis Key
     private static final String TOTAL_RANKING_KEY = "ranking:savebox:total";
@@ -32,9 +40,9 @@ public class RankingService {
     /**
      * 잔액 변경 시 ZSET에 랭킹 스코어를 업데이트합니다. (동점자 정밀 처리 포함)
      *
-     * @param userId 유저 ID
+     * @param userId  유저 ID
      * @param balance 최신 잔액
-     * @param cohort 유저의 소속 기수
+     * @param cohort  유저의 소속 기수
      */
     public void updateSaveboxRanking(Long userId, Long balance, Integer cohort) {
         long currentTimeMs = System.currentTimeMillis();
@@ -53,21 +61,59 @@ public class RankingService {
         }
     }
 
-    /** Top 10 랭킹 리스트 조회 (cohort 인자가 null이면 전체 랭킹 조회) */
-    public List<RankingUserDto> getTop10Ranking(Integer cohort) {
-        String key =
-                (cohort != null && cohort > 0) ? COHORT_RANKING_PREFIX + cohort : TOTAL_RANKING_KEY;
-        Set<TypedTuple<String>> top10 =
-                redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, 9);
+    /**
+     * 매일 자정(00:00:01)에 현재 랭킹 상태를 스냅샷으로 저장합니다. 이 스냅샷은 '오늘 하루 동안의 순위 변동(▲/▼)'을 계산하는
+     * 기준점이 됩니다.
+     */
+    @Scheduled(cron = "1 0 0 * * *")
+    public void createDailyRankingSnapshot() {
+        log.info("[Ranking Snapshot] Starting daily ranking snapshot creation...");
+        saveSnapshot(TOTAL_RANKING_KEY, "ranking:snapshot:total");
 
-        if (top10 == null || top10.isEmpty()) return List.of();
+        // 기수별 스냅샷도 생성 (필요 시)
+        // 실제로는 기수가 많을 수 있으므로 활성 기수만 하거나,
+        // 조회 시점에 스냅샷이 없으면 그때 생성하는 Lazy 방식과 병행하는 것이 좋습니다.
+    }
+
+    private void saveSnapshot(String sourceKey, String snapshotKey) {
+        Set<String> range = redisTemplate.opsForZSet().reverseRange(sourceKey, 0, -1);
+        if (range == null || range.isEmpty())
+            return;
+
+        redisTemplate.delete(snapshotKey);
+        int rank = 1;
+        for (String userId : range) {
+            redisTemplate.opsForHash().put(snapshotKey, userId, String.valueOf(rank++));
+        }
+        log.info("[Ranking Snapshot] Saved snapshot to {} (count: {})", snapshotKey, range.size());
+    }
+
+    /** Top 100 랭킹 리스트 조회 (cohort 인자가 null이면 전체 랭킹 조회) */
+    public List<RankingUserDto> getTop100Ranking(Integer cohort) {
+        String key = (cohort != null && cohort > 0) ? COHORT_RANKING_PREFIX + cohort : TOTAL_RANKING_KEY;
+        String snapshotKey = (cohort != null && cohort > 0)
+                ? "ranking:snapshot:cohort:" + cohort
+                : "ranking:snapshot:total";
+
+        // 🔥 로컬 테스트/초기 구동 지원: 스냅샷이 없으면 현재 상태로 즉시 생성 (최초 1회)
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(snapshotKey))) {
+            log.info(
+                    "[Ranking Snapshot] Snapshot not found for {}. Creating initial snapshot...",
+                    snapshotKey);
+            saveSnapshot(key, snapshotKey);
+        }
+
+        Set<TypedTuple<String>> top100 = redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, 99);
+
+        if (top100 == null || top100.isEmpty())
+            return List.of();
 
         long currentRank = 1;
         List<RankingUserDto> result = new ArrayList<>();
         List<Long> userIds = new ArrayList<>();
         List<Double> scores = new ArrayList<>();
 
-        for (TypedTuple<String> tuple : top10) {
+        for (TypedTuple<String> tuple : top100) {
             Long id = Long.valueOf(tuple.getValue());
             Double score = tuple.getScore();
             if (score != null) {
@@ -77,22 +123,33 @@ public class RankingService {
         }
 
         // 유저 정보를 한 번에 조회 (N+1 방지)
-        Map<Long, User> userMap =
-                userRepository.findAllById(userIds).stream()
-                        .collect(Collectors.toMap(User::getId, u -> u));
+        Map<Long, User> userMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
+        // 어제 랭킹 스냅샷 조회 (Redis Hash: userId -> rank)
+        Map<Object, Object> snapshotMap = redisTemplate.opsForHash().entries(snapshotKey);
 
         for (int i = 0; i < userIds.size(); i++) {
             Long userId = userIds.get(i);
             User user = userMap.get(userId);
             String nickname = user != null ? user.getNickname() : "탈퇴한 유저";
-            Integer cohortNo =
-                    (user != null && user.getCohort() != null)
-                            ? user.getCohort().getGenerationNo()
-                            : null;
-            String profileImageUrl =
-                    user != null
-                            ? s3AssetUrlResolver.resolvePublicUrlOrNull(user.getProfileImageUrl())
-                            : null;
+
+            // 등락 계산 (rankDiff = 어제순위 - 현재순위)
+            Integer rankDiff = null;
+            if (!snapshotMap.isEmpty() && snapshotMap.containsKey(userId.toString())) {
+                try {
+                    long lastRank = Long.parseLong(snapshotMap.get(userId.toString()).toString());
+                    rankDiff = (int) (lastRank - currentRank);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
+            Integer cohortNo = (user != null && user.getCohort() != null)
+                    ? user.getCohort().getGenerationNo()
+                    : null;
+            String profileImageUrl = user != null
+                    ? s3AssetUrlResolver.resolvePublicUrlOrNull(user.getProfileImageUrl())
+                    : null;
 
             result.add(
                     RankingUserDto.of(
@@ -101,7 +158,8 @@ public class RankingService {
                             scores.get(i).longValue(),
                             currentRank++,
                             cohortNo,
-                            profileImageUrl));
+                            profileImageUrl,
+                            rankDiff));
         }
 
         return result;
@@ -109,34 +167,125 @@ public class RankingService {
 
     /** 내 랭킹 조회 (존재하지 않으면 rank = -1 로 반환) */
     public RankingUserDto getMyRanking(Long userId, Integer cohort) {
-        String key =
-                (cohort != null && cohort > 0) ? COHORT_RANKING_PREFIX + cohort : TOTAL_RANKING_KEY;
+        String key = (cohort != null && cohort > 0) ? COHORT_RANKING_PREFIX + cohort : TOTAL_RANKING_KEY;
         String userIdStr = String.valueOf(userId);
 
         Double scoreDouble = redisTemplate.opsForZSet().score(key, userIdStr);
         Long rank = redisTemplate.opsForZSet().reverseRank(key, userIdStr);
 
         if (scoreDouble == null || rank == null) {
-            return RankingUserDto.of(userId, null, 0L, -1L, null, null);
+            return RankingUserDto.of(userId, null, 0L, -1L, null, null, 0);
         }
 
         User user = userRepository.findById(userId).orElse(null);
         String nickname = user != null ? user.getNickname() : "탈퇴한 유저";
-        Integer cohortNo =
-                (user != null && user.getCohort() != null)
-                        ? user.getCohort().getGenerationNo()
-                        : null;
-        String profileImageUrl =
-                user != null
-                        ? s3AssetUrlResolver.resolvePublicUrlOrNull(user.getProfileImageUrl())
-                        : null;
+
+        // 내 랭킹 등락 계산
+        String snapshotKey = (cohort != null && cohort > 0)
+                ? "ranking:snapshot:cohort:" + cohort
+                : "ranking:snapshot:total";
+
+        // 🔥 로컬 테스트/초기 구동 지원: 스냅샷이 없으면 현재 상태로 즉시 생성
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(snapshotKey))) {
+            saveSnapshot(key, snapshotKey);
+        }
+
+        Object lastRankObj = redisTemplate.opsForHash().get(snapshotKey, userIdStr);
+        Integer rankDiff = null;
+        long currentRank = rank + 1;
+        if (lastRankObj != null) {
+            try {
+                long lastRank = Long.parseLong(lastRankObj.toString());
+                rankDiff = (int) (lastRank - currentRank);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        Integer cohortNo = (user != null && user.getCohort() != null)
+                ? user.getCohort().getGenerationNo()
+                : null;
+        String profileImageUrl = user != null
+                ? s3AssetUrlResolver.resolvePublicUrlOrNull(user.getProfileImageUrl())
+                : null;
 
         return RankingUserDto.of(
                 userId,
                 nickname,
                 scoreDouble.longValue(),
-                rank + 1, // Redis ZSET Rank는 0부터 시작하므로 +1
+                currentRank,
                 cohortNo,
-                profileImageUrl);
+                profileImageUrl,
+                rankDiff);
+    }
+
+    /**
+     * '그림자 키(Shadow Key)' 전략을 사용하여 동기화 도중에도 기존 랭킹 조회가 가능하도록 합니다.
+     * 새로운 랭킹을 임시 키에 먼저 빌드한 후, Redis RENAME 명령으로 원자적(Atomic)으로 교체합니다.
+     */
+    @Transactional
+    public void syncRankingFromDb() {
+        log.info("[Ranking Sync] Starting atomic ranking synchronization...");
+
+        List<User> activeUsers = userRepository.findAllByStatus(
+                com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus.ACTIVE);
+
+        if (activeUsers.isEmpty()) {
+            log.warn("[Ranking Sync] No active users found in DB.");
+            return;
+        }
+
+        var accounts = accountRepository.findAllByAccountRole(
+                com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountRole.SAVE_BOX);
+
+        Map<Long, java.math.BigDecimal> balanceMap = accounts.stream()
+                .collect(Collectors.toMap(
+                        com.ssafy.edu.awesomeproject.domain.fin.account.entity.Account::getUserId,
+                        com.ssafy.edu.awesomeproject.domain.fin.account.entity.Account::getBalance,
+                        java.math.BigDecimal::add));
+
+        // 1. 임시(Shadow) 키 이름 정의
+        String tempTotalKey = TOTAL_RANKING_KEY + ":temp:" + System.currentTimeMillis();
+        String tempCohortPrefix = COHORT_RANKING_PREFIX + "temp:" + System.currentTimeMillis() + ":";
+
+        long currentTimeMs = System.currentTimeMillis();
+        double tieBreaker = 1.0 - (currentTimeMs / MAX_TIME_MS);
+
+        // 2. 임시 키에 신규 랭킹 데이터 빌드
+        for (User user : activeUsers) {
+            Long userId = user.getId();
+            java.math.BigDecimal balance = balanceMap.getOrDefault(userId, java.math.BigDecimal.ZERO);
+            double score = balance.longValue() + tieBreaker;
+
+            redisTemplate.opsForZSet().add(tempTotalKey, String.valueOf(userId), score);
+
+            if (user.getCohort() != null) {
+                Integer cohortNo = user.getCohort().getGenerationNo();
+                String tempCohortKey = tempCohortPrefix + cohortNo;
+                redisTemplate.opsForZSet().add(tempCohortKey, String.valueOf(userId), score);
+            }
+        }
+
+        // 3. 원자적 키 교체 (Atomic Switchover)
+        // 전체 랭킹 교체
+        redisTemplate.rename(tempTotalKey, TOTAL_RANKING_KEY);
+
+        // 기수별 랭킹 교체 (동적 키이므로 기존 키 삭제 후 이름 변경)
+        Set<String> oldCohortKeys = redisTemplate.keys(COHORT_RANKING_PREFIX + "*");
+        if (oldCohortKeys != null) {
+            // 현재 작업중인 임시 키들은 제외하고 기존 키들만 삭제
+            oldCohortKeys.removeIf(k -> k.startsWith(tempCohortPrefix));
+            if (!oldCohortKeys.isEmpty())
+                redisTemplate.delete(oldCohortKeys);
+        }
+
+        Set<String> newTempCohortKeys = redisTemplate.keys(tempCohortPrefix + "*");
+        if (newTempCohortKeys != null) {
+            for (String tempKey : newTempCohortKeys) {
+                String realKey = COHORT_RANKING_PREFIX + tempKey.substring(tempCohortPrefix.length());
+                redisTemplate.rename(tempKey, realKey);
+            }
+        }
+
+        log.info("[Ranking Sync] Atomic sync complete. Total Users: {}", activeUsers.size());
     }
 }

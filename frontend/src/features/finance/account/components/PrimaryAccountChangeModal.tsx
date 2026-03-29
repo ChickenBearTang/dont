@@ -88,7 +88,7 @@ export const PrimaryAccountChangeModal: React.FC<PrimaryAccountChangeModalProps>
                   </div>
                   {account.id === currentPrimaryAccountId && (
                     <span className="text-[10px] font-black text-primary-blue bg-blue-100 px-2 py-0.5 rounded-full mt-2 inline-block">
-                      CURRENT
+                      사용 중
                     </span>
                   )}
                 </div>

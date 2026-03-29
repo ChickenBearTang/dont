@@ -76,7 +76,7 @@ export const AccountPage: React.FC = () => {
           <section className="mb-12">
             <div className="flex items-center gap-2 mb-4 px-2">
               <span className="text-xs font-black text-primary-blue bg-blue-50 px-2 py-0.5 rounded-md uppercase">
-                Primary
+                주계좌
               </span>
               <h2 className="text-xl font-black text-eel">나의 주계좌</h2>
             </div>
