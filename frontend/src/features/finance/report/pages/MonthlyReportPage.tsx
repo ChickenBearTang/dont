@@ -728,7 +728,7 @@ export const MonthlyReportPage = () => {
     (error as AxiosError | undefined)?.response?.status;
 
   const applyMonthlyReportPayload = (payload?: AiReportPayload) => {
-    console.log('[MonthlyReport] cardRecommendation payload:', payload?.cardRecommendation ?? null);
+
     setAiAnalysis(payload?.aiAnalysis ?? null);
     setCardRecommendation(payload?.cardRecommendation ?? null);
   };

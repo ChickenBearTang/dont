@@ -137,4 +137,8 @@ public class Account extends BaseEntity {
     public void unsetPrimary() {
         this.isPrimary = false;
     }
+
+    public void updateAccountRole(AccountRole accountRole) {
+        this.accountRole = accountRole;
+    }
 }

@@ -68,7 +68,24 @@ export const useExecuteManualSavings = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (amount: number) => accountApi.executeManualSavings(amount),
+    mutationFn: ({ amount, password }: { amount: number; password: string }) =>
+      accountApi.executeManualSavings(amount, password),
+    onSuccess: () => {
+      // 잔액 변동이 있으므로 전체 무효화
+      queryClient.invalidateQueries({ queryKey: accountKeys.all });
+    },
+  });
+};
+
+/**
+ * 수동 출금 실행 mutation 훅
+ */
+export const useExecuteManualWithdrawal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ amount, password }: { amount: number; password: string }) =>
+      accountApi.executeManualWithdrawal(amount, password),
     onSuccess: () => {
       // 잔액 변동이 있으므로 전체 무효화
       queryClient.invalidateQueries({ queryKey: accountKeys.all });
