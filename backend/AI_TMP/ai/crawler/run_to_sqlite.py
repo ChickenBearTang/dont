@@ -12,7 +12,7 @@ def main() -> None:
     parser.add_argument("--db-path", default="ai/data/crawl.db")
     parser.add_argument("--keyword", default=None)
     parser.add_argument("--start-page", type=int, default=1)
-    parser.add_argument("--max-pages", type=int, default=50)
+    parser.add_argument("--max-pages", type=int, default=1000)
     parser.add_argument("--overlap-threshold", type=int, default=30)
     args = parser.parse_args()
 

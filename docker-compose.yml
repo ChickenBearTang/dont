@@ -62,18 +62,19 @@ services:
       AI_POSTGRES_USER: ${AI_POSTGRES_USER:-ai_user}
       AI_POSTGRES_PASSWORD: ${AI_POSTGRES_PASSWORD:-ai_password}
       PYTHONUNBUFFERED: "1"
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "18000"]
     depends_on:
       ai-postgres:
         condition: service_healthy
     ports:
-      - "${AI_PYTHON_PORT:-18000}:8000"
+      - "${AI_PYTHON_PORT:-18000}:18000"
     healthcheck:
       test:
         [
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18000/health', timeout=2)",
         ]
       interval: 10s
       timeout: 5s
@@ -92,7 +93,9 @@ services:
         TZ: Asia/Seoul
         REDIS_HOST: redis
         REDIS_PORT: 6379
-        AI_SERVER_URL: http://ai-python:8000
+        AI_SERVER_URL: http://ai-python:18000
+        AI_SERVER_CONNECT_TIMEOUT_MS: "3000"
+        AI_SERVER_READ_TIMEOUT_MS: "60000"
         AI_POSTGRES_HOST: ai-postgres
         AI_POSTGRES_PORT: 5432
         AI_POSTGRES_DB: ${AI_POSTGRES_DB:-ai_crawl}

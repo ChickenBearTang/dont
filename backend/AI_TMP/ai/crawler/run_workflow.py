@@ -135,7 +135,7 @@ def main() -> None:
     parser.add_argument("--backend", choices=["postgres"], default="postgres")
     parser.add_argument("--keyword", default=None)
     parser.add_argument("--start-page", type=int, default=1)
-    parser.add_argument("--max-pages", type=int, default=2)
+    parser.add_argument("--max-pages", type=int, default=1000)
     parser.add_argument("--overlap-threshold", type=int, default=20)
     parser.add_argument("--sample-limit", type=int, default=10)
     args = parser.parse_args()

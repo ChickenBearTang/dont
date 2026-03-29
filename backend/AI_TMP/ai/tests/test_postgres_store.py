@@ -72,6 +72,28 @@ class PostgresCrawlStoreTest(unittest.TestCase):
         self.assertEqual(PostgresCrawlStore._normalize_krw_price("CNY 100"), "21500")
         self.assertIsNone(PostgresCrawlStore._normalize_krw_price("EUR 100"))
 
+    def test_classify_item_family_maps_supported_three_products(self) -> None:
+        self.assertEqual(
+            PostgresCrawlStore.classify_item_family(title="F87 pro \ud0a4\ubcf4\ub4dc", url=None),
+            "f87",
+        )
+        self.assertEqual(
+            PostgresCrawlStore.classify_item_family(title="\ub3c5\uac70\ubbf8 87", url=None),
+            "f87",
+        )
+        self.assertEqual(
+            PostgresCrawlStore.classify_item_family(title="mx master 3s", url=None),
+            "mx_master",
+        )
+        self.assertEqual(
+            PostgresCrawlStore.classify_item_family(title="mx \ub9c8\uc2a4\ud130 3", url=None),
+            "mx_master",
+        )
+        self.assertEqual(
+            PostgresCrawlStore.classify_item_family(title="VXE R1 mouse", url=None),
+            "vxe_r1",
+        )
+
     def test_save_result_counts_inserted_and_updated(self) -> None:
         init_cursor = _FakeCursor()
         save_cursor = _FakeCursor(fetchone_results=[None, (1,)])
@@ -162,7 +184,7 @@ class PostgresCrawlStoreTest(unittest.TestCase):
         )
         store = PostgresCrawlStore(dsn="postgresql://test", connector=connector)
 
-        stats = store.read_window_stats()
+        stats = store.read_window_stats(item_family="f87 pro")
 
         self.assertEqual(stats["30d"]["count"], 3)
         self.assertEqual(stats["30d"]["avg_price"], 1200.0)
@@ -174,6 +196,8 @@ class PostgresCrawlStoreTest(unittest.TestCase):
         self.assertIn(
             "AND is_outlier = FALSE", stats_90d_cursor.executed[0][0]
         )
+        self.assertIn("item_family = %s", stats_30d_cursor.executed[0][0])
+        self.assertEqual(stats_30d_cursor.executed[0][1], (30, "f87"))
 
     def test_mark_price_outliers_marks_only_out_of_iqr_range(self) -> None:
         init_cursor = _FakeCursor()

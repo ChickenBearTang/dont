@@ -6,6 +6,7 @@ from datetime import timezone
 import importlib
 import re
 from typing import Any, Callable
+from urllib.parse import unquote
 
 from ..models import CrawlResult
 from ..models import HotDeal
@@ -19,6 +20,7 @@ _USD_PATTERN = re.compile(r"(?:\bUSD\b|US\$|달러|\$)", re.IGNORECASE)
 _JPY_PATTERN = re.compile(r"(?:\bJPY\b|YEN|円|엔|¥|￥)", re.IGNORECASE)
 _CNY_PATTERN = re.compile(r"(?:\bCNY\b|RMB|元|위안)", re.IGNORECASE)
 _NUMERIC_PATTERN = re.compile(r"\d+(?:[.,]\d+)?")
+_ITEM_FAMILY_NORMALIZE_PATTERN = re.compile(r"[^a-z0-9\uac00-\ud7a3]+")
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,17 @@ class PostgresCrawlStore:
     _USD_TO_KRW = 1500.0
     _JPY_TO_KRW = 9.5
     _CNY_TO_KRW = 215.0
+    _ITEM_FAMILY_ALIASES: dict[str, str] = {
+        "f87": "f87",
+        "f87pro": "f87",
+        "mxmaster3": "mx_master",
+        "mxmaster3s": "mx_master",
+        "mxmaster": "mx_master",
+        "mx": "mx_master",
+        "vxer1": "vxe_r1",
+        "vxe": "vxe_r1",
+        "vxer1pro": "vxe_r1",
+    }
 
     def __init__(
         self,
@@ -80,6 +93,53 @@ class PostgresCrawlStore:
         if match is None:
             return None
         return match.group(1)
+
+    @staticmethod
+    def _normalize_item_family_text(value: str | None) -> str:
+        if value is None:
+            return ""
+        lowered = value.lower()
+        try:
+            lowered = unquote(lowered)
+        except Exception:
+            pass
+        return _ITEM_FAMILY_NORMALIZE_PATTERN.sub("", lowered)
+
+    @classmethod
+    def classify_item_family(cls, *, title: str | None, url: str | None = None) -> str | None:
+        normalized = cls._normalize_item_family_text(f"{title or ''} {url or ''}")
+        if normalized == "":
+            return None
+        if "vxer1" in normalized or ("vxe" in normalized and "r1" in normalized):
+            return "vxe_r1"
+        if (
+            "f87" in normalized
+            or "f87pro" in normalized
+            or "\ub3c5\uac70\ubbf887" in normalized
+            or ("\ub3c5\uac70\ubbf8" in normalized and "87" in normalized)
+        ):
+            return "f87"
+        has_mx = "mx" in normalized
+        has_master_like = (
+            "master" in normalized
+            or "\ub9c8\uc2a4\ud130" in normalized
+            or "\ub9c8\uc6b0\uc2a4" in normalized
+            or "\ub9c8\uc2a4\uc5b4" in normalized
+        )
+        has_generation = "3s" in normalized or "3" in normalized
+        if has_mx and has_master_like and has_generation:
+            return "mx_master"
+        return None
+
+    @classmethod
+    def normalize_item_family_filter(cls, raw_value: str | None) -> str | None:
+        normalized = cls._normalize_item_family_text(raw_value)
+        if normalized == "":
+            return None
+        alias = cls._ITEM_FAMILY_ALIASES.get(normalized)
+        if alias is not None:
+            return alias
+        return cls.classify_item_family(title=raw_value, url=None)
 
     @staticmethod
     def _normalize_krw_price(price: str | None) -> str | None:
@@ -178,9 +238,52 @@ class PostgresCrawlStore:
                 )
                 cursor.execute(
                     """
+                    ALTER TABLE crawl_items
+                    ADD COLUMN IF NOT EXISTS item_family TEXT
+                    """
+                )
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_crawl_items_outlier
                     ON crawl_items (is_outlier)
                     """
+                )
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_crawl_items_item_family
+                    ON crawl_items (item_family)
+                    """
+                )
+                self._backfill_item_family(cursor)
+
+    def _backfill_item_family(self, cursor: Any, batch_size: int = 500) -> None:
+        while True:
+            cursor.execute(
+                """
+                SELECT url, title
+                FROM crawl_items
+                WHERE COALESCE(item_family, '') = ''
+                ORDER BY last_seen_at DESC
+                LIMIT %s
+                """,
+                (batch_size,),
+            )
+            rows = cursor.fetchall()
+            if len(rows) == 0:
+                return
+            for row in rows:
+                url = str(row[0]) if row[0] is not None else ""
+                title = str(row[1]) if row[1] is not None else ""
+                item_family = self.classify_item_family(title=title, url=url)
+                if item_family is None:
+                    continue
+                cursor.execute(
+                    """
+                    UPDATE crawl_items
+                    SET item_family = %s
+                    WHERE url = %s
+                    """,
+                    (item_family, url),
                 )
 
     def is_seen(self, deal: HotDeal) -> bool:
@@ -203,6 +306,7 @@ class PostgresCrawlStore:
                 for deal in result.items:
                     post_id = self._extract_post_id(deal.url)
                     normalized_price = self._normalize_krw_price(deal.price)
+                    item_family = self.classify_item_family(title=deal.title, url=deal.url)
                     cursor.execute(
                         "SELECT 1 FROM crawl_items WHERE url = %s LIMIT 1",
                         (deal.url,),
@@ -222,10 +326,11 @@ class PostgresCrawlStore:
                                 fetched_at,
                                 first_seen_at,
                                 last_seen_at,
+                                item_family,
                                 is_outlier,
                                 outlier_reason,
                                 outlier_marked_at
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, FALSE, NULL, NULL)
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, FALSE, NULL, NULL)
                             """,
                             (
                                 result.source,
@@ -237,6 +342,7 @@ class PostgresCrawlStore:
                                 result.fetched_at,
                                 now,
                                 now,
+                                item_family,
                             ),
                         )
                         inserted += 1
@@ -253,6 +359,7 @@ class PostgresCrawlStore:
                             posted_at = %s,
                             fetched_at = %s,
                             last_seen_at = %s,
+                            item_family = %s,
                             is_outlier = FALSE,
                             outlier_reason = NULL,
                             outlier_marked_at = NULL
@@ -266,6 +373,7 @@ class PostgresCrawlStore:
                             deal.posted_at,
                             result.fetched_at,
                             now,
+                            item_family,
                             deal.url,
                         ),
                     )
@@ -283,7 +391,15 @@ class PostgresCrawlStore:
                 )
                 cursor.execute(
                     """
-                    SELECT post_id, title, price, url, posted_at, COALESCE(is_outlier, FALSE), outlier_reason
+                    SELECT
+                        post_id,
+                        title,
+                        price,
+                        url,
+                        posted_at,
+                        COALESCE(is_outlier, FALSE),
+                        outlier_reason,
+                        item_family
                     FROM crawl_items
                     ORDER BY last_seen_at DESC
                     LIMIT %s
@@ -301,47 +417,87 @@ class PostgresCrawlStore:
                 "posted_at": row[4] if len(row) > 4 else None,
                 "is_outlier": bool(row[5]) if len(row) > 5 else False,
                 "outlier_reason": row[6] if len(row) > 6 else None,
+                "item_family": row[7] if len(row) > 7 else None,
             }
             for row in rows
         ]
         return PostgresSampleResult(total_count=total_count, sample_items=sample_items)
 
-    def read_price_stats(self, days: int) -> dict[str, float | int | None]:
+    def read_price_stats(
+        self,
+        days: int,
+        item_family: str | None = None,
+    ) -> dict[str, float | int | None]:
         if days <= 0:
             raise ValueError("days must be greater than 0")
+        normalized_family = self.normalize_item_family_filter(item_family)
 
         with self._connect() as connection:
             with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    WITH normalized AS (
+                if normalized_family is None:
+                    cursor.execute(
+                        """
+                        WITH normalized AS (
+                            SELECT
+                                CASE
+                                    WHEN posted_at ~ '^\\d{4}[./-]\\d{1,2}[./-]\\d{1,2}$' THEN
+                                        to_date(replace(replace(posted_at, '.', '-'), '/', '-'), 'YYYY-MM-DD')::timestamp
+                                    WHEN posted_at ~ '^\\d{1,2}[./-]\\d{1,2}$' THEN
+                                        to_date(
+                                            extract(year from now())::text || '-' || replace(replace(posted_at, '.', '-'), '/', '-'),
+                                            'YYYY-MM-DD'
+                                        )::timestamp
+                                    ELSE NULL
+                                END AS posted_at_ts,
+                                fetched_at,
+                                NULLIF(regexp_replace(COALESCE(price, ''), '[^0-9]', '', 'g'), '')::BIGINT AS numeric_price,
+                                COALESCE(is_outlier, FALSE) AS is_outlier
+                            FROM crawl_items
+                        )
                         SELECT
-                            CASE
-                                WHEN posted_at ~ '^\\d{4}[./-]\\d{1,2}[./-]\\d{1,2}$' THEN
-                                    to_date(replace(replace(posted_at, '.', '-'), '/', '-'), 'YYYY-MM-DD')::timestamp
-                                WHEN posted_at ~ '^\\d{1,2}[./-]\\d{1,2}$' THEN
-                                    to_date(
-                                        extract(year from now())::text || '-' || replace(replace(posted_at, '.', '-'), '/', '-'),
-                                        'YYYY-MM-DD'
-                                    )::timestamp
-                                ELSE NULL
-                            END AS posted_at_ts,
-                            fetched_at,
-                            NULLIF(regexp_replace(COALESCE(price, ''), '[^0-9]', '', 'g'), '')::BIGINT AS numeric_price,
-                            COALESCE(is_outlier, FALSE) AS is_outlier
-                        FROM crawl_items
+                            COUNT(*)::BIGINT,
+                            AVG(numeric_price),
+                            MIN(numeric_price),
+                            MAX(numeric_price)
+                        FROM normalized
+                        WHERE COALESCE(posted_at_ts, fetched_at) >= NOW() - (%s * INTERVAL '1 day')
+                          AND is_outlier = FALSE
+                        """,
+                        (days,),
                     )
-                    SELECT
-                        COUNT(*)::BIGINT,
-                        AVG(numeric_price),
-                        MIN(numeric_price),
-                        MAX(numeric_price)
-                    FROM normalized
-                    WHERE COALESCE(posted_at_ts, fetched_at) >= NOW() - (%s * INTERVAL '1 day')
-                      AND is_outlier = FALSE
-                    """,
-                    (days,),
-                )
+                else:
+                    cursor.execute(
+                        """
+                        WITH normalized AS (
+                            SELECT
+                                CASE
+                                    WHEN posted_at ~ '^\\d{4}[./-]\\d{1,2}[./-]\\d{1,2}$' THEN
+                                        to_date(replace(replace(posted_at, '.', '-'), '/', '-'), 'YYYY-MM-DD')::timestamp
+                                    WHEN posted_at ~ '^\\d{1,2}[./-]\\d{1,2}$' THEN
+                                        to_date(
+                                            extract(year from now())::text || '-' || replace(replace(posted_at, '.', '-'), '/', '-'),
+                                            'YYYY-MM-DD'
+                                        )::timestamp
+                                    ELSE NULL
+                                END AS posted_at_ts,
+                                fetched_at,
+                                NULLIF(regexp_replace(COALESCE(price, ''), '[^0-9]', '', 'g'), '')::BIGINT AS numeric_price,
+                                COALESCE(is_outlier, FALSE) AS is_outlier,
+                                item_family
+                            FROM crawl_items
+                        )
+                        SELECT
+                            COUNT(*)::BIGINT,
+                            AVG(numeric_price),
+                            MIN(numeric_price),
+                            MAX(numeric_price)
+                        FROM normalized
+                        WHERE COALESCE(posted_at_ts, fetched_at) >= NOW() - (%s * INTERVAL '1 day')
+                          AND is_outlier = FALSE
+                          AND item_family = %s
+                        """,
+                        (days, normalized_family),
+                    )
                 row = cursor.fetchone()
 
         if row is None:
@@ -354,10 +510,13 @@ class PostgresCrawlStore:
             "max_price": float(row[3]) if row[3] is not None else None,
         }
 
-    def read_window_stats(self) -> dict[str, dict[str, float | int | None]]:
+    def read_window_stats(
+        self,
+        item_family: str | None = None,
+    ) -> dict[str, dict[str, float | int | None]]:
         return {
-            "30d": self.read_price_stats(30),
-            "90d": self.read_price_stats(90),
+            "30d": self.read_price_stats(30, item_family=item_family),
+            "90d": self.read_price_stats(90, item_family=item_family),
         }
 
     @staticmethod
