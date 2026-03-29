@@ -8,6 +8,7 @@ import {
 import { useCurrentMonthSpending } from '@/features/finance/report/hooks/useReportQueries';
 import { fetchMyPage } from '@/features/user/api/userApi';
 import { useQuery } from '@tanstack/react-query';
+import { useRankingSse } from '@/features/ranking/hooks/useRankingSse';
 
 const CATEGORY_COLORS = ['#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#10B981'];
 
@@ -130,6 +131,7 @@ export const DashboardPage = () => {
   const { user, updateUser } = useAuthStore();
   const { data: accounts, isLoading: isLoadingAccounts } = useGetMyAccounts();
   const { data: setting, isLoading: isLoadingSetting } = useGetSavingsSetting();
+  useRankingSse();
 
   const { data: profile } = useQuery({
     queryKey: ['myPage'],
