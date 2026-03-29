@@ -323,18 +323,18 @@ public class ConsumptionReportService {
             Long avgSaveBoxId = 0L;
             CardSummaryResponse cardSummaryResponse =  cardService.getCardSummary(u.getId(),startDate,endDate);
 /*
-            System.out.println(u.getId());
+
 
            avgSaveBoxId += savingsSettingRepository.findByUserIdAndIsActiveTrue(u.getId())
                .get().getSaveboxAccountId();
 
-           System.out.println(avgSaveBoxId);
+
            avgSaveBox += accountRepository.getAccountById(avgSaveBoxId)
                .orElseThrow()
                .getBalance()
                .longValue();
 
-            System.out.println(u.getId() + " " + avgSaveBox);
+
 */
             for (CardSummaryResponse.RankColum rank : cardSummaryResponse.getRankColumList()) {
 
@@ -373,7 +373,7 @@ public class ConsumptionReportService {
 
 
         AvgCohort avgCohort = new AvgCohort(cohortsID,avgSaveBox,avgFood,avgCafe,avgCulture,avgMarket,avgMedical);
-        //System.out.println("avgSaveBox: " + avgSaveBox);
+
         return avgCohort;
     }
 }

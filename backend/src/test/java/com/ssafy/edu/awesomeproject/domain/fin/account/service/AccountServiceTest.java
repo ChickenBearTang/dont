@@ -123,7 +123,7 @@ class AccountServiceTest {
                 .willReturn(apiResponse);
 
         // when
-        accountService.manualSavings(userId, amount);
+        accountService.manualSavings(userId, amount, "password123!");
 
         // then
         verify(openBankAdapter, times(1))
