@@ -22,24 +22,23 @@ public class RankingController {
     private final RankingService rankingService;
     private final UserRepository userRepository;
 
-    /** 전체 세이브박스 랭킹 Top 10 및 내 랭킹 조회 */
+    /** 전체 세이브박스 랭킹 Top 100 및 내 랭킹 조회 */
     @GetMapping("/total")
     public CommonResponse<RankingListResponse> getTotalRanking(@CurrentUserId Long userId) {
-        List<RankingUserDto> top10 = rankingService.getTop10Ranking(null);
+        List<RankingUserDto> top100 = rankingService.getTop100Ranking(null);
         RankingUserDto myRanking = rankingService.getMyRanking(userId, null);
 
-        return CommonResponse.success(RankingListResponse.of(top10, myRanking));
+        return CommonResponse.success(RankingListResponse.of(top100, myRanking));
     }
 
     /**
-     * 기수(Cohort)별 세이브박스 랭킹 Top 10 및 내 랭킹 조회
+     * 기수(Cohort)별 세이브박스 랭킹 Top 100 및 내 랭킹 조회
      *
      * @param cohortNo 조회할 기수 번호 (없으면 로그인 유저의 기수 사용)
      */
     @GetMapping("/cohort")
     public CommonResponse<RankingListResponse> getCohortRanking(
-            @CurrentUserId Long userId,
-            @RequestParam(required = false) Integer cohortNo) {
+            @CurrentUserId Long userId, @RequestParam(required = false) Integer cohortNo) {
 
         // cohortNo 파라미터가 없으면 로그인 유저의 기수를 기본값으로 사용
         if (cohortNo == null) {
@@ -47,15 +46,15 @@ public class RankingController {
                     userRepository
                             .findById(userId)
                             .orElseThrow(
-                                    () -> new IllegalArgumentException(
-                                            "User not found: " + userId));
-            cohortNo =
-                    (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    "User not found: " + userId));
+            cohortNo = (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
         }
 
-        List<RankingUserDto> top10 = rankingService.getTop10Ranking(cohortNo);
+        List<RankingUserDto> top100 = rankingService.getTop100Ranking(cohortNo);
         RankingUserDto myRanking = rankingService.getMyRanking(userId, cohortNo);
 
-        return CommonResponse.success(RankingListResponse.of(top10, myRanking));
+        return CommonResponse.success(RankingListResponse.of(top100, myRanking));
     }
 }

@@ -370,7 +370,6 @@ const AIAnalysisCard = ({
 
       <div className="flex-1 p-7 flex flex-col gap-6">
 
-        {/* AI 기반 소비 유형 및 카드 추천 결과 */}
         {cardRecommendLoading ? (
           <div className="bg-white rounded-[24px] p-7 border border-gray-100 shadow-sm flex items-center justify-center min-h-[160px]">
             <div className="w-8 h-8 border-4 border-gray-100 border-t-purple-500 rounded-full animate-spin"></div>

@@ -23,7 +23,7 @@ export const useNotificationSse = (enabled: boolean) => {
     let refreshInFlight = false;
     let lastRefreshAt = 0;
 
-    const eventSource = new (EventSourcePolyfill as any)(streamUrl, {
+    const eventSource = new EventSourcePolyfill(streamUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -33,6 +33,10 @@ export const useNotificationSse = (enabled: boolean) => {
 
     eventSource.addEventListener('connect', (event: Event) => {
       console.log('Notification SSE connected:', (event as MessageEvent).data);
+    });
+
+    eventSource.addEventListener('heartbeat', () => {
+      // no-op
     });
 
     eventSource.addEventListener('notification-created', async () => {

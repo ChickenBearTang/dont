@@ -6,14 +6,17 @@ public record RankingUserDto(
         Long score,
         Long rank,
         Integer cohortNo,
-        String profileImageUrl) {
+        String profileImageUrl,
+        Integer rankDiff) {
     public static RankingUserDto of(
             Long userId,
             String nickname,
             Long score,
             Long rank,
             Integer cohortNo,
-            String profileImageUrl) {
-        return new RankingUserDto(userId, nickname, score, rank, cohortNo, profileImageUrl);
+            String profileImageUrl,
+            Integer rankDiff) {
+        return new RankingUserDto(
+                userId, nickname, score, rank, cohortNo, profileImageUrl, rankDiff);
     }
 }

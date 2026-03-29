@@ -25,25 +25,24 @@ export const SavingsRuleSetupPage: React.FC = () => {
   const { success, error: toastError } = useToast();
 
   // Form states
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState('삼성SSAFY');
   const [amount, setAmount] = useState<number>(0);
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialization flag to prevent background re-fetches from overwriting user input
   const isInitialized = useRef(false);
 
-  // Handle browser back button: always return to onboarding start
   useEffect(() => {
+    if (initialSetting) return;
+
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
       navigate('/onboarding', { replace: true });
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigate]);
+  }, [navigate, initialSetting]);
 
-  // Load existing settings and onboarding recommendation
   // 온보딩 추천 금액을 최우선으로 적용하고, 키워드/활성화는 기존 설정에서 불러옴
   useEffect(() => {
     if (isInitialized.current) return;
@@ -52,7 +51,7 @@ export const SavingsRuleSetupPage: React.FC = () => {
 
     // 1. 기존 저축 설정이 있으면 키워드와 활성화 상태를 불러옴
     if (initialSetting) {
-      setKeyword(initialSetting.keyword || '');
+      setKeyword(initialSetting.keyword || '삼성SSAFY');
       setIsActive(initialSetting.isActive ?? true);
     }
 
@@ -66,7 +65,6 @@ export const SavingsRuleSetupPage: React.FC = () => {
     isInitialized.current = true;
   }, [initialSetting, onboardingData, isFetchingOnboarding, isFetchingSetting]);
 
-  // Identification Logic: Find real accounts
   const primaryAccount = accounts?.find(
     (a) => !a.accountName.includes('세이브박스') && !a.accountTypeName.includes('세이브박스')
   );
@@ -105,15 +103,21 @@ export const SavingsRuleSetupPage: React.FC = () => {
       },
       {
         onSuccess: async () => {
-          try {
-            await completeOnboarding();
-            success('자동 저축 규칙이 저장되었습니다! 모든 온보딩이 완료되었습니다.');
-            navigate('/dashboard');
-          } catch (err) {
-            console.error('Failed to complete onboarding status:', err);
-            // Even if completion API fails, the rule is saved, so we can still navigate
-            success('자동 저축 규칙이 저장되었습니다!');
-            navigate('/dashboard');
+          if (initialSetting) {
+            // 기존 사용자가 규칙을 수정한 경우
+            success('자동 저축 규칙이 변경되었습니다.');
+            navigate('/finance/savebox');
+          } else {
+            // 온보딩 중인 신규 사용자인 경우
+            try {
+              await completeOnboarding();
+              success('자동 저축 규칙이 저장되었습니다! 모든 온보딩이 완료되었습니다.');
+              navigate('/dashboard');
+            } catch (err) {
+              console.error('Failed to complete onboarding status:', err);
+              success('자동 저축 규칙이 저장되었습니다!');
+              navigate('/dashboard');
+            }
           }
         },
         onError: () => {
@@ -136,14 +140,26 @@ export const SavingsRuleSetupPage: React.FC = () => {
     <div className="max-w-md mx-auto px-6 py-12 flex flex-col min-h-screen">
       <div className="mb-10">
         <h1 className="text-2xl font-black text-eel mb-3 leading-tight">
-          나만의 자동 저축 규칙을
-          <br />
-          설정해볼까요?
+          {initialSetting ? (
+            '자동 저축 규칙 변경하기'
+          ) : (
+            <>
+              나만의 자동 저축 규칙을
+              <br />
+              설정해볼까요?
+            </>
+          )}
         </h1>
         <p className="text-gray text-sm leading-relaxed">
-          지정한 키워드가 포함된 입금이 발생할 때마다
-          <br />
-          설정한 금액이 자동으로 세이브박스에 저축됩니다.
+          {initialSetting
+            ? '설정된 키워드와 금액을 자유롭게 변경하여 스마트하게 저축하세요.'
+            : (
+              <>
+                지정한 키워드가 포함된 입금이 발생할 때마다
+                <br />
+                설정한 금액이 자동으로 세이브박스에 저축됩니다.
+              </>
+            )}
         </p>
       </div>
 
@@ -196,14 +212,12 @@ export const SavingsRuleSetupPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsActive(!isActive)}
-                className={`w-12 h-6 rounded-full transition-colors relative ${
-                  isActive ? 'bg-primary-blue' : 'bg-line-strong'
-                }`}
+                className={`w-12 h-6 rounded-full transition-colors relative ${isActive ? 'bg-primary-blue' : 'bg-line-strong'
+                  }`}
               >
                 <div
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
-                    isActive ? 'right-1' : 'left-1'
-                  }`}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isActive ? 'right-1' : 'left-1'
+                    }`}
                 />
               </button>
             </div>

@@ -46,7 +46,6 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public NotificationListResponseDto getNotifications(Long userId, Integer page, Integer size) {
-        log.info("알림 목록 조회 시작 - userId={}, page={}, size={}", userId, page, size);
 
         validateUserExists(userId);
 
@@ -59,31 +58,12 @@ public class NotificationService {
         Page<Notification> notificationPage =
             notificationRepository.findByUserIdOrderByIdDesc(userId, pageRequest);
 
-        log.info(
-            "알림 목록 조회 DB 결과 - userId={}, totalElements={}, pageContentSize={}",
-            userId,
-            notificationPage.getTotalElements(),
-            notificationPage.getContent().size());
-
         List<NotificationListResponseDto.NotificationSummaryDto> content =
             notificationPage.getContent().stream()
                 .map(
                     notification -> {
-                        log.info(
-                            "알림 DTO 변환 중 - id={}, type={}, title={}, referenceType={}, referenceId={}",
-                            notification.getId(),
-                            notification.getNotificationType(),
-                            notification.getTitle(),
-                            notification.getReferenceType(),
-                            notification.getReferenceId());
 
                         NotificationTarget target = resolveTarget(notification);
-
-                        log.info(
-                            "알림 target 해석 완료 - id={}, postId={}, commentId={}",
-                            notification.getId(),
-                            target.postId(),
-                            target.commentId());
 
                         return new NotificationListResponseDto.NotificationSummaryDto(
                             notification.getId(),
@@ -102,8 +82,6 @@ public class NotificationService {
                     })
                 .toList();
 
-        log.info("알림 목록 조회 응답 생성 완료 - userId={}, contentSize={}", userId, content.size());
-
         return new NotificationListResponseDto(
             content,
             notificationPage.getNumber(),
@@ -115,13 +93,10 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public NotificationUnreadCountResponseDto getUnreadCount(Long userId) {
-        log.info("읽지 않은 알림 개수 조회 시작 - userId={}", userId);
 
         validateUserExists(userId);
 
         long unreadCount = notificationRepository.countByUserIdAndIsReadFalse(userId);
-
-        log.info("읽지 않은 알림 개수 조회 완료 - userId={}, unreadCount={}", userId, unreadCount);
 
         return new NotificationUnreadCountResponseDto(unreadCount);
     }
@@ -222,11 +197,6 @@ public class NotificationService {
     }
 
     private NotificationTarget resolveTarget(Notification notification) {
-        log.info(
-            "알림 target 해석 시작 - id={}, referenceType={}, referenceId={}",
-            notification.getId(),
-            notification.getReferenceType(),
-            notification.getReferenceId());
 
         if (notification.getReferenceType() == NotificationReferenceType.COMMENT
             && notification.getReferenceId() != null) {
