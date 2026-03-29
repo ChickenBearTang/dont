@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any, Mapping
 
@@ -20,19 +20,38 @@ REASON_CODE_MAP: dict[str, tuple[str, str]] = {
         "finance_shap",
     ),
     "days_until_card_due": ("CARD_DUE_SOON", "finance_shap"),
+    "price_model_gap_score": ("PRICE_MODEL_GAP_SIGNAL", "price_model"),
+    "finance_model_risk_score": ("FINANCE_MODEL_HIGH_RISK_SIGNAL", "finance_model"),
+    "finance_model_affordability_score": (
+        "FINANCE_MODEL_AFFORDABILITY_SIGNAL",
+        "finance_model",
+    ),
 }
 
 REASON_TEXT: dict[str, str] = {
-    "PRICE_RELATIVE_TO_30D_AVG": "현재 가격이 최근 30일 평균과 비교해 유리하게 작용했습니다.",
-    "CURRENT_PRICE_LEVEL": "현재 절대 가격 수준이 판단에 영향을 주었습니다.",
-    "COUPON_DISCOUNT_APPLIED": "쿠폰 적용으로 실구매가가 낮아졌습니다.",
-    "SHIPPING_COST_REDUCES_ATTRACTIVENESS": "배송비가 가격 매력도를 일부 낮췄습니다.",
-    "RECENT_SPENDING_SURGE": "최근 소비 증가로 재무 부담 가능성이 있습니다.",
-    "EMERGENCY_FUND_TOO_LOW": "비상자금이 권장 수준보다 낮습니다.",
-    "BALANCE_AFTER_PURCHASE_TOO_LOW": "구매 후 세이브박스 잔액이 너무 낮아질 수 있습니다.",
-    "PRICE_TOO_LARGE_VS_MONTHLY_SPENDING": "상품 가격이 월 지출 대비 큰 편입니다.",
-    "CARD_DUE_SOON": "카드 결제일이 가까워 현금흐름 부담이 있습니다.",
+    "PRICE_RELATIVE_TO_30D_AVG": "현재 가격이 최근 30일 평균가 대비 높게 형성되어 있습니다.",
+    "CURRENT_PRICE_LEVEL": "현재 가격 수준이 전체 판단에 중요한 영향을 주었습니다.",
+    "COUPON_DISCOUNT_APPLIED": "쿠폰 할인 적용 여부가 가격 매력도에 반영되었습니다.",
+    "SHIPPING_COST_REDUCES_ATTRACTIVENESS": "배송비 부담이 최종 가격 매력도를 낮췄습니다.",
+    "RECENT_SPENDING_SURGE": "최근 소비 증가 흐름이 재무 부담 신호로 반영되었습니다.",
+    "EMERGENCY_FUND_TOO_LOW": "비상자금 수준이 낮아 재무 안정성이 부족합니다.",
+    "BALANCE_AFTER_PURCHASE_TOO_LOW": "구매 후 예상 잔액이 낮아질 가능성이 큽니다.",
+    "PRICE_TOO_LARGE_VS_MONTHLY_SPENDING": "상품 가격이 월 지출 규모 대비 크게 느껴집니다.",
+    "CARD_DUE_SOON": "카드 결제일이 가까워 단기 현금흐름 부담이 있습니다.",
 }
+
+REASON_TEXT.setdefault(
+    "PRICE_MODEL_GAP_SIGNAL",
+    "가격 모델 신호가 최종 판단에 영향을 주었습니다.",
+)
+REASON_TEXT.setdefault(
+    "FINANCE_MODEL_HIGH_RISK_SIGNAL",
+    "재무 모델이 현재 구매를 다소 높은 리스크로 평가했습니다.",
+)
+REASON_TEXT.setdefault(
+    "FINANCE_MODEL_AFFORDABILITY_SIGNAL",
+    "재무 모델이 현재 구매 가능 여력을 판단 근거로 반영했습니다.",
+)
 
 
 def rank_reason_features(

@@ -84,7 +84,7 @@ class HotDealCrawler:
         self,
         keyword: str | None = None,
         start_page: int = 1,
-        max_pages: int = 50,
+        max_pages: int = 1000,
         overlap_threshold: int = 30,
         is_seen: Callable[[HotDeal], bool] | None = None,
     ) -> CrawlResult:

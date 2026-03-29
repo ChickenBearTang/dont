@@ -128,6 +128,10 @@ class RuntimeEngines(BaseModel):
     explanation: str
     shap: str
     dice: str
+    price_model: str = Field(default="disabled", alias="priceModel")
+    finance_model: str = Field(default="disabled", alias="financeModel")
+
+    model_config = {"populate_by_name": True}
 
 
 class PurchaseXaiEvaluationResponse(BaseModel):
