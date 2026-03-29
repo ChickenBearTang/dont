@@ -41,6 +41,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class ConsumptionReportService {
+    private static final String STATUS_OK = "OK";
+    private static final String STATUS_FAILED = "FAILED";
+    private static final String STATUS_SKIPPED = "SKIPPED";
 
     private final FinConsumptionMonthlyReportRepository monthlyReportRepository;
     private final FinConsumptionJustificationRepository justificationRepository;
@@ -226,6 +229,7 @@ public class ConsumptionReportService {
 
     private MonthlyReportResponse toResponse(
         FinConsumptionMonthlyReport saved, Map<String, Object> reportPayload) {
+        Map<String, Object> normalizedPayload = normalizeReportPayload(saved, reportPayload);
         return new MonthlyReportResponse(
             saved.getId(),
             saved.getReportMonth().toString(),
@@ -235,7 +239,7 @@ public class ConsumptionReportService {
             saved.getReportStatus(),
             saved.getGenerationSource(),
             saved.getGeneratedAt(),
-            reportPayload);
+            normalizedPayload);
     }
 
     private LocalDate toMonthStart(String reportMonthText) {
@@ -340,15 +344,90 @@ public class ConsumptionReportService {
         String transactionFingerprint) {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("analysisStatus", normalizeAnalysisStatus(llmStatus));
-        meta.put("recommendationStatus", cardRecommendation == null ? "FAILED" : "OK");
+        meta.put("recommendationStatus", cardRecommendation == null ? STATUS_FAILED : STATUS_OK);
         meta.put("recommendationReused", recommendationReused);
         meta.put("transactionFingerprint", transactionFingerprint);
         return meta;
     }
 
+    private Map<String, Object> normalizeReportPayload(
+        FinConsumptionMonthlyReport report, Map<String, Object> rawPayload) {
+        Map<String, Object> source =
+            rawPayload == null ? Map.of() : rawPayload;
+        Map<String, Object> normalized = new LinkedHashMap<>();
+
+        Object aiAnalysis = source.get("aiAnalysis");
+        normalized.put(
+            "aiAnalysis",
+            aiAnalysis instanceof Map<?, ?> ? aiAnalysis : defaultAiAnalysis());
+
+        Object justifications = source.get("justifications");
+        normalized.put(
+            "justifications",
+            justifications instanceof List<?> ? justifications : List.of());
+
+        Map<String, Object> recommendationMap = asMap(source.get("cardRecommendation"));
+        normalized.put("cardRecommendation", recommendationMap);
+
+        normalized.put(
+            "meta",
+            normalizeMeta(report, source.get("meta"), recommendationMap.isEmpty()));
+
+        return normalized;
+    }
+
+    private Map<String, Object> defaultAiAnalysis() {
+        Map<String, Object> defaultAnalysis = new LinkedHashMap<>();
+        defaultAnalysis.put("actionable_solutions", List.of());
+        defaultAnalysis.put("anomaly_explanations", List.of());
+        defaultAnalysis.put("consumption_patterns", List.of());
+        return defaultAnalysis;
+    }
+
+    private Map<String, Object> normalizeMeta(
+        FinConsumptionMonthlyReport report,
+        Object rawMeta,
+        boolean recommendationMissing) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+
+        if (rawMeta instanceof Map<?, ?> rawMetaMap) {
+            for (Map.Entry<?, ?> entry : rawMetaMap.entrySet()) {
+                if (entry.getKey() != null) {
+                    meta.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+            }
+        }
+
+        meta.putIfAbsent(
+            "analysisStatus",
+            normalizeAnalysisStatus(report.getLlmStatus().name()));
+        meta.putIfAbsent(
+            "recommendationStatus",
+            recommendationMissing ? STATUS_FAILED : STATUS_OK);
+        meta.putIfAbsent("recommendationReused", false);
+        meta.putIfAbsent(
+            "transactionFingerprint",
+            buildTransactionFingerprint(report.getUserId(), report.getReportMonth()));
+
+        return meta;
+    }
+
+    private Map<String, Object> asMap(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+            if (entry.getKey() != null) {
+                normalized.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+        }
+        return normalized.isEmpty() ? Map.of() : normalized;
+    }
+
     private String normalizeAnalysisStatus(String llmStatus) {
         if (llmStatus == null || llmStatus.isBlank()) {
-            return "SKIPPED";
+            return STATUS_SKIPPED;
         }
         return llmStatus.trim().toUpperCase(Locale.ROOT);
     }

@@ -35,6 +35,14 @@ export interface AiReportJustification {
 }
 
 export interface AiReportPayload {
+  cardRecommendation: CardRecommendationResponse | Record<string, never>;
+  justifications: AiReportJustification[];
+  meta: {
+    analysisStatus: 'OK' | 'DEGRADED' | 'SKIPPED';
+    recommendationStatus: 'OK' | 'FAILED';
+    recommendationReused: boolean;
+    transactionFingerprint: string;
+  };
   base?: {
     userId: number;
     reportMonth: string;
@@ -54,14 +62,6 @@ export interface AiReportPayload {
     actionable_solutions: string[];
     anomaly_explanations: string[];
     consumption_patterns: string[];
-  };
-  cardRecommendation?: CardRecommendationResponse;
-  justifications: AiReportJustification[];
-  meta?: {
-    analysisStatus?: string;
-    recommendationStatus?: string;
-    recommendationReused?: boolean;
-    transactionFingerprint?: string;
   };
 }
 
