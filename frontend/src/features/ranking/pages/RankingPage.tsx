@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRankingSse, type RankingUser } from '../hooks/useRankingSse';
+import { useRankingStore } from '../store/useRankingStore';
 import axiosInstance from '@/shared/api/axiosInstance';
 import { fetchCohorts } from '@/features/user/api/userApi';
 import type { Cohort } from '@/shared/types';
 import type { MyPageResponse } from '@/features/user/mypage/types';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 
 // 백엔드(CommonResponse)에서 내려주는 JSON 포맷 인터페이스
 interface RankingResponse {
@@ -25,59 +27,97 @@ const fetchRanking = async (
   return await axiosInstance.get(`/ranking/${type}${params}`);
 };
 
+// 등락 지표 컴포넌트
+const TrendBadge: React.FC<{ diff?: number }> = ({ diff }) => {
+  if (diff === undefined || diff === 0) {
+    return (
+      <div className="flex items-center justify-center w-8 h-5 bg-slate-100 rounded-md">
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+      </div>
+    );
+  }
+
+  const isUp = diff > 0;
+  const absDiff = Math.abs(diff);
+
+  return (
+    <div
+      className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black shadow-sm ${
+        isUp ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'
+      }`}
+    >
+      <span>{isUp ? '▲' : '▼'}</span>
+      <span>{absDiff}</span>
+    </div>
+  );
+};
+
 // 프로필 아바타 컴포넌트
-const ProfileAvatar: React.FC<{ url?: string; rank: number; size?: string }> = ({
+const ProfileAvatar: React.FC<{ url?: string; rank: number; size?: string; userId?: number }> = ({
   url,
   rank,
   size = 'w-10 h-10',
+  userId,
 }) => {
   const [imgError, setImgError] = useState(false);
 
   const ringColor =
     rank === 1
-      ? 'ring-yellow-300'
+      ? 'ring-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.4)]'
       : rank === 2
         ? 'ring-slate-300'
         : rank === 3
           ? 'ring-orange-300'
           : 'ring-[var(--line-soft)]';
 
-  if (url && !imgError) {
-    return (
-      <img
-        src={url}
-        alt=""
-        onError={() => setImgError(true)}
-        className={`${size} rounded-full object-cover ring-[3px] ${ringColor} shadow-md`}
-      />
-    );
-  }
-
-  const bgColor =
-    rank === 1
-      ? 'bg-gradient-to-br from-yellow-200 to-yellow-400 text-yellow-800'
-      : rank === 2
-        ? 'bg-gradient-to-br from-slate-100 to-slate-300 text-slate-600'
-        : rank === 3
-          ? 'bg-gradient-to-br from-orange-200 to-orange-400 text-orange-800'
-          : 'bg-[var(--surface-soft)] text-[var(--text-subtle)]';
-
-  const iconSize = size.includes('14') || size.includes('16') ? 'w-8 h-8' : 'w-5 h-5';
-
   return (
-    <div
-      className={`${size} rounded-full flex items-center justify-center ${bgColor} ring-[3px] ${ringColor} shadow-md`}
+    <motion.div 
+      layoutId={userId ? `avatar-${userId}` : undefined}
+      className="relative"
     >
-      <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-      </svg>
-    </div>
+      {rank === 1 && (
+        <motion.span
+          initial={{ y: -10, opacity: 0, rotate: -15 }}
+          animate={{ y: -6, opacity: 1, rotate: -15 }}
+          className="absolute -top-4 -left-1 text-xl z-10 drop-shadow-md"
+        >
+          👑
+        </motion.span>
+      )}
+      {url && !imgError ? (
+        <img
+          src={url}
+          alt=""
+          onError={() => setImgError(true)}
+          className={`${size} rounded-full object-cover ring-[3px] ${ringColor} shadow-md`}
+        />
+      ) : (
+        <div
+          className={`${size} rounded-full flex items-center justify-center ${
+            rank === 1
+              ? 'bg-gradient-to-br from-yellow-200 to-yellow-400 text-yellow-800'
+              : rank === 2
+                ? 'bg-gradient-to-br from-slate-100 to-slate-300 text-slate-600'
+                : rank === 3
+                  ? 'bg-gradient-to-br from-orange-200 to-orange-400 text-orange-800'
+                  : 'bg-[var(--surface-soft)] text-[var(--text-subtle)]'
+          } ring-[3px] ${ringColor} shadow-md`}
+        >
+          <svg
+            className={size.includes('14') || size.includes('16') ? 'w-8 h-8' : 'w-5 h-5'}
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+          </svg>
+        </div>
+      )}
+    </motion.div>
   );
 };
 
 // ─── 포디엄 (명예의 전당) 컴포넌트 ───
 const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
-  // 순서: 2위 - 1위 - 3위
   const first = top3.find((u) => u.rank === 1);
   const second = top3.find((u) => u.rank === 2);
   const third = top3.find((u) => u.rank === 3);
@@ -89,81 +129,112 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
     pedestalColor: string;
     avatarSize: string;
     order: string;
-  }> = ({ user, medal, pedestalHeight, pedestalColor, avatarSize, order }) => (
-    <div className={`flex flex-col items-center ${order} flex-1 max-w-[180px]`}>
-      {user ? (
-        <>
-          {/* 메달 */}
-          <span className="text-3xl mb-1 drop-shadow-sm">{medal}</span>
-          {/* 아바타 */}
-          <div className="mb-2">
-            <ProfileAvatar url={user.profileImageUrl} rank={user.rank} size={avatarSize} />
+    delay: number;
+  }> = ({ user, medal, pedestalHeight, pedestalColor, avatarSize, order, delay }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, type: 'spring', stiffness: 40, damping: 20, mass: 2 }}
+      className={`flex flex-col items-center ${order} flex-1 max-w-[180px] relative`}
+    >
+      <div className="flex flex-col items-center w-full">
+        {user ? (
+          <>
+            {/* 메달 */}
+            <div className="relative mb-1">
+              <span className="text-3xl drop-shadow-sm">{medal}</span>
+              {/* 포디엄 등락 배지 */}
+              <div className="absolute -right-6 top-0 rotate-12 scale-90">
+                <TrendBadge diff={user.rankDiff} />
+              </div>
+            </div>
+            {/* 아바타 */}
+            <div className="mb-2">
+              <ProfileAvatar 
+                url={user.profileImageUrl} 
+                rank={user.rank} 
+                size={avatarSize} 
+                userId={user.userId} 
+              />
+            </div>
+            {/* 닉네임 */}
+            <p className="text-sm font-black text-[var(--text-strong)] text-center truncate w-full px-1 mb-0.5">
+              {user.nickname || `유저 ${user.userId}`}
+            </p>
+            {/* 기수 */}
+            {user.cohortNo && (
+              <span className="text-[10px] font-bold text-[var(--accent)] bg-[var(--accent-soft)] px-2 py-0.5 rounded-md mb-2">
+                {user.cohortNo}기
+              </span>
+            )}
+          </>
+        ) : (
+          <div className="mb-2 flex flex-col items-center">
+            <span className="text-3xl mb-1">{medal}</span>
+            <div
+              className={`${avatarSize} rounded-full bg-[var(--surface-soft)] border-2 border-dashed border-[var(--line-soft)]`}
+            />
+            <p className="text-xs text-[var(--text-subtle)] mt-2 font-semibold">도전자 대기 중</p>
           </div>
-          {/* 닉네임 */}
-          <p className="text-sm font-black text-[var(--text-strong)] text-center truncate w-full px-1 mb-0.5">
-            {user.nickname || `유저 ${user.userId}`}
-          </p>
-          {/* 기수 */}
-          {user.cohortNo && (
-            <span className="text-[10px] font-bold text-[var(--accent)] bg-[var(--accent-soft)] px-2 py-0.5 rounded-md mb-2">
-              {user.cohortNo}기
-            </span>
-          )}
-        </>
-      ) : (
-        <div className="mb-2 flex flex-col items-center">
-          <span className="text-3xl mb-1">{medal}</span>
-          <div className={`${avatarSize} rounded-full bg-[var(--surface-soft)] border-2 border-dashed border-[var(--line-soft)]`} />
-          <p className="text-xs text-[var(--text-subtle)] mt-2 font-semibold">도전자 대기 중</p>
-        </div>
-      )}
-      {/* 시상대 */}
-      <div
-        className={`w-full ${pedestalHeight} ${pedestalColor} rounded-t-2xl flex items-end justify-center pb-2 transition-all`}
-      >
-        <span className="text-white/90 font-black text-lg">{user?.rank ?? ''}</span>
+        )}
       </div>
-    </div>
+      <motion.div
+        layout
+        className={`w-full ${pedestalHeight} ${pedestalColor} rounded-t-2xl flex items-end justify-center pb-2 shadow-inner transition-transform hover:scale-[1.02]`}
+      >
+        <span className="text-white/90 font-black text-lg drop-shadow-md">{user?.rank ?? ''}</span>
+      </motion.div>
+    </motion.div>
   );
 
   return (
-    <div className="mx-4 mb-6">
-      <div className="flex items-end justify-center gap-2 px-4">
-        {/* 2위 (왼쪽) */}
-        <PodiumSlot
-          user={second}
-          medal="🥈"
-          pedestalHeight="h-20"
-          pedestalColor="bg-gradient-to-t from-slate-400 to-slate-300"
-          avatarSize="w-14 h-14"
-          order="order-1"
-        />
-        {/* 1위 (가운데 - 가장 높은) */}
-        <PodiumSlot
-          user={first}
-          medal="🥇"
-          pedestalHeight="h-28"
-          pedestalColor="bg-gradient-to-t from-yellow-500 to-yellow-400"
-          avatarSize="w-16 h-16"
-          order="order-2"
-        />
-        {/* 3위 (오른쪽) */}
-        <PodiumSlot
-          user={third}
-          medal="🥉"
-          pedestalHeight="h-16"
-          pedestalColor="bg-gradient-to-t from-orange-500 to-orange-400"
-          avatarSize="w-14 h-14"
-          order="order-3"
-        />
+    <LayoutGroup id="podium-group">
+      <div className="mx-4 mb-6">
+        <motion.div 
+          layout 
+          transition={{ type: 'spring', stiffness: 40, damping: 22, mass: 2 }}
+          className="flex items-end justify-center gap-2 px-4"
+        >
+          {/* 2위 (왼쪽) */}
+          <PodiumSlot
+            user={second}
+            medal="🥈"
+            pedestalHeight="h-20"
+            pedestalColor="bg-gradient-to-t from-slate-400 to-slate-200"
+            avatarSize="w-14 h-14"
+            order="order-1"
+            delay={0.1}
+          />
+          {/* 1위 (가운데) */}
+          <PodiumSlot
+            user={first}
+            medal="🥇"
+            pedestalHeight="h-28"
+            pedestalColor="bg-gradient-to-t from-yellow-500 to-yellow-300"
+            avatarSize="w-16 h-16"
+            order="order-2"
+            delay={0}
+          />
+          {/* 3위 (오른쪽) */}
+          <PodiumSlot
+            user={third}
+            medal="🥉"
+            pedestalHeight="h-16"
+            pedestalColor="bg-gradient-to-t from-orange-500 to-orange-300"
+            avatarSize="w-14 h-14"
+            order="order-3"
+            delay={0.2}
+          />
+        </motion.div>
       </div>
-    </div>
+    </LayoutGroup>
   );
 };
 
 export const RankingPage = () => {
   // 1. SSE 실시간 업데이트
   useRankingSse();
+  const isUpdating = useRankingStore((state) => state.isUpdating);
 
   // 2. 탭 상태 관리
   const [activeTab, setActiveTab] = useState<'total' | 'cohort'>('total');
@@ -293,9 +364,22 @@ export const RankingPage = () => {
               ) : (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-5">
-                    <div className="flex items-baseline">
-                      <span className="text-6xl font-black tracking-tight leading-none">{myRanking.rank}</span>
-                      <span className="text-2xl font-bold ml-1 text-white/80">위</span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-baseline">
+                        <span className="text-6xl font-black tracking-tight leading-none">{myRanking.rank}</span>
+                        <span className="text-2xl font-bold ml-1 text-white/80">위</span>
+                      </div>
+                      {/* 내 랭킹 등락 지표 */}
+                      <div className="bg-white/20 backdrop-blur-sm rounded-lg px-2 py-1 h-fit transform scale-110 flex items-center gap-2">
+                        <TrendBadge diff={myRanking.rankDiff} />
+                        {isUpdating && (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                            className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full"
+                          />
+                        )}
+                      </div>
                     </div>
                     {myRanking.nickname && (
                       <span className="text-lg font-bold text-white/90">{myRanking.nickname}</span>
@@ -346,31 +430,47 @@ export const RankingPage = () => {
               <p className="text-[12px] font-black text-[var(--text-subtle)] tracking-[0.1em] uppercase text-center mb-4">
                 {top3.length > 0 ? '4위 ~' : 'Top 10 랭커'}
               </p>
-              <ul className="flex flex-col gap-3">
-                {restRanking.map((user) => (
-                  <li
-                    key={user.userId}
-                    className="flex items-center p-4 rounded-2xl border border-[var(--line-soft)] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition-all duration-200 hover:scale-[1.015] hover:shadow-lg group cursor-default"
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-soft)] text-[var(--text-subtle)] text-sm font-black flex-shrink-0">
-                        {user.rank}
-                      </span>
-                      <ProfileAvatar url={user.profileImageUrl} rank={user.rank} />
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-[var(--text-strong)] text-[15px] group-hover:text-[var(--accent)] transition-colors">
-                          {user.nickname || `유저 ${user.userId}`}
+              <motion.ul layout className="flex flex-col gap-3">
+                <AnimatePresence mode="popLayout">
+                  {restRanking.map((user: RankingUser) => (
+                    <motion.li
+                      layout
+                      key={user.userId}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ 
+                        type: 'spring', 
+                        stiffness: 45, 
+                        damping: 24,
+                        mass: 2,
+                        layout: { duration: 2.0, type: 'spring', stiffness: 45, damping: 24, mass: 2 } 
+                      }}
+                      className="flex items-center justify-between p-4 rounded-2xl border border-[var(--line-soft)] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition-all duration-200 hover:scale-[1.015] hover:shadow-lg group cursor-default"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-soft)] text-[var(--text-strong)] text-[15px] font-black flex-shrink-0">
+                          {user.rank}
                         </span>
-                        {user.cohortNo && (
-                          <span className="text-[11px] font-bold text-[var(--accent)] bg-[var(--accent-soft)] px-2 py-0.5 rounded-lg">
-                            {user.cohortNo}기
+                        <ProfileAvatar url={user.profileImageUrl} rank={user.rank} userId={user.userId} />
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-[var(--text-strong)] text-[15px] group-hover:text-[var(--accent)] transition-colors">
+                            {user.nickname || `유저 ${user.userId}`}
                           </span>
-                        )}
+                          {user.cohortNo && (
+                            <span className="text-[11px] font-bold text-[var(--accent)] bg-[var(--accent-soft)] px-2 py-0.5 rounded-lg">
+                              {user.cohortNo}기
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                      
+                      {/* 등락 지표 추가 */}
+                      <TrendBadge diff={user.rankDiff} />
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </motion.ul>
             </>
           )}
         </div>

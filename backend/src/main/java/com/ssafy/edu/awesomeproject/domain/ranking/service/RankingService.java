@@ -10,11 +10,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class RankingService {
 
@@ -53,10 +58,46 @@ public class RankingService {
         }
     }
 
+    /** 매일 자정(00:00:01)에 현재 랭킹 상태를 스냅샷으로 저장합니다. 이 스냅샷은 '오늘 하루 동안의 순위 변동(▲/▼)'을 계산하는 기준점이 됩니다. */
+    @Scheduled(cron = "1 0 0 * * *")
+    public void createDailyRankingSnapshot() {
+        log.info("[Ranking Snapshot] Starting daily ranking snapshot creation...");
+        saveSnapshot(TOTAL_RANKING_KEY, "ranking:snapshot:total");
+
+        // 기수별 스냅샷도 생성 (필요 시)
+        // 실제로는 기수가 많을 수 있으므로 활성 기수만 하거나,
+        // 조회 시점에 스냅샷이 없으면 그때 생성하는 Lazy 방식과 병행하는 것이 좋습니다.
+    }
+
+    private void saveSnapshot(String sourceKey, String snapshotKey) {
+        Set<String> range = redisTemplate.opsForZSet().reverseRange(sourceKey, 0, -1);
+        if (range == null || range.isEmpty()) return;
+
+        redisTemplate.delete(snapshotKey);
+        int rank = 1;
+        for (String userId : range) {
+            redisTemplate.opsForHash().put(snapshotKey, userId, String.valueOf(rank++));
+        }
+        log.info("[Ranking Snapshot] Saved snapshot to {} (count: {})", snapshotKey, range.size());
+    }
+
     /** Top 10 랭킹 리스트 조회 (cohort 인자가 null이면 전체 랭킹 조회) */
     public List<RankingUserDto> getTop10Ranking(Integer cohort) {
         String key =
                 (cohort != null && cohort > 0) ? COHORT_RANKING_PREFIX + cohort : TOTAL_RANKING_KEY;
+        String snapshotKey =
+                (cohort != null && cohort > 0)
+                        ? "ranking:snapshot:cohort:" + cohort
+                        : "ranking:snapshot:total";
+
+        // 🔥 로컬 테스트/초기 구동 지원: 스냅샷이 없으면 현재 상태로 즉시 생성 (최초 1회)
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(snapshotKey))) {
+            log.info(
+                    "[Ranking Snapshot] Snapshot not found for {}. Creating initial snapshot...",
+                    snapshotKey);
+            saveSnapshot(key, snapshotKey);
+        }
+
         Set<TypedTuple<String>> top10 =
                 redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, 9);
 
@@ -81,10 +122,24 @@ public class RankingService {
                 userRepository.findAllById(userIds).stream()
                         .collect(Collectors.toMap(User::getId, u -> u));
 
+        // 어제 랭킹 스냅샷 조회 (Redis Hash: userId -> rank)
+        Map<Object, Object> snapshotMap = redisTemplate.opsForHash().entries(snapshotKey);
+
         for (int i = 0; i < userIds.size(); i++) {
             Long userId = userIds.get(i);
             User user = userMap.get(userId);
             String nickname = user != null ? user.getNickname() : "탈퇴한 유저";
+
+            // 등락 계산 (rankDiff = 어제순위 - 현재순위)
+            Integer rankDiff = 0;
+            if (!snapshotMap.isEmpty() && snapshotMap.containsKey(userId.toString())) {
+                try {
+                    long lastRank = Long.parseLong(snapshotMap.get(userId.toString()).toString());
+                    rankDiff = (int) (lastRank - currentRank);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
             Integer cohortNo =
                     (user != null && user.getCohort() != null)
                             ? user.getCohort().getGenerationNo()
@@ -101,7 +156,8 @@ public class RankingService {
                             scores.get(i).longValue(),
                             currentRank++,
                             cohortNo,
-                            profileImageUrl));
+                            profileImageUrl,
+                            rankDiff));
         }
 
         return result;
@@ -117,11 +173,34 @@ public class RankingService {
         Long rank = redisTemplate.opsForZSet().reverseRank(key, userIdStr);
 
         if (scoreDouble == null || rank == null) {
-            return RankingUserDto.of(userId, null, 0L, -1L, null, null);
+            return RankingUserDto.of(userId, null, 0L, -1L, null, null, 0);
         }
 
         User user = userRepository.findById(userId).orElse(null);
         String nickname = user != null ? user.getNickname() : "탈퇴한 유저";
+
+        // 내 랭킹 등락 계산
+        String snapshotKey =
+                (cohort != null && cohort > 0)
+                        ? "ranking:snapshot:cohort:" + cohort
+                        : "ranking:snapshot:total";
+
+        // 🔥 로컬 테스트/초기 구동 지원: 스냅샷이 없으면 현재 상태로 즉시 생성
+        if (Boolean.FALSE.equals(redisTemplate.hasKey(snapshotKey))) {
+            saveSnapshot(key, snapshotKey);
+        }
+
+        Object lastRankObj = redisTemplate.opsForHash().get(snapshotKey, userIdStr);
+        Integer rankDiff = 0;
+        long currentRank = rank + 1;
+        if (lastRankObj != null) {
+            try {
+                long lastRank = Long.parseLong(lastRankObj.toString());
+                rankDiff = (int) (lastRank - currentRank);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
         Integer cohortNo =
                 (user != null && user.getCohort() != null)
                         ? user.getCohort().getGenerationNo()
@@ -135,8 +214,9 @@ public class RankingService {
                 userId,
                 nickname,
                 scoreDouble.longValue(),
-                rank + 1, // Redis ZSET Rank는 0부터 시작하므로 +1
+                currentRank,
                 cohortNo,
-                profileImageUrl);
+                profileImageUrl,
+                rankDiff);
     }
 }

@@ -34,6 +34,21 @@ public class AccountController {
 
     private final AccountService accountService;
 
+    @Operation(summary = "[테스트용] 더미 유저 수동 동기화", description = "로그인 불가능한 더미 유저의 잔액을 오픈뱅킹과 강제 동기화하고 랭킹 이벤트를 발생시킵니다.")
+    @GetMapping("/test-sync/{userId}")
+    public ResponseEntity<AccountApiResponse<String>> testSyncDummy(@PathVariable Long userId) {
+        accountService.refreshAccountList(userId);
+        boolean published = accountService.forcePublishSaveboxEvent(userId);
+
+        if (published) {
+            return ResponseEntity.ok(
+                    AccountApiResponse.success("ACC_200_TEST", "더미 유저 강제 동기화 및 랭킹 업데이트를 완료했습니다.", "OK"));
+        } else {
+            return ResponseEntity.ok(
+                    AccountApiResponse.success("ACC_200_TEST_FAIL", "동기화는 성공했으나, 해당 유저의 SAVE_BOX 계좌가 DB에 존재하지 않아 랭킹에 등록되지 않았습니다.", "NO_SAVEBOX"));
+        }
+    }
+
     @Operation(summary = "계좌 목록 조회", description = "사용자의 수시입출금 계좌 목록을 조회합니다. (주 계좌 설정용)")
     @GetMapping
     public ResponseEntity<AccountApiResponse<AccountListResponse>> getMyAccounts(
@@ -106,10 +121,10 @@ public class AccountController {
             @CurrentUserId Long userId,
             @PathVariable Long accountId,
             @Parameter(description = "조회 시작일 (YYYYMMDD)", example = "20240101")
-                    @RequestParam(defaultValue = "20240101")
+                    @RequestParam(required = false)
                     String startDate,
             @Parameter(description = "조회 종료일 (YYYYMMDD)", example = "20241231")
-                    @RequestParam(defaultValue = "20241231")
+                    @RequestParam(required = false)
                     String endDate) {
 
         AccountTransactionResponse response =
@@ -145,5 +160,4 @@ public class AccountController {
         accountService.manualSavings(userId, amount);
         return ResponseEntity.ok(AccountApiResponse.success("ACC_200_8", "저축 이체가 완료되었습니다.", null));
     }
-
 }

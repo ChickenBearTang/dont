@@ -38,8 +38,7 @@ public class RankingController {
      */
     @GetMapping("/cohort")
     public CommonResponse<RankingListResponse> getCohortRanking(
-            @CurrentUserId Long userId,
-            @RequestParam(required = false) Integer cohortNo) {
+            @CurrentUserId Long userId, @RequestParam(required = false) Integer cohortNo) {
 
         // cohortNo 파라미터가 없으면 로그인 유저의 기수를 기본값으로 사용
         if (cohortNo == null) {
@@ -47,10 +46,10 @@ public class RankingController {
                     userRepository
                             .findById(userId)
                             .orElseThrow(
-                                    () -> new IllegalArgumentException(
-                                            "User not found: " + userId));
-            cohortNo =
-                    (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    "User not found: " + userId));
+            cohortNo = (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
         }
 
         List<RankingUserDto> top10 = rankingService.getTop10Ranking(cohortNo);
