@@ -4,8 +4,8 @@ from .allowlist import (
     PHASE2_RESERVED_FIELDS,
 )
 from .artifacts import load_price_model_artifact, save_price_model_artifact
-from .inference import build_price_inference_payload, predict_price_signal
 from importlib import import_module
+from .inference import predict_price_signal
 from .schema_models import (
     PriceObservation,
     RawListing,
@@ -17,6 +17,16 @@ from .schema_validator import (
     validate_inference_payload,
     validate_schema_version,
 )
+
+try:
+    from .inference import build_price_inference_payload
+except ImportError:  # pragma: no cover - backward compatibility for mixed deployments
+
+    def build_price_inference_payload(*args, **kwargs):
+        raise ImportError(
+            "build_price_inference_payload is unavailable in ai.price_engine.inference"
+        )
+
 
 try:
     _dataset_builder = import_module("ai.price_engine.dataset_builder")
