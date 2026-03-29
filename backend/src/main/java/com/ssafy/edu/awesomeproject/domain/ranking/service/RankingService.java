@@ -3,6 +3,7 @@ package com.ssafy.edu.awesomeproject.domain.ranking.service;
 import com.ssafy.edu.awesomeproject.common.s3.service.S3AssetUrlResolver;
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
 import com.ssafy.edu.awesomeproject.domain.ranking.dto.response.RankingUserDto;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
 @Slf4j
 @Service
 @Transactional(readOnly = true)
@@ -26,7 +28,7 @@ public class RankingService {
     private final StringRedisTemplate redisTemplate;
     private final UserRepository userRepository;
     private final S3AssetUrlResolver s3AssetUrlResolver;
-    private final com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository accountRepository;
+    private final AccountRepository accountRepository;
 
     // 글로벌 전체 랭킹용 Redis Key
     private static final String TOTAL_RANKING_KEY = "ranking:savebox:total";
