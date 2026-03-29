@@ -161,4 +161,12 @@ public class AccountController {
         accountService.manualSavings(userId, request.amount(), request.password());
         return ResponseEntity.ok(AccountApiResponse.success("ACC_200_8", "저축 이체가 완료되었습니다.", null));
     }
+
+    @Operation(summary = "수동 출금 실행", description = "세이브박스에서 주계좌로 직접 금액을 꺼냅니다. (비밀번호 검증 포함)")
+    @PostMapping("/manual-withdrawal")
+    public ResponseEntity<AccountApiResponse<Void>> manualWithdrawal(
+            @CurrentUserId Long userId, @Valid @RequestBody ManualSavingsRequest request) {
+        accountService.manualWithdrawal(userId, request.amount(), request.password());
+        return ResponseEntity.ok(AccountApiResponse.success("ACC_200_10", "출금 이체가 완료되었습니다.", null));
+    }
 }

@@ -83,6 +83,13 @@ export const accountApi = {
   },
 
   /**
+   * 세이브박스에서 주계좌로 직접 금액을 출금(꺼내기)합니다.
+   */
+  executeManualWithdrawal: (amount: number, password: string): Promise<ApiResponse<void>> => {
+    return axiosInstance.post('/fin/accounts/manual-withdrawal', { amount, password });
+  },
+
+  /**
    * SSAFY Finance API 키를 등록하고 계좌 정보를 동기화합니다.
    */
   linkFinanceAccount: (userKey: string): Promise<ApiResponse<AccountListResponse>> => {

@@ -52,7 +52,7 @@ export const ManualSavingsModal: React.FC<ManualSavingsModalProps> = ({
         onClose();
       },
       onError: (err: any) => {
-        // 백엔드에서 던지는 에러 처리 (비밀번호 불일치 등)
+        // 백엔드에서 던지는 구체적인 에러 메시지(비밀번호 불일치, 잔액 부족 등) 반영
         const errorMsg = err?.response?.data?.message || '저축 처리 중 오류가 발생했습니다.';
         setError(errorMsg);
       },

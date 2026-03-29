@@ -702,25 +702,14 @@ public class AccountService {
 
         String responseCode = apiResponse.getHeader().getResponseCode();
         if (!"H0000".equals(responseCode)) {
-            throw new AccountException(
-                    AccountErrorCode.API_RESPONSE_ERROR,
-                    apiResponse.getHeader().getResponseMessage());
+            String msg = apiResponse.getHeader().getResponseMessage();
+            if (msg != null && (msg.contains("잔액") || msg.contains("부족") || msg.contains("balance"))) {
+                throw new AccountException(AccountErrorCode.INSUFFICIENT_BALANCE, msg);
+            }
+            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR, msg);
         }
 
         syncAccounts(userId);
-
-        Account updatedSavebox =
-                accountRepository
-                        .findById(saveboxAccount.getId())
-                        .orElseThrow(
-                                () ->
-                                        new AccountException(
-                                                AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
-
-        Integer cohortNo = user.getCohort() != null ? user.getCohort().getGenerationNo() : null;
-        eventPublisher.publishEvent(
-                new SaveboxBalanceUpdatedEvent(
-                        userId, updatedSavebox.getBalance().longValue(), cohortNo));
 
         notificationService.createNotification(
                 userId,
@@ -730,7 +719,7 @@ public class AccountService {
                         "%s님의 세이브박스로 %s원이 저축되었습니다.",
                         resolveDisplayName(user.getNickname()), formatAmount(amount)),
                 NotificationReferenceType.FINANCE,
-                updatedSavebox.getId());
+                saveboxAccount.getId());
     }
 
     private void syncAccounts(Long userId) {
@@ -859,4 +848,84 @@ public class AccountService {
 
         return AccountResponse.from(account);
     }
+    /** 수동 출금(꺼내기) 실행 (비밀번호 검증 포함) */
+    @Transactional
+    public void manualWithdrawal(Long userId, BigDecimal amount, String password) {
+        // 0. 비밀번호 검증
+        loginService.verifyPassword(userId, password);
+
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
+
+        SavingsSetting setting =
+                savingsSettingRepository
+                        .findByUserIdAndIsActiveTrue(userId)
+                        .orElseThrow(
+                                () ->
+                                        new AccountException(
+                                                AccountErrorCode.SAVINGS_SETTING_NOT_FOUND));
+
+        Account primaryAccount =
+                accountRepository
+                        .findById(setting.getPrimaryAccountId())
+                        .filter(a -> a.getUserId().equals(userId))
+                        .orElseThrow(
+                                () ->
+                                        new AccountException(
+                                                AccountErrorCode.PRIMARY_ACCOUNT_NOT_FOUND));
+
+        Account saveboxAccount =
+                accountRepository
+                        .findById(setting.getSaveboxAccountId())
+                        .filter(a -> a.getUserId().equals(userId))
+                        .orElseThrow(
+                                () ->
+                                        new AccountException(
+                                                AccountErrorCode.SAVEBOX_ACCOUNT_NOT_FOUND));
+
+        // 소수점 제거
+        BigDecimal transferAmount = amount.setScale(0, RoundingMode.DOWN);
+
+        // 1. 세이브박스 잔액 확인 (가계부 로직상 DB 잔액과 동기화 전이라도 체크)
+        if (saveboxAccount.getBalance().compareTo(transferAmount) < 0) {
+            throw new AccountException(AccountErrorCode.INSUFFICIENT_BALANCE);
+        }
+
+        OpenBankTransferResponse apiResponse =
+                openBankAdapter.fetchAccountTransfer(
+                        user.getSsafyFinanceUserKey(),
+                        primaryAccount.getAccountNo(),
+                        "(세이브박스) 꺼내기",
+                        transferAmount.toString(),
+                        saveboxAccount.getAccountNo(),
+                        "(세이브박스) 출금");
+
+        if (apiResponse == null || apiResponse.getHeader() == null) {
+            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR);
+        }
+
+        String responseCode = apiResponse.getHeader().getResponseCode();
+        if (!"H0000".equals(responseCode)) {
+            String msg = apiResponse.getHeader().getResponseMessage();
+            if (msg != null && (msg.contains("잔액") || msg.contains("부족") || msg.contains("balance"))) {
+                throw new AccountException(AccountErrorCode.INSUFFICIENT_BALANCE, msg);
+            }
+            throw new AccountException(AccountErrorCode.API_RESPONSE_ERROR, msg);
+        }
+
+        syncAccounts(userId);
+
+        notificationService.createNotification(
+                userId,
+                NotificationType.MANUAL_WITHDRAWAL_COMPLETED,
+                "금고에서 돈을 꺼냈어요",
+                String.format(
+                        "세이브박스에서 %s원이 주계좌로 출금되었습니다.",
+                        formatAmount(transferAmount)),
+                NotificationReferenceType.FINANCE,
+                saveboxAccount.getId());
+    }
 }
+
