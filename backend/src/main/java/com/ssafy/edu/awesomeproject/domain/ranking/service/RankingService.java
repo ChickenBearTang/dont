@@ -81,8 +81,8 @@ public class RankingService {
         log.info("[Ranking Snapshot] Saved snapshot to {} (count: {})", snapshotKey, range.size());
     }
 
-    /** Top 10 랭킹 리스트 조회 (cohort 인자가 null이면 전체 랭킹 조회) */
-    public List<RankingUserDto> getTop10Ranking(Integer cohort) {
+    /** Top 100 랭킹 리스트 조회 (cohort 인자가 null이면 전체 랭킹 조회) */
+    public List<RankingUserDto> getTop100Ranking(Integer cohort) {
         String key =
                 (cohort != null && cohort > 0) ? COHORT_RANKING_PREFIX + cohort : TOTAL_RANKING_KEY;
         String snapshotKey =
@@ -98,17 +98,17 @@ public class RankingService {
             saveSnapshot(key, snapshotKey);
         }
 
-        Set<TypedTuple<String>> top10 =
-                redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, 9);
+        Set<TypedTuple<String>> top100 =
+                redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, 99);
 
-        if (top10 == null || top10.isEmpty()) return List.of();
+        if (top100 == null || top100.isEmpty()) return List.of();
 
         long currentRank = 1;
         List<RankingUserDto> result = new ArrayList<>();
         List<Long> userIds = new ArrayList<>();
         List<Double> scores = new ArrayList<>();
 
-        for (TypedTuple<String> tuple : top10) {
+        for (TypedTuple<String> tuple : top100) {
             Long id = Long.valueOf(tuple.getValue());
             Double score = tuple.getScore();
             if (score != null) {
@@ -131,7 +131,7 @@ public class RankingService {
             String nickname = user != null ? user.getNickname() : "탈퇴한 유저";
 
             // 등락 계산 (rankDiff = 어제순위 - 현재순위)
-            Integer rankDiff = 0;
+            Integer rankDiff = null;
             if (!snapshotMap.isEmpty() && snapshotMap.containsKey(userId.toString())) {
                 try {
                     long lastRank = Long.parseLong(snapshotMap.get(userId.toString()).toString());
@@ -191,7 +191,7 @@ public class RankingService {
         }
 
         Object lastRankObj = redisTemplate.opsForHash().get(snapshotKey, userIdStr);
-        Integer rankDiff = 0;
+        Integer rankDiff = null;
         long currentRank = rank + 1;
         if (lastRankObj != null) {
             try {

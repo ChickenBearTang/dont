@@ -235,12 +235,12 @@ const RankingWidget = () => {
     queryKey: ['dashboard', 'ranking'],
     queryFn: async () => {
       const res = await axiosInstance.get('/ranking/cohort');
-      return res.data; // { data: { top10: [], myRanking: {} } }
+      return res.data; // { data: { top100: [], myRanking: {} } }
     },
   });
 
   const myRanking = data?.myRanking;
-  const top3 = data?.top10?.slice(0, 3) || [];
+  const top3 = data?.top100?.slice(0, 3) || [];
 
   return (
     <Card className="p-8 flex flex-col h-full border border-indigo-50 shadow-sm relative overflow-hidden group">

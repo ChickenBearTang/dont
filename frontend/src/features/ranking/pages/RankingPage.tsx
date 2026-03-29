@@ -13,7 +13,7 @@ interface RankingResponse {
   status: string;
   message: string;
   data: {
-    top10: RankingUser[];
+    top100: RankingUser[];
     myRanking: RankingUser;
   };
 }
@@ -28,7 +28,15 @@ const fetchRanking = async (
 };
 
 // 등락 지표 컴포넌트
-const TrendBadge: React.FC<{ diff?: number }> = ({ diff }) => {
+const TrendBadge: React.FC<{ diff?: number | null }> = ({ diff }) => {
+  if (diff === null) {
+    return (
+      <div className="flex items-center justify-center px-1.5 py-0.5 bg-gradient-to-r from-yellow-100 to-amber-100 text-amber-700 border border-yellow-300/50 rounded-md text-[9px] tracking-wide font-black shadow-[0_0_8px_rgba(250,204,21,0.4)]">
+        NEW
+      </div>
+    );
+  }
+
   if (diff === undefined || diff === 0) {
     return (
       <div className="flex items-center justify-center w-8 h-5 bg-slate-100 rounded-md">
@@ -276,12 +284,12 @@ export const RankingPage = () => {
     enabled: activeTab === 'total' || selectedCohortNo !== undefined,
   });
 
-  const top10 = data?.data?.top10 || [];
+  const top100 = data?.data?.top100 || [];
   const myRanking = data?.data?.myRanking;
 
   // 포디엄용 상위 3명 + 나머지 (4위부터)
-  const top3 = top10.filter((u) => u.rank <= 3);
-  const restRanking = top10.filter((u) => u.rank > 3);
+  const top3 = top100.filter((u: RankingUser) => u.rank <= 3);
+  const restRanking = top100.filter((u: RankingUser) => u.rank > 3);
 
   return (
     <div className="w-full max-w-[860px] mx-auto py-6 px-4 md:px-6">
@@ -418,7 +426,7 @@ export const RankingPage = () => {
             </div>
           )}
 
-          {!isLoading && !isError && top10.length === 0 && (
+          {!isLoading && !isError && top100.length === 0 && (
             <div className="text-center text-[var(--text-subtle)] my-8 py-16 bg-[var(--surface-soft)] rounded-[28px] border-2 border-dashed border-[var(--line-soft)]">
               <p className="text-lg font-bold mb-1">아직 랭킹에 등록된 유저가 없습니다</p>
               <p className="text-sm text-[var(--text-muted)]">세이브박스에 저축을 시작해 보세요!</p>
@@ -427,9 +435,6 @@ export const RankingPage = () => {
 
           {restRanking.length > 0 && (
             <>
-              <p className="text-[12px] font-black text-[var(--text-subtle)] tracking-[0.1em] uppercase text-center mb-4">
-                {top3.length > 0 ? '4위 ~' : 'Top 10 랭커'}
-              </p>
               <motion.ul layout className="flex flex-col gap-3">
                 <AnimatePresence mode="popLayout">
                   {restRanking.map((user: RankingUser) => (

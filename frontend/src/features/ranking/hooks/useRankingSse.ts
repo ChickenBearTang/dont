@@ -12,11 +12,11 @@ export interface RankingUser {
   rank: number;
   cohortNo?: number;
   profileImageUrl?: string;
-  rankDiff?: number;
+  rankDiff?: number | null;
 }
 
 export interface RankingListResponse {
-  top10: RankingUser[];
+  top100: RankingUser[];
   myRanking: RankingUser;
 }
 
@@ -28,9 +28,9 @@ export interface RankingResponse {
 
 export interface RankingUpdatePayload {
   triggeredUserId: number;
-  totalTop10: RankingUser[];
+  totalTop100: RankingUser[];
   cohortNo?: number;
-  cohortTop10?: RankingUser[];
+  cohortTop100?: RankingUser[];
 }
 
 /**
@@ -101,22 +101,22 @@ export const useRankingSse = () => {
         const qClient = queryClientRef.current;
         
         // 1. 캐시 즉시 업데이트
-        qClient.setQueryData<RankingResponse>(['ranking', 'total'], (oldData: RankingResponse | undefined) => {
+        qClient.setQueryData<RankingListResponse>(['ranking', 'total'], (oldData: RankingListResponse | undefined) => {
           if (!oldData) return oldData;
           return {
             ...oldData,
-            data: { ...oldData.data, top10: payload.totalTop10 }
+            top100: payload.totalTop100
           };
         });
 
         if (payload.cohortNo) {
-          qClient.setQueryData<RankingResponse>(
+          qClient.setQueryData<RankingListResponse>(
             ['ranking', 'cohort', payload.cohortNo],
-            (oldData: RankingResponse | undefined) => {
-              if (!oldData || !payload.cohortTop10) return oldData;
+            (oldData: RankingListResponse | undefined) => {
+              if (!oldData || !payload.cohortTop100) return oldData;
               return {
                 ...oldData,
-                data: { ...oldData.data, top10: payload.cohortTop10 }
+                top100: payload.cohortTop100
               };
             }
           );
