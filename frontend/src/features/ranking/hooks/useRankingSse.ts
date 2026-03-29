@@ -95,28 +95,37 @@ export const useRankingSse = () => {
         const payload: RankingUpdatePayload = JSON.parse((event as MessageEvent<string>).data);
         const qClient = queryClientRef.current;
 
-        qClient.setQueryData<RankingResponse>(['ranking', 'total'], (oldData) => {
-          if (!oldData) return oldData;
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              top100: payload.totalTop100,
-            },
-          };
-        });
-
-        if (payload.cohortNo && payload.cohortTop100) {
-          qClient.setQueryData<RankingResponse>(['ranking', 'cohort', payload.cohortNo], (oldData) => {
+        if (payload.totalTop100) {
+          const newTop100 = payload.totalTop100;
+          qClient.setQueryData<RankingResponse>(['ranking', 'total'], (oldData: RankingResponse | undefined) => {
             if (!oldData) return oldData;
             return {
               ...oldData,
+              status: 'success',
               data: {
                 ...oldData.data,
-                top100: payload.cohortTop100 ?? oldData.data.top100,
-              },
+                top100: newTop100
+              }
             };
           });
+        }
+
+        if (payload.cohortNo && payload.cohortTop100) {
+          const newCohortTop100 = payload.cohortTop100;
+          qClient.setQueryData<RankingResponse>(
+            ['ranking', 'cohort', payload.cohortNo],
+            (oldData: RankingResponse | undefined) => {
+              if (!oldData) return oldData;
+              return {
+                ...oldData,
+                status: 'success',
+                data: {
+                  ...oldData.data,
+                  top100: newCohortTop100
+                }
+              };
+            }
+          );
         }
 
         setIsUpdatingRef.current(true);
