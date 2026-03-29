@@ -9,6 +9,10 @@ COPY . /workspace/AI_TMP/ai
 
 WORKDIR /workspace/AI_TMP/ai
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -e .
 
