@@ -24,5 +24,7 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
             @Param("userId") Long userId,
             @Param("accountRole") AccountRole accountRole);
 
+    List<Account> findAllByAccountRole(AccountRole accountRole);
+
     Optional<Account> getAccountById(Long id);
 }

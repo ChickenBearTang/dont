@@ -36,4 +36,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsBySsafyFinanceUserKey(String ssafyFinanceUserKey);
 
     List<User> findByCohortId(Long cohortId);
+
+    List<User> findAllByStatus(UserStatus status);
 }

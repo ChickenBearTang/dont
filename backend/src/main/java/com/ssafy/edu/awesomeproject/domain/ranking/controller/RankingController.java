@@ -10,6 +10,7 @@ import com.ssafy.edu.awesomeproject.domain.ranking.service.RankingService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,5 +57,12 @@ public class RankingController {
         RankingUserDto myRanking = rankingService.getMyRanking(userId, cohortNo);
 
         return CommonResponse.success(RankingListResponse.of(top100, myRanking));
+    }
+
+    /** [관리자/개발자용] DB 잔액을 기준으로 Redis 랭킹 원천 동기화 수행 */
+    @PostMapping("/sync")
+    public CommonResponse<String> syncRanking(@CurrentUserId Long userId) {
+        rankingService.syncRankingFromDb();
+        return CommonResponse.success("Ranking synchronization completed successfully.");
     }
 }
