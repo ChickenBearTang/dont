@@ -13,6 +13,8 @@ export const useCreateSaveBox = () => {
     onSuccess: () => {
       // 계좌 목록 정보 무효화
       queryClient.invalidateQueries({ queryKey: accountKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: ['ranking'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'ranking'] });
     },
   });
 };
@@ -73,6 +75,8 @@ export const useExecuteManualSavings = () => {
     onSuccess: () => {
       // 잔액 변동이 있으므로 전체 무효화
       queryClient.invalidateQueries({ queryKey: accountKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['ranking'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'ranking'] });
     },
   });
 };
@@ -89,6 +93,8 @@ export const useExecuteManualWithdrawal = () => {
     onSuccess: () => {
       // 잔액 변동이 있으므로 전체 무효화
       queryClient.invalidateQueries({ queryKey: accountKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['ranking'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'ranking'] });
     },
   });
 };
