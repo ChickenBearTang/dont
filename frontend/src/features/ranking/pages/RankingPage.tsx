@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRankingSse, type RankingUser } from '../hooks/useRankingSse';
 import { useRankingStore } from '../store/useRankingStore';
+import { useUIStore } from '@/shared/store/useUIStore';
 import axiosInstance from '@/shared/api/axiosInstance';
 import { fetchCohorts } from '@/features/user/api/userApi';
+import { RankingSyncModal } from '../components/RankingSyncModal';
 import type { Cohort } from '@/shared/types';
 import type { MyPageResponse } from '@/features/user/mypage/types';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
@@ -196,11 +198,11 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
   );
 
   return (
-    <LayoutGroup id="podium-group">
+    <LayoutGroup id="ranking-container">
       <div className="mx-4 mb-6">
         <motion.div 
           layout 
-          transition={{ type: 'spring', stiffness: 40, damping: 22, mass: 2 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 1 }}
           className="flex items-end justify-center gap-2 px-4"
         >
           {/* 2위 (왼쪽) */}
@@ -240,6 +242,7 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
 };
 
 export const RankingPage = () => {
+  const qClient = useQueryClient();
   // 1. SSE 실시간 업데이트
   useRankingSse();
   const isUpdating = useRankingStore((state) => state.isUpdating);
@@ -282,14 +285,44 @@ export const RankingPage = () => {
     queryFn: () => fetchRanking(activeTab, selectedCohortNo),
     staleTime: 1000 * 60 * 5,
     enabled: activeTab === 'total' || selectedCohortNo !== undefined,
+    // [시니어 디테일: 제로 플리커] 백그라운드 리프레시 중에도 기존 데이터를 유지하여 깜빡임 방지
+    placeholderData: (previousData) => previousData,
   });
 
   const top100 = data?.data?.top100 || [];
   const myRanking = data?.data?.myRanking;
 
+  // 실제 데이터가 없고 로딩 중일 때만 스켈레톤 표시 (깜빡임 방지 핵심)
+  const showSkeleton = isLoading && !data;
+
   // 포디엄용 상위 3명 + 나머지 (4위부터)
   const top3 = top100.filter((u: RankingUser) => u.rank <= 3);
   const restRanking = top100.filter((u: RankingUser) => u.rank > 3);
+
+  // 7. 랭킹 강제 동기화 (DB -> Redis)
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const addToast = useUIStore((state) => state.addToast);
+
+  const handleForceSync = () => {
+    if (isSyncing) return;
+    setIsSyncModalOpen(true);
+  };
+
+  const onConfirmSync = async () => {
+    setIsSyncing(true);
+    try {
+      await axiosInstance.post('/ranking/sync');
+      qClient.invalidateQueries({ queryKey: ['ranking'] });
+      addToast('전체 랭킹 동기화가 완료되었습니다! 🥇', 'success');
+      setIsSyncModalOpen(false);
+    } catch (err) {
+      console.error('Sync error:', err);
+      addToast('동기화 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
     <div className="w-full max-w-[1240px] mx-auto py-8 px-4 md:px-6 relative">
@@ -298,6 +331,37 @@ export const RankingPage = () => {
       <div className="absolute bottom-[20%] right-[-10%] w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none -z-10"></div>
 
       <div className="min-h-[600px] rounded-[48px] glass-premium overflow-hidden relative z-10 transition-all duration-500">
+        
+        {/* 헤더 섹션: 타이틀 및 동기화 버튼 */}
+        <div className="px-8 pt-8 flex items-center justify-between">
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-black text-[var(--text-strong)] tracking-tight">실시간 랭킹</h1>
+            <p className="text-sm text-[var(--text-subtle)] font-semibold mt-1">세이브박스 저축으로 매일 새로운 순위에 도전하세요.</p>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleForceSync}
+            disabled={isSyncing}
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black shadow-sm transition-all ${
+              isSyncing 
+                ? 'bg-[var(--surface-soft)] text-[var(--text-muted)] cursor-not-allowed'
+                : 'bg-white text-[var(--accent)] border-2 border-[var(--accent-soft)] hover:border-[var(--accent)] hover:shadow-md'
+            }`}
+          >
+            <motion.svg 
+              animate={isSyncing ? { rotate: 360 } : {}}
+              transition={isSyncing ? { repeat: Infinity, duration: 1, ease: 'linear' } : {}}
+              className="w-4 h-4" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </motion.svg>
+            {isSyncing ? '동기화 중...' : '랭킹 갱신'}
+          </motion.button>
+        </div>
 
         {/* ─── 탭 전환 ─── */}
         <div className="px-6 pt-6 pb-4 flex flex-col items-center gap-4">
@@ -355,7 +419,7 @@ export const RankingPage = () => {
                 {activeTab === 'total' ? '전체' : `${selectedCohortNo ?? myCohortNo}기`} 내 현재 랭킹
               </p>
 
-              {isLoading ? (
+              {showSkeleton ? (
                 <div className="flex items-center gap-3 animate-pulse">
                   <div className="w-16 h-16 rounded-2xl bg-white/20" />
                   <div className="w-32 h-6 rounded-lg bg-white/20" />
@@ -410,13 +474,13 @@ export const RankingPage = () => {
         )}
 
         {/* ─── 포디엄 (명예의 전당) ─── */}
-        {!isLoading && !isError && top3.length > 0 && (
+        {!showSkeleton && !isError && top3.length > 0 && (
           <Podium top3={top3} />
         )}
 
         {/* ─── 4위 이하 리스트 ─── */}
         <div className="px-6 pb-8">
-          {isLoading && (
+          {showSkeleton && (
             <div className="flex flex-col gap-3 animate-pulse">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-[72px] rounded-2xl bg-[var(--surface-soft)]" />
@@ -430,7 +494,7 @@ export const RankingPage = () => {
             </div>
           )}
 
-          {!isLoading && !isError && top100.length === 0 && (
+          {!showSkeleton && !isError && top100.length === 0 && (
             <div className="text-center text-[var(--text-subtle)] my-8 py-16 bg-[var(--surface-soft)] rounded-[28px] border-2 border-dashed border-[var(--line-soft)]">
               <p className="text-lg font-bold mb-1">아직 랭킹에 등록된 유저가 없습니다</p>
               <p className="text-sm text-[var(--text-muted)]">세이브박스에 저축을 시작해 보세요!</p>
@@ -438,31 +502,31 @@ export const RankingPage = () => {
           )}
 
           {restRanking.length > 0 && (
-            <>
+            <LayoutGroup id="ranking-container">
               <motion.ul layout className="flex flex-col gap-3">
                 <AnimatePresence mode="popLayout">
                   {restRanking.map((user: RankingUser) => (
                     <motion.li
                       layout
                       key={user.userId}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
                       transition={{ 
                         type: 'spring', 
-                        stiffness: 45, 
-                        damping: 24,
-                        mass: 2,
-                        layout: { duration: 2.0, type: 'spring', stiffness: 45, damping: 24, mass: 2 } 
+                        stiffness: 300, 
+                        damping: 30,
+                        mass: 1,
+                        layout: { type: 'spring', stiffness: 300, damping: 30, mass: 1 } 
                       }}
-                      className="flex items-center justify-between p-5 rounded-[28px] glass-premium hover-glass transition-all duration-300 group cursor-default"
+                      className="flex items-center justify-between p-5 rounded-[28px] glass-premium hover-glass transition-shadow duration-300 group cursor-default"
                     >
                       <div className="flex items-center gap-4">
-                        <span className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-soft)] text-[var(--text-strong)] text-[15px] font-black flex-shrink-0">
+                        <motion.span layout="position" className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-soft)] text-[var(--text-strong)] text-[15px] font-black flex-shrink-0">
                           {user.rank}
-                        </span>
+                        </motion.span>
                         <ProfileAvatar url={user.profileImageUrl} rank={user.rank} userId={user.userId} />
-                        <div className="flex items-center gap-2">
+                        <motion.div layout="position" className="flex items-center gap-2">
                           <span className="font-extrabold text-[var(--text-strong)] text-[15px] group-hover:text-[var(--accent)] transition-colors">
                             {user.nickname || `유저 ${user.userId}`}
                           </span>
@@ -471,19 +535,28 @@ export const RankingPage = () => {
                               {user.cohortNo}기
                             </span>
                           )}
-                        </div>
+                        </motion.div>
                       </div>
                       
-                      {/* 등락 지표 추가 */}
-                      <TrendBadge diff={user.rankDiff} />
+                      <motion.div layout="position">
+                        <TrendBadge diff={user.rankDiff} />
+                      </motion.div>
                     </motion.li>
                   ))}
                 </AnimatePresence>
               </motion.ul>
-            </>
+            </LayoutGroup>
           )}
         </div>
       </div>
+
+      {/* 랭킹 동기화 모달 */}
+      <RankingSyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        onConfirm={onConfirmSync}
+        isSyncing={isSyncing}
+      />
     </div>
   );
 };
