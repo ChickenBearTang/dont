@@ -19,30 +19,46 @@ export const OnboardingPage = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => Number(sessionStorage.getItem('onboarding_step')) || 1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isKdt, setIsKdt] = useState<boolean | null>(null);
-  const [fixedCostInput, setFixedCostInput] = useState('');
-  const [variableCostInput, setVariableCostInput] = useState('');
+  const [isKdt, setIsKdt] = useState<boolean | null>(() => {
+    const saved = sessionStorage.getItem('onboarding_isKdt');
+    return saved === null ? null : saved === 'true';
+  });
+  const [fixedCostInput, setFixedCostInput] = useState(() => sessionStorage.getItem('onboarding_fixedCost') || '');
+  const [variableCostInput, setVariableCostInput] = useState(() => sessionStorage.getItem('onboarding_variableCost') || '');
   // 서버에서 가져온 추천액 (뒤로가기 시 로컬 값이 초기화되어도 안전하게 표시)
   const [serverRecommendedAmount, setServerRecommendedAmount] = useState<number | null>(null);
 
-  // Handle browser back button: always return to Step 1
+  // Handle browser back button: Step-by-step navigation
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
-      // Prevent actual back navigation if we want to stay in onboarding step 1
       if (step > 1) {
         e.preventDefault();
-        setStep(1);
-        // Push state back to keep the user in the onboarding flow
-        window.history.pushState(null, '', window.location.pathname);
+        setStep((prev) => Math.max(1, prev - 1));
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [step]);
+
+  // Sync state to sessionStorage
+  useEffect(() => {
+    if (isKdt !== null) sessionStorage.setItem('onboarding_isKdt', String(isKdt));
+    sessionStorage.setItem('onboarding_fixedCost', fixedCostInput);
+    sessionStorage.setItem('onboarding_variableCost', variableCostInput);
+    sessionStorage.setItem('onboarding_step', String(step));
+  }, [isKdt, fixedCostInput, variableCostInput, step]);
+
+  // Push state on step increase to enable browser back button
+  const changeStep = (nextStep: number) => {
+    if (nextStep > step) {
+      window.history.pushState({ step: nextStep }, '', window.location.pathname);
+    }
+    setStep(nextStep);
+  };
 
   const resolveErrorMessage = (error: unknown) => {
     if (typeof error !== 'object' || error === null || !('response' in error)) {
@@ -70,10 +86,11 @@ export const OnboardingPage = () => {
           if (statusResponse.data.recommendedAmount) {
             setServerRecommendedAmount(statusResponse.data.recommendedAmount);
           }
-          setStep(4);
+          // 로컬 step이 1인 경우에만 4로 점프 (새로고침 시 등은 로컬 step 유지)
+          if (step === 1) setStep(4);
         }
       } catch (error) {
-        console.error('Failed to load onboarding data:', error);
+        console.error('Failed to load onborading data:', error);
         toast.error(resolveErrorMessage(error) ?? '온보딩 정보를 불러오지 못했습니다.');
       } finally {
         setIsLoading(false);
@@ -81,7 +98,7 @@ export const OnboardingPage = () => {
     };
 
     void loadOnboardingStatus();
-  }, [navigate, toast]);
+  }, [navigate, toast]); // step 의존성 제거 (무한루프 방지)
 
   const fixedCost = Number(fixedCostInput || 0);
   const variableCost = Number(variableCostInput || 0);
@@ -228,17 +245,6 @@ export const OnboardingPage = () => {
                 </p>
               </div>
 
-              <div className="w-full max-w-[720px] mx-auto mb-4 flex justify-start">
-                <Button
-                  variant="outline"
-                  fullWidth={false}
-                  onClick={() => setStep(1)}
-                  className="h-[48px] min-w-[120px] rounded-[14px] px-5"
-                >
-                  이전
-                </Button>
-              </div>
-
               <div
                 className="w-full max-w-[720px] mx-auto mb-10 grid gap-3"
                 style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
@@ -251,7 +257,7 @@ export const OnboardingPage = () => {
                     fullWidth={false}
                     onClick={() => {
                       setFixedCostInput(String(preset));
-                      setStep(3);
+                      changeStep(3);
                     }}
                     className="w-full h-[88px] rounded-[20px] text-[20px] font-black"
                   >
@@ -282,7 +288,7 @@ export const OnboardingPage = () => {
                   <Button
                     type="button"
                     disabled={!fixedCostInput || Number(fixedCostInput) <= 0}
-                    onClick={() => setStep(3)}
+                    onClick={() => changeStep(3)}
                     className="h-[64px] rounded-[22px] text-lg"
                   >
                     입력 완료
@@ -304,16 +310,6 @@ export const OnboardingPage = () => {
                 </p>
               </div>
 
-              <div className="w-full max-w-[720px] mx-auto mb-4 flex justify-start">
-                <Button
-                  variant="outline"
-                  fullWidth={false}
-                  onClick={() => setStep(2)}
-                  className="h-[48px] min-w-[120px] rounded-[14px] px-5"
-                >
-                  이전
-                </Button>
-              </div>
 
               <div
                 className="w-full max-w-[720px] mx-auto mb-10 grid gap-3"

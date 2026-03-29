@@ -143,7 +143,7 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, type: 'spring', stiffness: 40, damping: 20, mass: 2 }}
-      className={`flex flex-col items-center ${order} flex-1 max-w-[180px] relative`}
+      className={`flex flex-col items-center ${order} flex-1 max-w-[220px] relative`}
     >
       <div className="flex flex-col items-center w-full">
         {user ? (
@@ -207,9 +207,9 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
           <PodiumSlot
             user={second}
             medal="🥈"
-            pedestalHeight="h-20"
+            pedestalHeight="h-24"
             pedestalColor="bg-gradient-to-t from-slate-400 to-slate-200"
-            avatarSize="w-14 h-14"
+            avatarSize="w-20 h-20"
             order="order-1"
             delay={0.1}
           />
@@ -217,9 +217,9 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
           <PodiumSlot
             user={first}
             medal="🥇"
-            pedestalHeight="h-28"
+            pedestalHeight="h-36"
             pedestalColor="bg-gradient-to-t from-yellow-500 to-yellow-300"
-            avatarSize="w-16 h-16"
+            avatarSize="w-24 h-24"
             order="order-2"
             delay={0}
           />
@@ -227,9 +227,9 @@ const Podium: React.FC<{ top3: RankingUser[] }> = ({ top3 }) => {
           <PodiumSlot
             user={third}
             medal="🥉"
-            pedestalHeight="h-16"
+            pedestalHeight="h-20"
             pedestalColor="bg-gradient-to-t from-orange-500 to-orange-300"
-            avatarSize="w-14 h-14"
+            avatarSize="w-20 h-20"
             order="order-3"
             delay={0.2}
           />
@@ -292,8 +292,12 @@ export const RankingPage = () => {
   const restRanking = top100.filter((u: RankingUser) => u.rank > 3);
 
   return (
-    <div className="w-full max-w-[860px] mx-auto py-6 px-4 md:px-6">
-      <div className="min-h-[520px] rounded-[36px] border border-[var(--line-soft)] bg-gradient-to-b from-[var(--surface-base)] via-[var(--surface-base)] to-[var(--surface-muted)] shadow-[0_26px_60px_rgba(15,23,42,0.08)] overflow-hidden">
+    <div className="w-full max-w-[1240px] mx-auto py-8 px-4 md:px-6 relative">
+      {/* 배경 데코레이션 블롭 */}
+      <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-primary-blue/10 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+      <div className="absolute bottom-[20%] right-[-10%] w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none -z-10"></div>
+
+      <div className="min-h-[600px] rounded-[48px] glass-premium overflow-hidden relative z-10 transition-all duration-500">
 
         {/* ─── 탭 전환 ─── */}
         <div className="px-6 pt-6 pb-4 flex flex-col items-center gap-4">
@@ -451,7 +455,7 @@ export const RankingPage = () => {
                         mass: 2,
                         layout: { duration: 2.0, type: 'spring', stiffness: 45, damping: 24, mass: 2 } 
                       }}
-                      className="flex items-center justify-between p-4 rounded-2xl border border-[var(--line-soft)] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)] transition-all duration-200 hover:scale-[1.015] hover:shadow-lg group cursor-default"
+                      className="flex items-center justify-between p-5 rounded-[28px] glass-premium hover-glass transition-all duration-300 group cursor-default"
                     >
                       <div className="flex items-center gap-4">
                         <span className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-soft)] text-[var(--text-strong)] text-[15px] font-black flex-shrink-0">
