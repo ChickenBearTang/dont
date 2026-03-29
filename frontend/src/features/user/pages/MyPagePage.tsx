@@ -509,6 +509,13 @@ export const MyPagePage = () => {
       await resetOnboardingMutation.mutateAsync();
       queryClient.invalidateQueries({ queryKey: ['myPage'] });
       queryClient.invalidateQueries({ queryKey: ['account'] });
+      
+      // 온보딩 세션 데이터 초기화
+      sessionStorage.removeItem('onboarding_step');
+      sessionStorage.removeItem('onboarding_isKdt');
+      sessionStorage.removeItem('onboarding_fixedCost');
+      sessionStorage.removeItem('onboarding_variableCost');
+
       success('온보딩 단계로 이동합니다. 설정을 다시 진행해 주세요!');
       navigate('/onboarding', { replace: true });
     } catch (mutationError) {

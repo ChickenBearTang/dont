@@ -25,6 +25,27 @@
   }
 }
 
+@layer components {
+  /* 프리미엄 글래스모피즘 라이브러리 - 기본 시인성 강화 */
+  .glass-premium {
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.04);
+  }
+
+  .hover-glass {
+    @apply transition-all duration-500 shadow-[0_4px_20px_rgba(0,0,0,0.02)];
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+
+  .hover-glass:hover {
+    @apply -translate-y-2 shadow-[0_20px_50px_rgba(31,38,135,0.12)];
+    background-color: rgba(255, 255, 255, 1);
+    border-color: rgba(10, 101, 255, 0.2);
+  }
+}
+
 @layer base {
 
   html,
