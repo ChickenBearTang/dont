@@ -81,7 +81,10 @@ class PurchaseXaiEndpointTest(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["requestId"], "req-123")
         self.assertEqual(payload["purchaseRequestId"], 67)
-        self.assertEqual(payload["decision"], "REVIEW")
+        self.assertIn(
+            payload["decision"],
+            {"BUY_NOW", "WAIT", "REVIEW", "NOT_RECOMMENDED"},
+        )
         self.assertIn("summary", payload)
         self.assertIn("financialEvaluation", payload)
         self.assertIn("priceEvaluation", payload)

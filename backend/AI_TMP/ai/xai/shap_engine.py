@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 
@@ -62,6 +63,20 @@ class ShapContributionEngine:
                     row * 1.5,
                 ]
             )
+            mode = os.getenv("AI_XAI_SHAP_MODE", "fast").strip().lower()
+
+            if mode != "exact":
+                baseline = np_mod.mean(background, axis=0)
+                values_row = row[0] - baseline
+                contributions = {
+                    feature_name: float(values_row[index])
+                    for index, feature_name in enumerate(ordered_features)
+                }
+                return contributions, {
+                    "enabled": True,
+                    "backend": "shap_fast",
+                    "feature_count": len(ordered_features),
+                }
 
             def _surrogate(x: Any) -> Any:
                 return np_mod.sum(x, axis=1)

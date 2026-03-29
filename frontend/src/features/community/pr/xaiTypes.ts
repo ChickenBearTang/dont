@@ -67,7 +67,7 @@ export interface PrXaiEvaluationResponseData {
 export interface PrXaiAvailabilityResponseData {
   enabled: boolean;
   reason: string;
-  matchType?: 'URL_EXACT' | 'TITLE_PRICE_SIMILAR' | string | null;
+  matchType?: 'URL_EXACT' | 'TITLE_PRICE_SIMILAR' | 'ITEM_WHITELIST_ONLY' | string | null;
   matchedItemTitle?: string | null;
   matchedItemUrl?: string | null;
 }
