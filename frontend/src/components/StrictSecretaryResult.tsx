@@ -109,7 +109,7 @@ export default function StrictSecretaryResult({
       await audio.play();
       setTtsState('playing');
     } catch (err) {
-      console.error('TTS error:', err);
+      console.error('TTS 오류:', err);
       alert('음성 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
       setTtsState('idle');
     }

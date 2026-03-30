@@ -35,7 +35,7 @@ export const ReportProcessModal: React.FC<ReportProcessModalProps> = ({
       await onSubmit(note);
       onClose();
     } catch (error) {
-      console.error('Failed to process report:', error);
+      console.error('신고 처리 실패:', error);
     } finally {
       setSubmitting(false);
     }

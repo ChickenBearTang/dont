@@ -36,7 +36,7 @@ export const CardRecommendationRankPage = () => {
         const res = await getCardRecommendation(month);
         setData(res as CardRecommendationResponse);
       } catch (error) {
-        console.error('Failed to fetch card recommendation ranking:', error);
+        console.error('카드 추천 랭킹 조회 실패:', error);
         if (showSpinner) {
           setData(null);
         }

@@ -37,7 +37,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         set({ notifications: filtered.slice(0, 10) });
       }
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+      console.error('알림 목록 조회 실패:', error);
     } finally {
       set({ loading: false });
     }
@@ -58,7 +58,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         }
       }
     } catch (error) {
-      console.error('Failed to fetch unread count:', error);
+      console.error('읽지 않은 알림 개수 조회 실패:', error);
     }
   },
 
@@ -77,7 +77,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         unreadCount: Math.max(0, state.unreadCount - 1),
       }));
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      console.error('알림 읽음 처리 실패:', error);
     }
   },
 
@@ -89,7 +89,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         unreadCount: 0,
       }));
     } catch (error) {
-      console.error('Failed to mark all as read:', error);
+      console.error('전체 읽음 처리 실패:', error);
     }
   },
 
@@ -115,7 +115,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         };
       });
     } catch (error) {
-      console.error('Failed to dismiss notification:', error);
+      console.error('알림 숨김 처리 실패:', error);
     }
   },
 

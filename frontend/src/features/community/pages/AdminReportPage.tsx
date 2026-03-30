@@ -53,7 +53,7 @@ const AdminReportPage: React.FC = () => {
         setTotalPages(response.data.totalPages);
       }
     } catch (loadError) {
-      console.error('Failed to fetch reports:', loadError);
+      console.error('신고 목록 조회 실패:', loadError);
       error('신고 목록을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
@@ -80,7 +80,7 @@ const AdminReportPage: React.FC = () => {
 
       error('게시물 정보를 찾을 수 없습니다.');
     } catch (detailError) {
-      console.error('Failed to fetch report detail:', detailError);
+      console.error('신고 상세 조회 실패:', detailError);
       error('상세 정보를 불러오는 중 오류가 발생했습니다.');
     }
   };
@@ -98,7 +98,7 @@ const AdminReportPage: React.FC = () => {
         detailText: detail?.detailText,
       });
     } catch (detailError) {
-      console.error('Failed to fetch report detail for processing:', detailError);
+      console.error('처리용 신고 상세 조회 실패:', detailError);
       error('상세 정보를 불러오지 못했습니다.');
     }
   };
@@ -117,7 +117,7 @@ const AdminReportPage: React.FC = () => {
       success(`${actionLabel} 처리가 완료되었습니다.`);
       await loadReports();
     } catch (submitError) {
-      console.error(`Failed to ${type} report:`, submitError);
+      console.error(`신고 ${type} 처리 실패:`, submitError);
       error('처리 중 오류가 발생했습니다.');
       throw submitError;
     }
@@ -202,7 +202,7 @@ const AdminReportPage: React.FC = () => {
             <table className="w-full text-left">
               <thead className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
                 <tr>
-                  <th className="px-6 py-4">ID</th>
+                  <th className="px-6 py-4">번호</th>
                   <th className="px-6 py-4">유형</th>
                   <th className="px-6 py-4">사유</th>
                   <th className="px-6 py-4">상태</th>

@@ -49,7 +49,7 @@ export default function StrictSecretaryModal() {
         setTtsAudioUrl(url);
       })
       .catch((err) => {
-        console.warn('TTS prefetch failed (결과는 계속 표시):', err);
+        console.warn('TTS 사전 로드 실패 (결과 표시는 계속됨):', err);
       });
   };
 
@@ -73,7 +73,7 @@ export default function StrictSecretaryModal() {
     evaluatePurchase(data)
       .then((result) => {
         if (!result || typeof result.fact_violence_comment !== 'string') {
-          throw new Error('Invalid strict-secretary result');
+          throw new Error('strict-secretary 응답 형식이 올바르지 않습니다.');
         }
         isApiResolvedRef.current = true;
         currentAiDataRef.current = result;
@@ -84,7 +84,7 @@ export default function StrictSecretaryModal() {
         setPageState('RESULT');
       })
       .catch((err) => {
-        console.error('strict-secretary API error:', {
+        console.error('strict-secretary API 오류:', {
           message: err?.message,
           status: err?.response?.status,
           data: err?.response?.data,

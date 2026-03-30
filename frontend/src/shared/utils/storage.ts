@@ -8,7 +8,7 @@ export const storage = {
       if (!value) return null;
       return JSON.parse(value) as T;
     } catch (error) {
-      console.error(`LocalStorage Get Error [${key}]:`, error);
+      console.error(`LocalStorage 조회 오류 [${key}]:`, error);
       return null;
     }
   },
@@ -17,7 +17,7 @@ export const storage = {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
-      console.error(`LocalStorage Set Error [${key}]:`, error);
+      console.error(`LocalStorage 저장 오류 [${key}]:`, error);
     }
   },
 

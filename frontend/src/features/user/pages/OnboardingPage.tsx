@@ -90,7 +90,7 @@ export const OnboardingPage = () => {
           if (step === 1) setStep(4);
         }
       } catch (error) {
-        console.error('Failed to load onborading data:', error);
+        console.error('온보딩 데이터 로드 실패:', error);
         toast.error(resolveErrorMessage(error) ?? '온보딩 정보를 불러오지 못했습니다.');
       } finally {
         setIsLoading(false);
@@ -143,7 +143,7 @@ export const OnboardingPage = () => {
         setStep(4);
       }
     } catch (error) {
-      console.error('Failed to submit onboarding:', error);
+      console.error('온보딩 제출 실패:', error);
       toast.error(resolveErrorMessage(error) ?? '정보 저장에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);

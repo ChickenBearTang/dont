@@ -394,7 +394,7 @@ const AIAnalysisCard = ({
             {cardRecommendation.best_card && (
               <div className="bg-white rounded-2xl p-5 border border-indigo-100/50 shadow-[0_2px_8px_rgba(79,70,229,0.06)]">
                 <div className="flex justify-between items-start mb-2">
-                  <span className="bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-full">Best 추천 카드</span>
+                  <span className="bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-full">최적 추천 카드</span>
                 </div>
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <div>
@@ -816,7 +816,7 @@ export const MonthlyReportPage = () => {
       const directRecommendation = await getCardRecommendation(reportMonth);
       setCardRecommendation(directRecommendation ?? null);
     } catch (error) {
-      console.error('[MonthlyReport] Failed to fetch direct card recommendation:', error);
+      console.error('[월간리포트] 직접 카드 추천 조회 실패:', error);
       setCardRecommendation(null);
     } finally {
       setCardRecommendLoading(false);
@@ -839,7 +839,7 @@ export const MonthlyReportPage = () => {
       const payload = extractReportPayload(res);
       applyMonthlyReportPayload(payload);
     } catch (error) {
-      console.error('Failed to generate AI report:', error);
+      console.error('AI 리포트 생성 실패:', error);
       alert('리포트 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setGenerating(false);
@@ -906,7 +906,7 @@ export const MonthlyReportPage = () => {
           rankColumList: rankList,
         });
       } catch (error) {
-        console.error('Failed to fetch spending summary:', error);
+        console.error('소비 요약 조회 실패:', error);
         setSummary(null);
       } finally {
         setSummaryLoading(false);
@@ -933,7 +933,7 @@ export const MonthlyReportPage = () => {
         applyMonthlyReportPayload(payload);
       } catch (error) {
         if (getAxiosStatus(error) !== 404) {
-          console.error('Failed to fetch AI report:', error);
+          console.error('AI 리포트 조회 실패:', error);
         }
         setAiAnalysis(null);
         setCardRecommendation(null);
@@ -958,7 +958,7 @@ export const MonthlyReportPage = () => {
         const res = await getConsumptionCompare();
         setCohortComparison(res.data ?? null);
       } catch (err) {
-        console.error('Failed to fetch cohort comparison:', err);
+        console.error('기수 비교 데이터 조회 실패:', err);
         setCohortComparison(null);
       } finally {
         setCohortComparisonLoading(false);

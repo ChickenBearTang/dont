@@ -128,7 +128,7 @@ export const SaveboxSetupPage: React.FC = () => {
 
       setIsSuccess(true);
     } catch (error) {
-      console.error('Onboarding Setup Failed:', error);
+      console.error('온보딩 설정 실패:', error);
       alert('설정 중 오류가 발생했습니다. 다시 시도해 주세요.');
     } finally {
       setIsSubmitting(false);
@@ -227,7 +227,7 @@ export const SaveboxSetupPage: React.FC = () => {
             <div className="text-center py-10 bg-blue-bg rounded-2xl border-2 border-dashed border-light-gray flex flex-col items-center">
               <p className="text-gray text-sm mb-4">연결된 계좌가 없습니다.</p>
               <div className="w-full px-6">
-                <p className="text-xs text-secondary-blue font-bold mb-2 text-left">SSAFY Finance API Key 연동</p>
+                <p className="text-xs text-secondary-blue font-bold mb-2 text-left">SSAFY Finance API 키 연동</p>
                 <input
                   type="text"
                   value={userKey}

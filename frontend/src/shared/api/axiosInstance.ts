@@ -53,7 +53,7 @@ const requestTokenReissue = async (): Promise<string> => {
   const accessToken = response.data?.data?.accessToken;
 
   if (!accessToken) {
-    throw new Error('Missing access token in reissue response.');
+    throw new Error('재발급 응답에 액세스 토큰이 없습니다.');
   }
 
   return accessToken;
@@ -90,7 +90,7 @@ const processQueue = (error: unknown, token?: string) => {
       return;
     }
 
-    promise.reject(new Error('Token refresh failed without error detail.'));
+    promise.reject(new Error('오류 상세 없이 토큰 재발급에 실패했습니다.'));
   });
 
   failedQueue = [];

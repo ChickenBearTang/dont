@@ -32,7 +32,7 @@ export const useNotificationSse = (enabled: boolean) => {
     });
 
     eventSource.addEventListener('connect', (event) => {
-      console.log('Notification SSE connected:', (event as MessageEvent<string>).data);
+      console.log('알림 SSE 연결됨:', (event as MessageEvent<string>).data);
     });
 
     eventSource.addEventListener('heartbeat', () => {
@@ -46,7 +46,7 @@ export const useNotificationSse = (enabled: boolean) => {
           useNotificationStore.getState().fetchNotifications(),
         ]);
       } catch (error) {
-        console.error('Failed to refresh notifications after SSE event:', error);
+        console.error('SSE 이벤트 이후 알림 갱신 실패:', error);
       }
     });
 
@@ -73,7 +73,7 @@ export const useNotificationSse = (enabled: boolean) => {
           return;
         }
 
-        console.warn('Notification SSE token refresh skipped due to non-auth error:', error);
+        console.warn('인증 이외 오류로 알림 SSE 토큰 재발급을 건너뜁니다:', error);
       } finally {
         refreshInFlight = false;
       }

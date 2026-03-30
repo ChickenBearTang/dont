@@ -66,7 +66,7 @@ export const CardDetailPage = () => {
         setCardInfo((cardData as CardDetailDto) || null);
         setTransactions(txData?.transaction || []);
       } catch (error) {
-        console.error('Failed to fetch card details:', error);
+        console.error('카드 상세 조회 실패:', error);
       } finally {
         setLoading(false);
       }

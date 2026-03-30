@@ -96,20 +96,20 @@ export const evaluatePurchase = async (data: {
     const candidates = pickCandidate(response);
     for (const candidate of candidates) {
       if (isAIResultData(candidate)) {
-        console.info('[strict-secretary] resolved response shape: exact');
+        console.info('[strict-secretary] 응답 형식 판별: 원본');
         return candidate;
       }
       const normalized = normalizeAIResultData(candidate);
       if (normalized) {
-        console.info('[strict-secretary] resolved response shape: normalized', normalized);
+        console.info('[strict-secretary] 응답 형식 판별: 정규화', normalized);
         return normalized;
       }
     }
 
-    console.error('[strict-secretary] raw unexpected payload:', response);
-    throw new Error('Unexpected strict-secretary response shape');
+    console.error('[strict-secretary] 예기치 않은 원본 페이로드:', response);
+    throw new Error('strict-secretary 응답 형식이 예상과 다릅니다.');
   } catch (error: any) {
-    console.error('[strict-secretary] evaluate error detail:', {
+    console.error('[strict-secretary] 평가 오류 상세:', {
       message: error?.message,
       status: error?.response?.status,
       data: error?.response?.data,

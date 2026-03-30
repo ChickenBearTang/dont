@@ -60,7 +60,7 @@ const AppBootstrap = () => {
           return;
         }
 
-        console.error('Failed to refresh access token during bootstrap:', error);
+        console.error('부트스트랩 중 액세스 토큰 갱신 실패:', error);
       } finally {
         setAuthInitializing(false);
       }

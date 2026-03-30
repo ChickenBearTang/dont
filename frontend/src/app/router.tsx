@@ -65,11 +65,11 @@ export const router = createBrowserRouter([
           },
           {
             path: '/loading',
-            element: <div>LoadingScreen Placeholder</div>,
+            element: <div>로딩 화면 자리표시자</div>,
           },
           {
             path: '/success',
-            element: <div>SuccessScreen Placeholder</div>,
+            element: <div>성공 화면 자리표시자</div>,
           },
         ],
       },

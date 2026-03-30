@@ -40,7 +40,7 @@ export const FinanceConnectPage = () => {
 
         setRecommendedAmount(nextRecommendedAmount);
       } catch (error) {
-        console.error('Failed to load finance-connect data:', error);
+        console.error('금융 연동 데이터 로드 실패:', error);
         toast.error('연동 정보를 불러오지 못했습니다.');
       } finally {
         setIsLoading(false);

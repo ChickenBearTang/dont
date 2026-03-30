@@ -112,7 +112,7 @@ export const SavingsRuleSetupPage: React.FC = () => {
               success('자동 저축 규칙이 저장되었습니다! 모든 온보딩이 완료되었습니다.');
               navigate('/dashboard');
             } catch (err) {
-              console.error('Failed to complete onboarding status:', err);
+              console.error('온보딩 상태 완료 처리 실패:', err);
               success('자동 저축 규칙이 저장되었습니다!');
               navigate('/dashboard');
             }

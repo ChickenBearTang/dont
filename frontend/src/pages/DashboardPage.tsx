@@ -78,7 +78,7 @@ const ExpenditureCard = () => {
 
           {}
           <div className="flex-1 flex flex-col justify-end">
-            <h4 className="text-[14px] font-extrabold text-eel mb-3">많이 쓴 카테고리 TOP 3</h4>
+            <h4 className="text-[14px] font-extrabold text-eel mb-3">많이 쓴 카테고리 상위 3</h4>
             {top3.length > 0 ? (
               <div className="flex flex-col gap-2.5">
                 {top3.map((item, idx) => {

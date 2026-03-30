@@ -34,7 +34,7 @@ export const CardListPage = () => {
           setCards(res.cards);
         }
       } catch (error) {
-        console.error('Failed to fetch cards:', error);
+        console.error('카드 목록 조회 실패:', error);
       } finally {
         setLoading(false);
       }

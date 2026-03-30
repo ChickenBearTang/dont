@@ -634,7 +634,7 @@ export const CommunityPage = () => {
           setPageInfo(null);
         }
       } catch (error) {
-        console.error('Failed to fetch posts:', error);
+        console.error('게시글 목록 조회 실패:', error);
         setPosts([]);
         setPageInfo(null);
       } finally {

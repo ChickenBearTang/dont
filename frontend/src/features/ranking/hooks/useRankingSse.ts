@@ -135,7 +135,7 @@ export const useRankingSse = () => {
           });
         }, 1000 + Math.random() * 1000);
       } catch (err) {
-        console.error('Ranking SSE payload parse error:', err);
+        console.error('랭킹 SSE 페이로드 파싱 오류:', err);
       }
     });
 
@@ -161,7 +161,7 @@ export const useRankingSse = () => {
           eventSource.close();
           return;
         }
-        console.warn('Ranking SSE token refresh skipped due to non-auth error:', error);
+        console.warn('인증 이외 오류로 랭킹 SSE 토큰 재발급을 건너뜁니다:', error);
       } finally {
         refreshInFlight = false;
       }

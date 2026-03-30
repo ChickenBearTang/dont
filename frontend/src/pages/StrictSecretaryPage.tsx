@@ -45,7 +45,7 @@ export default function StrictSecretaryPage() {
         setTtsAudioUrl(url);
       })
       .catch((err) => {
-        console.warn('TTS prefetch failed (결과는 계속 표시):', err);
+        console.warn('TTS 사전 로드 실패 (결과 표시는 계속됨):', err);
       });
   };
 
@@ -66,7 +66,7 @@ export default function StrictSecretaryPage() {
         setPageState('RESULT');
       })
       .catch((err) => {
-        console.error('strict-secretary API error:', {
+        console.error('strict-secretary API 오류:', {
           message: err?.message,
           status: err?.response?.status,
           data: err?.response?.data,

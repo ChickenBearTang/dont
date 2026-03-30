@@ -27,7 +27,7 @@ export default function StrictSecretaryLanding({ onVideoEnded }: StrictSecretary
           return;
         }
 
-        console.warn('Auto-play with sound failed, falling back to muted:', error);
+        console.warn('소리 포함 자동 재생 실패, 음소거 재생으로 전환합니다:', error);
         setIsMuted(true);
 
         if (!videoRef.current) return;
@@ -37,7 +37,7 @@ export default function StrictSecretaryLanding({ onVideoEnded }: StrictSecretary
           if (mutedError instanceof DOMException && mutedError.name === 'AbortError') {
             return;
           }
-          console.error('Even muted autoplay failed', mutedError);
+          console.error('음소거 자동 재생도 실패했습니다.', mutedError);
         });
       });
 
