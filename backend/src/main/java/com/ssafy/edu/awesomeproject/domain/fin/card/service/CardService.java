@@ -76,10 +76,10 @@ public class CardService {
                     refreshResult.cards(),
                     refreshResult.success(),
                     refreshResult.success()
-                            ? "Card list refreshed and retrieved."
+                            ? "카드 목록을 새로고침하고 조회했습니다."
                             : refreshResult.message());
         }
-        return buildCardListResponse(userId, cards, true, "Card list retrieved.");
+        return buildCardListResponse(userId, cards, true, "카드 목록을 조회했습니다.");
     }
 
     @Transactional
@@ -89,7 +89,7 @@ public class CardService {
         LocalDate start = parseDateOrThrow(startDate, "startDate");
         LocalDate end = parseDateOrThrow(endDate, "endDate");
         if (start.isAfter(end)) {
-            throw new IllegalArgumentException("startDate must be before or equal to endDate.");
+            throw new IllegalArgumentException("startDate는 endDate보다 빠르거나 같아야 합니다.");
         }
 
         List<CardTransaction> transactions =
@@ -122,7 +122,7 @@ public class CardService {
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
-                                                "Card not found for userId="
+                                                "사용자 카드 정보를 찾을 수 없습니다. userId="
                                                         + userId
                                                         + ", cardId="
                                                         + cardId));
@@ -130,7 +130,7 @@ public class CardService {
         LocalDate start = parseDateOrThrow(startDate, "startDate");
         LocalDate end = parseDateOrThrow(endDate, "endDate");
         if (start.isAfter(end)) {
-            throw new IllegalArgumentException("startDate must be before or equal to endDate.");
+            throw new IllegalArgumentException("startDate는 endDate보다 빠르거나 같아야 합니다.");
         }
 
         List<CardTransaction> transactions =
@@ -139,7 +139,7 @@ public class CardService {
                                 cardId, start, end);
 
         return buildCardTransactionListResponse(
-                transactions, true, "Card transactions retrieved.", card.getCardNo(), card.getCardName());
+                transactions, true, "카드 거래 내역을 조회했습니다.", card.getCardNo(), card.getCardName());
     }
 
     @Transactional(readOnly = true)
@@ -153,7 +153,7 @@ public class CardService {
         LocalDate start = parseDateOrThrow(startDate, "startDate");
         LocalDate end = parseDateOrThrow(endDate, "endDate");
         if (start.isAfter(end)) {
-            throw new IllegalArgumentException("startDate must be before or equal to endDate.");
+            throw new IllegalArgumentException("startDate는 endDate보다 빠르거나 같아야 합니다.");
         }
 
         List<CardTransaction> transactions =
@@ -191,7 +191,7 @@ public class CardService {
         return CardSummaryResponse.builder()
                 .success(true)
                 .code(SUCCESS_CODE)
-                .message("Card summary retrieved.")
+                .message("카드 요약 정보를 조회했습니다.")
                 .totalAmount(totalAmount)
                 .RankColumList(rankColumList)
                 .aiReport(includeAi ? getAiAnalysis(userId, start, end) : null)
@@ -222,7 +222,7 @@ public class CardService {
             }
             return response;
         } catch (Exception e) {
-            System.err.println("AI Analysis failed: " + e.getMessage());
+            System.err.println("AI 분석 실패: " + e.getMessage());
             return null;
         }
     }
@@ -239,7 +239,7 @@ public class CardService {
 
         if (!success || response.getRec() == null) {
             List<Card> currentCards = cardRepository.findAllByUser_Id(userId);
-            return new RefreshResult(false, currentCards, "Failed to refresh card list.");
+            return new RefreshResult(false, currentCards, "카드 목록 새로고침에 실패했습니다.");
         }
 
         List<Card> existingCards = cardRepository.findAllByUser_Id(userId);
@@ -401,12 +401,12 @@ public class CardService {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
 
         String financeUserKey = user.getSsafyFinanceUserKey();
         if (financeUserKey == null || financeUserKey.isBlank()) {
             throw new IllegalArgumentException(
-                    "ssafy_finance_user_key is missing for userId=" + userId);
+                    "userId=" + userId + "에 대한 ssafy_finance_user_key가 없습니다.");
         }
         return user;
     }
@@ -418,7 +418,8 @@ public class CardService {
             try {
                 return LocalDate.parse(date, ISO_DATE_FORMATTER);
             } catch (DateTimeParseException ignored) {
-                throw new IllegalArgumentException(fieldName + " must be yyyyMMdd or yyyy-MM-dd format.");
+                throw new IllegalArgumentException(
+                        fieldName + "은 yyyyMMdd 또는 yyyy-MM-dd 형식이어야 합니다.");
             }
         }
     }
@@ -455,7 +456,7 @@ public class CardService {
             return response;
         } catch (Exception e) {
             log.warn(
-                    "AI Card Recommendation failed. userId={}, month={}",
+                    "AI 카드 추천 실패. userId={}, month={}",
                     userId,
                     monthStr,
                     e);

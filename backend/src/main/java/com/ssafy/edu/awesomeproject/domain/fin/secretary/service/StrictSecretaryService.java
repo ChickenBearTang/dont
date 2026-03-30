@@ -44,7 +44,7 @@ public class StrictSecretaryService {
                             .orElseThrow(
                                     () ->
                                             new IllegalArgumentException(
-                                                    "Active user not found: " + userId));
+                                                    "활성 사용자를 찾을 수 없습니다: " + userId));
 
             List<StrictSecretaryEvaluateRequest.RecentTransaction> recentTransactions =
                     fetchRecentTransactions(userId);
@@ -68,7 +68,7 @@ public class StrictSecretaryService {
             log.info("strict-secretary calling python AI. userId={}", userId);
             StrictSecretaryResponse response = aiClient.evaluatePurchase(request);
             if (response == null) {
-                throw new IllegalStateException("AI strict-secretary response is empty");
+                throw new IllegalStateException("AI 엄격 소비비서 응답이 비어 있습니다.");
             }
 
             log.info(

@@ -62,7 +62,7 @@ public class FinanceProfileService {
 
     private Long normalizeUserId(String rawUserId) {
         if (rawUserId == null || rawUserId.isBlank()) {
-            throw new IllegalArgumentException("userId is required");
+            throw new IllegalArgumentException("userId는 필수입니다.");
         }
         String normalized = rawUserId.trim();
         if (normalized.startsWith("U") || normalized.startsWith("u")) {

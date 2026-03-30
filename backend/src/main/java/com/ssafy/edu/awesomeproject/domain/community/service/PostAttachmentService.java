@@ -60,7 +60,7 @@ public class PostAttachmentService {
             Long userId, List<AttachmentPresignFileRequestDto> files) {
         validateUserExists(userId);
         if (files == null || files.isEmpty()) {
-            throw new CommonException(CommonErrorCode.INVALID_INPUT, "files must not be empty.");
+            throw new CommonException(CommonErrorCode.INVALID_INPUT, "첨부 파일은 비어 있을 수 없습니다.");
         }
 
         List<UploadFileCommand> uploadFiles = new ArrayList<>(files.size());
@@ -157,42 +157,42 @@ public class PostAttachmentService {
         Set<String> keys = new LinkedHashSet<>();
         for (PostAttachmentRequestDto attachment : attachments) {
             if (attachment == null) {
-                throw new CommonException(CommonErrorCode.INVALID_INPUT, "attachment must not be null.");
+                throw new CommonException(CommonErrorCode.INVALID_INPUT, "첨부 항목은 null일 수 없습니다.");
             }
             validateFile(attachment.fileName(), attachment.contentType());
             String normalizedKey = normalizeKey(attachment.key());
             validateAttachmentKey(userId, normalizedKey);
             if (!keys.add(normalizedKey)) {
-                throw new CommonException(CommonErrorCode.INVALID_INPUT, "duplicate attachment key.");
+                throw new CommonException(CommonErrorCode.INVALID_INPUT, "중복된 첨부 키입니다.");
             }
         }
     }
 
     private void validateUserExists(Long userId) {
         if (userId == null || !userRepository.existsById(userId)) {
-            throw new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "user not found.");
+            throw new CommonException(CommonErrorCode.RESOURCE_NOT_FOUND, "사용자를 찾을 수 없습니다.");
         }
     }
 
     private void validateFile(String fileName, String contentType) {
         String normalizedContentType = normalizeContentType(contentType);
         if (!ALLOWED_CONTENT_TYPES.contains(normalizedContentType)) {
-            throw new CommonException(CommonErrorCode.INVALID_INPUT, "unsupported content type.");
+            throw new CommonException(CommonErrorCode.INVALID_INPUT, "지원하지 않는 콘텐츠 타입입니다.");
         }
 
         String extension = extractExtension(fileName);
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            throw new CommonException(CommonErrorCode.INVALID_INPUT, "unsupported file extension.");
+            throw new CommonException(CommonErrorCode.INVALID_INPUT, "지원하지 않는 파일 확장자입니다.");
         }
     }
 
     private String extractExtension(String fileName) {
         if (fileName == null || fileName.isBlank()) {
-            throw new CommonException(CommonErrorCode.INVALID_INPUT, "fileName is required.");
+            throw new CommonException(CommonErrorCode.INVALID_INPUT, "fileName은 필수입니다.");
         }
         int dotIndex = fileName.lastIndexOf('.');
         if (dotIndex < 0 || dotIndex == fileName.length() - 1) {
-            throw new CommonException(CommonErrorCode.INVALID_INPUT, "invalid file name.");
+            throw new CommonException(CommonErrorCode.INVALID_INPUT, "유효하지 않은 파일명입니다.");
         }
         return fileName.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
     }
@@ -200,7 +200,7 @@ public class PostAttachmentService {
     private void validateAttachmentKey(Long userId, String key) {
         String expectedPrefix = "public/community-post-attachment/" + userId + "/";
         if (!key.startsWith(expectedPrefix)) {
-            throw new CommonException(CommonErrorCode.INVALID_INPUT, "invalid attachment key.");
+            throw new CommonException(CommonErrorCode.INVALID_INPUT, "유효하지 않은 첨부 키입니다.");
         }
     }
 
@@ -210,14 +210,14 @@ public class PostAttachmentService {
 
     private String normalizeContentType(String contentType) {
         if (contentType == null) {
-            throw new CommonException(CommonErrorCode.INVALID_INPUT, "contentType is required.");
+            throw new CommonException(CommonErrorCode.INVALID_INPUT, "contentType은 필수입니다.");
         }
         return contentType.trim().toLowerCase(Locale.ROOT);
     }
 
     private String normalizeKey(String key) {
         if (key == null) {
-            throw new CommonException(CommonErrorCode.INVALID_INPUT, "key is required.");
+            throw new CommonException(CommonErrorCode.INVALID_INPUT, "key는 필수입니다.");
         }
         return key.trim();
     }

@@ -24,12 +24,12 @@ public class PythonConsumptionAiClient implements ConsumptionAiClient {
             AiMonthlyReportAnalysisResponse response =
                     aiClient.analyzeMonthlyReport(new AiMonthlyReportRequest(userId, reportMonth));
             if (response == null || response.analysisPayload() == null) {
-                throw new IllegalStateException("AI monthly report response is empty");
+                throw new IllegalStateException("AI 월간 리포트 응답이 비어 있습니다.");
             }
             return new AiReportAnalysis(response.analysisPayload(), response.llmStatus());
         } catch (Exception exception) {
             log.warn(
-                    "Python monthly report analysis failed. Falling back to degraded response. reason={}",
+                    "Python 월간 리포트 분석 실패. 축소 응답으로 대체합니다. reason={}",
                     exception.getMessage());
             return new AiReportAnalysis(defaultReportFeedback(), "degraded");
         }
@@ -42,11 +42,11 @@ public class PythonConsumptionAiClient implements ConsumptionAiClient {
                     aiClient.evaluateConsumptionJustification(
                             new AiJustificationRequest(userId, targetMonth, message));
             if (response == null) {
-                throw new IllegalStateException("AI justification response is empty");
+                throw new IllegalStateException("AI 소명 응답이 비어 있습니다.");
             }
             return new JustificationEvaluation(response.valid(), response.response());
         } catch (Exception exception) {
-            log.warn("Python justification evaluation failed: {}", exception.getMessage());
+            log.warn("Python 소명 평가 실패: {}", exception.getMessage());
             return new JustificationEvaluation(
                     false, "변명 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
         }

@@ -65,7 +65,7 @@ public class MonthlyTransactionFingerprintService {
             byte[] hash = digest.digest(source.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 algorithm not available", exception);
+            throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", exception);
         }
     }
 }

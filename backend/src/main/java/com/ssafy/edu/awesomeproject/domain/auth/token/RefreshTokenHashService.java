@@ -16,7 +16,7 @@ public class RefreshTokenHashService {
 
             return HexFormat.of().formatHex(hashedBytes);
         } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 algorithm is not available.", exception);
+            throw new IllegalStateException("SHA-256 알고리즘을 사용할 수 없습니다.", exception);
         }
     }
 }
