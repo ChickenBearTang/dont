@@ -39,7 +39,7 @@ public class NotificationSseEmitters {
     }
 
     public void sendConnect(Long userId) {
-        sendEvent(userId, "connect", "Connected successfully to Notification Stream.");
+        sendEvent(userId, "connect", "알림 스트림 연결이 완료되었습니다.");
     }
 
     public void sendHeartbeat(Long userId) {

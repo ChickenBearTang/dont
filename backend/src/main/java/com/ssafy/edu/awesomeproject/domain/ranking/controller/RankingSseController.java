@@ -34,7 +34,7 @@ public class RankingSseController {
             emitter.send(
                     SseEmitter.event()
                             .name("connect")
-                            .data("Connected successfully to Single Server MVP Ranking Stream."));
+                            .data("싱글 서버 MVP 랭킹 스트림 연결이 완료되었습니다."));
         } catch (Exception e) {
             log.error("SSE 초기 연결 이벤트 발송 실패 - User: {}", userId, e);
             emitter.completeWithError(e);

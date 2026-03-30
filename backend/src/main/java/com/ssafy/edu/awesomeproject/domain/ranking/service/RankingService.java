@@ -87,7 +87,7 @@ public class RankingService {
 
         if (Boolean.FALSE.equals(redisTemplate.hasKey(snapshotKey))) {
             log.info(
-                    "[Ranking Snapshot] Snapshot not found for {}. Creating initial snapshot...",
+                    "[Ranking Snapshot] {} 대상 스냅샷이 없어 초기 스냅샷을 생성합니다.",
                     snapshotKey);
             saveSnapshot(key, snapshotKey);
         }
@@ -216,7 +216,7 @@ public class RankingService {
                 com.ssafy.edu.awesomeproject.domain.auth.entity.UserStatus.ACTIVE);
 
         if (activeUsers.isEmpty()) {
-            log.warn("[Ranking Sync] No active users found in DB.");
+            log.warn("[Ranking Sync] DB에서 활성 사용자를 찾지 못했습니다.");
             return;
         }
 

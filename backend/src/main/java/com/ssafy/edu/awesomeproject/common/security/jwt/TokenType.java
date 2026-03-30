@@ -21,6 +21,6 @@ public enum TokenType {
             }
         }
 
-        throw new IllegalArgumentException("Unknown token type: " + value);
+        throw new IllegalArgumentException("알 수 없는 토큰 타입입니다: " + value);
     }
 }

@@ -45,7 +45,7 @@ public class RankingController {
                             .orElseThrow(
                                     () ->
                                             new IllegalArgumentException(
-                                                    "User not found: " + userId));
+                                                    "사용자를 찾을 수 없습니다: " + userId));
             cohortNo = (user.getCohort() != null) ? user.getCohort().getGenerationNo() : null;
         }
 
@@ -59,6 +59,6 @@ public class RankingController {
     @PostMapping("/sync")
     public CommonResponse<String> syncRanking(@CurrentUserId Long userId) {
         rankingService.syncRankingFromDb();
-        return CommonResponse.success("Ranking synchronization completed successfully.");
+        return CommonResponse.success("랭킹 동기화가 완료되었습니다.");
     }
 }

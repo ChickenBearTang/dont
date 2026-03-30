@@ -256,6 +256,6 @@ public class AuthController {
         authTokenService.logout(refreshToken, authorizationHeader);
         refreshTokenCookieService.clearRefreshToken(response);
 
-        return CommonResponse.success(new LogoutResponseDto("Logged out."));
+        return CommonResponse.success(new LogoutResponseDto("로그아웃되었습니다."));
     }
 }

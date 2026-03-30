@@ -46,7 +46,7 @@ public class NotificationSseController {
         try {
             notificationSseEmitters.sendConnect(userId);
         } catch (Exception e) {
-            log.debug("Notification SSE connect event send failed - userId={}", userId);
+            log.debug("알림 SSE 연결 이벤트 전송 실패 - userId={}", userId);
             try {
                 emitter.complete();
             } catch (Exception ignored) {
@@ -59,7 +59,7 @@ public class NotificationSseController {
                 try {
                     notificationSseEmitters.sendHeartbeat(userId);
                 } catch (Exception e) {
-                    log.debug("SSE heartbeat failed or emitter already closed - userId={}", userId);
+                    log.debug("SSE 하트비트 전송 실패 또는 emitter 종료 상태 - userId={}", userId);
                 }
             },
             heartbeatSeconds,

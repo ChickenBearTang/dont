@@ -319,7 +319,7 @@ public class ConsumptionReportService {
         try {
             return objectMapper.convertValue(recommendationMap, CardRecommendationResponse.class);
         } catch (IllegalArgumentException exception) {
-            log.warn("Failed to parse stored cardRecommendation payload", exception);
+            log.warn("저장된 카드 추천(cardRecommendation) 페이로드 파싱 실패", exception);
             return null;
         }
     }
@@ -440,7 +440,7 @@ public class ConsumptionReportService {
                                 () ->
                                         new ConsumptionException(
                                                 ConsumptionErrorCode.INVALID_PAYLOAD,
-                                                "User not found: " + userId));
+                                                "사용자를 찾을 수 없습니다: " + userId));
 
         if (user.getCohort() == null) {
             throw new ConsumptionException(

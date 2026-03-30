@@ -47,13 +47,13 @@ public class PrXaiEvaluationService {
         } catch (CommunityException exception) {
             throw exception;
         } catch (ResourceAccessException exception) {
-            log.warn("PR XAI timeout or connection failure. requestId={}", request.requestId(), exception);
+            log.warn("PR XAI 타임아웃 또는 연결 실패. requestId={}", request.requestId(), exception);
             throw new CommunityException(
                     CommunityErrorCode.PURCHASE_REQUEST_XAI_TIMEOUT,
                     request.requestId());
         } catch (RestClientResponseException exception) {
             log.warn(
-                    "PR XAI upstream responded with error. requestId={}, status={}, body={}",
+                    "PR XAI 업스트림 오류 응답. requestId={}, status={}, body={}",
                     request.requestId(),
                     exception.getStatusCode(),
                     exception.getResponseBodyAsString());

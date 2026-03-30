@@ -830,7 +830,7 @@ public class AccountService {
         try {
             return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern("yyyyMMdd"));
         } catch (Exception e) {
-            log.error("Failed to parse date: {}", dateStr);
+            log.error("날짜 파싱 실패: {}", dateStr);
             return null;
         }
     }
