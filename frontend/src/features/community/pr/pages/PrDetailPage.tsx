@@ -188,12 +188,44 @@ const xaiWarningLabelMap: Record<string, string> = {
   PRICE_HISTORY_READ_FAILED: '가격 이력 조회에 실패했습니다.',
   MISSING_PURCHASE_URL: '구매 URL이 없어 크롤링을 생략했습니다.',
   FINANCE_PROFILE_EMPTY_FALLBACK: '재무 데이터가 부족해 가격 중심으로 판단했습니다.',
+  MODEL_PATH_MISSING: 'AI 모델 경로가 없어 기본 판단으로 대체했습니다.',
+  MODEL_LOAD_FAILED: 'AI 모델 로딩에 실패해 기본 판단으로 대체했습니다.',
+  SCHEMA_VERSION_MISMATCH: 'AI 모델 버전이 맞지 않아 기본 판단으로 대체했습니다.',
+  FEATURE_SCHEMA_MISMATCH: 'AI 모델 입력 스키마가 맞지 않아 기본 판단으로 대체했습니다.',
+  INFERENCE_PAYLOAD_INVALID: 'AI 추론 입력값이 유효하지 않아 기본 판단으로 대체했습니다.',
+  PANDAS_UNAVAILABLE: 'AI 추론 의존성 로딩에 실패해 기본 판단으로 대체했습니다.',
+  MODEL_PREDICT_FAILED: 'AI 모델 추론에 실패해 기본 판단으로 대체했습니다.',
+  XAI_ITEM_VALIDATION_FAILED: 'XAI 입력 데이터 검증에 실패했습니다.',
+  XAI_ANALYSIS_FAILED: 'XAI 분석 처리 중 오류가 발생했습니다.',
 };
 
 const getXaiSectionStatusLabel = (status: string): string =>
   xaiSectionStatusLabelMap[status.trim().toLowerCase()] ?? status;
 
-const getXaiWarningLabel = (warning: string): string => xaiWarningLabelMap[warning] ?? warning;
+const xaiTextLocalizationMap: Record<string, string> = {
+  'Item price is high compared with monthly spending':
+    '상품 가격이 월 지출 규모 대비 높은 편입니다.',
+  'Projected post-purchase balance may become too low':
+    '구매 후 세이브박스 잔액이 너무 낮아질 수 있습니다.',
+  'Card due date is close, which may increase short-term cash flow burden':
+    '카드 결제일이 가까워 단기 현금흐름 부담이 있습니다.',
+  'Current absolute price level affected the decision':
+    '현재 절대 가격 수준이 판단에 영향을 주었습니다.',
+  'No significant change under current conditions; re-evaluation is recommended after price/budget changes':
+    '현재 조건에서는 큰 변화가 없어 가격/예산 변동 후 재평가를 권장합니다.',
+  'Please re-evaluate after adjusting price or budget':
+    '가격 또는 예산을 조정한 뒤 다시 평가해 주세요.',
+};
+
+const localizeXaiText = (text: string): string => {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return text;
+  const withoutPeriod = trimmed.replace(/[.。]+$/, '');
+  return xaiTextLocalizationMap[trimmed] ?? xaiTextLocalizationMap[withoutPeriod] ?? text;
+};
+
+const getXaiWarningLabel = (warning: string): string =>
+  xaiWarningLabelMap[warning] ?? '시스템 경고가 발생했습니다.';
 
 const cleanSummarySegment = (value: string): string =>
   value.replace(/^[\s.·\-:]+/, '').replace(/\s+/g, ' ').trim();
@@ -210,7 +242,7 @@ const parseXaiSummary = (summary: string): XaiSummaryParts => {
 
   if (keyIndex < 0 && improveIndex < 0) {
     return {
-      verdict: normalizeVerdict(raw) || '-',
+      verdict: localizeXaiText(normalizeVerdict(raw) || '-'),
       keyReason: '-',
       improvementPoint: '-',
     };
@@ -230,9 +262,9 @@ const parseXaiSummary = (summary: string): XaiSummaryParts => {
     improvementStart >= 0 ? cleanSummarySegment(raw.slice(improvementStart)) : '-';
 
   return {
-    verdict: normalizeVerdict(raw.slice(0, verdictEnd)) || '-',
-    keyReason: keyReason || '-',
-    improvementPoint: improvementPoint || '-',
+    verdict: localizeXaiText(normalizeVerdict(raw.slice(0, verdictEnd)) || '-'),
+    keyReason: localizeXaiText(keyReason || '-'),
+    improvementPoint: localizeXaiText(improvementPoint || '-'),
   };
 };
 
@@ -243,23 +275,34 @@ const xaiEvidenceFieldLabelMap: Record<string, string> = {
   avg_price_30d: '30일 평균가',
   emergency_fund_balance: '비상자금',
   current_balance: '현재 잔액',
+  product_price_vs_monthly_spending: '상품가 대비 월지출 비율',
+  price_model_gap_score: '가격 모델 신호',
+  finance_model_risk_score: '재무 모델 리스크 신호',
+  finance_model_affordability_score: '재무 모델 구매여력 신호',
+  monthly_spending_30d_estimate: '월 지출 추정치(30일)',
+  savebox_balance: '세이브박스 잔액',
+  available_fixed_expense: '가용 고정지출',
+  available_fixed_income: '가용 고정수입',
+  expected_card_payment_amount: '예상 카드 결제액',
 };
 
 const xaiEvidenceSourceLabelMap: Record<string, string> = {
   'spring.pr_post': 'PR 요청값',
   'spring.finance_profile': '재무 프로필',
   'fastapi.xai': 'AI 계산값',
+  'fastapi.price_model': 'AI 가격 모델',
+  'fastapi.finance_model': 'AI 재무 모델',
 };
 
 const getXaiEvidenceFieldLabel = (field: string): string => {
   if (field === 'projected_balance_after_purchase') {
     return '구매 후 세이브박스 잔액';
   }
-  return xaiEvidenceFieldLabelMap[field] ?? field;
+  return xaiEvidenceFieldLabelMap[field] ?? '기타 지표';
 };
 
 const getXaiEvidenceSourceLabel = (source: string): string =>
-  xaiEvidenceSourceLabelMap[source] ?? source;
+  xaiEvidenceSourceLabelMap[source] ?? '기타 산출값';
 
 const formatXaiEvidenceValue = (field: string, rawValue: string): string => {
   const normalized = rawValue.trim();
@@ -342,7 +385,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
         return {
           id: `event-${event.eventId}`,
           type: 'review',
-          title: isApprove ? 'Approve 리뷰 등록' : 'Reject 리뷰 등록',
+          title: isApprove ? '승인 리뷰 등록' : '거절 리뷰 등록',
           subTitle: payload.decision ? `결정: ${payload.decision}` : '리뷰가 등록되었습니다.',
           content:
             payload.opinionText && payload.opinionText.trim().length > 0
@@ -399,7 +442,7 @@ const buildTimelineEvents = (detail: PrDetailResponseData): TimelineEvent[] => {
             id: 'review-fallback',
             type: 'review' as const,
             title: '리뷰 투표 집계',
-            subTitle: `Approve ${detail.agreeCount} / Reject ${detail.disagreeCount}`,
+            subTitle: `승인 ${detail.agreeCount} / 거절 ${detail.disagreeCount}`,
             content: '리뷰어 투표가 반영되었습니다.',
             timeLabel: `총 ${detail.totalVoteCount}명 참여`,
           },
@@ -800,7 +843,7 @@ export const PrDetailPage = () => {
               </p>
             </div>
             <div className="rounded-2xl bg-success/5 p-5 shadow-sm border-2 border-success/20 group transition-all hover:bg-success/10 hover:border-success/40">
-              <p className="text-[11px] font-black text-success uppercase tracking-widest mb-1.5 group-hover:scale-105 origin-left transition-transform">Approve</p>
+              <p className="text-[11px] font-black text-success uppercase tracking-widest mb-1.5 group-hover:scale-105 origin-left transition-transform">승인</p>
               <div className="flex items-baseline gap-1">
                 <p className="text-2xl font-black text-success tracking-tighter">
                   {detail.agreeCount}
@@ -809,7 +852,7 @@ export const PrDetailPage = () => {
               </div>
             </div>
             <div className="rounded-2xl bg-danger/5 p-5 shadow-sm border-2 border-danger/20 group transition-all hover:bg-danger/10 hover:border-danger/40">
-              <p className="text-[11px] font-black text-danger uppercase tracking-widest mb-1.5 group-hover:scale-105 origin-left transition-transform">Reject</p>
+              <p className="text-[11px] font-black text-danger uppercase tracking-widest mb-1.5 group-hover:scale-105 origin-left transition-transform">거절</p>
               <div className="flex items-baseline gap-1">
                 <p className="text-2xl font-black text-danger tracking-tighter">
                   {detail.disagreeCount}
@@ -832,7 +875,7 @@ export const PrDetailPage = () => {
               </div>
             ))}
             <div className="pt-4 flex items-center gap-2">
-               <span className="text-xs font-black text-text-subtle uppercase tracking-tight">Category</span>
+               <span className="text-xs font-black text-text-subtle uppercase tracking-tight">카테고리</span>
                <span className="text-sm font-bold text-eel bg-surface-soft px-3 py-1 rounded-full">{detail.category ?? '-'}</span>
             </div>
           </div>
@@ -1223,7 +1266,7 @@ export const PrDetailPage = () => {
                         >
                           <p className="text-sm font-semibold leading-relaxed text-eel/90">
                             <span className="mr-2 text-primary-blue">{String(index + 1).padStart(2, '0')}</span>
-                            {factor.label}
+                            {localizeXaiText(factor.label)}
                           </p>
                           <p className="mt-1 text-xs font-black text-primary-blue">
                             영향도 {formatImpactPercent(factor.impact)}
@@ -1263,7 +1306,7 @@ export const PrDetailPage = () => {
 
                 {xaiEvaluation.decision.trim().toUpperCase() !== 'BUY_NOW' && (
                   <div className="space-y-2 rounded-2xl border border-light-gray bg-white p-4">
-                    <p className="text-sm font-black text-eel">Counterfactual</p>
+                    <p className="text-sm font-black text-eel">대안 시나리오</p>
                     {xaiEvaluation.counterfactuals.length > 0 ? (
                       <ul className="space-y-2">
                         {xaiEvaluation.counterfactuals.map((counterfactual) => (
@@ -1281,7 +1324,7 @@ export const PrDetailPage = () => {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm font-medium text-text-muted">counterfactual이 아직 없습니다.</p>
+                      <p className="text-sm font-medium text-text-muted">대안 시나리오가 아직 없습니다.</p>
                     )}
                   </div>
                 )}
@@ -1334,13 +1377,13 @@ export const PrDetailPage = () => {
         <Card className="!p-0 overflow-hidden border-light-gray shadow-xl">
           <div className="flex items-center justify-between border-b border-light-gray bg-surface-muted/50 px-6 py-5">
             <h3 className="text-xl font-black text-eel tracking-tight">투표 현황</h3>
-            <span className="text-xs font-black text-text-subtle uppercase px-2 py-1 bg-white border border-light-gray rounded-lg">{detail.totalVoteCount} Members</span>
+            <span className="text-xs font-black text-text-subtle uppercase px-2 py-1 bg-white border border-light-gray rounded-lg">{detail.totalVoteCount}명 참여</span>
           </div>
           <div className="p-6 space-y-6">
             <div className="space-y-2">
               <div className="flex justify-between text-[11px] font-black uppercase tracking-widest">
-                <span className="text-success">Agree</span>
-                <span className="text-danger">Reject</span>
+                <span className="text-success">동의</span>
+                <span className="text-danger">거절</span>
               </div>
               <div className="h-5 flex overflow-hidden rounded-full bg-light-gray shadow-inner p-0.5 ring-1 ring-light-gray">
                 {detail.totalVoteCount > 0 ? (
@@ -1364,7 +1407,7 @@ export const PrDetailPage = () => {
                   </>
                 ) : (
                   <div className="h-full w-full bg-gray-200/50 flex items-center justify-center">
-                    <span className="text-[9px] font-black text-text-subtle uppercase tracking-widest">Pending Votes</span>
+                    <span className="text-[9px] font-black text-text-subtle uppercase tracking-widest">남은 표</span>
                   </div>
                 )}
               </div>
@@ -1397,7 +1440,7 @@ export const PrDetailPage = () => {
                     onClick={() => void handleVote('AGREE')}
                     disabled={isSubmittingVote}
                   >
-                    APPROVE
+                    승인
                   </Button>
                   <Button
                     type="button"
@@ -1405,13 +1448,13 @@ export const PrDetailPage = () => {
                     onClick={() => void handleVote('DISAGREE')}
                     disabled={isSubmittingVote}
                   >
-                    REJECT
+                    거절
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="rounded-2xl border-2 border-dashed border-light-gray bg-surface-muted/50 p-5 text-center">
-                <p className="text-xs font-black text-text-subtle uppercase tracking-widest mb-1">Voting Disabled</p>
+                <p className="text-xs font-black text-text-subtle uppercase tracking-widest mb-1">투표 비활성화</p>
                 <p className="text-sm font-bold text-text-muted leading-tight">{voteDisabledReason}</p>
               </div>
             )}
