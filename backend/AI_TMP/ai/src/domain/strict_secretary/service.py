@@ -34,9 +34,9 @@ def evaluate_purchase_intention(request: PurchaseIntentionRequest) -> SecretaryR
     """
     profile_dict = {
         "monthly_income": request.user_profile.monthly_income,
-        "job": "Unknown",  # Default if not provided
+        "job": "미상",  # 입력값이 없을 때 기본값
         "age": 30,         # Default
-        "residence": "Unknown"
+        "residence": "미상"
     }
 
     tx_summary = []

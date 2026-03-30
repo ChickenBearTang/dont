@@ -80,7 +80,7 @@ User's Latest Message:
                 import logging
 
                 logging.warning(
-                    "Error evaluating justification with model %s: %s", candidate, e
+                    "모델 %s 소명 평가 중 오류 발생: %s", candidate, e
                 )
                 continue
 

@@ -21,10 +21,10 @@ def handle_strict_secretary(req: PurchaseIntentionRequest) -> dict:
     try:
         logger.warning("[AI] strict-secretary request received")
         result = evaluate_purchase_intention(req)
-        logger.warning("[AI] strict-secretary success")
+        logger.warning("[AI] strict-secretary 성공")
         return result.to_dict()
     except Exception as e:
-        logger.exception("[AI] strict-secretary failed")
+        logger.exception("[AI] strict-secretary 실패")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -51,10 +51,10 @@ def handle_strict_secretary_db(req: StrictSecretaryDbRequest) -> dict:
             ai_report_context=str(context["ai_report"]),
         )
         result = evaluate_purchase_intention(purchase_request)
-        logger.warning("[AI] strict-secretary/db success: user_id=%s", req.user_id)
+        logger.warning("[AI] strict-secretary/db 성공: user_id=%s", req.user_id)
         return result.to_dict()
     except Exception as e:
-        logger.exception("[AI] strict-secretary/db failed: user_id=%s", req.user_id)
+        logger.exception("[AI] strict-secretary/db 실패: user_id=%s", req.user_id)
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/tts")

@@ -150,7 +150,7 @@ Return ONLY strict JSON with the following structure:
                 import logging
 
                 logging.warning(
-                    f"Error evaluating purchase with model {{candidate}}: {{e}}"
+                    f"모델 {{candidate}} 구매 평가 중 오류 발생: {{e}}"
                 )
                 continue
 

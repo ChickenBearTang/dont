@@ -88,24 +88,24 @@ class ReportService:
         selected = transactions or self.card_transactions
         months = sorted({tx.month for tx in selected})
         if not months:
-            raise ValueError("No card transactions found.")
+            raise ValueError("카드 거래 내역이 없습니다.")
         return months[0], months[-1]
 
     def _resolve_profile(self, user_id: str | None = None, user_name: str | None = None):
         if user_id:
             profile = self._profiles_by_id.get(user_id)
             if profile is None:
-                raise ValueError(f"Unknown user_id: {user_id}")
+                raise ValueError(f"알 수 없는 user_id입니다: {user_id}")
             if user_name and profile.name.lower() != user_name.lower():
-                raise ValueError(f"user_id and user_name mismatch: {user_id}, {user_name}")
+                raise ValueError(f"user_id와 user_name이 일치하지 않습니다: {user_id}, {user_name}")
             return profile
 
         if not user_name:
-            raise ValueError("Either user_id or user_name must be provided.")
+            raise ValueError("user_id 또는 user_name 중 하나는 반드시 입력해야 합니다.")
 
         profile = self._profiles_by_name.get(user_name.lower())
         if profile is None:
-            raise ValueError(f"Unknown user_name: {user_name}")
+            raise ValueError(f"알 수 없는 user_name입니다: {user_name}")
         return profile
 
     def _validate_card_bill_alignment(self, monthly: list[dict], cashflow: list[dict]) -> None:
@@ -116,7 +116,7 @@ class ReportService:
             actual_bill = cashflow_by_month.get(month, {}).get("card_bill")
             if expected_bill != actual_bill:
                 raise ValueError(
-                    f"Card bill mismatch for {month}: expected {expected_bill}, actual {actual_bill}"
+                    f"{month} 카드 청구 금액 불일치: 예상 {expected_bill}, 실제 {actual_bill}"
                 )
 
     def list_users(self) -> list[dict[str, str]]:
@@ -136,7 +136,7 @@ class ReportService:
         cards = filter_card_transactions(self.card_transactions, target_user_id, start, end)
         accounts = filter_account_transactions(self.account_transactions, target_user_id, start, end)
         if not cards:
-            raise ValueError("No card transactions found for the requested period.")
+            raise ValueError("요청한 기간의 카드 거래 내역이 없습니다.")
 
         monthly = build_monthly_summary(cards, profile.monthly_income)
         categories = build_category_summary(cards)
@@ -189,7 +189,7 @@ class ReportService:
         profile = self._resolve_profile(user_id=user_id, user_name=user_name)
         cards = filter_card_transactions(self.card_transactions, profile.user_id, "1900-01", "2900-12")
         if not cards:
-            raise ValueError("No card transactions found for the requested user.")
+            raise ValueError("요청한 사용자의 카드 거래 내역이 없습니다.")
 
         monthly = build_monthly_summary(cards, profile.monthly_income)
         bundle = build_mock_statistics_bundle(cards, monthly, month)
@@ -214,7 +214,7 @@ class ReportService:
         justifications: list[dict] | None = None,
     ) -> dict:
         if not cards:
-            raise ValueError("No card transactions found for the requested period.")
+            raise ValueError("요청한 기간의 카드 거래 내역이 없습니다.")
 
         monthly = build_monthly_summary(cards, profile.monthly_income)
         categories = build_category_summary(cards)
@@ -273,12 +273,12 @@ class ReportService:
             user_id=db_profile.user_id,
             name=db_profile.name,
             age=30,
-            job="Unknown",
+            job="미상",
             monthly_income=db_profile.monthly_income,
             pay_day=25,
-            residence_type="Unknown",
-            main_bank="Unknown",
-            main_card_type="Unknown",
+            residence_type="미상",
+            main_bank="미상",
+            main_card_type="미상",
         )
         cards = [InternalCard(**row) for row in card_rows]
         accounts = [InternalAccount(**row) for row in account_rows]
@@ -311,12 +311,12 @@ class ReportService:
             user_id=db_profile.user_id,
             name=db_profile.name,
             age=30,
-            job="Unknown",
+            job="미상",
             monthly_income=db_profile.monthly_income,
             pay_day=25,
-            residence_type="Unknown",
-            main_bank="Unknown",
-            main_card_type="Unknown",
+            residence_type="미상",
+            main_bank="미상",
+            main_card_type="미상",
         )
         cards = [InternalCard(**row) for row in card_rows]
         accounts = [InternalAccount(**row) for row in account_rows]
@@ -441,12 +441,12 @@ class ReportService:
             user_id=request.user_profile.user_id,
             name=request.user_profile.name,
             age=30,  # Default
-            job="Unknown",  # Default
+            job="미상",  # 기본값
             monthly_income=request.user_profile.monthly_income,
             pay_day=25,  # Default
-            residence_type="Unknown",
-            main_bank="Unknown",
-            main_card_type="Unknown",
+            residence_type="미상",
+            main_bank="미상",
+            main_card_type="미상",
         )
 
         cards: list[InternalCard] = []
@@ -488,7 +488,7 @@ class ReportService:
                     user_id=request.user_profile.user_id,
                     transacted_at=dt,
                     transaction_type="in" if tx.transaction_type == "1" else "out",
-                    counterparty=tx.transaction_summary or "Unknown",
+                    counterparty=tx.transaction_summary or "미상",
                     amount=tx.transaction_amount,
                     category="general",
                     subcategory=tx.transaction_memo or "general",

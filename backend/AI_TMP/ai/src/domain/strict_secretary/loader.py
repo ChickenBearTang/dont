@@ -12,7 +12,7 @@ def get_user_profile(data_dir: Path, user_id: str) -> UserProfile:
     for profile in profiles:
         if profile.user_id == user_id:
             return profile
-    raise ValueError(f"User profile for {user_id} not found.")
+    raise ValueError(f"{user_id} 사용자 프로필을 찾을 수 없습니다.")
 
 def get_recent_card_transactions(data_dir: Path, user_id: str, months_back: int = 3) -> list[CardTransaction]:
     """Retrieve recent card transactions for a specific user to prevent sending too much data to LLM."""

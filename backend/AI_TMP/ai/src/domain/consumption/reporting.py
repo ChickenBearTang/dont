@@ -341,7 +341,7 @@ def build_six_month_trend(monthly: list[dict], selected_month: str) -> dict:
     monthly_by_month = {row["month"]: row for row in monthly}
     months = sorted(monthly_by_month)
     if selected_month not in monthly_by_month:
-        raise ValueError(f"Selected month not found in monthly summary: {selected_month}")
+        raise ValueError(f"월별 요약에서 선택한 월을 찾을 수 없습니다: {selected_month}")
     selected_index = months.index(selected_month)
     trend_months = months[max(0, selected_index - 5) : selected_index + 1]
     rows = [

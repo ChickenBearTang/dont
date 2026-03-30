@@ -94,7 +94,7 @@ def analyze_date_range_report(request: DateRangeAnalysisRequest) -> dict:
             include_ai=True,
         )
         logger.warning(
-            "[AI] date-range-report success: user_id=%s, start_date=%s, end_date=%s",
+            "[AI] 기간 리포트 성공: user_id=%s, start_date=%s, end_date=%s",
             request.user_id,
             request.start_date,
             request.end_date,
@@ -102,7 +102,7 @@ def analyze_date_range_report(request: DateRangeAnalysisRequest) -> dict:
         return response
     except Exception as exc:
         logger.exception(
-            "[AI] date-range-report failed: user_id=%s, start_date=%s, end_date=%s",
+            "[AI] 기간 리포트 실패: user_id=%s, start_date=%s, end_date=%s",
             request.user_id,
             request.start_date,
             request.end_date,
@@ -123,14 +123,14 @@ def recommend_card_from_db(request: CardRecommendationDbRequest) -> dict:
             month=request.month,
         )
         logger.warning(
-            "[AI] recommendation/db success: user_id=%s, month=%s",
+            "[AI] 추천(db) 성공: user_id=%s, month=%s",
             request.user_id,
             request.month,
         )
         return response
     except Exception as exc:
         logger.exception(
-            "[AI] recommendation/db failed: user_id=%s, month=%s",
+            "[AI] 추천(db) 실패: user_id=%s, month=%s",
             request.user_id,
             request.month,
         )

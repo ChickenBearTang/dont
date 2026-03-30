@@ -784,7 +784,7 @@ def evaluate_pr_purchase_xai(
         fallback_status=fallback_financial_status,
     )
     decision = str(item.get("decision", "REVIEW"))
-    summary = str(item.get("polished_summary", "XAI summary unavailable."))
+    summary = str(item.get("polished_summary", "XAI 요약 정보를 불러올 수 없습니다."))
     top_factors = [
         TopFactor(
             code=str(reason.get("reason_code", "factor")),
@@ -798,7 +798,7 @@ def evaluate_pr_purchase_xai(
     ]
     supporting_evidence = [
         SupportingEvidence(
-            field=str(evidence.get("feature", "unknown")),
+            field=str(evidence.get("feature", "미상")),
             value=(
                 str(int(projected_savebox_balance_after_purchase))
                 if str(evidence.get("feature", "")) == "projected_balance_after_purchase"

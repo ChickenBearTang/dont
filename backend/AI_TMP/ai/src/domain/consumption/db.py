@@ -23,12 +23,12 @@ class DbUserProfile:
 def _parse_postgres_dsn() -> str:
     jdbc_url = get_env("DB_URL")
     if not jdbc_url:
-        raise ValueError("DB_URL is not configured")
+        raise ValueError("DB_URL이 설정되지 않았습니다.")
 
     raw_url = jdbc_url.removeprefix("jdbc:")
     parsed = urlparse(raw_url)
     if parsed.scheme != "postgresql":
-        raise ValueError(f"Unsupported DB_URL scheme: {parsed.scheme}")
+        raise ValueError(f"지원하지 않는 DB_URL 스킴입니다: {parsed.scheme}")
 
     user = get_env("DB_USERNAME")
     password = get_env("DB_PASSWORD")
@@ -54,7 +54,7 @@ def _month_bounds(report_month: str) -> tuple[date, date]:
     elif len(value) == 10:
         month_start = datetime.strptime(value, "%Y-%m-%d").date().replace(day=1)
     else:
-        raise ValueError(f"Invalid report_month format: {report_month}")
+        raise ValueError(f"report_month 형식이 올바르지 않습니다: {report_month}")
     if month_start.month == 12:
         month_end = month_start.replace(year=month_start.year + 1, month=1, day=1)
     else:
@@ -151,7 +151,7 @@ def fetch_user_profile(connection: psycopg.Connection, user_id: int, report_mont
         )
         row = cursor.fetchone()
         if row is None:
-            raise ValueError(f"User not found: {user_id}")
+            raise ValueError(f"사용자를 찾을 수 없습니다: {user_id}")
 
     month_start, month_end = _month_bounds(report_month)
     return DbUserProfile(
@@ -199,7 +199,7 @@ def fetch_card_transactions_between(
                 "transaction_id": str(row["approval_no"] or row["id"]),
                 "user_id": str(user_id),
                 "approved_at": approved_at,
-                "merchant_name": row["merchant_name"] or "Unknown",
+                "merchant_name": row["merchant_name"] or "미상",
                 "amount": _normalize_amount(row["transaction_amount"]),
                 "category": row["category_name"] or "기타",
                 "subcategory": row["description"] or row["category_name"] or "기타",
@@ -249,7 +249,7 @@ def fetch_account_transactions_between(
     transactions: list[dict[str, Any]] = []
     for row in rows:
         transacted_at = _combine_datetime(row["transaction_date"], row["transaction_time"])
-        summary = row["transaction_summary"] or "Unknown"
+        summary = row["transaction_summary"] or "미상"
         memo = row["transaction_memo"] or "general"
         transactions.append(
             {
