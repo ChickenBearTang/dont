@@ -269,21 +269,21 @@ const parseXaiSummary = (summary: string): XaiSummaryParts => {
 };
 
 const xaiEvidenceFieldLabelMap: Record<string, string> = {
-  current_price: '현재 판단 가격',
+  current_price: '현재 상품 가격',
   projected_balance_after_purchase: '구매 후 예상 잔액',
-  days_until_card_due: '카드 결제일까지',
-  avg_price_30d: '30일 평균가',
-  emergency_fund_balance: '비상자금',
+  days_until_card_due: '카드 결제일까지 남은 일수',
+  avg_price_30d: '최근 30일 평균가',
+  emergency_fund_balance: '비상금',
   current_balance: '현재 잔액',
-  product_price_vs_monthly_spending: '상품가 대비 월지출 비율',
-  price_model_gap_score: '가격 모델 신호',
-  finance_model_risk_score: '재무 모델 리스크 신호',
-  finance_model_affordability_score: '재무 모델 구매여력 신호',
-  monthly_spending_30d_estimate: '월 지출 추정치(30일)',
+  product_price_vs_monthly_spending: '월 지출 중 상품 가격 비중',
+  price_model_gap_score: 'AI 가격 메리트 분석',
+  finance_model_risk_score: 'AI 재무 위험도',
+  finance_model_affordability_score: 'AI 구매 여력 지수',
+  monthly_spending_30d_estimate: '이번 달 예상 지출액',
   savebox_balance: '세이브박스 잔액',
-  available_fixed_expense: '가용 고정지출',
-  available_fixed_income: '가용 고정수입',
-  expected_card_payment_amount: '예상 카드 결제액',
+  available_fixed_expense: '예정된 고정 지출',
+  available_fixed_income: '들어올 고정 수입',
+  expected_card_payment_amount: '예상 카드 결제 대금',
 };
 
 const xaiEvidenceSourceLabelMap: Record<string, string> = {
@@ -294,32 +294,59 @@ const xaiEvidenceSourceLabelMap: Record<string, string> = {
   'fastapi.finance_model': 'AI 재무 모델',
 };
 
+const normalizeEvidenceFieldKey = (field: string): string =>
+  field
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toLowerCase();
+
 const getXaiEvidenceFieldLabel = (field: string): string => {
-  if (field === 'projected_balance_after_purchase') {
-    return '구매 후 세이브박스 잔액';
+  const normalizedField = normalizeEvidenceFieldKey(field);
+
+  if (normalizedField === 'projected_balance_after_purchase') {
+    return '구매 후 세이브박스 예상 잔액';
   }
-  return xaiEvidenceFieldLabelMap[field] ?? '기타 지표';
+
+  return xaiEvidenceFieldLabelMap[normalizedField] ?? xaiEvidenceFieldLabelMap[field] ?? '기타 지표';
 };
 
 const getXaiEvidenceSourceLabel = (source: string): string =>
   xaiEvidenceSourceLabelMap[source] ?? '기타 산출값';
 
 const formatXaiEvidenceValue = (field: string, rawValue: string): string => {
+  const normalizedField = normalizeEvidenceFieldKey(field);
   const normalized = rawValue.trim();
   if (normalized.length === 0) return rawValue;
   const numeric = Number(normalized.replaceAll(',', ''));
   if (!Number.isFinite(numeric)) return rawValue;
 
-  if (field === 'days_until_card_due') return `${Math.round(numeric)}일`;
+  if (normalizedField === 'days_until_card_due') return `${Math.round(numeric)}일`;
   if (
-    field === 'current_price' ||
-    field === 'projected_balance_after_purchase' ||
-    field === 'avg_price_30d' ||
-    field === 'emergency_fund_balance' ||
-    field === 'current_balance'
+    normalizedField === 'current_price' ||
+    normalizedField === 'projected_balance_after_purchase' ||
+    normalizedField === 'avg_price_30d' ||
+    normalizedField === 'emergency_fund_balance' ||
+    normalizedField === 'current_balance' ||
+    normalizedField === 'monthly_spending_30d_estimate' ||
+    normalizedField === 'available_fixed_expense' ||
+    normalizedField === 'available_fixed_income' ||
+    normalizedField === 'savebox_balance' ||
+    normalizedField === 'expected_card_payment_amount'
   ) {
     return `${Math.round(numeric).toLocaleString('ko-KR')}원`;
   }
+
+  if (
+    normalizedField === 'finance_model_affordability_score' ||
+    normalizedField === 'finance_model_risk_score' ||
+    normalizedField === 'price_model_gap_score' ||
+    normalizedField === 'product_price_vs_monthly_spending'
+  ) {
+    const scorePercent = Math.abs(numeric) <= 1 ? numeric * 100 : numeric;
+    return `${scorePercent.toFixed(1)}%`;
+  }
+
   return rawValue;
 };
 
