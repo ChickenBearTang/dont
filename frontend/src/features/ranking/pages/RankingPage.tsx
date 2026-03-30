@@ -317,7 +317,7 @@ export const RankingPage = () => {
       addToast('전체 랭킹 동기화가 완료되었습니다! 🥇', 'success');
       setIsSyncModalOpen(false);
     } catch (err) {
-      console.error('Sync error:', err);
+      console.error('동기화 오류:', err);
       addToast('동기화 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
     } finally {
       setIsSyncing(false);
@@ -331,19 +331,22 @@ export const RankingPage = () => {
       <div className="absolute bottom-[20%] right-[-10%] w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none -z-10"></div>
 
       <div className="min-h-[600px] rounded-[48px] glass-premium overflow-hidden relative z-10 transition-all duration-500">
-
         {}
         <div className="px-8 pt-8 flex items-center justify-between">
           <div className="flex flex-col">
-            <h1 className="text-3xl font-black text-[var(--text-strong)] tracking-tight">실시간 랭킹</h1>
-            <p className="text-sm text-[var(--text-subtle)] font-semibold mt-1">세이브박스 저축으로 매일 새로운 순위에 도전하세요.</p>
+            <h1 className="text-3xl font-black text-[var(--text-strong)] tracking-tight">
+              실시간 랭킹
+            </h1>
+            <p className="text-sm text-[var(--text-subtle)] font-semibold mt-1">
+              세이브박스 저축으로 매일 새로운 순위에 도전하세요.
+            </p>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleForceSync}
             disabled={isSyncing}
-            className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black shadow-sm transition-all ${
+            className={`hidden items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black shadow-sm transition-all ${
               isSyncing
                 ? 'bg-[var(--surface-soft)] text-[var(--text-muted)] cursor-not-allowed'
                 : 'bg-white text-[var(--accent)] border-2 border-[var(--accent-soft)] hover:border-[var(--accent)] hover:shadow-md'
@@ -357,7 +360,12 @@ export const RankingPage = () => {
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </motion.svg>
             {isSyncing ? '동기화 중...' : '랭킹 갱신'}
           </motion.button>
@@ -394,7 +402,7 @@ export const RankingPage = () => {
                 backgroundSize: '18px',
               }}
             >
-               {[...cohorts]
+              {[...cohorts]
                 .sort((a, b) => b.generationNo - a.generationNo)
                 .map((c) => (
                   <option key={c.cohortId} value={c.generationNo}>
@@ -407,76 +415,81 @@ export const RankingPage = () => {
 
         {}
         {(activeTab === 'total' || selectedCohortNo === myCohortNo) && (
-        <div className="mx-4 mb-6">
-          <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[var(--accent)] via-[#1e5fd9] to-[var(--secondary-blue,#004ecc)] p-6 text-white shadow-[0_12px_40px_rgba(10,101,255,0.25)]">
-            {}
-            <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
-            <div className="absolute -right-4 -bottom-10 w-32 h-32 rounded-full bg-white/5" />
-            <div className="absolute left-1/2 top-0 w-28 h-28 rounded-full bg-white/5 -translate-x-1/2 -translate-y-1/2" />
+          <div className="mx-4 mb-6">
+            <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[var(--accent)] via-[#1e5fd9] to-[var(--secondary-blue,#004ecc)] p-6 text-white shadow-[0_12px_40px_rgba(10,101,255,0.25)]">
+              {}
+              <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
+              <div className="absolute -right-4 -bottom-10 w-32 h-32 rounded-full bg-white/5" />
+              <div className="absolute left-1/2 top-0 w-28 h-28 rounded-full bg-white/5 -translate-x-1/2 -translate-y-1/2" />
 
-            <div className="relative z-10">
-              <p className="text-xs font-bold tracking-[0.1em] uppercase text-white/70 mb-3">
-                {activeTab === 'total' ? '전체' : `${selectedCohortNo ?? myCohortNo}기`} 내 현재 랭킹
-              </p>
+              <div className="relative z-10">
+                <p className="text-xs font-bold tracking-[0.1em] uppercase text-white/70 mb-3">
+                  {activeTab === 'total' ? '전체' : `${selectedCohortNo ?? myCohortNo}기`} 내 현재
+                  랭킹
+                </p>
 
-              {showSkeleton ? (
-                <div className="flex items-center gap-3 animate-pulse">
-                  <div className="w-16 h-16 rounded-2xl bg-white/20" />
-                  <div className="w-32 h-6 rounded-lg bg-white/20" />
-                </div>
-              ) : !myRanking || myRanking.rank === -1 ? (
-                <div className="flex items-center gap-4">
-                  <img
-                    src="/assets/mascot_happy.png"
-                    alt=""
-                    className="w-16 h-16 object-contain drop-shadow-lg"
-                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                  />
-                  <div>
-                    <p className="text-xl font-black">아직 랭킹이 없어요!</p>
-                    <p className="text-sm text-white/70 mt-1 font-semibold">저축을 시작하고 랭킹을 올려보세요 🚀</p>
+                {showSkeleton ? (
+                  <div className="flex items-center gap-3 animate-pulse">
+                    <div className="w-16 h-16 rounded-2xl bg-white/20" />
+                    <div className="w-32 h-6 rounded-lg bg-white/20" />
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-baseline">
-                        <span className="text-6xl font-black tracking-tight leading-none">{myRanking.rank}</span>
-                        <span className="text-2xl font-bold ml-1 text-white/80">위</span>
-                      </div>
-                      {}
-                      <div className="bg-white/20 backdrop-blur-sm rounded-lg px-2 py-1 h-fit transform scale-110 flex items-center gap-2">
-                        <TrendBadge diff={myRanking.rankDiff} />
-                        {isUpdating && (
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                            className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full"
-                          />
-                        )}
-                      </div>
+                ) : !myRanking || myRanking.rank === -1 ? (
+                  <div className="flex items-center gap-4">
+                    <img
+                      src="/assets/mascot_happy.png"
+                      alt=""
+                      className="w-16 h-16 object-contain drop-shadow-lg"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                    <div>
+                      <p className="text-xl font-black">아직 랭킹이 없어요!</p>
+                      <p className="text-sm text-white/70 mt-1 font-semibold">
+                        저축을 시작하고 랭킹을 올려보세요 🚀
+                      </p>
                     </div>
-                    {myRanking.nickname && (
-                      <span className="text-lg font-bold text-white/90">{myRanking.nickname}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-baseline">
+                          <span className="text-6xl font-black tracking-tight leading-none">
+                            {myRanking.rank}
+                          </span>
+                          <span className="text-2xl font-bold ml-1 text-white/80">위</span>
+                        </div>
+                        {}
+                        <div className="bg-white/20 backdrop-blur-sm rounded-lg px-2 py-1 h-fit transform scale-110 flex items-center gap-2">
+                          <TrendBadge diff={myRanking.rankDiff} />
+                          {isUpdating && (
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                              className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full"
+                            />
+                          )}
+                        </div>
+                      </div>
+                      {myRanking.nickname && (
+                        <span className="text-lg font-bold text-white/90">
+                          {myRanking.nickname}
+                        </span>
+                      )}
+                    </div>
+                    {myRanking.cohortNo && (
+                      <span className="text-sm bg-white/15 backdrop-blur-sm px-4 py-1.5 rounded-full font-bold border border-white/20">
+                        {myRanking.cohortNo}기
+                      </span>
                     )}
                   </div>
-                  {myRanking.cohortNo && (
-                    <span className="text-sm bg-white/15 backdrop-blur-sm px-4 py-1.5 rounded-full font-bold border border-white/20">
-                      {myRanking.cohortNo}기
-                    </span>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
         )}
 
         {}
-        {!showSkeleton && !isError && top3.length > 0 && (
-          <Podium top3={top3} />
-        )}
+        {!showSkeleton && !isError && top3.length > 0 && <Podium top3={top3} />}
 
         {}
         <div className="px-6 pb-8">
@@ -517,15 +530,22 @@ export const RankingPage = () => {
                         stiffness: 300,
                         damping: 30,
                         mass: 1,
-                        layout: { type: 'spring', stiffness: 300, damping: 30, mass: 1 }
+                        layout: { type: 'spring', stiffness: 300, damping: 30, mass: 1 },
                       }}
                       className="flex items-center justify-between p-5 rounded-[28px] glass-premium hover-glass transition-shadow duration-300 group cursor-default"
                     >
                       <div className="flex items-center gap-4">
-                        <motion.span layout="position" className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-soft)] text-[var(--text-strong)] text-[15px] font-black flex-shrink-0">
+                        <motion.span
+                          layout="position"
+                          className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-soft)] text-[var(--text-strong)] text-[15px] font-black flex-shrink-0"
+                        >
                           {user.rank}
                         </motion.span>
-                        <ProfileAvatar url={user.profileImageUrl} rank={user.rank} userId={user.userId} />
+                        <ProfileAvatar
+                          url={user.profileImageUrl}
+                          rank={user.rank}
+                          userId={user.userId}
+                        />
                         <motion.div layout="position" className="flex items-center gap-2">
                           <span className="font-extrabold text-[var(--text-strong)] text-[15px] group-hover:text-[var(--accent)] transition-colors">
                             {user.nickname || `유저 ${user.userId}`}
