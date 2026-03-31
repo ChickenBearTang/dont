@@ -133,6 +133,9 @@ SSAFY 교육생은 한정된 지원금과 생활비 안에서 소비와 저축�
 
 ## 🏗 시스템 아키텍처
 
+<img width="1163" height="656" alt="image" src="https://github.com/user-attachments/assets/dd19aec9-92e0-4c2e-9fb3-f49d4c6dea7c" />
+
+
 ### 아키텍처 특징
 - **Spring Boot 기반 메인 백엔드**와 **FastAPI 기반 AI 서버**를 분리하여 구성
 - **Nginx + Docker** 기반으로 안정적인 서비스 운영 환경 구축
