@@ -12,6 +12,11 @@
 
 <br/>
 
+https://github.com/user-attachments/assets/bbe0f29a-22ee-42bc-9d99-7633f250840f
+
+<br/>
+
+
 ---
 
 ## 🎯 기획 배경
