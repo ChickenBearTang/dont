@@ -56,7 +56,7 @@ SSAFY 교육생은 한정된 지원금과 생활비 안에서 소비와 저축�
 | :---: | :---: | :---: |
 | <a href="https://github.com/skywalkbee300"><img src="https://github.com/skywalkbee300.png" width="100" height="100"/></a> | <a href="https://github.com/co2plant"><img src="https://github.com/co2plant.png" width="100" height="100"/></a> | <a href="https://github.com/HWISU96"><img src="https://github.com/HWISU96.png" width="100" height="100"/></a> |
 | **[@skywalkbee300](https://github.com/skywalkbee300)** | **[@co2plant](https://github.com/co2plant)** | **[@HWISU96](https://github.com/HWISU96)** |
-| **BE/FE(커뮤니티/회원)** | **INF/AI** | **BE/FE(계좌/랭킹)** |
+| **BE/FE(커뮤니티/회원)** | **INF/AI전반** | **BE/FE(계좌/랭킹)** |
 
 <br/>
 
