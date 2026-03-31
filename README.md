@@ -38,9 +38,10 @@ SSAFY 교육생은 한정된 지원금과 생활비 안에서 소비와 저축�
 
 ## 👨‍👩‍👧‍👦 팀원 소개
 
+
 | 설현원(팀장) | 최현진(팀원) | 김민선(팀원) |
 | :---: | :---: | :---: |
-| <a href="https://github.com/seolsa1014"><img src="https://github.com/seolsa1014.png" width="100px" style="border-radius:50%"/></a> | <a href="https://github.com/hyunjinguswls"><img src="https://github.com/hyunjinguswls.png" width="100px" style="border-radius:50%"/></a> | <a href="https://github.com/minseond"><img src="https://github.com/minseond.png" width="100px" style="border-radius:50%"/></a> |
+| <a href="https://github.com/seolsa1014"><img src="https://github.com/seolsa1014.png" width="100" height="100"/></a> | <a href="https://github.com/hyunjinguswls"><img src="https://github.com/hyunjinguswls.png" width="100" height="100"/></a> | <a href="https://github.com/minseond"><img src="https://github.com/minseond.png" width="100" height="100"/></a> |
 | **[@seolsa1014](https://github.com/seolsa1014)** | **[@hyunjinguswls](https://github.com/hyunjinguswls)** | **[@minseond](https://github.com/minseond)** |
 | BE(돈포켓, 목표저축, 자동이체) | BE(회원, 마이데이터) | **BE/FE(커뮤니티, 알림)** |
 
@@ -48,7 +49,7 @@ SSAFY 교육생은 한정된 지원금과 생활비 안에서 소비와 저축�
 
 | 손홍헌(팀원) | 조영재(팀원) | 김휘수(팀원) |
 | :---: | :---: | :---: |
-| <a href="https://github.com/skywalkbee300_손홍헌"><img src="https://github.com/skywalkbee300.png" width="100px" style="border-radius:50%"/></a> | <a href="https://github.com/co2plant"><img src="https://github.com/co2plant.png" width="100px" style="border-radius:50%"/></a> | <a href="https://github.com/HWISU96"><img src="https://github.com/HWISU96.png" width="100px" style="border-radius:50%"/></a> |
+| <a href="https://github.com/skywalkbee300"><img src="https://github.com/skywalkbee300.png" width="100" height="100"/></a> | <a href="https://github.com/co2plant"><img src="https://github.com/co2plant.png" width="100" height="100"/></a> | <a href="https://github.com/HWISU96"><img src="https://github.com/HWISU96.png" width="100" height="100"/></a> |
 | **[@skywalkbee300](https://github.com/skywalkbee300)** | **[@co2plant](https://github.com/co2plant)** | **[@HWISU96](https://github.com/HWISU96)** |
 | FE(계좌, 돈포켓), UI 디자인 총괄 | FE(회원, 마이데이터, 돈포켓) | FE(통계, 결제) |
 
