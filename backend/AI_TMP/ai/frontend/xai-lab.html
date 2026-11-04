@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>XAI 랩 — 모델 검증</title>
+<link rel="icon" href="data:," />
+<!-- 외부 CDN/폰트 없음: 온프레미스에서 그대로 열린다. 차트는 아래 스크립트가 SVG 로 직접 그린다. -->
+<style>
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --surface2: #f0f2f6; --text: #18202c; --muted: #5a6577;
+    --border: #dfe3ea; --accent: #2563eb; --accent-soft: rgba(37,99,235,.10);
+    --good: #15803d; --good-soft: rgba(21,128,61,.12); --bad: #c0392b; --bad-soft: rgba(192,57,43,.12);
+    --warn: #a16207; --warn-soft: rgba(161,98,7,.14); --series-a: #9aa3b2; --series-b: #2563eb;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 16px rgba(16,24,40,.05);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1d242d; --text: #e6edf3; --muted: #8b98a9;
+    --border: #2a3340; --accent: #6ea8ff; --accent-soft: rgba(110,168,255,.14);
+    --good: #3fb68b; --good-soft: rgba(63,182,139,.16); --bad: #ff7b72; --bad-soft: rgba(255,123,114,.16);
+    --warn: #e3b341; --warn-soft: rgba(227,179,65,.16); --series-a: #6b7585; --series-b: #6ea8ff;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1117; --surface: #161b22; --surface2: #1d242d; --text: #e6edf3; --muted: #8b98a9;
+      --border: #2a3340; --accent: #6ea8ff; --accent-soft: rgba(110,168,255,.14);
+      --good: #3fb68b; --good-soft: rgba(63,182,139,.16); --bad: #ff7b72; --bad-soft: rgba(255,123,114,.16);
+      --warn: #e3b341; --warn-soft: rgba(227,179,65,.16); --series-a: #6b7585; --series-b: #6ea8ff;
+      --shadow: 0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px 80px; }
+  header.top { padding: 28px 0 8px; }
+  h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0; }
+  nav.tabs { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); margin: 12px -16px 24px; padding: 0 16px; display: flex; gap: 4px; overflow-x: auto; }
+  nav.tabs a { color: var(--muted); text-decoration: none; padding: 12px 12px; font-weight: 600; white-space: nowrap; border-bottom: 2px solid transparent; }
+  nav.tabs a:hover, nav.tabs a:focus-visible { color: var(--text); outline: none; border-bottom-color: var(--accent); }
+  section { margin: 0 0 40px; }
+  h2 { font-size: 19px; margin: 0 0 4px; }
+  h3 { font-size: 15px; margin: 0 0 8px; }
+  .lead { color: var(--muted); margin: 0 0 16px; max-width: 78ch; }
+  .card { min-width: 0; overflow-wrap: anywhere; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; }
+  .grid2 > *, .sim > * { min-width: 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid transparent; white-space: nowrap; }
+  .chip.ok { background: var(--good-soft); color: var(--good); }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.info { background: var(--accent-soft); color: var(--accent); }
+  .chip.mute { background: var(--surface2); color: var(--muted); border-color: var(--border); }
+  .banner { border: 1px solid var(--border); border-left: 4px solid var(--warn); background: var(--warn-soft); padding: 10px 14px; border-radius: 8px; margin: 0 0 16px; font-size: 14px; }
+  .banner.bad { border-left-color: var(--bad); background: var(--bad-soft); }
+  .muted { color: var(--muted); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll { overflow-x: auto; max-width: 100%; }
+  td.code, th.num, td.num { white-space: nowrap; } td.msg { min-width: 220px; }
+  /* 모델 지도 */
+  #map-svg { width: 100%; height: auto; display: block; }
+  .node rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; rx: 10; transition: stroke .15s; }
+  .node { cursor: pointer; }
+  .node:hover rect, .node:focus-visible rect, .node.sel rect { stroke: var(--accent); stroke-width: 2.5; }
+  .node:focus-visible { outline: none; }
+  .node.blocked rect { stroke: var(--bad); fill: var(--bad-soft); }
+  .node.synthetic rect { stroke: var(--warn); }
+  .node.missing rect { stroke-dasharray: 5 4; }
+  .node text { fill: var(--text); font-size: 13px; font-weight: 700; pointer-events: none; }
+  .node .tag { font-size: 11px; font-weight: 700; }
+  .node.blocked .tag { fill: var(--bad); } .node.synthetic .tag { fill: var(--warn); } .node.ok .tag { fill: var(--muted); }
+  .edge { fill: none; stroke: var(--series-a); stroke-width: 1.6; }
+  .arrow { fill: var(--series-a); }
+  #node-detail h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  dl.kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; margin: 0 0 12px; }
+  dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; word-break: break-word; }
+  /* 시뮬레이터 */
+  .sim { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 820px) { .sim { grid-template-columns: 1fr; } }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  button { font: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text); padding: 6px 12px; border-radius: 8px; font-weight: 600; }
+  button:hover { border-color: var(--accent); } button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; width: 100%; padding: 10px; margin-top: 8px; }
+  button[disabled] { opacity: .6; cursor: progress; }
+  label { display: block; font-size: 12.5px; color: var(--muted); margin: 10px 0 4px; font-weight: 600; }
+  input { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-variant-numeric: tabular-nums; }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .decision { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .decision .big { font-size: 26px; font-weight: 800; letter-spacing: -.01em; }
+  .decision.NOT_RECOMMENDED .big { color: var(--bad); } .decision.BUY_NOW .big { color: var(--good); }
+  .decision.WAIT .big, .decision.REVIEW .big { color: var(--warn); }
+  .stack { display: flex; height: 26px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+  .stack > div { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; min-width: 0; overflow: hidden; }
+  .stack .low { background: var(--good); } .stack .medium { background: var(--warn); } .stack .high { background: var(--bad); }
+  .bars .row { display: grid; grid-template-columns: minmax(120px, 42%) 1fr 64px; gap: 10px; align-items: center; padding: 4px 0; font-size: 13px; }
+  .bars .track { position: relative; height: 16px; background: var(--surface2); border-radius: 4px; }
+  .bars .track::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); opacity: .6; }
+  .bars .fill { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; }
+  .bars .fill.pos { background: var(--good); } .bars .fill.neg { background: var(--bad); }
+  .bars .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .bars .val.pos { color: var(--good); } .bars .val.neg { color: var(--bad); }
+  .cf { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin: 0 0 8px; background: var(--surface2); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .hist text { fill: var(--muted); font-size: 10.5px; }
+  .hist .axis { stroke: var(--border); }
+  .err { color: var(--bad); }
+  .skeleton { color: var(--muted); padding: 20px 0; }
+  ul.plain { margin: 6px 0; padding-left: 18px; } ul.plain li { margin: 3px 0; }
+  .hm td.cell { text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .hm td.cell small { display: block; font-weight: 500; color: var(--muted); }
+  details summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
+  .theme { float: right; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <button class="theme" id="theme-btn" aria-label="테마 전환">테마</button>
+    <h1>XAI 랩 — 모델 검증</h1>
+    <p class="sub">구매 판단이 어떤 데이터로, 어떤 모델을 거쳐, 왜 그렇게 나왔는지 확인하는 화면입니다. 실제 사용자 요청이 아니라 모의 입력으로 동작하며 감사 로그에 남지 않습니다.</p>
+  </header>
+  <nav class="tabs" aria-label="섹션">
+    <a href="#map">모델 지도</a><a href="#validation">데이터 검증</a><a href="#distributions">학습 데이터 분포</a><a href="#performance">모델 성능</a><a href="#simulator">시뮬레이터</a>
+  </nav>
+
+  <section id="map">
+    <h2>1. 모델 지도</h2>
+    <p class="lead">요청이 들어와서 응답이 나가기까지의 길입니다. 상자를 누르면 그 모델이 어떤 데이터로 학습했는지, 지금 믿을 수 있는지 볼 수 있습니다.</p>
+    <div class="card"><div id="map-box" class="skeleton">불러오는 중…</div></div>
+    <div class="card" id="node-detail" style="margin-top:16px" hidden></div>
+  </section>
+
+  <section id="validation">
+    <h2>2. 데이터 검증</h2>
+    <p class="lead">학습에 쓰는 데이터와 설정에 오염된 값이 없는지 규칙으로 검사한 결과입니다.</p>
+    <div id="validation-box" class="skeleton">불러오는 중…</div>
+  </section>
+
+  <section id="distributions">
+    <h2>3. 학습 데이터 분포</h2>
+    <p class="lead">재무 모델은 합성 데이터로 학습합니다. 예전 방식(균등 분포)은 현실에 없는 사람이 많이 섞였고, 20~30대 유형별 분포는 월 지출과 잔액이 함께 움직이게 만들었습니다.</p>
+    <div id="dist-box" class="skeleton">불러오는 중…</div>
+  </section>
+
+  <section id="performance">
+    <h2>4. 모델 성능</h2>
+    <div id="perf-box" class="skeleton">불러오는 중…</div>
+  </section>
+
+  <section id="simulator">
+    <h2>5. 시뮬레이터</h2>
+    <p class="lead">값을 넣어 보면 운영과 같은 경로로 판단하고, 재무 모델이 어떤 입력을 어떻게 봤는지(확률, 열별 SHAP)를 같이 보여줍니다.</p>
+    <div class="sim">
+      <div class="card">
+        <div class="presets" id="presets"></div>
+        <form id="sim-form" autocomplete="off"></form>
+        <button class="primary" id="run-btn" type="button">판단 실행</button>
+        <p class="muted" style="font-size:12.5px;margin:8px 0 0">월 지출은 운영과 같이 거래 내역에서 계산되므로, 입력한 값을 오늘 날짜의 거래 한 건으로 만들어 보냅니다.</p>
+      </div>
+      <div id="sim-out"><div class="card muted">왼쪽에서 프리셋을 고르고 <b>판단 실행</b>을 누르세요.</div></div>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const API = "/api/v1/xai-lab";
+const DECISION_KO = { BUY_NOW: "바로 구매", WAIT: "관망", REVIEW: "추가 검토", NOT_RECOMMENDED: "구매 비추천" };
+const STATUS_TAG = { ok: "정상", blocked: "차단됨", synthetic: "합성 데이터", missing: "없음" };
+
+function wonShort(n) {
+  if (n >= 1e8) return (n / 1e8).toFixed(n % 1e8 ? 1 : 0) + "억";
+  if (n >= 1e4) return Math.round(n / 1e4).toLocaleString("ko-KR") + "만";
+  return Math.round(n).toLocaleString("ko-KR");
+}
+const won = (n) => Math.round(n).toLocaleString("ko-KR") + "원";
+const pct = (v, d = 1) => (v * 100).toFixed(d) + "%";
+const fixed = (v, d = 3) => (v == null ? "-" : Number(v).toFixed(d));
+
+async function getJSON(url, opts) {
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    let detail = "";
+    try { detail = JSON.stringify((await res.json()).detail); } catch (_) {}
+    throw new Error(`${res.status} ${detail}`);
+  }
+  return res.json();
+}
+function fail(box, e) { box.innerHTML = `<div class="card err">불러오지 못했습니다: ${esc(e.message)}</div>`; }
+
+/* ---------- 테마 ---------- */
+(function () {
+  const root = document.documentElement;
+  let saved = null;
+  try { saved = localStorage.getItem("xai-lab-theme"); } catch (_) {}
+  if (saved) root.dataset.theme = saved;
+  $("#theme-btn").addEventListener("click", () => {
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("xai-lab-theme", root.dataset.theme); } catch (_) {}
+  });
+})();
+
+/* ---------- 1. 모델 지도 ---------- */
+const POS = {
+  request: [20, 158], contract: [190, 158], price_model: [372, 52], finance_model: [372, 264],
+  decision: [566, 158], shap: [752, 52], counterfactual: [752, 264], response: [930, 158],
+};
+const NW = 138, NH = 64;
+
+function renderMap(data) {
+  const byId = Object.fromEntries(data.nodes.map((n) => [n.id, n]));
+  const edge = ([a, b]) => {
+    const [ax, ay] = POS[a], [bx, by] = POS[b];
+    const x1 = ax + NW, y1 = ay + NH / 2, x2 = bx, y2 = by + NH / 2;
+    const mx = (x1 + x2) / 2;
+    return `<path class="edge" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2 - 6},${y2}" /><path class="arrow" d="M${x2},${y2} l-8,-4 l0,8 z" />`;
+  };
+  const node = (n) => {
+    const [x, y] = POS[n.id];
+    const tag = STATUS_TAG[n.status] || n.status;
+    return `<g class="node ${esc(n.status)}" data-id="${esc(n.id)}" tabindex="0" role="button" aria-label="${esc(n.name)} — ${esc(tag)}">
+      <rect x="${x}" y="${y}" width="${NW}" height="${NH}" />
+      <text x="${x + NW / 2}" y="${y + 28}" text-anchor="middle">${esc(n.name)}</text>
+      <text class="tag" x="${x + NW / 2}" y="${y + 47}" text-anchor="middle">${esc(tag)}</text></g>`;
+  };
+  $("#map-box").innerHTML = `<svg id="map-svg" viewBox="0 0 1088 384" role="img" aria-label="요청에서 응답까지 모델 흐름도">
+    ${data.edges.map(edge).join("")}${data.nodes.map(node).join("")}</svg>
+    <div class="legend"><span><i style="background:var(--series-a)"></i>흐름</span><span class="chip warn">합성 데이터</span><span class="chip bad">차단됨</span><span class="muted">상자를 눌러 상세 보기</span></div>`;
+  const open = (id) => {
+    document.querySelectorAll(".node").forEach((g) => g.classList.toggle("sel", g.dataset.id === id));
+    renderNodeDetail(byId[id]);
+  };
+  document.querySelectorAll(".node").forEach((g) => {
+    g.addEventListener("click", () => open(g.dataset.id));
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(g.dataset.id); } });
+  });
+  open("price_model");
+}
+
+function kv(rows) {
+  return `<dl class="kv">${rows.filter(([, v]) => v != null && v !== "").map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl>`;
+}
+
+function renderNodeDetail(n) {
+  const box = $("#node-detail");
+  box.hidden = false;
+  const tag = STATUS_TAG[n.status] || n.status;
+  const chipClass = { ok: "ok", blocked: "bad", synthetic: "warn", missing: "mute" }[n.status] || "mute";
+  let html = `<h3>${esc(n.name)} <span class="chip ${chipClass}">${esc(tag)}</span></h3><p class="muted" style="margin-top:0">${esc(n.role)}</p>`;
+  if (n.trust && !n.trust.trusted) {
+    html += `<div class="banner bad"><b>이 모델은 구매 판단에 쓰이지 않습니다.</b><br>${esc(n.trust.describe)}<br><span class="mono">${esc(n.trust.reasons.join(", "))}</span></div>`;
+  }
+  if (n.caveat) html += `<div class="banner">${esc(n.caveat)}</div>`;
+  if (n.family) {
+    const ds = n.data_source || {};
+    html += kv([
+      ["모델 종류", `<span class="mono">${esc(n.family)}</span>`],
+      ["정답(타깃)", n.target && `<span class="mono">${esc(n.target)}</span>`],
+      ["스키마", `<span class="mono">${esc(n.schema_version)}</span>`],
+      ["학습 시각", n.trained_at && esc(n.trained_at)],
+      ["학습 행 수", n.train_rows != null && esc(Number(n.train_rows).toLocaleString("ko-KR"))],
+      ["데이터 수집", esc(ds.collected_by)],
+      ["학습 데이터", esc(ds.training_file)],
+      ["라벨 출처", esc(ds.label_source) + (ds.label_rule_version ? ` (${esc(ds.label_rule_version)})` : "")],
+      ["학습 분포", ds.training_population && `${esc(ds.training_population)} · 유형 파라미터 ${esc(ds.persona_params_version)}`],
+      ["테스트 지표", n.metrics && Object.keys(n.metrics).length ? Object.entries(n.metrics).map(([k, v]) => `${esc(k)} ${fixed(v)}`).join(" · ") + ' <span class="muted">(규칙을 흉내 낸 정도)</span>' : null],
+    ]);
+    html += `<details ${n.features.length <= 10 ? "open" : ""}><summary>입력 피처 ${n.features.length}개</summary><div class="scroll"><table><thead><tr><th>이름</th><th>설명</th><th>구분</th></tr></thead><tbody>${n.features.map((f) => `<tr><td class="mono">${esc(f.name)}</td><td>${esc(f.description || "")}</td><td>${esc(f.kind || "")}</td></tr>`).join("")}</tbody></table></div></details>`;
+  } else if (n.groups) {
+    html += `<p>모델 열 10개를 의미가 같은 4개 요인으로 합쳐 보여줍니다.</p><ul class="plain">${n.groups.map((g) => `<li><b>${esc(g.label)}</b> — <span class="mono">${esc(g.members.join(", "))}</span></li>`).join("")}</ul>`;
+  }
+  box.innerHTML = html;
+}
+
+/* ---------- 2. 데이터 검증 ---------- */
+function renderValidation(data) {
+  const verdict = data.price_artifact_verdict;
+  let html = "";
+  if (verdict && !verdict.trusted) {
+    html += `<div class="banner bad"><b>가격 모델이 구매 판단에서 제외되어 있습니다.</b> ${esc(verdict.describe)}<br>
+      <span class="muted">어떤 가격을 넣어도 같은 '적정가'만 답하는 상수 모델이었고, 그 값이 '적정가보다 비싸다'로 판단에 섞이고 있었습니다.</span></div>`;
+  }
+  html += `<div style="display:grid;gap:16px">` + data.reports.map((r) => {
+    const sevChip = { error: "bad", warning: "warn", info: "info" };
+    const rows = (r.issues || []).map((i) => `<tr><td><span class="chip ${sevChip[i.severity]}">${i.severity === "error" ? "오류" : "경고"}</span></td>
+      <td class="mono code">${esc(i.code)}</td><td class="num">${i.count.toLocaleString("ko-KR")}</td><td class="msg">${esc(i.message)}</td></tr>`).join("");
+    return `<div class="card"><h3>${esc(r.title || r.name)} <span class="chip ${r.ok ? "ok" : "bad"}">${r.ok ? "통과" : "실패"}</span></h3>
+      <p class="muted" style="margin:0 0 8px">${esc(r.source || "")} · 검사한 항목 ${(r.rows_checked ?? 0).toLocaleString("ko-KR")}개 · 오류 ${r.errors ?? 0} · 경고 ${r.warnings ?? 0}</p>
+      ${r.error ? `<p class="err">${esc(r.error)}</p>` : ""}
+      ${rows ? `<div class="scroll"><table><thead><tr><th></th><th>코드</th><th class="num">건수</th><th>내용</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<p class="muted">발견된 문제 없음</p>`}</div>`;
+  }).join("") + `</div>`;
+  $("#validation-box").innerHTML = html;
+}
+
+/* ---------- 3. 분포 ---------- */
+function histogramSvg(h) {
+  const W = 460, H = 190, L = 34, R = 8, T = 8, B = 30;
+  const n = h.edges.length - 1;
+  const max = Math.max(...h.share.uniform, ...h.share.persona, 0.0001);
+  const bw = (W - L - R) / n;
+  const bars = [];
+  for (let i = 0; i < n; i++) {
+    const x = L + i * bw;
+    [["uniform", "var(--series-a)", 0], ["persona", "var(--series-b)", 1]].forEach(([k, color, o]) => {
+      const v = h.share[k][i], bh = (v / max) * (H - T - B);
+      bars.push(`<rect x="${(x + 1 + o * (bw - 2) / 2).toFixed(1)}" y="${(H - B - bh).toFixed(1)}" width="${((bw - 2) / 2).toFixed(1)}" height="${bh.toFixed(1)}" fill="${color}"><title>${k === "uniform" ? "균등" : "유형별"} ${wonShort(h.edges[i])}~${wonShort(h.edges[i + 1])}: ${pct(v)}</title></rect>`);
+    });
+  }
+  const ticks = [0, Math.round(n / 4), Math.round(n / 2), Math.round((3 * n) / 4), n].map((i) =>
+    `<text x="${L + i * bw}" y="${H - 12}" text-anchor="${i === 0 ? "start" : i === n ? "end" : "middle"}">${h.edges[i] < 1000 ? h.edges[i].toFixed(h.edges[i] < 1 ? 2 : 0) : wonShort(h.edges[i])}</text>`).join("");
+  return `<svg class="hist" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(h.label)} 분포 비교"><line class="axis" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" />
+    <text x="${L - 4}" y="${T + 8}" text-anchor="end">${pct(max, 0)}</text><text x="${L - 4}" y="${H - B}" text-anchor="end">0</text>${bars.join("")}${ticks}</svg>`;
+}
+function stackRow(label, share) {
+  const seg = (k) => `<div class="${k}" style="width:${share[k] * 100}%" title="${k} ${pct(share[k])}">${share[k] > 0.06 ? pct(share[k], 0) : ""}</div>`;
+  return `<div style="display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center;margin:6px 0"><span>${esc(label)}</span><div class="stack">${seg("low")}${seg("medium")}${seg("high")}</div></div>`;
+}
+function renderDistributions(d) {
+  const hs = Object.values(d.histograms).map((h) => `<div class="card"><h3>${esc(h.label)}</h3>${histogramSvg(h)}</div>`).join("");
+  const rows = [["균등(예전 방식)", d.class_share.uniform], ["유형별 전체", d.class_share.persona], ...Object.entries(d.persona_class_share)];
+  $("#dist-box").innerHTML = `<div class="banner">유형 분포의 파라미터는 <b>가정값</b>입니다. 통계청 수치로 검증되지 않았습니다.</div>
+    <div class="legend" style="margin:0 0 10px"><span><i style="background:var(--series-a)"></i>균등 분포(예전)</span><span><i style="background:var(--series-b)"></i>20~30대 유형별</span></div>
+    <div class="grid2">${hs}</div>
+    <div class="grid2" style="margin-top:16px">
+      <div class="card"><h3>위험 구간 비율 (라벨)</h3>${rows.map(([l, s]) => stackRow(l, s)).join("")}
+        <div class="legend"><span><i style="background:var(--good)"></i>low</span><span><i style="background:var(--warn)"></i>medium</span><span><i style="background:var(--bad)"></i>high</span></div></div>
+      <div class="card"><h3>월 지출과 잔액의 상관 (로그)</h3>
+        <p style="margin:0">균등 분포 <b>${d.log_corr_monthly_vs_balance.uniform}</b> → 유형별 <b>${d.log_corr_monthly_vs_balance.persona}</b></p>
+        <p class="muted">균등 분포는 두 값이 서로 무관해서 '월 지출 300만 원인데 잔액 10만 원' 같은 비현실적인 사람이 흔했습니다.</p></div></div>`;
+}
+
+/* ---------- 4. 성능 ---------- */
+function renderPerformance(s) {
+  const box = $("#perf-box");
+  if (!s.available) {
+    box.innerHTML = `<div class="card">성능 스냅샷이 아직 없습니다. 아래 명령으로 만드세요(1~2분).<pre class="mono">${esc(s.how)}</pre></div>`;
+    return;
+  }
+  const bp = s.by_persona, cfg = bp.config;
+  const segs = ["전체", ...Object.keys(cfg.segment_class_share).filter((k) => k !== "전체")];
+  const cell = (m) => `<td class="cell" style="background:rgba(37,99,235,${Math.max(0, (m.macro_f1.mean - 0.85) / 0.15) * 0.5})">${fixed(m.macro_f1.mean)}<small>high 재현율 ${fixed(m.high_recall.mean, 2)}</small></td>`;
+  const heat = Object.entries(bp.candidates).map(([k, bySeg]) => `<tr><td class="mono">${esc(k)}</td>${segs.map((g) => cell(bySeg[g])).join("")}</tr>`).join("");
+  const is = s.input_sets, order = ["raw7", "raw7_derived3", "old12", "catboost_raw7", "catboost_raw7_derived3", "logistic_raw7", "majority_class"];
+  const names = { raw7: "LightGBM · 입력 7개", raw7_derived3: "LightGBM · 7개+파생 3개 (운영)", old12: "LightGBM · 옛 12개", catboost_raw7: "CatBoost · 7개", catboost_raw7_derived3: "CatBoost · 7개+파생 3개", logistic_raw7: "로지스틱 · 7개", majority_class: "항상 다수 클래스" };
+  const inputRows = order.filter((k) => is.candidates[k]).map((k) => { const m = is.candidates[k];
+    return `<tr><td>${esc(names[k] || k)}</td><td class="num">${fixed(m.macro_f1.mean)}</td><td class="num">${fixed(m.high_recall.mean)}</td><td class="num">${fixed(m.high_precision.mean)}</td><td class="num">${fixed(m.high_pr_auc.mean)}</td></tr>`; }).join("");
+  box.innerHTML = `<div class="banner bad"><b>이 점수는 정확도가 아닙니다.</b> 정답 라벨을 손으로 쓴 규칙이 붙인 합성 데이터라서, 점수는 '규칙을 얼마나 흉내 냈나'입니다. 규칙 자신이 1.0이고 모델은 넘을 수 없습니다. LightGBM/CatBoost 중 운영 모델을 바꾸는 근거로 쓰지 않습니다 (실제 라벨 10만 건 이후 선택 관문에서 정함).</div>
+    <div class="card"><h3>20~30대 유형별 macro-F1</h3><p class="muted" style="margin-top:0">행: 모델/학습 분포 · 열: 테스트 유형 · 학습 ${cfg.train_rows.toLocaleString("ko-KR")}행 × 시드 ${cfg.train_seeds.length}개, 새 테스트 ${cfg.test_rows.toLocaleString("ko-KR")}행</p>
+      <div class="scroll hm"><table><thead><tr><th>모델 / 학습 분포</th>${segs.map((g) => `<th style="text-align:center">${esc(g)}<br><span class="muted">high ${pct(cfg.segment_class_share[g].high)}</span></th>`).join("")}</tr></thead><tbody>${heat}</tbody></table></div></div>
+    <div class="card" style="margin-top:16px"><h3>입력 구성 / 모델 종류 비교</h3><div class="scroll"><table><thead><tr><th>후보</th><th class="num">macro-F1</th><th class="num">high 재현율</th><th class="num">high 정밀도</th><th class="num">high PR-AUC</th></tr></thead><tbody>${inputRows}</tbody></table></div>
+      <p class="muted" style="margin-bottom:0">생성 ${esc(s.generated_at)}</p></div>`;
+}
+
+/* ---------- 5. 시뮬레이터 ---------- */
+const FIELDS = [
+  ["price", "상품 가격"], ["current_balance", "현재 계좌 잔액"], ["emergency_fund_balance", "비상자금 잔액"],
+  ["savebox_balance", "세이브박스 잔액"], ["expected_card_payment_amount", "카드 결제 예정액"],
+  ["days_until_card_due", "카드 결제일까지 (일)"], ["monthly_spending_30d", "최근 30일 지출"],
+];
+const PRESETS = {
+  "여유 있음": { price: 89000, current_balance: 8000000, emergency_fund_balance: 3000000, savebox_balance: 2500000, expected_card_payment_amount: 300000, days_until_card_due: 20, monthly_spending_30d: 1400000 },
+  "빠듯함": { price: 2500000, current_balance: 900000, emergency_fund_balance: 150000, savebox_balance: 150000, expected_card_payment_amount: 700000, days_until_card_due: 2, monthly_spending_30d: 1300000 },
+  "중간": { price: 350000, current_balance: 1800000, emergency_fund_balance: 600000, savebox_balance: 400000, expected_card_payment_amount: 250000, days_until_card_due: 14, monthly_spending_30d: 1200000 },
+};
+function setupForm() {
+  $("#sim-form").innerHTML = FIELDS.map(([k, l]) => `<label for="f-${k}">${l}</label><input id="f-${k}" name="${k}" inputmode="numeric" />`).join("");
+  $("#sim-form").addEventListener("submit", (e) => e.preventDefault());
+  $("#presets").innerHTML = Object.keys(PRESETS).map((n) => `<button type="button" data-p="${esc(n)}">${esc(n)}</button>`).join("");
+  document.querySelectorAll("#presets button").forEach((b) => b.addEventListener("click", () => { fillForm(PRESETS[b.dataset.p]); run(); }));
+  document.querySelectorAll("#sim-form input").forEach((i) => i.addEventListener("blur", () => { const v = parseNum(i.value); if (v != null) i.value = v.toLocaleString("ko-KR"); }));
+  $("#run-btn").addEventListener("click", run);
+  fillForm(PRESETS["빠듯함"]);
+}
+const parseNum = (s) => { const v = Number(String(s).replace(/[,\s원]/g, "")); return s !== "" && Number.isFinite(v) ? v : null; };
+function fillForm(v) { FIELDS.forEach(([k]) => { $(`#f-${k}`).value = v[k].toLocaleString("ko-KR"); }); }
+function readForm() {
+  const out = {};
+  for (const [k, l] of FIELDS) {
+    const v = parseNum($(`#f-${k}`).value);
+    if (v == null || v < 0) throw new Error(`${l}: 0 이상의 숫자를 입력하세요`);
+    out[k] = v;
+  }
+  if (out.price <= 0) throw new Error("상품 가격: 0보다 커야 합니다");
+  if (out.days_until_card_due > 31) throw new Error("카드 결제일까지: 31일 이하로 입력하세요");
+  return out;
+}
+function diverging(rows, { fmt, scaleMax }) {
+  const max = scaleMax ?? Math.max(...rows.map((r) => Math.abs(r.value)), 1e-9);
+  return `<div class="bars">${rows.map((r) => {
+    const w = (Math.abs(r.value) / max) * 50, pos = r.value >= 0;
+    return `<div class="row"><div>${esc(r.label)}${r.sub ? `<div class="muted" style="font-size:11.5px">${esc(r.sub)}</div>` : ""}</div>
+      <div class="track" role="img" aria-label="${esc(r.label)} ${fmt(r.value)}"><div class="fill ${pos ? "pos" : "neg"}" style="${pos ? `left:50%;width:${w}%` : `right:50%;width:${w}%`}"></div></div>
+      <div class="val ${pos ? "pos" : "neg"}">${fmt(r.value)}</div></div>`;
+  }).join("")}</div>`;
+}
+function renderSim(inspect, sim, inputs) {
+  const dec = sim.decision;
+  let html = `<div class="card"><div class="decision ${esc(dec)}"><span class="big">${esc(DECISION_KO[dec] || dec)}</span><span class="mono muted">${esc(dec)}</span></div>
+    <p style="margin:4px 0 10px">${esc(sim.summary)}</p>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <span class="chip info">확신도 ${pct(sim.confidence.decisionConfidence, 0)}</span><span class="chip info">데이터 완성도 ${pct(sim.confidence.dataCompleteness, 0)}</span>
+      <span class="chip mute">재무 ${esc(sim.financialEvaluation.status)}</span><span class="chip mute">가격 ${esc(sim.priceEvaluation.status)}</span>
+      <span class="chip ${sim.runtimeEngines.priceModel === "disabled" ? "bad" : "ok"}">가격 모델 ${esc(sim.runtimeEngines.priceModel)}</span>
+      <span class="chip ok">재무 모델 ${esc(sim.runtimeEngines.financeModel)}</span><span class="chip ok">SHAP ${esc(sim.runtimeEngines.shap)}</span><span class="chip ok">반사실 ${esc(sim.runtimeEngines.dice)}</span></div></div>`;
+
+  if (inspect.enabled) {
+    const p = inspect.probabilities;
+    html += `<div class="card" style="margin-top:16px"><h3>재무 모델이 본 것 — 위험 구간 확률 <span class="chip ${{ low: "ok", medium: "warn", high: "bad" }[inspect.risk_bucket]}">${esc(inspect.risk_bucket)}</span></h3>
+      <div class="stack" role="img" aria-label="low ${pct(p.low)}, medium ${pct(p.medium)}, high ${pct(p.high)}">
+        ${["low", "medium", "high"].map((k) => `<div class="${k}" style="width:${p[k] * 100}%">${p[k] > 0.08 ? k + " " + pct(p[k], 0) : ""}</div>`).join("")}</div>
+      <p class="muted" style="margin:6px 0 0">위험 점수(high−low) ${fixed(inspect.risk_score, 2)} · 0.55 이상이면 규칙 엔진이 '구매 비추천', 0.30 이상이면 '관망'으로 보냅니다.</p></div>
+      <div class="card" style="margin-top:16px"><h3>왜 그렇게 봤나 — 의미 묶음 4개 <span class="muted" style="font-weight:500">(오른쪽 초록 = 구매에 유리, 왼쪽 빨강 = 불리)</span></h3>
+      ${diverging(inspect.groups.map((g) => ({ label: g.label, sub: g.members.join(", "), value: g.favorability })), { fmt: (v) => (v > 0 ? "+" : "") + v.toFixed(2) })}
+      <details style="margin-top:10px"><summary>열 10개별 SHAP (위험 구간 'high' 쪽으로 미는 힘)</summary>
+      ${diverging(inspect.features.map((f) => ({ label: f.name, sub: `${f.description} = ${Math.abs(f.value) >= 1000 ? won(f.value) : fixed(f.value, 2)}`, value: -f.risk_contribution })), { fmt: (v) => (v > 0 ? "+" : "") + v.toFixed(2) })}
+      <p class="muted" style="margin:8px 0 0">기준: ${esc(inspect.reference)} · 기준 margin ${fixed(inspect.base_margin, 2)} + 기여도 합 = ${fixed(inspect.high_margin, 2)} (모델 출력과 일치)</p></details></div>`;
+  } else {
+    html += `<div class="card err" style="margin-top:16px">재무 모델을 쓸 수 없습니다: ${esc(JSON.stringify(inspect.state))}</div>`;
+  }
+
+  html += `<div class="card" style="margin-top:16px"><h3>응답에 담긴 근거</h3>${sim.topFactors.length ? `<ul class="plain">${sim.topFactors.map((f) =>
+    `<li><span class="chip ${f.direction === "positive" ? "ok" : "bad"}">${f.direction === "positive" ? "유리" : "불리"}</span> ${esc(f.label)} <span class="muted mono">${esc(f.code)} · ${fixed(f.impact, 2)}</span></li>`).join("")}</ul>` : `<p class="muted">없음</p>`}</div>`;
+
+  html += `<div class="card" style="margin-top:16px"><h3>무엇을 바꾸면 되나 <span class="muted" style="font-weight:500">(바꿔서 모델과 규칙을 다시 돌려 확인한 것만)</span></h3>${sim.counterfactuals.length ? sim.counterfactuals.map((c) =>
+    `<div class="cf"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="chip info">→ ${esc(DECISION_KO[c.targetDecision] || c.targetDecision)}</span><span class="chip ${c.validated ? "ok" : "warn"}">${c.validated ? "재계산으로 확인됨" : "확인되지 않음"}</span></div>${esc(c.label)}</div>`).join("") : `<p class="muted">이 입력에서는 값 하나를 바꿔서 판단이 나아지는 경우가 없거나, 이미 가장 좋은 판단입니다.</p>`}</div>`;
+
+  if (sim.warnings.length) html += `<div class="card" style="margin-top:16px"><h3>경고</h3><ul class="plain">${sim.warnings.map((w) => `<li class="mono">${esc(w)}</li>`).join("")}</ul></div>`;
+  $("#sim-out").innerHTML = html;
+}
+let running = false;
+async function run() {
+  if (running) return;
+  let inputs;
+  try { inputs = readForm(); } catch (e) { $("#sim-out").innerHTML = `<div class="card err">${esc(e.message)}</div>`; return; }
+  running = true; $("#run-btn").disabled = true; $("#run-btn").textContent = "계산 중…";
+  try {
+    const opts = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(inputs) };
+    const [inspect, sim] = await Promise.all([getJSON(`${API}/inspect`, opts), getJSON(`${API}/simulate`, opts)]);
+    renderSim(inspect, sim, inputs);
+  } catch (e) { $("#sim-out").innerHTML = `<div class="card err">실행하지 못했습니다: ${esc(e.message)}</div>`; }
+  finally { running = false; $("#run-btn").disabled = false; $("#run-btn").textContent = "판단 실행"; }
+}
+
+/* ---------- 시작 ---------- */
+setupForm();
+getJSON(`${API}/overview`).then(renderMap).catch((e) => fail($("#map-box"), e));
+getJSON(`${API}/validation`).then(renderValidation).catch((e) => fail($("#validation-box"), e));
+getJSON(`${API}/distributions`).then(renderDistributions).catch((e) => fail($("#dist-box"), e));
+getJSON(`${API}/evaluation`).then(renderPerformance).catch((e) => fail($("#perf-box"), e));
+</script>
+</body>
+</html>

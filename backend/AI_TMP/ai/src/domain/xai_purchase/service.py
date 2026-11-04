@@ -802,7 +802,10 @@ def _explain_finance(
 
 def evaluate_pr_purchase_xai(
     request: PurchaseXaiEvaluationRequest,
+    *,
+    record_audit: bool = True,
 ) -> PurchaseXaiEvaluationResponse:
+    """record_audit=False 는 XAI 랩처럼 실제 요청이 아닌 모의 평가에 쓴다 (감사 로그에 남기지 않는다)."""
     seed_warnings: list[str] = []
     stated_price_value = request.purchase.price_amount.value
     stated_price = (
@@ -1129,11 +1132,12 @@ def evaluate_pr_purchase_xai(
         if payload.get("rule_version")
         else None,
     )
-    _AUDIT_STORE.save(
-        request_id=request.request_id,
-        purchase_request_id=request.purchase.post_id,
-        warnings=warnings,
-        runtime_engines=response.runtime_engines.model_dump(by_alias=True),
-        audit_logs=list(payload.get("audit_logs", [])),
-    )
+    if record_audit:
+        _AUDIT_STORE.save(
+            request_id=request.request_id,
+            purchase_request_id=request.purchase.post_id,
+            warnings=warnings,
+            runtime_engines=response.runtime_engines.model_dump(by_alias=True),
+            audit_logs=list(payload.get("audit_logs", [])),
+        )
     return response

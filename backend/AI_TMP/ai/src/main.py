@@ -16,13 +16,14 @@ if str(AI_DIR) not in sys.path:
 if str(AI_TMP_DIR) not in sys.path:
     sys.path.insert(0, str(AI_TMP_DIR))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from config import FRONTEND_DIR
 
-from api.v1.routers import consumption, chat, strict_sec, xai_purchase
+from api.v1.routers import consumption, chat, strict_sec, xai_lab, xai_purchase
+from domain.xai_lab.service import lab_enabled
 
 app = FastAPI(title="AI Consumption Report POC")
 
@@ -40,6 +41,7 @@ app.include_router(consumption.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1/chat")
 app.include_router(strict_sec.router, prefix="/api/v1/strict-secretary")
 app.include_router(xai_purchase.router, prefix="/api/v1/xai/purchase-evaluations")
+app.include_router(xai_lab.router, prefix="/api/v1/xai-lab")
 
 
 @app.get("/health")
@@ -50,3 +52,11 @@ def health() -> dict[str, str]:
 @app.get("/")
 def frontend() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/xai-lab")
+def xai_lab_page() -> FileResponse:
+    """모델 검증용 화면. AI_XAI_LAB_ENABLED=1 일 때만 열린다."""
+    if not lab_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    return FileResponse(FRONTEND_DIR / "xai-lab.html")
