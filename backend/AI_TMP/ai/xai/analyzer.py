@@ -9,6 +9,7 @@ from ..models import CrawlResult
 from .audit_log import XAIAuditLogEntry, build_model_input_vector_hash
 from .decision_engine import DecisionEngine
 from .explanation_engine import ExplanationEngine
+from .counterfactual_text import polish_counterfactuals
 from .input_contract import RawField, ResolvedFinanceProfile, resolve_finance_profile
 from .model_counterfactual import ModelCounterfactualEngine, Outcome
 from .types import (
@@ -493,16 +494,26 @@ class ExplainabilityAnalyzer:
                 price_value=price_value, overrides=overrides, window_stats=window_stats
             )
         )
-        return engine.suggest(
+        monthly_spending = self._monthly_spending_30d()
+        suggestions, state = engine.suggest(
             current_decision=current_decision,
             price=float(price_value or 0),
-            monthly_spending=self._monthly_spending_30d(),
+            monthly_spending=monthly_spending,
             current_values={
                 "current_balance": float(self._finance_profile["current_balance"]),
                 "emergency_fund_balance": float(self._finance_profile["emergency_fund_balance"]),
                 "savebox_balance": float(self._finance_profile["savebox_balance"]),
             },
         )
+        # 제안의 사실(금액, 판단 변화)은 그대로 두고 문장만 읽기 좋게 다듬는다.
+        polished = polish_counterfactuals(
+            suggestions,
+            current_decision=current_decision,
+            monthly_spending=monthly_spending,
+            days_until_card_due=int(self._finance_profile["days_until_card_due"]),
+            price=float(price_value or 0),
+        )
+        return polished, state
 
     def _normalize_counterfactual_messages(
         self, counterfactuals: list[dict[str, Any]]

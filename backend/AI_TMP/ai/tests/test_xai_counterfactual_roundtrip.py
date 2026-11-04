@@ -86,6 +86,14 @@ class RoundTripTest(unittest.TestCase):
             [s["target_decision"] for s in self.suggestions[:3]],
         )
 
+    def test_응답_문구는_다듬어져_있고_제안의_숫자를_그대로_담는다(self) -> None:
+        from ..xai.counterfactual_text import friendly_won
+
+        for cf, suggestion in zip(self.response.counterfactuals, self.suggestions[:3]):
+            self.assertIn(friendly_won(suggestion["threshold"]), cf.label)
+            self.assertNotIn("(으)로", cf.label)
+            self.assertNotIn("을(를)", cf.label)
+
     def test_제안을_그대로_적용해_다시_돌리면_약속한_판단이_나온다(self) -> None:
         for suggestion in self.suggestions:
             with self.subTest(variable=suggestion["variable"], to=suggestion["threshold"]):
