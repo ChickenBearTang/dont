@@ -13,6 +13,7 @@ from ai.finance_engine.explain import explain_finance_signal
 from ai.finance_engine.inference import predict_finance_signal
 from ai.price_engine.inference import predict_price_signal
 from ai.xai.analyzer import ExplainabilityAnalyzer
+from ai.xai.budget_rule import EMERGENCY_COVER_TARGET_MONTHS
 from ai.xai.counterfactuals import CounterfactualEngine
 from ai.xai.dice_engine import DiceCounterfactualEngine
 from ai.xai.input_contract import (
@@ -29,6 +30,7 @@ from ai.xai.spending import (
     estimate_monthly_spending,
 )
 from domain.xai_purchase.audit_store import JsonlXaiAuditLogStore
+from domain.xai_purchase.snapshot_store import JsonlXaiSnapshotStore
 from domain.xai_purchase.schemas import (
     ConfidenceSection,
     Counterfactual,
@@ -67,6 +69,13 @@ _UNIT_PRICE_HINT_PATTERN = re.compile(
 )
 _QUANTITY_TOKEN_PATTERN = re.compile(r"(\d{1,5})\s*(개|입|ea|pcs)", re.IGNORECASE)
 _AUDIT_STORE = JsonlXaiAuditLogStore()
+_SNAPSHOT_STORE = JsonlXaiSnapshotStore()
+
+
+def current_audit_store() -> JsonlXaiAuditLogStore:
+    """사용자 반응이 우리가 만든 평가에 대한 것인지 확인할 때 쓰는 감사 저장소."""
+    return _AUDIT_STORE
+
 
 # 입력 계약의 출처 정보가 신뢰도(dataCompleteness)에 미치는 감점.
 _DEFAULTED_FIELD_PENALTY = 0.05
@@ -408,6 +417,52 @@ def _finance_origin_warnings(profile: ResolvedFinanceProfile) -> list[str]:
         f"FINANCE_FIELD_ESTIMATED:{name}" for name in profile.estimated_fields
     )
     return warnings
+
+
+def _budget_for_item(payload: dict[str, Any], item_id: str) -> dict[str, Any] | None:
+    budgets = payload.get("budgets")
+    if not isinstance(budgets, dict):
+        return None
+    budget = budgets.get(item_id)
+    return budget if isinstance(budget, dict) else None
+
+
+def _budget_warnings(budget: dict[str, Any] | None) -> list[str]:
+    """예산 규칙을 적용하지 못했거나, 비상금이 얇은 경우를 경고 코드로 드러낸다."""
+    if budget is None:
+        return []
+    if budget.get("status") == "unavailable":
+        return [f"BUDGET_RULE_UNAVAILABLE:{budget.get('reason') or 'unknown'}"]
+    cover = budget.get("emergency_cover_months")
+    if isinstance(cover, (int, float)) and cover < EMERGENCY_COVER_TARGET_MONTHS:
+        return ["EMERGENCY_COVER_LOW"]
+    return []
+
+
+def _budget_metrics(budget: dict[str, Any] | None) -> list[EvaluationMetric]:
+    """5·3·2 생활비 구역 지표. 판단하지 않았으면 지표도 만들지 않는다 (추측값을 보여주지 않는다)."""
+    if budget is None or budget.get("status") == "unavailable":
+        return []
+    limit = float(budget["limit"])
+    used_before = float(budget["used_before"])
+    used_after = float(budget["used_after"])
+    return [
+        EvaluationMetric(
+            code="budget_zone_limit",
+            label="생활비 구역 한도(소득의 50%)",
+            value=f"{int(limit):,}원",
+        ),
+        EvaluationMetric(
+            code="budget_zone_used_before",
+            label="구매 전 사용(고정지출+최근 30일 지출)",
+            value=f"{int(used_before):,}원 ({used_before / limit:.0%})",
+        ),
+        EvaluationMetric(
+            code="budget_zone_used_after",
+            label="구매 후 사용",
+            value=f"{int(used_after):,}원 ({used_after / limit:.0%})",
+        ),
+    ]
 
 
 def _read_window_stats(
@@ -943,7 +998,8 @@ def evaluate_pr_purchase_xai(
 
     item = payload["crawl"]["items"][0]
     runtime_engines = _map_runtime_engines(payload)
-    warnings = _collect_warnings(payload, seed_warnings)
+    budget = _budget_for_item(payload, purchase_url)
+    warnings = _collect_warnings(payload, [*seed_warnings, *_budget_warnings(budget)])
     avg_price = (
         ((window_stats.get("30d", {}) or {}).get("avg_price"))
         if isinstance(window_stats, dict)
@@ -1068,16 +1124,24 @@ def evaluate_pr_purchase_xai(
                     label="세이브박스 잔액",
                     value=f"{int(finance_profile['savebox_balance']):,}원",
                 ),
-                EvaluationMetric(
-                    code="available_fixed_expense",
-                    label="이번 달 고정지출",
-                    value=f"{int(finance_profile['available_fixed_expense']):,}원",
+                # 앞단이 보내지 않아 기본값으로 채운 값은 사실처럼 보여주지 않는다.
+                *(
+                    metric
+                    for metric in (
+                        EvaluationMetric(
+                            code="available_fixed_expense",
+                            label="이번 달 고정지출",
+                            value=f"{int(finance_profile['available_fixed_expense']):,}원",
+                        ),
+                        EvaluationMetric(
+                            code="available_fixed_income",
+                            label="이번 달 고정 수입",
+                            value=f"{int(finance_profile['available_fixed_income']):,}원",
+                        ),
+                    )
+                    if resolved_profile.origins[metric.code] != Origin.DEFAULT
                 ),
-                EvaluationMetric(
-                    code="available_fixed_income",
-                    label="이번 달 고정 수입",
-                    value=f"{int(finance_profile['available_fixed_income']):,}원",
-                ),
+                *_budget_metrics(budget),
                 EvaluationMetric(
                     code="expected_card_payment_amount",
                     label="이번 달 카드지출 합계",
@@ -1140,4 +1204,17 @@ def evaluate_pr_purchase_xai(
             runtime_engines=response.runtime_engines.model_dump(by_alias=True),
             audit_logs=list(payload.get("audit_logs", [])),
         )
+        # 사용자 반응을 나중에 입력과 이어 붙이려면 필요하지만 재무 정보라 기본은 꺼져 있다.
+        if _env_flag("AI_XAI_SNAPSHOT_ENABLED", False):
+            _SNAPSHOT_STORE.save(
+                request_id=request.request_id,
+                purchase_request_id=request.purchase.post_id,
+                decision=response.decision,
+                price=float(current_price) if current_price is not None else None,
+                finance_profile=finance_profile,
+                origins=dict(resolved_profile.origins),
+                budget=budget,
+                rule_version=response.rule_version,
+                model_version=response.model_version,
+            )
     return response

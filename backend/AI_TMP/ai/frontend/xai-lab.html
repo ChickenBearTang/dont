@@ -117,6 +117,18 @@
   .hm td.cell small { display: block; font-weight: 500; color: var(--muted); }
   details summary { cursor: pointer; font-weight: 600; margin: 6px 0; }
   .theme { float: right; }
+  /* 5·3·2 생활비 구역 게이지 */
+  .zone { position: relative; height: 30px; margin: 22px 0 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; }
+  .zone .segs { position: absolute; inset: 0; display: flex; overflow: hidden; border-radius: 5px; }
+  .zone .seg { height: 100%; min-width: 0; }
+  .zone .seg.fixed { background: var(--series-a); } .zone .seg.var { background: var(--series-b); }
+  .zone .seg.buy.ok { background: var(--good); } .zone .seg.buy.warn { background: var(--warn); } .zone .seg.buy.bad { background: var(--bad); }
+  .zone .mark { position: absolute; top: -6px; bottom: -6px; width: 0; border-left: 2px solid var(--text); }
+  .zone .mark.soft { border-left: 2px dashed var(--muted); }
+  .zone .mark span { position: absolute; top: -17px; left: 0; transform: translateX(-50%); font-size: 11px; font-weight: 700; white-space: nowrap; color: var(--text); }
+  .zone .mark.soft span { top: auto; bottom: -17px; color: var(--muted); font-weight: 600; }
+  .band532 { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 10px 0 4px; }
+  .band532 i:nth-child(1) { width: 50%; background: var(--series-b); } .band532 i:nth-child(2) { width: 30%; background: var(--series-a); opacity: .55; } .band532 i:nth-child(3) { width: 20%; background: var(--series-a); opacity: .3; }
 </style>
 </head>
 <body>
@@ -156,13 +168,13 @@
 
   <section id="simulator">
     <h2>5. 시뮬레이터</h2>
-    <p class="lead">값을 넣어 보면 운영과 같은 경로로 판단하고, 재무 모델이 어떤 입력을 어떻게 봤는지(확률, 열별 SHAP)를 같이 보여줍니다.</p>
+    <p class="lead">값을 넣어 보면 운영과 같은 경로로 판단하고, 재무 모델이 어떤 입력을 어떻게 봤는지(확률, 열별 SHAP)와 5·3·2 생활비 구역 사용량을 같이 보여줍니다.</p>
     <div class="sim">
       <div class="card">
         <div class="presets" id="presets"></div>
         <form id="sim-form" autocomplete="off"></form>
         <button class="primary" id="run-btn" type="button">판단 실행</button>
-        <p class="muted" style="font-size:12.5px;margin:8px 0 0">월 지출은 운영과 같이 거래 내역에서 계산되므로, 입력한 값을 오늘 날짜의 거래 한 건으로 만들어 보냅니다.</p>
+        <p class="muted" style="font-size:12.5px;margin:8px 0 0">월 지출은 운영과 같이 거래 내역에서 계산되므로, 입력한 값을 오늘 날짜의 거래 한 건으로 만들어 보냅니다. 월 소득·고정지출은 비워 두면 운영에서 앞단이 보내지 않은 경우와 같이 예산 규칙을 쓰지 않습니다.</p>
       </div>
       <div id="sim-out"><div class="card muted">왼쪽에서 프리셋을 고르고 <b>판단 실행</b>을 누르세요.</div></div>
     </div>
@@ -212,7 +224,7 @@ function fail(box, e) { box.innerHTML = `<div class="card err">불러오지 못�
 
 /* ---------- 1. 모델 지도 ---------- */
 const POS = {
-  request: [20, 158], contract: [190, 158], price_model: [372, 52], finance_model: [372, 264],
+  request: [20, 158], contract: [190, 158], price_model: [372, 40], budget_rule: [372, 158], finance_model: [372, 276],
   decision: [566, 158], shap: [752, 52], counterfactual: [752, 264], response: [930, 158],
 };
 const NW = 138, NH = 64;
@@ -276,6 +288,8 @@ function renderNodeDetail(n) {
       ["테스트 지표", n.metrics && Object.keys(n.metrics).length ? Object.entries(n.metrics).map(([k, v]) => `${esc(k)} ${fixed(v)}`).join(" · ") + ' <span class="muted">(규칙을 흉내 낸 정도)</span>' : null],
     ]);
     html += `<details ${n.features.length <= 10 ? "open" : ""}><summary>입력 피처 ${n.features.length}개</summary><div class="scroll"><table><thead><tr><th>이름</th><th>설명</th><th>구분</th></tr></thead><tbody>${n.features.map((f) => `<tr><td class="mono">${esc(f.name)}</td><td>${esc(f.description || "")}</td><td>${esc(f.kind || "")}</td></tr>`).join("")}</tbody></table></div></details>`;
+  } else if (n.facts) {
+    html += kv(n.facts.map(([k, v]) => [k, esc(v)]));
   } else if (n.groups) {
     html += `<p>모델 열 10개를 의미가 같은 4개 요인으로 합쳐 보여줍니다.</p><ul class="plain">${n.groups.map((g) => `<li><b>${esc(g.label)}</b> — <span class="mono">${esc(g.members.join(", "))}</span></li>`).join("")}</ul>`;
   }
@@ -366,14 +380,16 @@ const FIELDS = [
   ["price", "상품 가격"], ["current_balance", "현재 계좌 잔액"], ["emergency_fund_balance", "비상자금 잔액"],
   ["savebox_balance", "세이브박스 잔액"], ["expected_card_payment_amount", "카드 결제 예정액"],
   ["days_until_card_due", "카드 결제일까지 (일)"], ["monthly_spending_30d", "최근 30일 지출"],
+  ["monthly_income", "월 소득 (선택 · 5·3·2 예산용)", true], ["fixed_expense", "월 고정지출 (선택 · 비상금 적립 포함)", true],
 ];
 const PRESETS = {
-  "여유 있음": { price: 89000, current_balance: 8000000, emergency_fund_balance: 3000000, savebox_balance: 2500000, expected_card_payment_amount: 300000, days_until_card_due: 20, monthly_spending_30d: 1400000 },
-  "빠듯함": { price: 2500000, current_balance: 900000, emergency_fund_balance: 150000, savebox_balance: 150000, expected_card_payment_amount: 700000, days_until_card_due: 2, monthly_spending_30d: 1300000 },
-  "중간": { price: 350000, current_balance: 1800000, emergency_fund_balance: 600000, savebox_balance: 400000, expected_card_payment_amount: 250000, days_until_card_due: 14, monthly_spending_30d: 1200000 },
+  "여유 있음": { price: 89000, current_balance: 8000000, emergency_fund_balance: 3000000, savebox_balance: 2500000, expected_card_payment_amount: 300000, days_until_card_due: 20, monthly_spending_30d: 1400000, monthly_income: 5000000, fixed_expense: 700000 },
+  "빠듯함": { price: 2500000, current_balance: 900000, emergency_fund_balance: 150000, savebox_balance: 150000, expected_card_payment_amount: 700000, days_until_card_due: 2, monthly_spending_30d: 1300000, monthly_income: 3000000, fixed_expense: 600000 },
+  "중간": { price: 350000, current_balance: 1800000, emergency_fund_balance: 600000, savebox_balance: 400000, expected_card_payment_amount: 250000, days_until_card_due: 14, monthly_spending_30d: 1200000, monthly_income: 3800000, fixed_expense: 500000 },
+  "소득 미입력": { price: 350000, current_balance: 1800000, emergency_fund_balance: 600000, savebox_balance: 400000, expected_card_payment_amount: 250000, days_until_card_due: 14, monthly_spending_30d: 1200000 },
 };
 function setupForm() {
-  $("#sim-form").innerHTML = FIELDS.map(([k, l]) => `<label for="f-${k}">${l}</label><input id="f-${k}" name="${k}" inputmode="numeric" />`).join("");
+  $("#sim-form").innerHTML = FIELDS.map(([k, l, optional]) => `<label for="f-${k}">${l}</label><input id="f-${k}" name="${k}" inputmode="numeric"${optional ? ' placeholder="비워 두면 판단 안 함"' : ""} />`).join("");
   $("#sim-form").addEventListener("submit", (e) => e.preventDefault());
   $("#presets").innerHTML = Object.keys(PRESETS).map((n) => `<button type="button" data-p="${esc(n)}">${esc(n)}</button>`).join("");
   document.querySelectorAll("#presets button").forEach((b) => b.addEventListener("click", () => { fillForm(PRESETS[b.dataset.p]); run(); }));
@@ -382,15 +398,18 @@ function setupForm() {
   fillForm(PRESETS["빠듯함"]);
 }
 const parseNum = (s) => { const v = Number(String(s).replace(/[,\s원]/g, "")); return s !== "" && Number.isFinite(v) ? v : null; };
-function fillForm(v) { FIELDS.forEach(([k]) => { $(`#f-${k}`).value = v[k].toLocaleString("ko-KR"); }); }
+function fillForm(v) { FIELDS.forEach(([k]) => { $(`#f-${k}`).value = v[k] == null ? "" : v[k].toLocaleString("ko-KR"); }); }
 function readForm() {
   const out = {};
-  for (const [k, l] of FIELDS) {
-    const v = parseNum($(`#f-${k}`).value);
+  for (const [k, l, optional] of FIELDS) {
+    const raw = $(`#f-${k}`).value.trim();
+    if (optional && raw === "") continue;
+    const v = parseNum(raw);
     if (v == null || v < 0) throw new Error(`${l}: 0 이상의 숫자를 입력하세요`);
     out[k] = v;
   }
   if (out.price <= 0) throw new Error("상품 가격: 0보다 커야 합니다");
+  if (out.monthly_income != null && out.monthly_income <= 0) throw new Error("월 소득: 0보다 커야 합니다 (모르면 비워 두세요)");
   if (out.days_until_card_due > 31) throw new Error("카드 결제일까지: 31일 이하로 입력하세요");
   return out;
 }
@@ -403,6 +422,32 @@ function diverging(rows, { fmt, scaleMax }) {
       <div class="val ${pos ? "pos" : "neg"}">${fmt(r.value)}</div></div>`;
   }).join("")}</div>`;
 }
+const BUDGET_STATUS = { within: ["여유 있음", "ok"], tight: ["빠듯함", "warn"], over: ["한도 초과", "bad"], already_over: ["이미 초과", "bad"] };
+const BUDGET_REASON_KO = { income_not_provided_by_upstream: "월 소득 미입력", fixed_expense_not_provided_by_upstream: "월 고정지출 미입력", spending_not_provided_by_upstream: "최근 30일 지출 미확인" };
+function renderBudget(b, inputs) {
+  if (!b || b.status === "unavailable") {
+    return `<div class="card" style="margin-top:16px"><h3>5·3·2 생활비 구역 <span class="chip mute">판단 안 함</span></h3>
+      <p class="muted" style="margin:0">월 소득과 월 고정지출을 입력하면 이번 구매가 생활비 구역(소득의 50%)을 넘는지 봅니다. 지금은 예산 규칙이 쓰이지 않았습니다${b && b.reason ? ` — <b>${esc(BUDGET_REASON_KO[b.reason] || b.reason)}</b>` : ""}. 기본값으로 추측하지 않습니다.</p></div>`;
+  }
+  const [label, tone] = BUDGET_STATUS[b.status];
+  const buy = b.used_after - b.used_before;
+  const scale = Math.max(b.limit * 1.2, b.used_after * 1.08);
+  const at = (v) => Math.min((v / scale) * 100, 100);
+  const sentence = b.status === "already_over" ? `구매 전에 이미 한도를 ${won(-b.headroom_before)} 넘은 상태입니다.`
+    : b.status === "over" ? `이번 구매로 한도를 ${won(b.overshoot)} 넘습니다.`
+    : `구매 후에도 한도까지 ${won(b.headroom_after)} 남습니다${b.status === "tight" ? " (한도의 90% 초과라 빠듯함)" : ""}.`;
+  const cover = b.emergency_cover_months;
+  return `<div class="card" style="margin-top:16px"><h3>5·3·2 생활비 구역 <span class="chip ${tone}">${label}</span> <span class="muted" style="font-weight:500">구매 후 사용률 ${pct(b.ratio_after, 0)}</span></h3>
+    <div class="zone" role="img" aria-label="생활비 구역 한도 ${won(b.limit)} 중 구매 후 ${won(b.used_after)} 사용, ${pct(b.ratio_after, 0)}">
+      <div class="segs"><div class="seg fixed" style="width:${at(b.fixed_expense)}%"></div><div class="seg var" style="width:${at(b.variable_spending)}%"></div><div class="seg buy ${tone}" style="width:${at(buy)}%"></div></div>
+      <div class="mark soft" style="left:${at(b.limit * 0.9)}%"><span>90%</span></div>
+      <div class="mark" style="left:${at(b.limit)}%"><span>한도 ${wonShort(b.limit)}</span></div></div>
+    <div class="legend"><span><i style="background:var(--series-a)"></i>고정지출 ${won(b.fixed_expense)}</span><span><i style="background:var(--series-b)"></i>최근 30일 지출 ${won(b.variable_spending)}</span><span><i style="background:var(--${tone === "ok" ? "good" : tone === "warn" ? "warn" : "bad"})"></i>이번 구매 ${won(buy)}</span></div>
+    <p style="margin:10px 0 0">${esc(sentence)}</p>
+    ${cover != null ? `<p class="muted" style="margin:4px 0 0">비상금 ${won(inputs.emergency_fund_balance)}은 사용량의 <b>${cover.toFixed(1)}개월치</b>${cover < 3 ? ' <span class="chip warn">3개월 미만</span>' : ""}</p>` : ""}
+    <div class="band532" aria-hidden="true"><i></i><i></i><i></i></div>
+    <p class="muted" style="margin:0;font-size:12.5px">소득 ${won(b.income)} = 생활비 50% (여기에 이번 구매 포함) · 투자 30% · 저축 20%. 한도는 생활비 50%만 가리킵니다.</p></div>`;
+}
 function renderSim(inspect, sim, inputs) {
   const dec = sim.decision;
   let html = `<div class="card"><div class="decision ${esc(dec)}"><span class="big">${esc(DECISION_KO[dec] || dec)}</span><span class="mono muted">${esc(dec)}</span></div>
@@ -412,6 +457,8 @@ function renderSim(inspect, sim, inputs) {
       <span class="chip mute">재무 ${esc(sim.financialEvaluation.status)}</span><span class="chip mute">가격 ${esc(sim.priceEvaluation.status)}</span>
       <span class="chip ${sim.runtimeEngines.priceModel === "disabled" ? "bad" : "ok"}">가격 모델 ${esc(sim.runtimeEngines.priceModel)}</span>
       <span class="chip ok">재무 모델 ${esc(sim.runtimeEngines.financeModel)}</span><span class="chip ok">SHAP ${esc(sim.runtimeEngines.shap)}</span><span class="chip ok">반사실 ${esc(sim.runtimeEngines.dice)}</span></div></div>`;
+
+  html += renderBudget(sim.lab && sim.lab.budget, inputs);
 
   if (inspect.enabled) {
     const p = inspect.probabilities;

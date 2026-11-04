@@ -122,6 +122,27 @@ def build_overview() -> dict[str, Any]:
         "status": "synthetic" if finance_meta is not None else "missing",
     }
 
+    from ai.xai import budget_rule
+
+    budget_node: dict[str, Any] = {
+        "id": "budget_rule",
+        "name": "5·3·2 예산",
+        "kind": "rule",
+        "status": "ok",
+        "role": "이번 구매가 생활비 구역(소득의 50%)을 넘기지 않는가. 학습 모델이 아니라 계산식이다.",
+        "caveat": "Spring 이 월 소득·고정지출을 실제 값으로 보내기 전에는 판단하지 않습니다 (기본값으로 추측하지 않음).",
+        "facts": [
+            ["한도", f"월 소득 × {budget_rule.ZONE_NEEDS_SHARE:g} (투자 {budget_rule.ZONE_INVEST_SHARE:g}, 저축 {budget_rule.ZONE_SAVINGS_SHARE:g})"],
+            ["사용량", "고정지출(비상금 적립 포함) + 최근 30일 변동 지출"],
+            ["구매 후 사용률", "(사용량 + 가격) ÷ 한도"],
+            ["여유 있음", f"구매 후 사용률 {budget_rule.TIGHT_RATIO:.0%} 이하"],
+            ["빠듯함 → 관망", f"{budget_rule.TIGHT_RATIO:.0%} 초과 ~ {budget_rule.OVER_RATIO:.0%}"],
+            ["초과 → 구매 비추천", f"{budget_rule.OVER_RATIO:.0%} 초과 (이미 넘은 상태 포함)"],
+            ["비상금 경고", f"비상금이 사용량의 {budget_rule.EMERGENCY_COVER_TARGET_MONTHS:g}개월치 미만"],
+            ["임계값의 근거", "판단값입니다. 사용자 반응이 쌓이면 조정합니다."],
+        ],
+    }
+
     nodes = [
         {"id": "request", "name": "Spring 요청", "kind": "input", "status": "ok",
          "role": "구매 요청 + 재무 프로필 + 최근 거래 내역(최대 50건)"},
@@ -129,6 +150,7 @@ def build_overview() -> dict[str, Any]:
          "role": "필수값이 없거나 깨졌으면 422, 기본값으로 채운 값은 표시"},
         price_model,
         finance_model,
+        budget_node,
         {"id": "decision", "name": "규칙 엔진", "kind": "rule", "status": "ok",
          "role": "BUY_NOW / WAIT / REVIEW / NOT_RECOMMENDED 를 if/else 규칙으로 결정 (학습 모델이 아님)"},
         {"id": "shap", "name": "SHAP 설명", "kind": "explain", "status": "ok" if finance_meta else "missing",
@@ -140,6 +162,7 @@ def build_overview() -> dict[str, Any]:
     ]
     edges = [
         ["request", "contract"], ["contract", "price_model"], ["contract", "finance_model"],
+        ["contract", "budget_rule"], ["budget_rule", "decision"],
         ["price_model", "decision"], ["finance_model", "decision"],
         ["finance_model", "shap"], ["decision", "counterfactual"], ["shap", "response"],
         ["counterfactual", "response"], ["decision", "response"],
@@ -371,6 +394,9 @@ def simulate_purchase(req: Mapping[str, Any]) -> dict[str, Any]:
             "expectedCardPaymentAmount": pv(req["expected_card_payment_amount"]),
             "daysUntilCardDue": pv(req["days_until_card_due"]),
             "saveboxBalance": pv(req["savebox_balance"]),
+            # 비어 있으면 키 자체를 보내지 않는다 (운영에서 앞단이 안 보낸 경우와 같다).
+            **({"availableFixedIncome": pv(req["monthly_income"])} if req.get("monthly_income") is not None else {}),
+            **({"availableFixedExpense": pv(req["fixed_expense"])} if req.get("fixed_expense") is not None else {}),
         },
         "recentTransactions": [
             {
@@ -381,4 +407,27 @@ def simulate_purchase(req: Mapping[str, Any]) -> dict[str, Any]:
         ],
     }
     response = evaluate_pr_purchase_xai(PurchaseXaiEvaluationRequest.model_validate(payload), record_audit=False)
-    return response.model_dump(by_alias=True)
+    result = response.model_dump(by_alias=True)
+    result["lab"] = {"budget": _lab_budget(req)}
+    return result
+
+
+def _lab_budget(req: Mapping[str, Any]) -> dict[str, Any]:
+    """화면에서 게이지를 그리기 위한 5·3·2 평가. 운영과 같은 순수 함수를 같은 입력으로 호출한다.
+
+    응답(keyMetrics)에는 문자열만 있어 화면이 숫자를 얻으려면 이 값이 필요하다. 소득이나
+    고정지출을 입력하지 않았으면 운영과 같이 '판단 불가'다.
+    """
+    from ai.xai.budget_rule import BudgetAssessment, BudgetStatus, assess_budget
+
+    if req.get("monthly_income") is None:
+        return BudgetAssessment(status=BudgetStatus.UNAVAILABLE, reason="income_not_provided_by_upstream").to_dict()
+    if req.get("fixed_expense") is None:
+        return BudgetAssessment(status=BudgetStatus.UNAVAILABLE, reason="fixed_expense_not_provided_by_upstream").to_dict()
+    return assess_budget(
+        monthly_income=req["monthly_income"],
+        fixed_expense=req["fixed_expense"],
+        variable_spending_30d=req["monthly_spending_30d"],
+        price=req["price"],
+        emergency_fund_balance=req["emergency_fund_balance"],
+    ).to_dict()

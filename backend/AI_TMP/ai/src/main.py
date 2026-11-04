@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from config import FRONTEND_DIR
 
-from api.v1.routers import consumption, chat, strict_sec, xai_lab, xai_purchase
+from api.v1.routers import consumption, chat, strict_sec, xai_feedback, xai_lab, xai_purchase
 from domain.xai_lab.service import lab_enabled
 
 app = FastAPI(title="AI Consumption Report POC")
@@ -41,6 +41,7 @@ app.include_router(consumption.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1/chat")
 app.include_router(strict_sec.router, prefix="/api/v1/strict-secretary")
 app.include_router(xai_purchase.router, prefix="/api/v1/xai/purchase-evaluations")
+app.include_router(xai_feedback.router, prefix="/api/v1/xai/purchase-evaluations")
 app.include_router(xai_lab.router, prefix="/api/v1/xai-lab")
 
 

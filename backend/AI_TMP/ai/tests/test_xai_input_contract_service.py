@@ -264,9 +264,9 @@ class BehaviorPreservedTest(unittest.TestCase):
         profile = implicit["financeProfile"]
         explicit = copy.deepcopy(implicit)
         emergency = profile["emergencyFundBalance"]["value"]  # type: ignore[index]
+        # 세이브박스의 기본값은 비상자금과 같다. 고정 수입/지출은 일부러 뺐다: 앞단이 명시하면
+        # 5·3·2 예산 규칙이 켜지므로 '명시해도 결정이 같다'는 더 이상 성립하지 않는다 (의도된 변화).
         explicit["financeProfile"]["saveboxBalance"] = _provenance(emergency)  # type: ignore[index]
-        explicit["financeProfile"]["availableFixedExpense"] = _provenance(0)  # type: ignore[index]
-        explicit["financeProfile"]["availableFixedIncome"] = _provenance(1_000_000)  # type: ignore[index]
 
         a = _post(implicit).json()
         b = _post(explicit).json()

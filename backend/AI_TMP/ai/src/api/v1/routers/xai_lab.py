@@ -26,6 +26,9 @@ class InspectRequest(BaseModel):
     expected_card_payment_amount: float = Field(ge=0)
     days_until_card_due: float = Field(ge=0, le=31)
     monthly_spending_30d: float = Field(ge=0)
+    # 5·3·2 예산 판단용. 비우면 운영에서 앞단이 안 보낸 경우와 같이 '판단 불가'가 된다.
+    monthly_income: float | None = Field(default=None, gt=0, description="월 소득(원)")
+    fixed_expense: float | None = Field(default=None, ge=0, description="월 고정지출(비상금 적립 포함, 원)")
 
 
 @router.get("/overview")
@@ -50,7 +53,7 @@ def evaluation() -> dict[str, Any]:
 
 @router.post("/inspect")
 def inspect(req: InspectRequest) -> dict[str, Any]:
-    profile = req.model_dump(exclude={"price"})
+    profile = req.model_dump(exclude={"price", "monthly_income", "fixed_expense"})
     try:
         return service.inspect_finance(price=req.price, profile=profile)
     except ValueError as exc:

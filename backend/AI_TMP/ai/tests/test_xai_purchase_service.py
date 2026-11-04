@@ -227,7 +227,8 @@ class XaiPurchaseServiceTest(unittest.TestCase):
         self.assertEqual(financial_metrics.get("available_fixed_income"), "300,000원")
         self.assertEqual(financial_metrics.get("days_until_card_due"), "10일")
 
-    def test_financial_metrics_use_default_fixed_income_and_zero_fixed_expense(self) -> None:
+    def test_financial_metrics_hide_defaulted_fixed_income_and_expense(self) -> None:
+        """앞단이 안 보낸 고정 수입/지출은 기본값(100만 원/0원)으로 채워지는데, 그 값을 사실처럼 보여주지 않는다."""
         request = _request()
 
         with patch(
@@ -246,9 +247,12 @@ class XaiPurchaseServiceTest(unittest.TestCase):
             metric.code: metric.value
             for metric in response.financial_evaluation.key_metrics
         }
-        self.assertEqual(financial_metrics.get("available_fixed_expense"), "0원")
-        self.assertEqual(financial_metrics.get("available_fixed_income"), "1,000,000원")
+        self.assertNotIn("available_fixed_expense", financial_metrics)
+        self.assertNotIn("available_fixed_income", financial_metrics)
         self.assertEqual(financial_metrics.get("expected_card_payment_amount"), "150,000원")
+        # 숨기는 대신 기본값이 쓰였다는 사실은 경고로 남는다.
+        self.assertIn("FINANCE_FIELD_DEFAULTED:available_fixed_income", response.warnings)
+        self.assertIn("FINANCE_FIELD_DEFAULTED:available_fixed_expense", response.warnings)
 
     def test_jsonl_audit_store_persists_entries(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

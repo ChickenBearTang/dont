@@ -10,13 +10,22 @@ from .audit_log import XAIAuditLogEntry, build_model_input_vector_hash
 from .decision_engine import DecisionEngine
 from .explanation_engine import ExplanationEngine
 from .counterfactual_text import polish_counterfactuals
-from .input_contract import RawField, ResolvedFinanceProfile, resolve_finance_profile
+from .budget_rule import BudgetAssessment, BudgetStatus, assess_budget, explanation_score
+from .input_contract import Origin, RawField, ResolvedFinanceProfile, resolve_finance_profile
 from .model_counterfactual import ModelCounterfactualEngine, Outcome
 from .types import (
     AnalysisError,
     CrawlExplanation,
     ExplainabilityResult,
     ItemExplanation,
+)
+
+_BUDGET_INPUT_PREFIX = "budget_ratio_"
+# 이 필드가 기본값(앞단이 안 보냄)이면 예산을 판단하지 않는다. (필드, 사유 코드)
+_BUDGET_REQUIRED_FIELDS = (
+    ("available_fixed_income", "income_not_provided_by_upstream"),
+    ("available_fixed_expense", "fixed_expense_not_provided_by_upstream"),
+    ("monthly_spending_30d", "spending_not_provided_by_upstream"),
 )
 
 
@@ -143,6 +152,7 @@ class ExplainabilityAnalyzer:
         item_explanations: list[ItemExplanation] = []
         errors: list[AnalysisError] = []
         audit_logs: list[XAIAuditLogEntry] = []
+        budgets: dict[str, dict[str, Any]] = {}
         shap_engine_state: dict[str, Any] = {
             "enabled": False,
             "backend": "fallback",
@@ -164,6 +174,8 @@ class ExplainabilityAnalyzer:
                 feature_scores = self._build_feature_scores(
                     features, window_stats=window_stats
                 )
+                budget = self._assess_budget(features.get("price_int"))
+                budgets[deal.url] = budget.to_dict()
                 if self._finance_explanation is not None:
                     shap_scores, reasons, shap_engine_state = self._signed_explanation(
                         features,
@@ -171,7 +183,12 @@ class ExplainabilityAnalyzer:
                         top_k=requested_top_k,
                     )
                 else:
-                    shap_scores = dict(feature_scores)
+                    # budget_ratio_* 는 규칙 엔진 입력일 뿐 요인이 아니다. 요인은 아래에서 따로 넣는다.
+                    shap_scores = {
+                        name: value
+                        for name, value in feature_scores.items()
+                        if not name.startswith(_BUDGET_INPUT_PREFIX)
+                    }
                     if self._shap_contribution_engine is not None and hasattr(
                         self._shap_contribution_engine, "compute"
                     ):
@@ -198,6 +215,9 @@ class ExplainabilityAnalyzer:
                     reasons = self._reasoning_engine.analyze(
                         shap_scores, top_k=requested_top_k
                     )
+                shap_scores, reasons = self._with_budget_reason(
+                    budget, shap_scores, reasons
+                )
                 decision_outcome = self._decision_engine.decide(feature_scores)
                 price_int = features.get("price_int")
                 price_value = price_int if isinstance(price_int, int) else None
@@ -280,6 +300,11 @@ class ExplainabilityAnalyzer:
                     "price_model_gap_score": self._price_model_signal.get(
                         "price_model_gap_score"
                     ),
+                    "budget_zone_usage": (
+                        round(budget.ratio_after, 4)
+                        if budget.ratio_after is not None
+                        else None
+                    ),
                     "finance_model_risk_score": self._finance_model_signal.get(
                         "finance_model_risk_score"
                     ),
@@ -355,6 +380,8 @@ class ExplainabilityAnalyzer:
         payload["statistics"] = window_stats or {}
         payload["rule_version"] = self._decision_engine.RULE_VERSION
         payload["audit_logs"] = [entry.to_dict() for entry in audit_logs]
+        # 5·3·2 예산 평가. 항목(가격)마다 다르므로 item_id 로 찾는다.
+        payload["budgets"] = budgets
         payload["runtime_engines"] = {
             "shap": shap_engine_state,
             "dice": dice_engine_state,
@@ -374,6 +401,49 @@ class ExplainabilityAnalyzer:
         # 필수 필드 기준 0 이어야 하는 지표다.
         payload["input_contract"] = self._resolved_profile.to_report()
         return payload
+
+    def _assess_budget(self, price: object) -> BudgetAssessment:
+        """5·3·2 예산 적합도. 소득/고정지출/월 지출 중 하나라도 기본값이면 판단하지 않는다.
+
+        기본값(예: 소득 100만 원)으로 사용률을 만들면 근거 없는 '한도 초과'나 '여유'가
+        나온다. 앞단이 실제 값을 보내기 전까지는 판단 불가로 두고 사유를 알린다.
+        """
+        origins = self._resolved_profile.origins
+        for field, reason in _BUDGET_REQUIRED_FIELDS:
+            if origins.get(field) == Origin.DEFAULT:
+                return BudgetAssessment(status=BudgetStatus.UNAVAILABLE, reason=reason)
+        return assess_budget(
+            monthly_income=self._finance_profile["available_fixed_income"],
+            fixed_expense=self._finance_profile["available_fixed_expense"],
+            variable_spending_30d=self._finance_profile["monthly_spending_30d"],
+            price=price,
+            emergency_fund_balance=self._finance_profile["emergency_fund_balance"],
+        )
+
+    def _with_budget_reason(
+        self,
+        budget: BudgetAssessment,
+        scores: dict[str, float],
+        reasons: list[dict[str, Any]],
+    ) -> tuple[dict[str, float], list[dict[str, Any]]]:
+        """예산 사유를 요인 목록에 하나 더한다 (top_k 와 별개로 추가).
+
+        한도를 넘거나 빠듯하면 판단의 이유이므로 맨 앞에, 여유가 있으면 맨 뒤에 둔다.
+        문구는 점수 부호가 아니라 상태로 정한다.
+        """
+        from ai.xai.purchase_core.reasons import BUDGET_STATUS_REASON_TEXT
+
+        score = explanation_score(budget)
+        if score is None:
+            return scores, reasons
+        reason = self._reasoning_engine.analyze(
+            {"budget_zone_usage": score}, top_k=1, signed=True
+        )[0]
+        reason["reason_text"] = BUDGET_STATUS_REASON_TEXT[budget.status.value]
+        merged_scores = {**scores, "budget_zone_usage": score}
+        if budget.status is BudgetStatus.WITHIN:
+            return merged_scores, [*reasons, reason]
+        return merged_scores, [reason, *reasons]
 
     def _signed_explanation(
         self,
@@ -718,11 +788,21 @@ class ExplainabilityAnalyzer:
                 continue
             model_scores[score_name] = max(min(numeric, 1.0), -1.0)
 
+        # 예산 판단이 가능할 때만 점수표에 넣는다. 규칙 엔진은 이 키가 있는지로 분기한다.
+        budget = self._assess_budget(price_int)
+        budget_scores: dict[str, float] = {}
+        if budget.status is not BudgetStatus.UNAVAILABLE:
+            budget_scores = {
+                "budget_ratio_before": float(budget.ratio_before),  # type: ignore[arg-type]
+                "budget_ratio_after": float(budget.ratio_after),  # type: ignore[arg-type]
+            }
+
         return {
             "current_price": current_price_score,
             "avg_price_30d": relative_price_score,
             "price_model_gap_score": price_model_gap_score,
             **model_scores,
+            **budget_scores,
             "product_price_vs_monthly_spending": (
                 (price_int / monthly_spending_30d) if monthly_spending_30d > 0 else 1.0
             ),

@@ -24,6 +24,8 @@ PAGE = Path(__file__).resolve().parents[1] / "frontend" / "xai-lab.html"
 BASE = "/api/v1/xai-lab"
 INPUT = dict(price=2_500_000, current_balance=900_000, emergency_fund_balance=150_000, savebox_balance=150_000,
              expected_card_payment_amount=700_000, days_until_card_due=2, monthly_spending_30d=1_300_000)
+# 한도 150만 원(소득 300만 원의 50%), 구매 전 사용 130만 원 (고정지출 90만 + 최근 30일 40만)
+BUDGET = dict(monthly_income=3_000_000, fixed_expense=900_000)
 HEALTHY = dict(price=89_000, current_balance=8_000_000, emergency_fund_balance=3_000_000, savebox_balance=2_500_000,
                expected_card_payment_amount=300_000, days_until_card_due=20, monthly_spending_30d=1_400_000)
 
@@ -244,6 +246,84 @@ class SimulateTest(unittest.TestCase):
             self.assertTrue(log.read_text(encoding="utf-8").strip())
 
 
+class BudgetLabTest(unittest.TestCase):
+    def setUp(self) -> None:
+        patcher = patch.dict("os.environ", {"AI_XAI_LAB_ENABLED": "1"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.c = client()
+        self.base = {**HEALTHY, "monthly_spending_30d": 400_000, **BUDGET}
+
+    def simulate(self, **override):
+        res = self.c.post(f"{BASE}/simulate", json={**self.base, **override})
+        self.assertEqual(res.status_code, 200, res.text)
+        return res.json()
+
+    def test_모델_지도에_예산_노드가_있고_규칙_엔진으로_이어진다(self) -> None:
+        data = self.c.get(f"{BASE}/overview").json()
+
+        nodes = {n["id"]: n for n in data["nodes"]}
+        self.assertEqual(nodes["budget_rule"]["status"], "ok")
+        facts = dict(nodes["budget_rule"]["facts"])
+        self.assertIn("0.5", facts["한도"])
+        self.assertIn("90%", facts["여유 있음"])
+        self.assertIn("기본값으로 추측하지 않음", nodes["budget_rule"]["caveat"])
+        self.assertIn(["contract", "budget_rule"], data["edges"])
+        self.assertIn(["budget_rule", "decision"], data["edges"])
+
+    def test_소득과_고정지출을_넣으면_예산_평가가_같이_나온다(self) -> None:
+        data = self.simulate(price=300_000)
+
+        budget = data["lab"]["budget"]
+        self.assertEqual(budget["status"], "over")
+        self.assertEqual((budget["limit"], budget["used_before"], budget["used_after"]), (1_500_000, 1_300_000, 1_600_000))
+        self.assertEqual(data["decision"], "NOT_RECOMMENDED")
+
+    def test_화면용_예산_값은_운영_응답의_지표와_일치한다(self) -> None:
+        for price in (50_000, 100_000, 300_000):
+            with self.subTest(price=price):
+                data = self.simulate(price=price)
+                budget = data["lab"]["budget"]
+                metrics = {m["code"]: m["value"] for m in data["financialEvaluation"]["keyMetrics"]}
+
+                self.assertEqual(metrics["budget_zone_limit"], f"{int(budget['limit']):,}원")
+                self.assertEqual(metrics["budget_zone_used_after"],
+                                 f"{int(budget['used_after']):,}원 ({budget['used_after'] / budget['limit']:.0%})")
+
+    def test_소득을_비우면_판단_안_함이고_운영과_같은_경고가_나온다(self) -> None:
+        data = self.simulate(monthly_income=None)
+
+        self.assertEqual(data["lab"]["budget"]["status"], "unavailable")
+        self.assertEqual(data["lab"]["budget"]["reason"], "income_not_provided_by_upstream")
+        self.assertIn("BUDGET_RULE_UNAVAILABLE:income_not_provided_by_upstream", data["warnings"])
+
+    def test_고정지출만_비워도_판단_안_함이고_사유가_운영과_같다(self) -> None:
+        data = self.simulate(fixed_expense=None)
+
+        self.assertEqual(data["lab"]["budget"]["reason"], "fixed_expense_not_provided_by_upstream")
+        self.assertIn("BUDGET_RULE_UNAVAILABLE:fixed_expense_not_provided_by_upstream", data["warnings"])
+
+    def test_예산_판단이_결정에_반영된다(self) -> None:
+        """같은 재무 상태에서 가격만 바꿔 한도를 넘기면 결정이 바뀐다."""
+        within = self.simulate(price=50_000)
+        over = self.simulate(price=300_000)
+
+        self.assertNotEqual(within["decision"], over["decision"])
+        self.assertEqual(over["decision"], "NOT_RECOMMENDED")
+
+    def test_inspect_도_예산_입력을_받아도_재무_모델_입력은_바뀌지_않는다(self) -> None:
+        plain = self.c.post(f"{BASE}/inspect", json={k: v for k, v in self.base.items() if k not in BUDGET})
+        with_budget = self.c.post(f"{BASE}/inspect", json=self.base)
+
+        self.assertEqual(with_budget.status_code, 200, with_budget.text)
+        self.assertEqual(plain.json()["probabilities"], with_budget.json()["probabilities"])
+
+    def test_잘못된_예산_입력은_422(self) -> None:
+        for bad in ({"monthly_income": 0}, {"monthly_income": -1}, {"fixed_expense": -1}, {"monthly_income": "많음"}):
+            with self.subTest(bad=bad):
+                self.assertEqual(self.c.post(f"{BASE}/simulate", json={**self.base, **bad}).status_code, 422)
+
+
 class PageTest(unittest.TestCase):
     html = PAGE.read_text(encoding="utf-8")
 
@@ -264,6 +344,12 @@ class PageTest(unittest.TestCase):
 
         self.assertTrue(called)
         self.assertTrue(called <= routes, f"{called - routes}")
+
+    def test_예산_입력과_게이지를_그린다(self) -> None:
+        self.assertIn('["monthly_income"', self.html)
+        self.assertIn('["fixed_expense"', self.html)
+        self.assertIn("function renderBudget", self.html)
+        self.assertIn("sim.lab", self.html)
 
     def test_사용자_입력을_이스케이프해_그리는_도우미가_있다(self) -> None:
         self.assertIn("const esc =", self.html)

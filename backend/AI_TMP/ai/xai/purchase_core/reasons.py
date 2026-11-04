@@ -21,6 +21,7 @@ REASON_CODE_MAP: dict[str, tuple[str, str]] = {
     ),
     "days_until_card_due": ("CARD_DUE_SOON", "finance_shap"),
     "price_model_gap_score": ("PRICE_MODEL_GAP_SIGNAL", "price_model"),
+    "budget_zone_usage": ("BUDGET_ZONE_USAGE", "budget_rule"),
     "finance_model_risk_score": ("FINANCE_MODEL_HIGH_RISK_SIGNAL", "finance_model"),
     "finance_model_affordability_score": (
         "FINANCE_MODEL_AFFORDABILITY_SIGNAL",
@@ -38,6 +39,16 @@ REASON_TEXT: dict[str, str] = {
     "BALANCE_AFTER_PURCHASE_TOO_LOW": "구매 후 예상 잔액이 낮아질 가능성이 큽니다.",
     "PRICE_TOO_LARGE_VS_MONTHLY_SPENDING": "상품 가격이 월 지출 규모 대비 크게 느껴집니다.",
     "CARD_DUE_SOON": "카드 결제일이 가까워 단기 현금흐름 부담이 있습니다.",
+    "BUDGET_ZONE_USAGE": "이번 구매가 생활비 구역(소득의 50%) 사용량에 영향을 주었습니다.",
+}
+
+# 예산 사유는 점수의 부호가 아니라 '상태'로 문구를 고른다. 점수 크기만으로는
+# "빠듯함(한도의 90% 초과)"과 "여유 있음"이 같은 부호로 섞여 규칙 판단과 어긋난다.
+BUDGET_STATUS_REASON_TEXT: dict[str, str] = {
+    "within": "이번 구매 후에도 생활비 구역(소득의 50%) 안에서 여유가 있습니다.",
+    "tight": "이번 구매 후 생활비 구역(소득의 50%)이 한도에 거의 찹니다.",
+    "over": "이번 구매로 생활비 구역(소득의 50%)을 넘게 됩니다.",
+    "already_over": "이번 달 생활비 구역(소득의 50%)을 이미 넘긴 상태입니다.",
 }
 
 REASON_TEXT.setdefault(
