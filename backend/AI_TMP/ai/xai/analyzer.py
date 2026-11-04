@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timezone
 from importlib import import_module
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from ..models import CrawlResult
 from .audit_log import XAIAuditLogEntry, build_model_input_vector_hash
 from .decision_engine import DecisionEngine
 from .explanation_engine import ExplanationEngine
 from .input_contract import RawField, ResolvedFinanceProfile, resolve_finance_profile
+from .model_counterfactual import ModelCounterfactualEngine, Outcome
 from .types import (
     AnalysisError,
     CrawlExplanation,
@@ -42,6 +44,10 @@ class ExplainabilityAnalyzer:
         finance_model_signal: dict[str, float | str] | None = None,
         finance_explanation: Mapping[str, float] | None = None,
         finance_explanation_state: Mapping[str, Any] | None = None,
+        scenario_signals: Callable[
+            [int | None, Mapping[str, float]], tuple[dict[str, Any], dict[str, Any]]
+        ]
+        | None = None,
     ) -> None:
         """finance_explanation 이 주어지면(빈 dict 포함) '부호 있는 설명' 모드다.
 
@@ -51,6 +57,11 @@ class ExplainabilityAnalyzer:
           요인을 설명에서 뺀다.
         - 없으면(None) 예전 방식이다. 판단 규칙용 점수에 가짜 SHAP 을 씌워 설명한다.
           부호가 의미 없어서 CLI/진단용으로만 남겨 둔다.
+
+        scenario_signals 가 주어지면 '무엇을 바꾸면 되나'를 모델 기반 탐색으로 만든다.
+        (가격, 재무 프로필) -> (가격 모델 신호, 재무 모델 신호) 를 돌려주는 함수로, 모델을
+        다시 돌려 바꾼 조건에서의 판단을 실제로 확인하는 데 쓴다. 없으면 예전
+        규칙/DiCE 방식이다.
         """
         features_module = import_module("ai.xai.features")
         reasoning_module = import_module("ai.xai.reasoning")
@@ -100,6 +111,7 @@ class ExplainabilityAnalyzer:
             else {str(k): float(v) for k, v in finance_explanation.items()}
         )
         self._finance_explanation_state = dict(finance_explanation_state or {})
+        self._scenario_signals = scenario_signals
 
     @staticmethod
     def _resolve_profile(
@@ -199,40 +211,49 @@ class ExplainabilityAnalyzer:
                 )
 
                 counterfactuals: list[dict[str, Any]] = []
-                if hasattr(self._dice_counterfactual_engine, "suggest"):
-                    suggested = self._dice_counterfactual_engine.suggest(
-                        price_int=price_value,
-                        monthly_spending_30d=monthly_spending_30d,
-                        emergency_fund_balance=savebox_balance,
-                        current_balance=savebox_balance,
-                        days_until_card_due=days_until_card_due,
-                        expected_card_payment_amount=expected_card_payment_amount,
+                if self._scenario_signals is not None:
+                    counterfactuals, dice_engine_state = self._model_counterfactuals(
+                        current_decision=decision_outcome.final_decision,
+                        price_value=price_value,
+                        window_stats=window_stats,
                     )
-                    if isinstance(suggested, tuple) and len(suggested) == 2:
-                        counterfactuals, dice_meta = suggested
-                        if isinstance(dice_meta, dict):
-                            dice_engine_state = dice_meta
-                    elif isinstance(suggested, list):
-                        counterfactuals = suggested
+                else:
+                    if hasattr(self._dice_counterfactual_engine, "suggest"):
+                        suggested = self._dice_counterfactual_engine.suggest(
+                            price_int=price_value,
+                            monthly_spending_30d=monthly_spending_30d,
+                            emergency_fund_balance=emergency_fund_balance,
+                            current_balance=float(self._finance_profile["current_balance"]),
+                            days_until_card_due=days_until_card_due,
+                            expected_card_payment_amount=expected_card_payment_amount,
+                        )
+                        if isinstance(suggested, tuple) and len(suggested) == 2:
+                            counterfactuals, dice_meta = suggested
+                            if isinstance(dice_meta, dict):
+                                dice_engine_state = dice_meta
+                        elif isinstance(suggested, list):
+                            counterfactuals = suggested
 
-                counterfactuals = self._stabilize_counterfactual_suggestions(
-                    counterfactuals,
-                    price_value=price_value,
-                    monthly_spending_30d=monthly_spending_30d,
-                    savebox_balance=savebox_balance,
-                    window_stats=window_stats,
-                )
-                counterfactuals = self._normalize_counterfactual_messages(
-                    counterfactuals
-                )
+                    counterfactuals = self._stabilize_counterfactual_suggestions(
+                        counterfactuals,
+                        price_value=price_value,
+                        monthly_spending_30d=monthly_spending_30d,
+                        savebox_balance=savebox_balance,
+                        window_stats=window_stats,
+                    )
+                    counterfactuals = self._normalize_counterfactual_messages(
+                        counterfactuals
+                    )
 
                 top_reason_text = (
                     str(reasons[0].get("reason_text", "기여도 신호 분석 결과"))
                     if len(reasons) > 0
                     else "기여도 신호 분석 결과"
                 )
-                suggestion_text = str(
-                    counterfactuals[0].get("message", "가격/재무 상태 재평가")
+                suggestion_text = (
+                    str(counterfactuals[0].get("message", "가격/재무 상태 재평가"))
+                    if len(counterfactuals) > 0
+                    else "가격/재무 상태 재평가"
                 )
                 polished_summary = self._summary_polisher.polish(
                     decision=decision_outcome.final_decision,
@@ -422,6 +443,66 @@ class ExplainabilityAnalyzer:
         elif "reason" not in state:
             state["reason"] = "finance_explanation_unavailable"
         return explanation_scores, reasons, state
+
+    def decide_scenario(
+        self,
+        *,
+        price_value: int | None,
+        overrides: Mapping[str, float],
+        window_stats: dict[str, dict[str, float | int | None]] | None,
+    ) -> Outcome:
+        """바꾼 조건에서 구매 판단이 어떻게 되는지 실제 파이프라인으로 다시 계산한다.
+
+        모델(가격/재무)을 다시 돌리고, 같은 점수 계산과 같은 규칙 엔진을 쓴다.
+        overrides 의 키: product_price, current_balance, emergency_fund_balance,
+        savebox_balance.
+        """
+        if self._scenario_signals is None:
+            raise RuntimeError("scenario_signals is not configured")
+        scenario_price = int(overrides.get("product_price", price_value or 0))
+        profile = dict(self._finance_profile)
+        for name in ("current_balance", "emergency_fund_balance", "savebox_balance"):
+            if name in overrides:
+                profile[name] = float(overrides[name])
+
+        price_signal, finance_signal = self._scenario_signals(scenario_price, profile)
+        scenario = copy.copy(self)  # 모델 신호와 프로필만 바꾼 얕은 복사본
+        scenario._finance_profile = profile
+        scenario._price_model_signal = price_signal or {}
+        scenario._finance_model_signal = finance_signal or {}
+        scores = scenario._build_feature_scores(
+            {"price_int": scenario_price, "missing_fields": []},
+            window_stats=window_stats,
+        )
+        decision = self._decision_engine.decide(scores)
+        risk = scores.get("finance_model_risk_score")
+        return Outcome(
+            decision=decision.final_decision,
+            finance_risk_score=float(risk) if isinstance(risk, (int, float)) else None,
+        )
+
+    def _model_counterfactuals(
+        self,
+        *,
+        current_decision: str,
+        price_value: int | None,
+        window_stats: dict[str, dict[str, float | int | None]] | None,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        engine = ModelCounterfactualEngine(
+            lambda overrides: self.decide_scenario(
+                price_value=price_value, overrides=overrides, window_stats=window_stats
+            )
+        )
+        return engine.suggest(
+            current_decision=current_decision,
+            price=float(price_value or 0),
+            monthly_spending=self._monthly_spending_30d(),
+            current_values={
+                "current_balance": float(self._finance_profile["current_balance"]),
+                "emergency_fund_balance": float(self._finance_profile["emergency_fund_balance"]),
+                "savebox_balance": float(self._finance_profile["savebox_balance"]),
+            },
+        )
 
     def _normalize_counterfactual_messages(
         self, counterfactuals: list[dict[str, Any]]
@@ -614,33 +695,23 @@ class ExplainabilityAnalyzer:
         relative_price_score = (relative_price_score * 0.7) + (
             price_model_gap_score * 0.3
         )
-        finance_model_risk_raw = self._finance_model_signal.get(
-            "finance_model_risk_score", 0.0
-        )
-        finance_model_affordability_raw = self._finance_model_signal.get(
-            "finance_model_affordability_score",
-            0.0,
-        )
-        try:
-            finance_model_risk_score = float(finance_model_risk_raw)
-        except (TypeError, ValueError):
-            finance_model_risk_score = 0.0
-        try:
-            finance_model_affordability_score = float(finance_model_affordability_raw)
-        except (TypeError, ValueError):
-            finance_model_affordability_score = 0.0
-        finance_model_risk_score = max(min(finance_model_risk_score, 1.0), -1.0)
-        finance_model_affordability_score = max(
-            min(finance_model_affordability_score, 1.0),
-            -1.0,
-        )
+        # 재무 모델 신호가 '있을 때만' 점수표에 넣는다. 규칙 엔진은 이 키가 있는지로
+        # 분기한다(없으면 프로필 기반 휴리스틱). 예전에는 신호가 없어도 0.0 으로 채워서
+        # 모델이 죽으면 항상 '위험 없음'으로 판단했다.
+        model_scores: dict[str, float] = {}
+        for score_name in ("finance_model_risk_score", "finance_model_affordability_score"):
+            raw_value = self._finance_model_signal.get(score_name)
+            try:
+                numeric = float(raw_value)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                continue
+            model_scores[score_name] = max(min(numeric, 1.0), -1.0)
 
         return {
             "current_price": current_price_score,
             "avg_price_30d": relative_price_score,
             "price_model_gap_score": price_model_gap_score,
-            "finance_model_risk_score": finance_model_risk_score,
-            "finance_model_affordability_score": finance_model_affordability_score,
+            **model_scores,
             "product_price_vs_monthly_spending": (
                 (price_int / monthly_spending_30d) if monthly_spending_30d > 0 else 1.0
             ),

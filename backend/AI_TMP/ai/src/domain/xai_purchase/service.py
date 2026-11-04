@@ -746,6 +746,15 @@ def _safe_non_negative_int(value: Any, default: int = 0) -> int:
 def _counterfactual_target_decision(
     *, current_decision: str, counterfactual: dict[str, Any]
 ) -> str:
+    verified_target = counterfactual.get("target_decision")
+    if counterfactual.get("validated") is True and verified_target in {
+        "BUY_NOW",
+        "WAIT",
+        "REVIEW",
+        "NOT_RECOMMENDED",
+    }:
+        return str(verified_target)  # 다시 돌려 확인한 결과. 추측이 아니다.
+
     action = str(counterfactual.get("action", ""))
     change = _safe_non_negative_int(counterfactual.get("suggested_change", 0))
     normalized_current = (
@@ -860,12 +869,32 @@ def evaluate_pr_purchase_xai(
         )
     shap_engine: Any = ShapContributionEngine() if shap_enabled else object()
 
+    def scenario_signals(
+        scenario_price: int | None, scenario_profile: dict[str, float | int]
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """바꾼 조건에서 두 모델을 다시 돌린다. 반사실 제안을 실제로 확인하는 데 쓴다."""
+        scenario_price_signal, _ = predict_price_signal(
+            current_price=scenario_price,
+            window_stats=window_stats,
+            category=request.purchase.category,
+            explicit_model_path=price_model_path,
+            enabled=True,
+        )
+        scenario_finance_signal, _ = predict_finance_signal(
+            current_price=scenario_price,
+            finance_profile=scenario_profile,
+            enabled=True,
+        )
+        return scenario_price_signal, scenario_finance_signal
+
     analyzer = ExplainabilityAnalyzer(
         finance_profile=resolved_profile,
         price_model_signal=price_model_signal,
         finance_model_signal=finance_model_signal,
         finance_explanation=finance_explanation,
         finance_explanation_state=finance_explanation_state,
+        # DiCE 를 명시적으로 켜지 않으면 모델 기반 탐색(검증된 제안)을 쓴다.
+        scenario_signals=None if dice_enabled else scenario_signals,
         counterfactual_engine=fallback_counterfactual_engine,
         dice_counterfactual_engine=dice_engine,
         shap_contribution_engine=shap_engine,
@@ -893,12 +922,6 @@ def evaluate_pr_purchase_xai(
                 "backend": "disabled",
                 "reason": "shap_disabled_by_config",
             }
-        if not dice_enabled:
-            runtime_payload["dice"] = {
-                "enabled": False,
-                "backend": "disabled",
-                "reason": "dice_disabled_by_config",
-            }
         runtime_payload["price_model"] = price_model_state
         runtime_payload["finance_model"] = finance_model_state
     else:
@@ -910,13 +933,7 @@ def evaluate_pr_purchase_xai(
             }
             if not shap_enabled
             else {},
-            "dice": {
-                "enabled": False,
-                "backend": "disabled",
-                "reason": "dice_disabled_by_config",
-            }
-            if not dice_enabled
-            else {},
+            "dice": {},
             "price_model": price_model_state,
             "finance_model": finance_model_state,
         }
@@ -1003,7 +1020,9 @@ def evaluate_pr_purchase_xai(
                 current_decision=decision,
                 counterfactual=counterfactual,
             ),
-            validated=str(counterfactual.get("type", "")) == "dice",
+            # 모델/규칙을 다시 돌려 확인한 제안만 True 다. 예전에는 type 이 "dice" 이기만
+            # 하면 확인 없이 True 였다.
+            validated=bool(counterfactual.get("validated", False)),
         )
         for counterfactual in item.get("counterfactuals", [])[:3]
     ]

@@ -5,7 +5,7 @@ DB, Spring, 외부 네트워크 없이 노트북에서 그대로 실행된다.
     cd backend/AI_TMP
     python -m ai.scripts.xai_walkthrough              # 3개 시나리오 전부
     python -m ai.scripts.xai_walkthrough tight        # 하나만
-    AI_XAI_HEAVY_ENABLED=0 python -m ai.scripts.xai_walkthrough   # DiCE 끄기(빠름)
+    AI_XAI_DICE_ENABLED=1 python -m ai.scripts.xai_walkthrough     # 예전 DiCE 로 (느림, 검증 안 됨)
 
 왜 DB 없이 도는가
     재무 DB 는 Spring 쪽에 있다. Python 은 Spring 이 보낸 JSON 한 건만 받으므로,
@@ -29,7 +29,6 @@ SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-os.environ.setdefault("AI_XAI_HEAVY_ENABLED", "1")
 
 from ai.xai.input_contract import InputContractViolation  # noqa: E402
 from domain.xai_purchase.audit_store import JsonlXaiAuditLogStore  # noqa: E402
@@ -186,14 +185,16 @@ def run(name: str, payload: dict[str, object]) -> None:
     print(f"  재무 상태    {response.financial_evaluation.status}")
     print(f"  가격 상태    {response.price_evaluation.status}")
 
-    _bar("4단계  SHAP  (왜 그렇게 판단했나)")
+    _bar("4단계  SHAP  (왜 그렇게 판단했나)   ▲ 구매에 유리 / ▼ 구매에 불리")
+    print("  재무 요인: 재무 모델의 실제 SHAP (20~30대 기준 인구 대비, 로짓 단위)")
+    print("  가격 요인: 평균가/가격 모델 대비 위치 (-1~1) — 단위가 달라 숫자끼리 비교하지 않는다")
     for factor in response.top_factors:
         arrow = "▲" if factor.direction == "positive" else "▼"
         print(f"  {arrow} {factor.impact:6.3f}  {factor.label}")
     if not response.top_factors:
         print("  (없음)")
 
-    _bar("5단계  DiCE  (무엇을 바꾸면 되나)")
+    _bar("5단계  반사실  (무엇을 바꾸면 되나)  — 바꿔서 실제로 다시 돌려 본 결과만")
     for cf in response.counterfactuals:
         print(f"  → {cf.label}")
         print(f"      바뀌는 결정: {cf.target_decision}   validated={cf.validated}")
