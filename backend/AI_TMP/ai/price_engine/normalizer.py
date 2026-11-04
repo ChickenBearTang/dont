@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 import hashlib
-import re
 from typing import Any
 
+from ..crawler.price import parse_price_krw
 from .schema_models import (
     PriceObservation,
     RawListing,
@@ -12,20 +12,16 @@ from .schema_models import (
     RawPostDetail,
 )
 
-_NUMERIC_PATTERN = re.compile(r"[0-9,]+")
 _SOURCE_RANK = {"merchant": 4, "post_detail": 3, "list": 2, "aggregator": 1}
 
 
 def _to_int(raw: str | None) -> int | None:
-    if raw is None:
-        return None
-    compact = "".join(_NUMERIC_PATTERN.findall(raw)).replace(",", "")
-    if compact == "":
-        return None
-    try:
-        return int(compact)
-    except ValueError:
-        return None
+    """가격/배송비 문자열 -> 원화 정수. 단일 파서(ai.crawler.price)에 위임한다.
+
+    "무료배송" 은 0 으로 읽는다. 예전에는 None 이라 배송비가 무료인 글의 실질 가격이
+    통째로 비었다. 범위/외화처럼 하나로 정할 수 없는 값은 None 이다.
+    """
+    return parse_price_krw(raw).amount
 
 
 def _canonical_id(merchant: RawMerchantOffer | None, listing: RawListing) -> str:

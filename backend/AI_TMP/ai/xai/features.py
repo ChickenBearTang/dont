@@ -1,31 +1,20 @@
 from __future__ import annotations
 
-import re
 from typing import Any
 from urllib.parse import urlparse
 
+from ..crawler.price import parse_price_krw
 from ..models import HotDeal
 
 
 class FeatureExtractor:
-    _PRICE_TOKEN_PATTERN = re.compile(r"[0-9,]+")
-
     def normalize_price_to_int(self, price: str | None) -> int | None:
-        if not isinstance(price, str):
-            return None
+        """가격 문자열 -> 원화 정수. 단일 파서(ai.crawler.price)에 위임한다.
 
-        compact = "".join(self._PRICE_TOKEN_PATTERN.findall(price))
-        if compact == "":
-            return None
-
-        digits_only = compact.replace(",", "")
-        if digits_only == "":
-            return None
-
-        try:
-            return int(digits_only)
-        except ValueError:
-            return None
+        예전에는 문자열 속 모든 숫자를 이어 붙여 "5% 할인 21,200원" 이 521200 이 됐다.
+        읽을 수 없으면 None 이고, 이유는 parse_price_krw 의 status 로 알 수 있다.
+        """
+        return parse_price_krw(price).amount
 
     def extract_features(self, deal: HotDeal) -> dict[str, Any]:
         title = deal.title if isinstance(deal.title, str) else ""
