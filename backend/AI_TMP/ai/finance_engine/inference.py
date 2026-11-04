@@ -9,6 +9,12 @@ from .allowlist import CLASS_LABELS, SCHEMA_VERSION, TARGET_NAME, training_featu
 from .artifacts import load_finance_model_artifact
 
 
+# 모델 입력 중 finance_profile 에서 오는 것. product_price 는 요청의 가격에서 온다.
+_PROFILE_INPUT_NAMES: tuple[str, ...] = tuple(
+    name for name in training_feature_names() if name != "product_price"
+)
+
+
 def _env_flag(name: str, default: bool = False) -> bool:
     raw = os.getenv(name)
     if raw is None:
@@ -21,24 +27,6 @@ def _as_float(value: Any, default: float) -> float:
         return float(value)
     except (TypeError, ValueError):
         return float(default)
-
-
-def _safe_divide(numerator: float, denominator: float, default: float) -> float:
-    if denominator == 0:
-        return float(default)
-    return float(numerator / denominator)
-
-
-def _window_bucket(
-    window_stats: dict[str, dict[str, float | int | None]] | None,
-    key: str,
-) -> dict[str, float | int | None]:
-    if not isinstance(window_stats, dict):
-        return {}
-    bucket = window_stats.get(key)
-    if not isinstance(bucket, dict):
-        return {}
-    return bucket
 
 
 def _default_artifact_path() -> str | None:
@@ -62,80 +50,36 @@ def _resolve_model_path(explicit_model_path: str | None) -> str | None:
     return _default_artifact_path()
 
 
-def _monthly_spending_estimate(
-    window_stats: dict[str, dict[str, float | int | None]] | None,
-    *,
-    available_fixed_expense: float,
-    expected_card_payment_amount: float,
-) -> float:
-    bucket_30d = _window_bucket(window_stats, "30d")
-    avg_price = _as_float(bucket_30d.get("avg_price"), 0.0)
-    count = _as_float(bucket_30d.get("count"), 0.0)
-    if avg_price > 0 and count > 0:
-        return max(avg_price * min(count, 30.0), 1.0)
-    fallback = max(
-        available_fixed_expense * 2.0,
-        expected_card_payment_amount * 2.0,
-        800_000.0,
-    )
-    return max(fallback, 1.0)
-
-
 def build_finance_inference_payload(
     *,
     current_price: int | None,
     finance_profile: dict[str, float | int],
-    window_stats: dict[str, dict[str, float | int | None]] | None,
 ) -> dict[str, float]:
-    current_balance = _as_float(finance_profile.get("current_balance"), 0.0)
-    emergency_fund_balance = _as_float(finance_profile.get("emergency_fund_balance"), 0.0)
-    expected_card_payment_amount = _as_float(
-        finance_profile.get("expected_card_payment_amount"), 0.0
-    )
-    days_until_card_due = max(
-        _as_float(finance_profile.get("days_until_card_due"), 0.0),
-        0.0,
-    )
-    savebox_balance = _as_float(
-        finance_profile.get("savebox_balance"),
-        emergency_fund_balance,
-    )
-    available_fixed_expense = _as_float(
-        finance_profile.get("available_fixed_expense"),
-        0.0,
-    )
-    available_fixed_income = _as_float(
-        finance_profile.get("available_fixed_income"), 1_000_000.0
-    )
+    """모델 입력(원본 7개)을 만든다.
+
+    finance_profile 은 입력 계약(xai.input_contract)을 통과해 모든 키가 채워진
+    값이어야 한다. 예전에는 여기서 `.get(키, 0.0)` 과 소득 1_000_000 같은 기본값이
+    조용히 들어갔다. 이제 키가 없으면 어떤 키인지 밝히며 즉시 실패한다.
+    """
+    missing = [
+        name for name in _PROFILE_INPUT_NAMES if name not in finance_profile
+    ]
+    if missing:
+        raise ValueError(
+            f"finance_profile is missing keys required by the model: {missing}"
+        )
+
     product_price = (
         float(current_price)
         if isinstance(current_price, int) and current_price > 0
         else 0.0
     )
-    monthly_spending = _monthly_spending_estimate(
-        window_stats,
-        available_fixed_expense=available_fixed_expense,
-        expected_card_payment_amount=expected_card_payment_amount,
-    )
-
-    return {
-        "current_balance": max(current_balance, 0.0),
-        "emergency_fund_balance": max(emergency_fund_balance, 0.0),
-        "expected_card_payment_amount": max(expected_card_payment_amount, 0.0),
-        "days_until_card_due": max(days_until_card_due, 0.0),
-        "savebox_balance": max(savebox_balance, 0.0),
-        "available_fixed_expense": max(available_fixed_expense, 0.0),
-        "available_fixed_income": max(available_fixed_income, 0.0),
-        "monthly_spending_30d_estimate": monthly_spending,
-        "product_price": max(product_price, 0.0),
-        "product_price_vs_monthly_spending": _safe_divide(
-            product_price, monthly_spending, 0.0
-        ),
-        "projected_balance_after_purchase": savebox_balance - product_price,
-        "product_price_vs_emergency_fund": _safe_divide(
-            product_price, max(emergency_fund_balance, 1.0), 0.0
-        ),
+    payload = {
+        name: max(_as_float(finance_profile[name], 0.0), 0.0)
+        for name in _PROFILE_INPUT_NAMES
     }
+    payload["product_price"] = max(product_price, 0.0)
+    return payload
 
 
 @lru_cache(maxsize=4)
@@ -147,7 +91,6 @@ def predict_finance_signal(
     *,
     current_price: int | None,
     finance_profile: dict[str, float | int],
-    window_stats: dict[str, dict[str, float | int | None]] | None,
     explicit_model_path: str | None = None,
     enabled: bool | None = None,
 ) -> tuple[dict[str, float | str], dict[str, Any]]:
@@ -210,7 +153,6 @@ def predict_finance_signal(
     payload = build_finance_inference_payload(
         current_price=current_price,
         finance_profile=finance_profile,
-        window_stats=window_stats,
     )
 
     try:

@@ -8,6 +8,7 @@ test_xai_input_contract.py 가 계약 모듈 자체를 본다면, 여기서는 "
 from __future__ import annotations
 
 import copy
+from datetime import date
 from pathlib import Path
 import sys
 import tempfile
@@ -52,7 +53,7 @@ def _payload_with_all_optional() -> dict[str, object]:
     return payload
 
 
-def _post(payload: dict[str, object]):
+def _post(payload: dict[str, object], *, today: date | None = None):
     # 서비스는 평가마다 감사 로그를 저장소의 추적 파일(data/xai_audit_log.jsonl)에
     # 이어 쓴다. 테스트가 그 파일을 더럽히지 않도록 임시 저장소로 바꿔 끼운다.
     with tempfile.TemporaryDirectory() as tmp_dir, patch(
@@ -61,6 +62,9 @@ def _post(payload: dict[str, object]):
     ), patch(
         "domain.xai_purchase.service._fetch_page_text",
         return_value=(None, "MISSING_PURCHASE_URL"),
+    ), patch(
+        "domain.xai_purchase.service._utc_today",
+        return_value=today or date(2030, 1, 1),  # 기본값: 어떤 거래도 창 밖
     ):
         return TestClient(app).post(ENDPOINT, json=payload)
 
@@ -148,7 +152,8 @@ class DefaultVisibilityTest(unittest.TestCase):
         self.assertEqual(income["source"], "fastapi.input_contract")
 
     def test_모두_보내면_기본값_경고가_없다(self) -> None:
-        response = _post(_payload_with_all_optional())
+        # _payload 의 거래는 2026-03-20 이다. 오늘을 그 직후로 고정해 창 안에 둔다.
+        response = _post(_payload_with_all_optional(), today=date(2026, 3, 25))
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -189,6 +194,61 @@ class DefaultVisibilityTest(unittest.TestCase):
         body = _post(payload).json()
 
         self.assertIn("FINANCE_FIELD_ESTIMATED:savebox_balance", body["warnings"])
+
+
+class SpendingFromTransactionsTest(unittest.TestCase):
+    """월 지출이 recentTransactions 에서 오고, 불확실하면 그렇다고 드러난다."""
+
+    def test_창_안의_거래가_있으면_월_지출이_거래_합이다(self) -> None:
+        from domain.xai_purchase.schemas import PurchaseXaiEvaluationRequest
+        from domain.xai_purchase.service import _resolve_finance
+
+        payload = _payload_with_all_optional()
+        payload["recentTransactions"] = [
+            {"transactionDate": "20260320", "transactionTime": "101010",
+             "merchantName": "a", "categoryName": "x", "transactionAmount": 120_000},
+            {"transactionDate": "20260318", "transactionTime": "101010",
+             "merchantName": "b", "categoryName": "x", "transactionAmount": 80_000},
+        ]
+        request = PurchaseXaiEvaluationRequest.model_validate(payload)
+
+        profile, spending = _resolve_finance(request, as_of=date(2026, 3, 25))
+
+        self.assertEqual(profile.values["monthly_spending_30d"], 200_000.0)
+        self.assertEqual(profile.origins["monthly_spending_30d"], "upstream")
+        self.assertEqual(spending.transaction_count, 2)
+
+    def test_거래가_창_밖이면_모름이고_기본값과_경고로_드러난다(self) -> None:
+        body = _post(_payload_with_all_optional()).json()  # 오늘=2030 -> 창 밖
+
+        self.assertIn("SPENDING_UNKNOWN:no_spending_in_window", body["warnings"])
+        self.assertIn("FINANCE_FIELD_DEFAULTED:monthly_spending_30d", body["warnings"])
+        evidence = {e["field"]: e for e in body["supportingEvidence"]}
+        self.assertTrue(evidence["monthly_spending_30d"]["isDefault"])
+        self.assertEqual(evidence["monthly_spending_30d"]["value"], "800000.0")
+
+    def test_거래가_아예_없으면_이유가_다르다(self) -> None:
+        payload = _payload_with_all_optional()
+        payload["recentTransactions"] = []
+
+        body = _post(payload, today=date(2026, 3, 25)).json()
+
+        self.assertIn("SPENDING_UNKNOWN:no_transactions", body["warnings"])
+
+    def test_상한에_걸려_잘렸으면_추정값으로_표시한다(self) -> None:
+        payload = _payload_with_all_optional()
+        # 50건이 전부 최근 5일 안 -> 그 앞 25일이 보이지 않는다.
+        payload["recentTransactions"] = [
+            {"transactionDate": f"2026032{1 + i % 5}", "transactionTime": "101010",
+             "merchantName": "m", "categoryName": "x", "transactionAmount": 10_000}
+            for i in range(50)
+        ]
+
+        body = _post(payload, today=date(2026, 3, 25)).json()
+
+        self.assertIn("SPENDING_TRUNCATED", body["warnings"])
+        self.assertIn("FINANCE_FIELD_ESTIMATED:monthly_spending_30d", body["warnings"])
+        self.assertNotIn("SPENDING_UNKNOWN:no_transactions", body["warnings"])
 
 
 class BehaviorPreservedTest(unittest.TestCase):

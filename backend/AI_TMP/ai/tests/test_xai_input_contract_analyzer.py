@@ -67,6 +67,7 @@ class AnalyzerUsesContractTest(unittest.TestCase):
             "savebox_balance": 1_800_000,
             "available_fixed_expense": 300_000,
             "available_fixed_income": 2_500_000,
+            "monthly_spending_30d": 1_100_000,
         }
 
         payload = _analyzer(finance_profile=profile).analyze_crawl_result(_crawl())
@@ -107,6 +108,53 @@ class AnalyzerUsesContractTest(unittest.TestCase):
         별칭 처리가 사라진 뒤에는 불일치가 조용히 넘어가지 않고 드러나야 한다."""
         with self.assertRaises(InputContractViolation):
             _analyzer(finance_profile={"currentBalance": 300_000})
+
+
+class MonthlySpendingIsNotProductHistoryTest(unittest.TestCase):
+    """월 지출이 크롤링한 상품 가격 이력과 무관함을 고정한다.
+
+    예전에는 `상품 평균가 x 건수`로 계산해서, 같은 상품을 보는 모든 사용자가 같은
+    월 지출을 갖고 사용자의 실제 소비는 반영되지 않았다.
+    """
+
+    @staticmethod
+    def _scores(monthly: int, window_stats: dict | None) -> dict[str, float]:
+        analyzer = _analyzer(
+            finance_profile={
+                "current_balance": 5_000_000,
+                "emergency_fund_balance": 1_000_000,
+                "expected_card_payment_amount": 100_000,
+                "days_until_card_due": 10,
+                "monthly_spending_30d": monthly,
+            }
+        )
+        features = {"price_int": 1_000_000, "missing_fields": []}
+        return analyzer._build_feature_scores(features, window_stats=window_stats)
+
+    def test_크롤링_이력이_달라도_월_지출_기반_피처는_같다(self) -> None:
+        cheap_history = {"30d": {"avg_price": 10_000, "count": 3}}
+        pricey_history = {"30d": {"avg_price": 900_000, "count": 30}}
+
+        a = self._scores(1_000_000, cheap_history)
+        b = self._scores(1_000_000, pricey_history)
+
+        self.assertEqual(
+            a["product_price_vs_monthly_spending"],
+            b["product_price_vs_monthly_spending"],
+        )
+        self.assertEqual(a["emergency_fund_balance"], b["emergency_fund_balance"])
+
+    def test_사용자의_월_지출이_달라지면_피처가_달라진다(self) -> None:
+        low = self._scores(500_000, None)
+        high = self._scores(2_000_000, None)
+
+        # 같은 가격이라도 월 지출이 작을수록 부담이 크다.
+        self.assertGreater(
+            low["product_price_vs_monthly_spending"],
+            high["product_price_vs_monthly_spending"],
+        )
+        self.assertAlmostEqual(low["product_price_vs_monthly_spending"], 2.0)
+        self.assertAlmostEqual(high["product_price_vs_monthly_spending"], 0.5)
 
 
 class SingleSourceOfTruthTest(unittest.TestCase):

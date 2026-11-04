@@ -20,81 +20,8 @@ from ai.finance_engine.allowlist import (  # noqa: E402
     training_feature_names,
 )
 from ai.finance_engine.artifacts import save_finance_model_artifact  # noqa: E402
+from ai.finance_engine.synthetic import RULE_VERSION, generate_rows  # noqa: E402
 from ai.finance_engine.train_lgbm import train_finance_model_lgbm  # noqa: E402
-
-
-def _generate_mock_rows(*, row_count: int, seed: int) -> list[dict[str, Any]]:
-    import numpy as np
-
-    rng = np.random.default_rng(seed)
-    rows: list[dict[str, Any]] = []
-    for _ in range(max(row_count, 1)):
-        monthly_spending_30d_estimate = float(rng.uniform(700_000, 3_800_000))
-        current_balance = float(rng.uniform(100_000, 4_500_000))
-        emergency_fund_balance = float(rng.uniform(0, 4_000_000))
-        expected_card_payment_amount = float(rng.uniform(0, 1_500_000))
-        days_until_card_due = float(int(rng.integers(1, 31)))
-        savebox_balance = float(
-            max(
-                0.0,
-                emergency_fund_balance * float(rng.uniform(0.5, 1.6)),
-            )
-        )
-        available_fixed_expense = float(
-            monthly_spending_30d_estimate * float(rng.uniform(0.25, 0.8))
-        )
-        available_fixed_income = float(
-            monthly_spending_30d_estimate * float(rng.uniform(0.55, 1.6))
-        )
-        product_price = float(rng.uniform(20_000, 950_000))
-        product_price_vs_monthly_spending = (
-            product_price / max(monthly_spending_30d_estimate, 1.0)
-        )
-        projected_balance_after_purchase = savebox_balance - product_price
-        product_price_vs_emergency_fund = (
-            product_price / max(emergency_fund_balance, 1.0)
-        )
-
-        risk_score = 0.0
-        if product_price_vs_monthly_spending > 0.30:
-            risk_score += 1.0
-        if projected_balance_after_purchase < (monthly_spending_30d_estimate * 0.12):
-            risk_score += 1.0
-        if emergency_fund_balance < (monthly_spending_30d_estimate * 0.45):
-            risk_score += 1.0
-        if available_fixed_income < available_fixed_expense:
-            risk_score += 1.0
-        if (
-            days_until_card_due <= 7
-            and expected_card_payment_amount > (current_balance * 0.35)
-        ):
-            risk_score += 1.0
-
-        if risk_score >= 3.0:
-            finance_risk_bucket = "high"
-        elif risk_score >= 1.5:
-            finance_risk_bucket = "medium"
-        else:
-            finance_risk_bucket = "low"
-
-        rows.append(
-            {
-                "current_balance": current_balance,
-                "emergency_fund_balance": emergency_fund_balance,
-                "expected_card_payment_amount": expected_card_payment_amount,
-                "days_until_card_due": days_until_card_due,
-                "savebox_balance": savebox_balance,
-                "available_fixed_expense": available_fixed_expense,
-                "available_fixed_income": available_fixed_income,
-                "monthly_spending_30d_estimate": monthly_spending_30d_estimate,
-                "product_price": product_price,
-                "product_price_vs_monthly_spending": product_price_vs_monthly_spending,
-                "projected_balance_after_purchase": projected_balance_after_purchase,
-                "product_price_vs_emergency_fund": product_price_vs_emergency_fund,
-                TARGET_NAME: finance_risk_bucket,
-            }
-        )
-    return rows
 
 
 def _train_test_split(
@@ -132,7 +59,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    all_rows = _generate_mock_rows(row_count=args.rows, seed=args.seed)
+    all_rows = generate_rows(row_count=args.rows, seed=args.seed)
     train_rows, test_rows = _train_test_split(
         all_rows,
         test_ratio=args.test_ratio,
@@ -145,7 +72,11 @@ def main() -> None:
         "test_row_count": len(test_rows),
         "total_row_count": len(all_rows),
         "class_labels": list(CLASS_LABELS),
-        "generated_from": "mock_finance_rows_v1",
+        "generated_from": "mock_finance_rows_v2",
+        # 이 라벨은 손으로 쓴 규칙이 붙인 것이다. accuracy_test 는 '정확도'가 아니라
+        # 규칙을 얼마나 흉내 냈는지를 뜻한다.
+        "label_source": "synthetic_rule",
+        "label_rule_version": RULE_VERSION,
     }
     if test_rows:
         from sklearn.metrics import accuracy_score

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import os
 from pathlib import Path
 import re
@@ -22,6 +22,11 @@ from ai.xai.input_contract import (
     resolve_finance_profile,
 )
 from ai.xai.shap_engine import ShapContributionEngine
+from ai.xai.spending import (
+    RecentTransaction,
+    SpendingEstimate,
+    estimate_monthly_spending,
+)
 from domain.xai_purchase.audit_store import JsonlXaiAuditLogStore
 from domain.xai_purchase.schemas import (
     ConfidenceSection,
@@ -280,16 +285,45 @@ def _provenance_value_to_int(value_obj: Any | None, default: int = 0) -> int:
         return int(default)
 
 
-def _resolve_request_finance_profile(
+def _utc_today() -> date:
+    """월 지출 창의 기준일. 테스트가 고정할 수 있도록 함수로 분리했다."""
+    return datetime.now(timezone.utc).date()
+
+
+def _estimate_request_spending(
     request: PurchaseXaiEvaluationRequest,
-) -> ResolvedFinanceProfile:
+    *,
+    as_of: date | None = None,
+) -> SpendingEstimate:
+    """recentTransactions 에서 최근 30일 지출을 계산한다.
+
+    예전에는 크롤링한 핫딜의 평균가 x 건수로 월 지출을 대신했다.
+    """
+    transactions = [
+        RecentTransaction(
+            transaction_date=transaction.transaction_date,
+            amount=transaction.transaction_amount,
+        )
+        for transaction in request.recent_transactions
+    ]
+    return estimate_monthly_spending(transactions, as_of=as_of or _utc_today())
+
+
+def _resolve_finance(
+    request: PurchaseXaiEvaluationRequest,
+    *,
+    as_of: date | None = None,
+) -> tuple[ResolvedFinanceProfile, SpendingEstimate]:
     """요청의 재무 프로필을 입력 계약에 통과시킨다.
 
     필수 필드가 없거나 숫자가 아니면 InputContractViolation 이 발생한다.
     예전에는 이 자리에서 0 이나 기본값이 조용히 들어갔다.
 
     전송 스키마의 필드명 -> 내부 이름 매핑은 계약의 FieldSpec 이름과 pydantic
-    속성명이 같다는 규칙으로 파생하므로 별도 매핑 표를 두지 않는다.
+    속성명이 같다는 규칙으로 파생하므로 별도 매핑 표를 두지 않는다. 월 지출은
+    Spring 이 숫자로 보내지 않으므로 거래 목록에서 계산해 끼워 넣는다. 잘렸을
+    가능성이 있으면(하한값) 추정값으로, 알 수 없으면 비워서 기본값 + 기록으로
+    남긴다.
     """
     raw: dict[str, RawField | None] = {}
     for spec in FINANCE_PROFILE_FIELDS:
@@ -302,7 +336,31 @@ def _resolve_request_finance_profile(
             is_default=provenance.is_default,
             is_estimated=provenance.is_estimated,
         )
-    return resolve_finance_profile(raw, strict=True)
+
+    spending = _estimate_request_spending(request, as_of=as_of)
+    if spending.amount is not None:
+        raw["monthly_spending_30d"] = RawField(
+            value=spending.amount, is_estimated=spending.truncated
+        )
+    return resolve_finance_profile(raw, strict=True), spending
+
+
+def _resolve_request_finance_profile(
+    request: PurchaseXaiEvaluationRequest,
+    *,
+    as_of: date | None = None,
+) -> ResolvedFinanceProfile:
+    return _resolve_finance(request, as_of=as_of)[0]
+
+
+def _spending_warnings(spending: SpendingEstimate) -> list[str]:
+    warnings: list[str] = []
+    if spending.amount is None:
+        warnings.append(f"SPENDING_UNKNOWN:{spending.reason}")
+    if spending.truncated:
+        # Spring 은 최근 50건만 보낸다. 합계는 실제보다 작을 수 있는 하한값이다.
+        warnings.append("SPENDING_TRUNCATED")
+    return warnings
 
 
 def _evidence_origin(feature: str, profile: ResolvedFinanceProfile) -> str | None:
@@ -735,17 +793,17 @@ def evaluate_pr_purchase_xai(
         enabled=True,
     )
 
-    resolved_profile = _resolve_request_finance_profile(request)
+    resolved_profile, spending_estimate = _resolve_finance(request)
     finance_profile = resolved_profile.as_dict()
     current_balance = float(finance_profile["current_balance"])
     emergency_fund_balance = float(finance_profile["emergency_fund_balance"])
     expected_card_payment_amount = float(finance_profile["expected_card_payment_amount"])
     savebox_balance = float(finance_profile["savebox_balance"])
     seed_warnings.extend(_finance_origin_warnings(resolved_profile))
+    seed_warnings.extend(_spending_warnings(spending_estimate))
     finance_model_signal, finance_model_state = predict_finance_signal(
         current_price=current_price,
         finance_profile=finance_profile,
-        window_stats=window_stats,
         enabled=True,
     )
     purchase_url = (

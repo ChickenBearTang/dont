@@ -33,6 +33,7 @@ def _complete_raw() -> dict[str, RawField | None]:
         "savebox_balance": RawField(2_500_000),
         "available_fixed_expense": RawField(400_000),
         "available_fixed_income": RawField(3_000_000),
+        "monthly_spending_30d": RawField(900_000),
     }
 
 
@@ -331,6 +332,7 @@ class SingleSourceOfTruthTest(unittest.TestCase):
                 "savebox_balance",
                 "available_fixed_expense",
                 "available_fixed_income",
+                "monthly_spending_30d",
             },
         )
 

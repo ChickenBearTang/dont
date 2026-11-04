@@ -86,6 +86,10 @@ FINANCE_PROFILE_FIELDS: tuple[FieldSpec, ...] = (
     ),
     FieldSpec("available_fixed_expense", float, required=False, default=0.0),
     FieldSpec("available_fixed_income", float, required=False, default=1_000_000.0),
+    # 최근 30일 지출. Spring 이 숫자로 보내지 않고 recentTransactions 에서 우리가
+    # 계산한다 (xai/spending.py). 거래가 없으면 모르는 것이므로 기본값이 쓰이고
+    # origin=default 로 남는다.
+    FieldSpec("monthly_spending_30d", float, required=False, default=800_000.0),
 )
 
 _SPEC_BY_NAME: dict[str, FieldSpec] = {spec.name: spec for spec in FINANCE_PROFILE_FIELDS}

@@ -39,19 +39,44 @@ class FinanceEngineRuntimeInferenceTest(unittest.TestCase):
                 "expected_card_payment_amount": 120_000,
                 "days_until_card_due": 9,
                 "savebox_balance": 900_000,
-                "available_fixed_expense": 450_000,
-                "available_fixed_income": 520_000,
+                "monthly_spending_30d": 1_300_000,
             },
-            window_stats={"30d": {"avg_price": 70_000, "count": 18}},
         )
         self.assertEqual(set(payload.keys()), set(training_feature_names()))
-        self.assertGreater(payload["monthly_spending_30d_estimate"], 0)
+        self.assertEqual(payload["monthly_spending_30d"], 1_300_000.0)
+        self.assertEqual(payload["product_price"], 200_000.0)
+
+    def test_payload는_프로필에_없는_키를_기본값으로_메우지_않는다(self) -> None:
+        """예전에는 `.get(키, 0.0)` 과 소득 1_000_000 이 조용히 들어갔다."""
+        with self.assertRaises(ValueError) as ctx:
+            build_finance_inference_payload(
+                current_price=200_000,
+                finance_profile={"current_balance": 1_100_000},
+            )
+        self.assertIn("monthly_spending_30d", str(ctx.exception))
+
+    def test_payload에_파생_비율이_없다(self) -> None:
+        payload = build_finance_inference_payload(
+            current_price=200_000,
+            finance_profile={
+                "current_balance": 1, "emergency_fund_balance": 1,
+                "expected_card_payment_amount": 1, "days_until_card_due": 1,
+                "savebox_balance": 1, "monthly_spending_30d": 1,
+            },
+        )
+        for derived in (
+            "product_price_vs_monthly_spending",
+            "projected_balance_after_purchase",
+            "product_price_vs_emergency_fund",
+            "available_fixed_income",
+            "available_fixed_expense",
+        ):
+            self.assertNotIn(derived, payload)
 
     def test_predict_finance_signal_returns_disabled_when_flag_is_off(self) -> None:
         signal, state = predict_finance_signal(
             current_price=1000,
             finance_profile={},
-            window_stats=None,
             enabled=False,
         )
         self.assertEqual(signal, {})
@@ -71,10 +96,8 @@ class FinanceEngineRuntimeInferenceTest(unittest.TestCase):
                     "expected_card_payment_amount": 200_000,
                     "days_until_card_due": 7,
                     "savebox_balance": 700_000,
-                    "available_fixed_expense": 400_000,
-                    "available_fixed_income": 450_000,
+                    "monthly_spending_30d": 900_000,
                 },
-                window_stats={"30d": {"avg_price": 60_000, "count": 20}},
                 enabled=True,
                 explicit_model_path="C:/tmp/fake-finance-model",
             )

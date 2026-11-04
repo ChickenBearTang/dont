@@ -164,7 +164,7 @@ class ExplainabilityAnalyzer:
                 decision_outcome = self._decision_engine.decide(feature_scores)
                 price_int = features.get("price_int")
                 price_value = price_int if isinstance(price_int, int) else None
-                monthly_spending_30d = self._monthly_spending_30d(window_stats)
+                monthly_spending_30d = self._monthly_spending_30d()
                 emergency_fund_balance = float(
                     self._finance_profile["emergency_fund_balance"]
                 )
@@ -499,7 +499,7 @@ class ExplainabilityAnalyzer:
             1.0 / (1.0 + (price_int / 100_000.0)) if price_int > 0 else 0.0
         )
 
-        monthly_spending_30d = self._monthly_spending_30d(window_stats)
+        monthly_spending_30d = self._monthly_spending_30d()
         emergency_fund_balance = float(self._finance_profile["emergency_fund_balance"])
         savebox_balance = float(self._finance_profile["savebox_balance"])
         days_until_card_due = int(self._finance_profile["days_until_card_due"])
@@ -557,18 +557,14 @@ class ExplainabilityAnalyzer:
             "days_until_card_due": float(days_until_card_due) / 30.0,
         }
 
-    def _monthly_spending_30d(
-        self,
-        window_stats: dict[str, dict[str, float | int | None]] | None,
-    ) -> float:
-        if window_stats is None:
-            return 800_000.0
-        window_30d = window_stats.get("30d", {})
-        avg_price = window_30d.get("avg_price")
-        count = window_30d.get("count")
-        if isinstance(avg_price, (int, float)) and isinstance(count, int) and count > 0:
-            return max(float(avg_price) * min(count, 30), 1.0)
-        return 800_000.0
+    def _monthly_spending_30d(self) -> float:
+        """사용자의 최근 30일 지출. 입력 계약을 통과한 값을 그대로 쓴다.
+
+        예전에는 크롤링한 상품의 `평균가 x 건수`로 계산해서 사용자의 실제 소비와
+        무관했다. 이제 값의 출처(거래에서 계산 / 기본값)는 input_contract 리포트에
+        남는다.
+        """
+        return max(float(self._finance_profile["monthly_spending_30d"]), 1.0)
 
     def _build_error(self, *, exc: Exception, item_id: str) -> AnalysisError:
         if isinstance(exc, ValueError):
