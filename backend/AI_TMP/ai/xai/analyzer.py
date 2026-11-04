@@ -8,6 +8,7 @@ from ..models import CrawlResult
 from .audit_log import XAIAuditLogEntry, build_model_input_vector_hash
 from .decision_engine import DecisionEngine
 from .explanation_engine import ExplanationEngine
+from .input_contract import RawField, ResolvedFinanceProfile, resolve_finance_profile
 from .types import (
     AnalysisError,
     CrawlExplanation,
@@ -36,7 +37,7 @@ class ExplainabilityAnalyzer:
         dice_counterfactual_engine: Any | None = None,
         shap_contribution_engine: Any | None = None,
         summary_polisher: Any | None = None,
-        finance_profile: dict[str, float | int] | None = None,
+        finance_profile: dict[str, float | int] | ResolvedFinanceProfile | None = None,
         price_model_signal: dict[str, float] | None = None,
         finance_model_signal: dict[str, float | str] | None = None,
     ) -> None:
@@ -76,9 +77,30 @@ class ExplainabilityAnalyzer:
         )
         self._decision_engine = DecisionEngine()
         self._explanation_engine = ExplanationEngine()
-        self._finance_profile = finance_profile or {}
+        self._resolved_profile = self._resolve_profile(finance_profile)
+        # 계약을 통과해 모든 키가 채워진 상태다. 아래의 읽기는 .get(키, 기본값)이
+        # 아니라 직접 인덱싱이며, 기본값 표는 input_contract 에만 존재한다.
+        self._finance_profile = self._resolved_profile.as_dict()
         self._price_model_signal = price_model_signal or {}
         self._finance_model_signal = finance_model_signal or {}
+
+    @staticmethod
+    def _resolve_profile(
+        finance_profile: dict[str, float | int] | ResolvedFinanceProfile | None,
+    ) -> ResolvedFinanceProfile:
+        """생성자 인자를 계약을 통과한 프로필로 확정한다.
+
+        ResolvedFinanceProfile 은 출처 정보를 보존한 채 그대로 쓴다(운영 경로).
+        dict / None 은 기존 호출부(CLI, 진단 스크립트, 단위 테스트) 호환용이라
+        lenient 모드로 처리한다: 없는 필드는 예전과 같은 값으로 채우되 이제는
+        origin=default 로 기록된다. 깨진 값과 모르는 필드는 여전히 거부한다.
+        """
+        if isinstance(finance_profile, ResolvedFinanceProfile):
+            return finance_profile
+        raw = {
+            name: RawField(value) for name, value in (finance_profile or {}).items()
+        }
+        return resolve_finance_profile(raw, strict=False)
 
     def analyze_crawl_result(
         self,
@@ -143,23 +165,13 @@ class ExplainabilityAnalyzer:
                 price_int = features.get("price_int")
                 price_value = price_int if isinstance(price_int, int) else None
                 monthly_spending_30d = self._monthly_spending_30d(window_stats)
-                current_balance = float(
-                    self._finance_profile.get("current_balance", 1_500_000)
-                )
                 emergency_fund_balance = float(
-                    self._finance_profile.get("emergency_fund_balance", 600_000)
+                    self._finance_profile["emergency_fund_balance"]
                 )
-                savebox_balance = float(
-                    self._finance_profile.get(
-                        "savebox_balance",
-                        emergency_fund_balance,
-                    )
-                )
-                days_until_card_due = int(
-                    self._finance_profile.get("days_until_card_due", 14)
-                )
+                savebox_balance = float(self._finance_profile["savebox_balance"])
+                days_until_card_due = int(self._finance_profile["days_until_card_due"])
                 expected_card_payment_amount = float(
-                    self._finance_profile.get("expected_card_payment_amount", 200_000)
+                    self._finance_profile["expected_card_payment_amount"]
                 )
 
                 counterfactuals: list[dict[str, Any]] = []
@@ -302,25 +314,19 @@ class ExplainabilityAnalyzer:
             "dice": dice_engine_state,
         }
         payload["finance_profile"] = {
-            "current_balance": float(
-                self._finance_profile.get("current_balance", 1_500_000)
-            ),
+            "current_balance": float(self._finance_profile["current_balance"]),
             "emergency_fund_balance": float(
-                self._finance_profile.get("emergency_fund_balance", 600_000)
+                self._finance_profile["emergency_fund_balance"]
             ),
-            "savebox_balance": float(
-                self._finance_profile.get(
-                    "savebox_balance",
-                    self._finance_profile.get("emergency_fund_balance", 600_000),
-                )
-            ),
+            "savebox_balance": float(self._finance_profile["savebox_balance"]),
             "expected_card_payment_amount": float(
-                self._finance_profile.get("expected_card_payment_amount", 200_000)
+                self._finance_profile["expected_card_payment_amount"]
             ),
-            "days_until_card_due": int(
-                self._finance_profile.get("days_until_card_due", 14)
-            ),
+            "days_until_card_due": int(self._finance_profile["days_until_card_due"]),
         }
+        # 위 값이 실제 입력인지 기본값인지. default_fallback_rate 는 운영에서
+        # 필수 필드 기준 0 이어야 하는 지표다.
+        payload["input_contract"] = self._resolved_profile.to_report()
         return payload
 
     def _normalize_counterfactual_messages(
@@ -494,14 +500,9 @@ class ExplainabilityAnalyzer:
         )
 
         monthly_spending_30d = self._monthly_spending_30d(window_stats)
-        current_balance = float(self._finance_profile.get("current_balance", 1_500_000))
-        emergency_fund_balance = float(
-            self._finance_profile.get("emergency_fund_balance", 600_000)
-        )
-        savebox_balance = float(
-            self._finance_profile.get("savebox_balance", emergency_fund_balance)
-        )
-        days_until_card_due = int(self._finance_profile.get("days_until_card_due", 14))
+        emergency_fund_balance = float(self._finance_profile["emergency_fund_balance"])
+        savebox_balance = float(self._finance_profile["savebox_balance"])
+        days_until_card_due = int(self._finance_profile["days_until_card_due"])
 
         avg_price_30d = ((window_stats or {}).get("30d", {}) or {}).get("avg_price")
         relative_price_score = 0.0

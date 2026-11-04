@@ -14,6 +14,13 @@ from ai.price_engine.inference import predict_price_signal
 from ai.xai.analyzer import ExplainabilityAnalyzer
 from ai.xai.counterfactuals import CounterfactualEngine
 from ai.xai.dice_engine import DiceCounterfactualEngine
+from ai.xai.input_contract import (
+    FINANCE_PROFILE_FIELDS,
+    Origin,
+    RawField,
+    ResolvedFinanceProfile,
+    resolve_finance_profile,
+)
 from ai.xai.shap_engine import ShapContributionEngine
 from domain.xai_purchase.audit_store import JsonlXaiAuditLogStore
 from domain.xai_purchase.schemas import (
@@ -54,6 +61,18 @@ _UNIT_PRICE_HINT_PATTERN = re.compile(
 )
 _QUANTITY_TOKEN_PATTERN = re.compile(r"(\d{1,5})\s*(개|입|ea|pcs)", re.IGNORECASE)
 _AUDIT_STORE = JsonlXaiAuditLogStore()
+
+# 입력 계약의 출처 정보가 신뢰도(dataCompleteness)에 미치는 감점.
+_DEFAULTED_FIELD_PENALTY = 0.05
+_ESTIMATED_FIELD_PENALTY = 0.02
+
+# analyzer 가 내놓는 근거(feature) 이름 -> 그 값이 유래한 재무 프로필 필드.
+# 근거에 isDefault / isEstimated 를 정직하게 표시하기 위한 매핑이다.
+_FEATURE_TO_PROFILE_FIELD = {
+    "emergency_fund_balance": "emergency_fund_balance",
+    "projected_balance_after_purchase": "savebox_balance",
+    "days_until_card_due": "days_until_card_due",
+}
 
 
 def _env_flag(name: str, default: bool) -> bool:
@@ -261,6 +280,77 @@ def _provenance_value_to_int(value_obj: Any | None, default: int = 0) -> int:
         return int(default)
 
 
+def _resolve_request_finance_profile(
+    request: PurchaseXaiEvaluationRequest,
+) -> ResolvedFinanceProfile:
+    """요청의 재무 프로필을 입력 계약에 통과시킨다.
+
+    필수 필드가 없거나 숫자가 아니면 InputContractViolation 이 발생한다.
+    예전에는 이 자리에서 0 이나 기본값이 조용히 들어갔다.
+
+    전송 스키마의 필드명 -> 내부 이름 매핑은 계약의 FieldSpec 이름과 pydantic
+    속성명이 같다는 규칙으로 파생하므로 별도 매핑 표를 두지 않는다.
+    """
+    raw: dict[str, RawField | None] = {}
+    for spec in FINANCE_PROFILE_FIELDS:
+        provenance = getattr(request.finance_profile, spec.name, None)
+        if provenance is None:
+            raw[spec.name] = None
+            continue
+        raw[spec.name] = RawField(
+            value=provenance.value,
+            is_default=provenance.is_default,
+            is_estimated=provenance.is_estimated,
+        )
+    return resolve_finance_profile(raw, strict=True)
+
+
+def _evidence_origin(feature: str, profile: ResolvedFinanceProfile) -> str | None:
+    """근거(feature) 하나가 유래한 재무 필드의 출처. 재무 필드가 아니면 None."""
+    field_name = _FEATURE_TO_PROFILE_FIELD.get(feature)
+    if field_name is None:
+        return None
+    return profile.origins.get(field_name)
+
+
+def _unmapped_origin_evidence(
+    profile: ResolvedFinanceProfile,
+    finance_profile: dict[str, float | int],
+) -> list[SupportingEvidence]:
+    """기본값/추정값인데 어느 근거(feature)에도 연결되지 않은 필드를 근거로 노출한다.
+
+    고정 수입/지출처럼 모델 입력으로만 쓰이는 필드는 근거 목록에 나타나지 않아,
+    기본값이 판단에 들어갔다는 사실이 응답에서 보이지 않았다.
+    """
+    mapped = set(_FEATURE_TO_PROFILE_FIELD.values())
+    evidence: list[SupportingEvidence] = []
+    for spec in FINANCE_PROFILE_FIELDS:
+        origin = profile.origins[spec.name]
+        if origin == Origin.UPSTREAM or spec.name in mapped:
+            continue
+        evidence.append(
+            SupportingEvidence(
+                field=spec.name,
+                value=str(finance_profile[spec.name]),
+                source="fastapi.input_contract",
+                snapshotId=None,
+                isDefault=origin == Origin.DEFAULT,
+                isEstimated=origin == Origin.ESTIMATED,
+                estimationMethod=None,
+            )
+        )
+    return evidence
+
+
+def _finance_origin_warnings(profile: ResolvedFinanceProfile) -> list[str]:
+    """기본값/추정값으로 채워진 필드를 경고 코드로 드러낸다."""
+    warnings = [f"FINANCE_FIELD_DEFAULTED:{name}" for name in profile.defaulted_fields]
+    warnings.extend(
+        f"FINANCE_FIELD_ESTIMATED:{name}" for name in profile.estimated_fields
+    )
+    return warnings
+
+
 def _read_window_stats(
     price_value: int | None,
     item_name: str | None,
@@ -397,6 +487,11 @@ def _data_completeness(warnings: list[str]) -> float:
             "NO_PRICE_HISTORY",
         }:
             penalties += 0.2
+        elif warning.startswith("FINANCE_FIELD_DEFAULTED:"):
+            # 기본값으로 채운 입력은 그만큼 사용자 실제 상태를 모른다는 뜻이다.
+            penalties += _DEFAULTED_FIELD_PENALTY
+        elif warning.startswith("FINANCE_FIELD_ESTIMATED:"):
+            penalties += _ESTIMATED_FIELD_PENALTY
         elif warning.endswith("UNAVAILABLE") or warning.endswith("FAILED"):
             penalties += 0.1
     return max(0.0, min(1.0, 1.0 - penalties))
@@ -640,40 +735,13 @@ def evaluate_pr_purchase_xai(
         enabled=True,
     )
 
-    current_balance = _provenance_value_to_float(
-        request.finance_profile.current_balance
-    )
-    emergency_fund_balance = _provenance_value_to_float(
-        request.finance_profile.emergency_fund_balance
-    )
-    expected_card_payment_amount = _provenance_value_to_float(
-        request.finance_profile.expected_card_payment_amount
-    )
-    days_until_card_due = _provenance_value_to_int(
-        request.finance_profile.days_until_card_due
-    )
-    savebox_balance = _provenance_value_to_float(
-        request.finance_profile.savebox_balance,
-        emergency_fund_balance,
-    )
-    available_fixed_expense = _provenance_value_to_float(
-        request.finance_profile.available_fixed_expense,
-        0.0,
-    )
-    available_fixed_income = _provenance_value_to_float(
-        request.finance_profile.available_fixed_income,
-        1_000_000.0,
-    )
-
-    finance_profile = {
-        "current_balance": current_balance,
-        "emergency_fund_balance": emergency_fund_balance,
-        "expected_card_payment_amount": expected_card_payment_amount,
-        "days_until_card_due": days_until_card_due,
-        "savebox_balance": savebox_balance,
-        "available_fixed_expense": available_fixed_expense,
-        "available_fixed_income": available_fixed_income,
-    }
+    resolved_profile = _resolve_request_finance_profile(request)
+    finance_profile = resolved_profile.as_dict()
+    current_balance = float(finance_profile["current_balance"])
+    emergency_fund_balance = float(finance_profile["emergency_fund_balance"])
+    expected_card_payment_amount = float(finance_profile["expected_card_payment_amount"])
+    savebox_balance = float(finance_profile["savebox_balance"])
+    seed_warnings.extend(_finance_origin_warnings(resolved_profile))
     finance_model_signal, finance_model_state = predict_finance_signal(
         current_price=current_price,
         finance_profile=finance_profile,
@@ -697,7 +765,7 @@ def evaluate_pr_purchase_xai(
     shap_engine: Any = ShapContributionEngine() if shap_enabled else object()
 
     analyzer = ExplainabilityAnalyzer(
-        finance_profile=finance_profile,
+        finance_profile=resolved_profile,
         price_model_signal=price_model_signal,
         finance_model_signal=finance_model_signal,
         counterfactual_engine=fallback_counterfactual_engine,
@@ -814,13 +882,22 @@ def evaluate_pr_purchase_xai(
                 if str(evidence.get("feature", "")) == "current_price"
                 else str(item.get("data_snapshot_id", ""))
             ),
-            isDefault=False,
-            isEstimated=str(evidence.get("feature", "")) == "current_price"
-            and price_estimated,
+            isDefault=_evidence_origin(
+                str(evidence.get("feature", "")), resolved_profile
+            )
+            == Origin.DEFAULT,
+            isEstimated=(
+                str(evidence.get("feature", "")) == "current_price" and price_estimated
+            )
+            or _evidence_origin(str(evidence.get("feature", "")), resolved_profile)
+            == Origin.ESTIMATED,
             estimationMethod=("page_text_closest_numeric" if price_estimated else None),
         )
         for evidence in item.get("supporting_evidence", [])
     ]
+    supporting_evidence.extend(
+        _unmapped_origin_evidence(resolved_profile, finance_profile)
+    )
     counterfactuals = [
         Counterfactual(
             label=str(counterfactual.get("message", "대체 조건을 확인하세요.")),
