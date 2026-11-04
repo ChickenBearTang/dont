@@ -21,6 +21,7 @@ import json
 import os
 import sys
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -49,11 +50,27 @@ def _pv(value: object, **flags: bool) -> dict[str, object]:
     }
 
 
+def _recent(*days_ago_and_amount: tuple[int, int]) -> list[dict[str, object]]:
+    """오늘 기준 N일 전 거래. 월 지출이 거래에서 계산되는 것을 보여주기 위한 데모용."""
+    today = datetime.now(timezone.utc).date()
+    return [
+        {
+            "transactionDate": (today - timedelta(days=days)).strftime("%Y%m%d"),
+            "transactionTime": "120000",
+            "merchantName": "데모상점",
+            "categoryName": "식비",
+            "transactionAmount": amount,
+        }
+        for days, amount in days_ago_and_amount
+    ]
+
+
 def _request(
     *,
     item: str,
     price: int,
     finance: dict[str, object],
+    transactions: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     return {
         "requestId": f"demo-{item}",
@@ -69,7 +86,7 @@ def _request(
             "priceAmount": _pv(price),
         },
         "financeProfile": finance,
-        "recentTransactions": [],
+        "recentTransactions": transactions or [],
     }
 
 
@@ -86,6 +103,7 @@ SCENARIOS: dict[str, dict[str, object]] = {
             "availableFixedExpense": _pv(600_000),
             "availableFixedIncome": _pv(3_200_000),
         },
+        transactions=_recent((2, 150_000), (6, 90_000), (11, 210_000), (19, 130_000), (27, 120_000)),
     ),
     "tight": _request(
         item="맥북 프로",
@@ -99,8 +117,9 @@ SCENARIOS: dict[str, dict[str, object]] = {
             "availableFixedExpense": _pv(900_000),
             "availableFixedIncome": _pv(1_500_000),
         },
+        transactions=_recent((1, 400_000), (5, 350_000), (12, 300_000), (20, 250_000)),
     ),
-    # Spring 이 실제로 보내는 모양: 고정 수입/지출/세이브박스가 없다.
+    # Spring 이 실제로 보내는 모양: 고정 수입/지출/세이브박스가 없고, 거래가 창 밖이거나 없다.
     "spring_like": _request(
         item="모니터",
         price=350_000,
