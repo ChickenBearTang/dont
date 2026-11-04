@@ -8,6 +8,7 @@ from typing import Any
 from .allowlist import FEATURE_ALLOWLIST_PHASE1, SCHEMA_VERSION, training_feature_names
 from .artifacts import load_price_model_artifact
 from .schema_validator import validate_inference_payload, validate_schema_version
+from ..validation.price_artifact import assess_price_artifact
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -187,6 +188,19 @@ def predict_price_signal(
             "enabled": False,
             "backend": "fallback",
             "reason": "feature_schema_mismatch",
+            "artifact_path": model_path,
+        }
+
+    verdict = assess_price_artifact(metadata)
+    if not verdict.trusted and not _env_flag("AI_PRICE_MODEL_ALLOW_UNTRUSTED", default=False):
+        # 쓸 수 없는 모델의 숫자를 구매 판단에 섞지 않는다. 예전 아티팩트는 정답이 입력에
+        # 들어 있고 학습 행이 67개(상품 1개, 이력 피처 전부 비어 있음)여서, 어떤 가격을
+        # 넣어도 36,707원만 답했고 그 값이 '적정가보다 비싸다'로 판단에 반영됐다.
+        return {}, {
+            "enabled": False,
+            "backend": "fallback",
+            "reason": "price_model_untrusted",
+            "untrusted_reasons": list(verdict.reasons),
             "artifact_path": model_path,
         }
 
