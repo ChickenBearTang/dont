@@ -14,7 +14,7 @@
     "projected_balance_after_purchase",
     "product_price_vs_emergency_fund"
   ],
-  "trained_at": "2026-11-04T12:51:00.565931+00:00",
+  "trained_at": "2026-11-04T13:16:31.602292+00:00",
   "train_row_count": 9600,
   "test_row_count": 2400,
   "total_row_count": 12000,
@@ -23,9 +23,11 @@
     "medium",
     "high"
   ],
-  "generated_from": "mock_finance_rows_v3",
+  "generated_from": "synthetic_mixed_v3",
+  "training_population": "mixed",
+  "persona_params_version": "personas-assumed-v1",
   "label_source": "synthetic_rule",
   "label_rule_version": "finance-risk-rule-v2",
-  "accuracy_test": 0.9783333333333334,
-  "macro_f1_test": 0.9554068183381622
+  "accuracy_test": 0.9791666666666666,
+  "macro_f1_test": 0.9588519634309652
 }

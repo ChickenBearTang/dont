@@ -28,7 +28,13 @@ from ai.finance_engine.models import (  # noqa: E402
     predict_labels,
     train_finance_model,
 )
-from ai.finance_engine.synthetic import RULE_VERSION, generate_rows  # noqa: E402
+from ai.finance_engine.personas import (  # noqa: E402
+    DEFAULT_TRAIN_POPULATION,
+    PERSONA_PARAMS_VERSION,
+    TRAIN_POPULATIONS,
+    generate_training_rows,
+)
+from ai.finance_engine.synthetic import RULE_VERSION  # noqa: E402
 
 
 def _train_test_split(
@@ -62,6 +68,12 @@ def main() -> None:
         default=DEFAULT_FAMILY,
         help="Model family. Production default is lightgbm; catboost is the challenger.",
     )
+    parser.add_argument(
+        "--population",
+        choices=TRAIN_POPULATIONS,
+        default=DEFAULT_TRAIN_POPULATION,
+        help="Synthetic training distribution (default: mixed = uniform + 20s/30s personas)",
+    )
     parser.add_argument("--rows", type=int, default=12000, help="Mock training row count")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument(
@@ -72,7 +84,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    all_rows = generate_rows(row_count=args.rows, seed=args.seed)
+    all_rows = generate_training_rows(args.population, row_count=args.rows, seed=args.seed)
     train_rows, test_rows = _train_test_split(
         all_rows,
         test_ratio=args.test_ratio,
@@ -87,7 +99,9 @@ def main() -> None:
         "test_row_count": len(test_rows),
         "total_row_count": len(all_rows),
         "class_labels": list(CLASS_LABELS),
-        "generated_from": "mock_finance_rows_v3",
+        "generated_from": f"synthetic_{args.population}_v3",
+        "training_population": args.population,
+        "persona_params_version": PERSONA_PARAMS_VERSION,
         # 이 라벨은 손으로 쓴 규칙이 붙인 것이다. accuracy_test 는 '정확도'가 아니라
         # 규칙을 얼마나 흉내 냈는지를 뜻한다.
         "label_source": "synthetic_rule",

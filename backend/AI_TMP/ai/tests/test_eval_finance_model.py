@@ -7,10 +7,14 @@ from __future__ import annotations
 
 import unittest
 
+from ..finance_engine.personas import PERSONA_NAMES
 from ..scripts.eval_finance_model import (
+    ALL_SEGMENT,
     FEATURE_SETS,
     evaluate,
+    evaluate_by_persona,
     summarize,
+    summarize_by_persona,
 )
 
 SMALL = {"train_rows": 800, "test_rows": 1500, "train_seeds": (1,), "test_seed": 99}
@@ -103,6 +107,40 @@ class EvaluateTest(unittest.TestCase):
 
         self.assertIn("규칙", text)
         self.assertIn("정확도가 아니", text)
+
+
+class EvaluateByPersonaTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.result = evaluate_by_persona(
+            train_rows=800, test_rows=2000, train_seeds=(1,), test_seed=99,
+            families=("lightgbm",), populations=("uniform", "mixed"),
+        )
+
+    def test_학습분포마다_전체와_유형별_점수를_낸다(self) -> None:
+        self.assertEqual(set(self.result["candidates"]), {"lightgbm/uniform", "lightgbm/mixed"})
+        for segments in self.result["candidates"].values():
+            self.assertEqual(set(segments), {ALL_SEGMENT, *PERSONA_NAMES})
+            for metrics in segments.values():
+                for key in ("macro_f1", "high_recall", "high_precision", "high_pr_auc"):
+                    self.assertGreaterEqual(metrics[key]["mean"], 0.0)
+                    self.assertLessEqual(metrics[key]["mean"], 1.0)
+
+    def test_유형별_high_비율이_보고된다(self) -> None:
+        share = self.result["config"]["segment_class_share"]
+
+        self.assertEqual(set(share), {ALL_SEGMENT, *PERSONA_NAMES})
+        self.assertGreater(share["사회초년생"]["high"], share["30대후반_가구"]["high"])
+
+    def test_테스트_시드가_학습_시드와_같으면_거부한다(self) -> None:
+        with self.assertRaises(ValueError):
+            evaluate_by_persona(train_rows=100, test_rows=100, train_seeds=(1,), test_seed=1)
+
+    def test_요약에_가정값과_규칙_흉내_경고가_들어_있다(self) -> None:
+        text = summarize_by_persona(self.result)
+
+        self.assertIn("검증되지 않음", text)
+        self.assertIn("규칙을 얼마나 흉내", text)
 
 
 if __name__ == "__main__":  # pragma: no cover

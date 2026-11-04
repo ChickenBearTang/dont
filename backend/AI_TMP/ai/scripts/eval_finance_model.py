@@ -45,6 +45,13 @@ from ai.finance_engine.models import (  # noqa: E402
     fit_classifier,
     predict_labels,
 )
+from ai.finance_engine.personas import (  # noqa: E402
+    PERSONA_NAMES,
+    PERSONA_PARAMS_VERSION,
+    TRAIN_POPULATIONS,
+    generate_persona_rows,
+    generate_training_rows,
+)
 from ai.finance_engine.synthetic import (  # noqa: E402
     RULE_VERSION,
     generate_rows,
@@ -183,6 +190,106 @@ def evaluate(
     }
 
 
+ALL_SEGMENT = "전체"
+
+
+def evaluate_by_persona(
+    *,
+    train_rows: int = 12_000,
+    test_rows: int = 60_000,
+    train_seeds: tuple[int, ...] = (1, 2, 3),
+    test_seed: int = 999,
+    families: tuple[str, ...] = ("lightgbm", "catboost"),
+    populations: tuple[str, ...] = TRAIN_POPULATIONS,
+) -> dict[str, Any]:
+    """20~30대 유형별 점수. 테스트는 항상 유형별 합성 분포에서 새로 만든다.
+
+    학습 분포(uniform/persona/mixed)와 테스트 분포가 다를 때 점수가 얼마나
+    떨어지는지(분포 이동)를 같이 본다. 전체 평균이 좋아도 특정 유형에서만
+    틀리는 모델을 걸러내는 것이 목적이다.
+    """
+    if test_seed in train_seeds:
+        raise ValueError("test_seed 는 학습 시드와 달라야 합니다")
+
+    columns = FEATURE_SETS["raw7_derived3"]
+    test = generate_persona_rows(row_count=test_rows, seed=test_seed)
+    y_test = [str(r[TARGET_NAME]) for r in test]
+    segment_index: dict[str, list[int]] = {
+        ALL_SEGMENT: list(range(len(test))),
+        **{name: [i for i, r in enumerate(test) if r["persona"] == name] for name in PERSONA_NAMES},
+    }
+    x_test = _frame(test, columns)
+
+    per_candidate: dict[str, dict[str, list[dict[str, float]]]] = {}
+    for family in families:
+        for population in populations:
+            key = f"{family}/{population}"
+            per_candidate[key] = {segment: [] for segment in segment_index}
+            for seed in train_seeds:
+                train = generate_training_rows(population, row_count=train_rows, seed=seed)
+                model = fit_classifier(
+                    family, _frame(train, columns), [str(r[TARGET_NAME]) for r in train], seed=seed
+                )
+                predicted = predict_labels(model, x_test)
+                high = class_probability(model, x_test, "high")
+                for segment, index in segment_index.items():
+                    per_candidate[key][segment].append(
+                        _score(
+                            [y_test[i] for i in index],
+                            [predicted[i] for i in index],
+                            [high[i] for i in index],
+                        )
+                    )
+
+    segment_class_share = {
+        segment: {
+            label: sum(1 for i in index if y_test[i] == label) / max(len(index), 1)
+            for label in CLASS_LABELS
+        }
+        for segment, index in segment_index.items()
+    }
+    return {
+        "config": {
+            "train_rows": train_rows,
+            "test_rows": test_rows,
+            "train_seeds": list(train_seeds),
+            "test_seed": test_seed,
+            "rule_version": RULE_VERSION,
+            "persona_params_version": PERSONA_PARAMS_VERSION,
+            "segment_class_share": segment_class_share,
+        },
+        "candidates": {
+            key: {segment: _aggregate(runs) for segment, runs in segments.items()}
+            for key, segments in per_candidate.items()
+        },
+    }
+
+
+def summarize_by_persona(result: dict[str, Any]) -> str:
+    cfg = result["config"]
+    segments = [ALL_SEGMENT, *PERSONA_NAMES]
+    lines = [
+        "20~30대 유형별 점수 (macro-F1 / high 재현율)",
+        f"  학습 {cfg['train_rows']:,}행 x 시드 {cfg['train_seeds']} / 유형별 새 테스트 {cfg['test_rows']:,}행 (시드 {cfg['test_seed']})",
+        f"  유형 분포 가정값 버전: {cfg['persona_params_version']}  (통계청 수치로 검증되지 않음)",
+        "  high 비율: "
+        + ", ".join(f"{s} {cfg['segment_class_share'][s]['high']:.1%}" for s in segments),
+        "",
+        f"  {'학습분포':<20}" + "".join(f"{s:>20}" for s in segments),
+    ]
+    for key, by_segment in result["candidates"].items():
+        cells = "".join(
+            f"{by_segment[s]['macro_f1']['mean']:>12.3f}/{by_segment[s]['high_recall']['mean']:.3f}" for s in segments
+        )
+        lines.append(f"  {key:<20}{cells}")
+    lines += [
+        "",
+        "주의: 유형 분포는 가정값이고 라벨은 규칙이 붙였다. 위 점수는 '규칙을 얼마나 흉내 냈나'이며",
+        "      실제 사용자에 대한 정확도가 아니다. 운영 모델을 바꾸는 근거로 쓰지 않는다.",
+    ]
+    return "\n".join(lines)
+
+
 def summarize(result: dict[str, Any]) -> str:
     cfg = result["config"]
     lines = [
@@ -224,7 +331,25 @@ def main() -> None:
     parser.add_argument("--train-seeds", type=int, nargs="+", default=[1, 2, 3])
     parser.add_argument("--test-seed", type=int, default=999)
     parser.add_argument("--json", action="store_true", help="결과를 JSON 으로 출력")
+    parser.add_argument(
+        "--by-persona",
+        action="store_true",
+        help="20~30대 유형별 점수와 학습 분포(균등/유형/혼합) 비교",
+    )
     args = parser.parse_args()
+
+    if args.by_persona:
+        persona_result = evaluate_by_persona(
+            train_rows=args.train_rows,
+            train_seeds=tuple(args.train_seeds),
+            test_seed=args.test_seed,
+        )
+        print(
+            json.dumps(persona_result, ensure_ascii=False, indent=2)
+            if args.json
+            else summarize_by_persona(persona_result)
+        )
+        return
 
     result = evaluate(
         train_rows=args.train_rows,
