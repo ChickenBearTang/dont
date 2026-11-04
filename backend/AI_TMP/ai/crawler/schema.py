@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from .price import PriceStatus
 
@@ -56,3 +57,7 @@ class NormalizedDeal:
     posted_at_field: FieldStatus
     posted_at_raw: str | None
     fetched_at: datetime
+    # 오염 검증에서 나온 이슈 코드 (validation.validate_deal). 비어 있으면 이상 없음.
+    issues: tuple[str, ...] = ()
+    # 상품 식별 결과 (identity.ProductResolver). resolver 를 주지 않으면 None.
+    identity: Any = None

@@ -1,0 +1,451 @@
+{
+ "_comment": "상품 식별 평가 세트(합성). 실제 핫딜 제목 스타일을 따라 손으로 만들었고 카탈로그도 같은 사람이 만들었다. 설계 성질(오병합 0)을 확인하는 용도이며 실전 정확도가 아니다. gold id 가 null 이면 '신뢰 식별이 나오면 안 되는' 제목이다.",
+ "rows": [
+  {
+   "kind": "easy",
+   "title": "[쿠팡] 로지텍 MX Master 3S 무선 마우스 (109,000원/무료배송)",
+   "id": "logitech:mx-master-3s"
+  },
+  {
+   "kind": "easy",
+   "title": "[G마켓] Logitech MX-Master-3S 마우스 그래파이트",
+   "id": "logitech:mx-master-3s"
+  },
+  {
+   "kind": "easy",
+   "title": "[11번가] 로지텍 엠엑스 마스터 3S 정품 (99,900원)",
+   "id": "logitech:mx-master-3s"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 MXMaster3S 블루투스 마우스",
+   "id": "logitech:mx-master-3s"
+  },
+  {
+   "kind": "easy",
+   "title": "[옥션] 로지텍코리아 MX Master 3S 무선 마우스 한글 정발",
+   "id": "logitech:mx-master-3s"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 mx master 3s 핫딜 109000원",
+   "id": "logitech:mx-master-3s"
+  },
+  {
+   "kind": "easy",
+   "title": "[쿠팡] 로지텍 MX Master 4 무선 마우스 (149,000원)",
+   "id": "logitech:mx-master-4"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 엠엑스 마스터 4 신제품 무료배송",
+   "id": "logitech:mx-master-4"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 MX Master 3 무선 마우스 리퍼",
+   "id": "logitech:mx-master-3"
+  },
+  {
+   "kind": "easy",
+   "title": "[옥션] Logitech MX Master 3 마우스 블랙",
+   "id": "logitech:mx-master-3"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 MX Master 2S 무선 마우스 (59,000원)",
+   "id": "logitech:mx-master-2s"
+  },
+  {
+   "kind": "easy",
+   "title": "[쿠팡] 로지텍 G304 라이트스피드 무선 게이밍 마우스 (29,900원)",
+   "id": "logitech:g304"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 G304 무선 마우스 정품",
+   "id": "logitech:g304"
+  },
+  {
+   "kind": "easy",
+   "title": "Logitech G304 Lightspeed 화이트",
+   "id": "logitech:g304"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 G305 무선 게이밍 마우스 (32,000원)",
+   "id": "logitech:g305"
+  },
+  {
+   "kind": "easy",
+   "title": "[G마켓] Logitech G305 라이트스피드 블랙",
+   "id": "logitech:g305"
+  },
+  {
+   "kind": "easy",
+   "title": "[11번가] 삼성전자 갤럭시 버즈2 프로 SM-R510 (129,000원)",
+   "id": "samsung:galaxy-buds2-pro"
+  },
+  {
+   "kind": "easy",
+   "title": "삼성 갤럭시 버즈2 프로 그라파이트 정품",
+   "id": "samsung:galaxy-buds2-pro"
+  },
+  {
+   "kind": "easy",
+   "title": "갤럭시 버즈 2 프로 화이트 (119,000원) 무료배송",
+   "id": "samsung:galaxy-buds2-pro"
+  },
+  {
+   "kind": "easy",
+   "title": "삼성 갤럭시 버즈2 라벤더 (59,000원)",
+   "id": "samsung:galaxy-buds2"
+  },
+  {
+   "kind": "easy",
+   "title": "[쿠팡] 갤럭시 버즈 2 블랙 정품",
+   "id": "samsung:galaxy-buds2"
+  },
+  {
+   "kind": "easy",
+   "title": "삼성전자 갤럭시 버즈3 프로 실버 (219,000원)",
+   "id": "samsung:galaxy-buds3-pro"
+  },
+  {
+   "kind": "easy",
+   "title": "삼성 갤럭시 버즈3 화이트 무료배송",
+   "id": "samsung:galaxy-buds3"
+  },
+  {
+   "kind": "easy",
+   "title": "[쿠팡] 애플 에어팟 프로 2 (USB-C) 정품 (249,000원)",
+   "id": "apple:airpods-pro-2"
+  },
+  {
+   "kind": "easy",
+   "title": "에어팟프로2 MagSafe 충전 케이스 포함 정품",
+   "id": "apple:airpods-pro-2"
+  },
+  {
+   "kind": "easy",
+   "title": "Apple AirPods Pro 2 정품 미개봉",
+   "id": "apple:airpods-pro-2"
+  },
+  {
+   "kind": "easy",
+   "title": "애플 에어팟 4 노이즈캔슬링 (199,000원)",
+   "id": "apple:airpods-4"
+  },
+  {
+   "kind": "easy",
+   "title": "[11번가] 에어팟4 정품 미개봉",
+   "id": "apple:airpods-4"
+  },
+  {
+   "kind": "easy",
+   "title": "애플 에어팟 3 MagSafe 충전 케이스 (139,000원)",
+   "id": "apple:airpods-3"
+  },
+  {
+   "kind": "easy",
+   "title": "[네이버] 소니 WH-1000XM5 블랙 (359,000원)",
+   "id": "sony:wh-1000xm5"
+  },
+  {
+   "kind": "easy",
+   "title": "소니 WH-1000XM4 헤드폰 무선 노이즈캔슬링 (249,000원)",
+   "id": "sony:wh-1000xm4"
+  },
+  {
+   "kind": "easy",
+   "title": "Sony WF-1000XM5 무선 이어폰 블랙",
+   "id": "sony:wf-1000xm5"
+  },
+  {
+   "kind": "easy",
+   "title": "소니 WF-1000XM4 이어폰 실버 (179,000원)",
+   "id": "sony:wf-1000xm4"
+  },
+  {
+   "kind": "easy",
+   "title": "레이저 DeathAdder V3 Pro 무선 마우스 (169,000원)",
+   "id": "razer:deathadder-v3-pro"
+  },
+  {
+   "kind": "easy",
+   "title": "Razer DeathAdder V3 Pro 화이트 정품",
+   "id": "razer:deathadder-v3-pro"
+  },
+  {
+   "kind": "easy",
+   "title": "레이저 데스애더 V3 게이밍 마우스 (79,000원)",
+   "id": "razer:deathadder-v3"
+  },
+  {
+   "kind": "easy",
+   "title": "Razer Viper V2 Pro 무선 마우스 블랙",
+   "id": "razer:viper-v2-pro"
+  },
+  {
+   "kind": "easy",
+   "title": "키크론 K8 무선 기계식 키보드 (99,000원)",
+   "id": "keychron:k8"
+  },
+  {
+   "kind": "easy",
+   "title": "Keychron K2 블루투스 키보드 갈축",
+   "id": "keychron:k2"
+  },
+  {
+   "kind": "easy",
+   "title": "MSI RTX 4090 슈프림 24GB (2,499,000원)",
+   "id": "nvidia:rtx-4090"
+  },
+  {
+   "kind": "easy",
+   "title": "ASUS RTX 4080 SUPER 16GB TUF 그래픽카드",
+   "id": "nvidia:rtx-4080-super"
+  },
+  {
+   "kind": "easy",
+   "title": "기가바이트 RTX 4080 16GB 이글 (1,350,000원)",
+   "id": "nvidia:rtx-4080"
+  },
+  {
+   "kind": "easy",
+   "title": "ASUS RTX 4070 Ti SUPER 16GB 듀얼 그래픽카드",
+   "id": "nvidia:rtx-4070-ti-super"
+  },
+  {
+   "kind": "easy",
+   "title": "MSI RTX 4070TI SUPER 벤투스 3X",
+   "id": "nvidia:rtx-4070-ti-super"
+  },
+  {
+   "kind": "easy",
+   "title": "MSI RTX 4070 SUPER 12GB 벤투스 2X (689,000원)",
+   "id": "nvidia:rtx-4070-super"
+  },
+  {
+   "kind": "easy",
+   "title": "ASUS 지포스 RTX 4070 SUPER DUAL OC 12GB",
+   "id": "nvidia:rtx-4070-super"
+  },
+  {
+   "kind": "easy",
+   "title": "기가바이트 RTX 4070 Ti 12GB 윈드포스 (899,000원)",
+   "id": "nvidia:rtx-4070-ti"
+  },
+  {
+   "kind": "easy",
+   "title": "MSI RTX 4070 12GB 벤투스 그래픽카드",
+   "id": "nvidia:rtx-4070"
+  },
+  {
+   "kind": "easy",
+   "title": "ASUS RTX 4060 Ti 8GB 듀얼 (499,000원)",
+   "id": "nvidia:rtx-4060-ti"
+  },
+  {
+   "kind": "easy",
+   "title": "기가바이트 RTX 4060 윈드포스 OC 8GB",
+   "id": "nvidia:rtx-4060"
+  },
+  {
+   "kind": "easy",
+   "title": "닌텐도 스위치 OLED 화이트 (369,000원)",
+   "id": "nintendo:switch-oled"
+  },
+  {
+   "kind": "easy",
+   "title": "닌텐도 스위치 라이트 터콰이즈 정발",
+   "id": "nintendo:switch-lite"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 MX Keys S 무선 키보드 (129,000원)",
+   "id": "logitech:mx-keys-s"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 MX Keys 무선 키보드 어드밴스드 일루미네이티드",
+   "id": "logitech:mx-keys"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 MX Anywhere 3S 무선 마우스 (69,000원)",
+   "id": "logitech:mx-anywhere-3s"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 G Pro X Superlight 무선 마우스 블랙",
+   "id": "logitech:g-pro-x-superlight"
+  },
+  {
+   "kind": "easy",
+   "title": "로지텍 G Pro X Superlight 2 무선 마우스 (169,000원)",
+   "id": "logitech:g-pro-x-superlight-2"
+  },
+  {
+   "kind": "easy",
+   "title": "갤럭시 버즈2 프로 3개 묶음 특가",
+   "id": "samsung:galaxy-buds2-pro"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 MX Keys Mini 키보드 무선",
+   "id": null,
+   "note": "카탈로그에 없는 변형 Mini"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 MX Master 3S for Mac 마우스",
+   "id": null,
+   "note": "별도 SKU(for Mac)"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 MX Master 3S for Business 마우스",
+   "id": null,
+   "note": "별도 SKU(for Business)"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 MX Master 마우스 신제품 입고",
+   "id": null,
+   "note": "버전 누락"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 MX Master 4S 마우스",
+   "id": null,
+   "note": "존재하지 않는 버전"
+  },
+  {
+   "kind": "adversarial",
+   "title": "삼성 MX Master 3S",
+   "id": null,
+   "note": "브랜드-모델 충돌"
+  },
+  {
+   "kind": "adversarial",
+   "title": "삼성 갤럭시 버즈2 프로 케이스",
+   "id": null,
+   "note": "액세서리"
+  },
+  {
+   "kind": "adversarial",
+   "title": "에어팟 프로 2 실리콘 케이스",
+   "id": null,
+   "note": "액세서리"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 MX Master 3S 전용 파우치",
+   "id": null,
+   "note": "액세서리"
+  },
+  {
+   "kind": "adversarial",
+   "title": "소니 WH-1000XM5 이어패드 교체용",
+   "id": null,
+   "note": "소모품"
+  },
+  {
+   "kind": "adversarial",
+   "title": "갤럭시 버즈2 프로 호환 이어팁",
+   "id": null,
+   "note": "액세서리"
+  },
+  {
+   "kind": "adversarial",
+   "title": "에어팟 프로 2 / 에어팟 4 세트",
+   "id": null,
+   "note": "묶음"
+  },
+  {
+   "kind": "adversarial",
+   "title": "RTX 3070 그래픽카드 중고",
+   "id": null,
+   "note": "카탈로그에 없는 세대가 RTX 4070 으로 오인되면 안 됨"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 G3040 마우스",
+   "id": null,
+   "note": "모델 번호 오타/쓰레기"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 G304 v2 마우스",
+   "id": null,
+   "note": "존재 불명 변형"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 M590 무선 마우스",
+   "id": null,
+   "note": "카탈로그에 없는 상품"
+  },
+  {
+   "kind": "adversarial",
+   "title": "소니 WH-1000XM6 헤드폰",
+   "id": null,
+   "note": "카탈로그에 없는 신모델이 XM5 로 오인되면 안 됨"
+  },
+  {
+   "kind": "adversarial",
+   "title": "오늘의 핫딜 모음",
+   "id": null,
+   "note": "상품 아님"
+  },
+  {
+   "kind": "adversarial",
+   "title": "[이벤트] 추첨 증정",
+   "id": null,
+   "note": "상품 아님"
+  },
+  {
+   "kind": "adversarial",
+   "title": "로지텍 마우스 할인 모음",
+   "id": null,
+   "note": "브랜드만"
+  },
+  {
+   "kind": "adversarial",
+   "title": "MSI MX Master 3S",
+   "id": null,
+   "note": "파트너 브랜드는 그래픽카드에만 허용"
+  },
+  {
+   "kind": "adversarial",
+   "title": "키크론 K8 Pro 무선 키보드",
+   "id": null,
+   "note": "K8 의 Pro 변형"
+  },
+  {
+   "kind": "adversarial",
+   "title": "레이저 DeathAdder V3 HyperSpeed",
+   "id": null,
+   "note": "다른 변형"
+  },
+  {
+   "kind": "adversarial",
+   "title": "닌텐도 스위치 2 본체",
+   "id": null,
+   "note": "후속 기종이 스위치로 오인되면 안 됨"
+  },
+  {
+   "kind": "recall_probe",
+   "title": "에어팟 프로 1세대 정품",
+   "id": "apple:airpods-pro",
+   "note": "'1세대' 는 변형어로 취급해 확정하지 않음"
+  },
+  {
+   "kind": "recall_probe",
+   "title": "로지텍 G304 Lightspeed Wireless Gaming Mouse",
+   "id": "logitech:g304",
+   "note": "영문 꼬리말(wireless gaming mouse)은 일부만 허용"
+  }
+ ]
+}

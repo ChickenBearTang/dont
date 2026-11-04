@@ -1,0 +1,750 @@
+{
+ "_comment": "초기 예시 카탈로그다. 작성자의 기억에 기반한 것이라 검수되지 않았다(verified=false). 실제 운영에서는 서버에서 수집·검수한 제품으로 채운다. 같은 line 아래 모델이 여러 개일 때 버전 토큰(3s, 4, super ...)이 없으면 어느 것인지 추측하지 않는다.",
+ "products": [
+  {
+   "id": "logitech:mx-master-3s",
+   "brand": "logitech",
+   "line": "MX Master",
+   "model": "MX Master 3S",
+   "category": "mouse",
+   "aliases": [
+    "엠엑스 마스터 3s",
+    "mx마스터3s"
+   ],
+   "verified": false
+  },
+  {
+   "id": "logitech:mx-master-3",
+   "brand": "logitech",
+   "line": "MX Master",
+   "model": "MX Master 3",
+   "category": "mouse",
+   "aliases": [
+    "엠엑스 마스터 3"
+   ],
+   "verified": false
+  },
+  {
+   "id": "logitech:mx-master-2s",
+   "brand": "logitech",
+   "line": "MX Master",
+   "model": "MX Master 2S",
+   "category": "mouse",
+   "aliases": [],
+   "verified": false
+  },
+  {
+   "id": "logitech:mx-master-4",
+   "brand": "logitech",
+   "line": "MX Master",
+   "model": "MX Master 4",
+   "category": "mouse",
+   "aliases": [
+    "엠엑스 마스터 4"
+   ],
+   "verified": false
+  },
+  {
+   "id": "logitech:mx-anywhere-3s",
+   "brand": "logitech",
+   "line": "MX Anywhere",
+   "model": "MX Anywhere 3S",
+   "category": "mouse",
+   "aliases": [],
+   "verified": false
+  },
+  {
+   "id": "logitech:mx-keys-s",
+   "brand": "logitech",
+   "line": "MX Keys",
+   "model": "MX Keys S",
+   "category": "keyboard",
+   "aliases": [],
+   "verified": false
+  },
+  {
+   "id": "logitech:mx-keys",
+   "brand": "logitech",
+   "line": "MX Keys",
+   "model": "MX Keys",
+   "category": "keyboard",
+   "aliases": [],
+   "verified": false
+  },
+  {
+   "id": "logitech:g304",
+   "brand": "logitech",
+   "line": "G30x",
+   "model": "G304",
+   "category": "mouse",
+   "aliases": [
+    "g304 lightspeed"
+   ],
+   "verified": false
+  },
+  {
+   "id": "logitech:g305",
+   "brand": "logitech",
+   "line": "G30x",
+   "model": "G305",
+   "category": "mouse",
+   "aliases": [
+    "g305 lightspeed"
+   ],
+   "verified": false
+  },
+  {
+   "id": "logitech:g-pro-x-superlight",
+   "brand": "logitech",
+   "line": "G Pro X Superlight",
+   "model": "G Pro X Superlight",
+   "category": "mouse",
+   "aliases": [
+    "gpx 슈퍼라이트"
+   ],
+   "verified": false
+  },
+  {
+   "id": "logitech:g-pro-x-superlight-2",
+   "brand": "logitech",
+   "line": "G Pro X Superlight",
+   "model": "G Pro X Superlight 2",
+   "category": "mouse",
+   "aliases": [
+    "gpx 슈퍼라이트 2"
+   ],
+   "verified": false
+  },
+  {
+   "id": "apple:airpods-pro-2",
+   "brand": "apple",
+   "line": "AirPods Pro",
+   "model": "AirPods Pro 2",
+   "category": "earbuds",
+   "aliases": [
+    "에어팟 프로 2",
+    "에어팟프로2",
+    "airpods pro 2세대"
+   ],
+   "verified": false
+  },
+  {
+   "id": "apple:airpods-pro",
+   "brand": "apple",
+   "line": "AirPods Pro",
+   "model": "AirPods Pro",
+   "category": "earbuds",
+   "aliases": [
+    "에어팟 프로",
+    "에어팟프로"
+   ],
+   "verified": false
+  },
+  {
+   "id": "apple:airpods-4",
+   "brand": "apple",
+   "line": "AirPods",
+   "model": "AirPods 4",
+   "category": "earbuds",
+   "aliases": [
+    "에어팟 4",
+    "에어팟4"
+   ],
+   "verified": false
+  },
+  {
+   "id": "apple:airpods-3",
+   "brand": "apple",
+   "line": "AirPods",
+   "model": "AirPods 3",
+   "category": "earbuds",
+   "aliases": [
+    "에어팟 3",
+    "에어팟3"
+   ],
+   "verified": false
+  },
+  {
+   "id": "samsung:galaxy-buds3-pro",
+   "brand": "samsung",
+   "line": "Galaxy Buds",
+   "model": "Galaxy Buds3 Pro",
+   "category": "earbuds",
+   "aliases": [
+    "갤럭시 버즈3 프로",
+    "갤럭시 버즈 3 프로"
+   ],
+   "verified": false
+  },
+  {
+   "id": "samsung:galaxy-buds3",
+   "brand": "samsung",
+   "line": "Galaxy Buds",
+   "model": "Galaxy Buds3",
+   "category": "earbuds",
+   "aliases": [
+    "갤럭시 버즈3",
+    "갤럭시 버즈 3"
+   ],
+   "verified": false
+  },
+  {
+   "id": "samsung:galaxy-buds2-pro",
+   "brand": "samsung",
+   "line": "Galaxy Buds",
+   "model": "Galaxy Buds2 Pro",
+   "category": "earbuds",
+   "aliases": [
+    "갤럭시 버즈2 프로",
+    "갤럭시 버즈 2 프로"
+   ],
+   "verified": false
+  },
+  {
+   "id": "samsung:galaxy-buds2",
+   "brand": "samsung",
+   "line": "Galaxy Buds",
+   "model": "Galaxy Buds2",
+   "category": "earbuds",
+   "aliases": [
+    "갤럭시 버즈2",
+    "갤럭시 버즈 2"
+   ],
+   "verified": false
+  },
+  {
+   "id": "sony:wh-1000xm5",
+   "brand": "sony",
+   "line": "WH-1000X",
+   "model": "WH-1000XM5",
+   "category": "headphones",
+   "aliases": [
+    "wh1000xm5"
+   ],
+   "verified": false
+  },
+  {
+   "id": "sony:wh-1000xm4",
+   "brand": "sony",
+   "line": "WH-1000X",
+   "model": "WH-1000XM4",
+   "category": "headphones",
+   "aliases": [
+    "wh1000xm4"
+   ],
+   "verified": false
+  },
+  {
+   "id": "sony:wf-1000xm5",
+   "brand": "sony",
+   "line": "WF-1000X",
+   "model": "WF-1000XM5",
+   "category": "earbuds",
+   "aliases": [],
+   "verified": false
+  },
+  {
+   "id": "sony:wf-1000xm4",
+   "brand": "sony",
+   "line": "WF-1000X",
+   "model": "WF-1000XM4",
+   "category": "earbuds",
+   "aliases": [],
+   "verified": false
+  },
+  {
+   "id": "razer:deathadder-v3-pro",
+   "brand": "razer",
+   "line": "DeathAdder V3",
+   "model": "DeathAdder V3 Pro",
+   "category": "mouse",
+   "aliases": [
+    "데스애더 v3 프로"
+   ],
+   "verified": false
+  },
+  {
+   "id": "razer:deathadder-v3",
+   "brand": "razer",
+   "line": "DeathAdder V3",
+   "model": "DeathAdder V3",
+   "category": "mouse",
+   "aliases": [
+    "데스애더 v3"
+   ],
+   "verified": false
+  },
+  {
+   "id": "razer:viper-v2-pro",
+   "brand": "razer",
+   "line": "Viper V2",
+   "model": "Viper V2 Pro",
+   "category": "mouse",
+   "aliases": [
+    "바이퍼 v2 프로"
+   ],
+   "verified": false
+  },
+  {
+   "id": "keychron:k8",
+   "brand": "keychron",
+   "line": "K",
+   "model": "Keychron K8",
+   "category": "keyboard",
+   "aliases": [
+    "키크론 k8"
+   ],
+   "verified": false
+  },
+  {
+   "id": "keychron:k2",
+   "brand": "keychron",
+   "line": "K",
+   "model": "Keychron K2",
+   "category": "keyboard",
+   "aliases": [
+    "키크론 k2"
+   ],
+   "verified": false
+  },
+  {
+   "id": "nvidia:rtx-4090",
+   "brand": "nvidia",
+   "line": "RTX 40",
+   "model": "RTX 4090",
+   "category": "gpu",
+   "aliases": [
+    "rtx4090"
+   ],
+   "verified": false,
+   "compatible_brands": [
+    "asus",
+    "msi",
+    "gigabyte"
+   ],
+   "benign_suffixes": [
+    "tuf",
+    "rog",
+    "strix",
+    "dual",
+    "ventus",
+    "gaming",
+    "suprim",
+    "windforce",
+    "eagle",
+    "aorus",
+    "trio",
+    "oc",
+    "white",
+    "black",
+    "2x",
+    "3x",
+    "x3",
+    "x2",
+    "x",
+    "vision",
+    "프로스트",
+    "벤투스",
+    "윈드포스",
+    "이글",
+    "듀얼",
+    "슈프림",
+    "트리오",
+    "스트릭스"
+   ]
+  },
+  {
+   "id": "nvidia:rtx-4080-super",
+   "brand": "nvidia",
+   "line": "RTX 40",
+   "model": "RTX 4080 SUPER",
+   "category": "gpu",
+   "aliases": [
+    "rtx4080s",
+    "4080 슈퍼"
+   ],
+   "verified": false,
+   "compatible_brands": [
+    "asus",
+    "msi",
+    "gigabyte"
+   ],
+   "benign_suffixes": [
+    "tuf",
+    "rog",
+    "strix",
+    "dual",
+    "ventus",
+    "gaming",
+    "suprim",
+    "windforce",
+    "eagle",
+    "aorus",
+    "trio",
+    "oc",
+    "white",
+    "black",
+    "2x",
+    "3x",
+    "x3",
+    "x2",
+    "x",
+    "vision",
+    "프로스트",
+    "벤투스",
+    "윈드포스",
+    "이글",
+    "듀얼",
+    "슈프림",
+    "트리오",
+    "스트릭스"
+   ]
+  },
+  {
+   "id": "nvidia:rtx-4080",
+   "brand": "nvidia",
+   "line": "RTX 40",
+   "model": "RTX 4080",
+   "category": "gpu",
+   "aliases": [],
+   "verified": false,
+   "compatible_brands": [
+    "asus",
+    "msi",
+    "gigabyte"
+   ],
+   "benign_suffixes": [
+    "tuf",
+    "rog",
+    "strix",
+    "dual",
+    "ventus",
+    "gaming",
+    "suprim",
+    "windforce",
+    "eagle",
+    "aorus",
+    "trio",
+    "oc",
+    "white",
+    "black",
+    "2x",
+    "3x",
+    "x3",
+    "x2",
+    "x",
+    "vision",
+    "프로스트",
+    "벤투스",
+    "윈드포스",
+    "이글",
+    "듀얼",
+    "슈프림",
+    "트리오",
+    "스트릭스"
+   ]
+  },
+  {
+   "id": "nvidia:rtx-4070-ti-super",
+   "brand": "nvidia",
+   "line": "RTX 40",
+   "model": "RTX 4070 Ti SUPER",
+   "category": "gpu",
+   "aliases": [
+    "rtx4070tis",
+    "4070 ti 슈퍼"
+   ],
+   "verified": false,
+   "compatible_brands": [
+    "asus",
+    "msi",
+    "gigabyte"
+   ],
+   "benign_suffixes": [
+    "tuf",
+    "rog",
+    "strix",
+    "dual",
+    "ventus",
+    "gaming",
+    "suprim",
+    "windforce",
+    "eagle",
+    "aorus",
+    "trio",
+    "oc",
+    "white",
+    "black",
+    "2x",
+    "3x",
+    "x3",
+    "x2",
+    "x",
+    "vision",
+    "프로스트",
+    "벤투스",
+    "윈드포스",
+    "이글",
+    "듀얼",
+    "슈프림",
+    "트리오",
+    "스트릭스"
+   ]
+  },
+  {
+   "id": "nvidia:rtx-4070-super",
+   "brand": "nvidia",
+   "line": "RTX 40",
+   "model": "RTX 4070 SUPER",
+   "category": "gpu",
+   "aliases": [
+    "rtx4070s",
+    "4070 슈퍼"
+   ],
+   "verified": false,
+   "compatible_brands": [
+    "asus",
+    "msi",
+    "gigabyte"
+   ],
+   "benign_suffixes": [
+    "tuf",
+    "rog",
+    "strix",
+    "dual",
+    "ventus",
+    "gaming",
+    "suprim",
+    "windforce",
+    "eagle",
+    "aorus",
+    "trio",
+    "oc",
+    "white",
+    "black",
+    "2x",
+    "3x",
+    "x3",
+    "x2",
+    "x",
+    "vision",
+    "프로스트",
+    "벤투스",
+    "윈드포스",
+    "이글",
+    "듀얼",
+    "슈프림",
+    "트리오",
+    "스트릭스"
+   ]
+  },
+  {
+   "id": "nvidia:rtx-4070-ti",
+   "brand": "nvidia",
+   "line": "RTX 40",
+   "model": "RTX 4070 Ti",
+   "category": "gpu",
+   "aliases": [
+    "rtx4070ti",
+    "4070 티아이"
+   ],
+   "verified": false,
+   "compatible_brands": [
+    "asus",
+    "msi",
+    "gigabyte"
+   ],
+   "benign_suffixes": [
+    "tuf",
+    "rog",
+    "strix",
+    "dual",
+    "ventus",
+    "gaming",
+    "suprim",
+    "windforce",
+    "eagle",
+    "aorus",
+    "trio",
+    "oc",
+    "white",
+    "black",
+    "2x",
+    "3x",
+    "x3",
+    "x2",
+    "x",
+    "vision",
+    "프로스트",
+    "벤투스",
+    "윈드포스",
+    "이글",
+    "듀얼",
+    "슈프림",
+    "트리오",
+    "스트릭스"
+   ]
+  },
+  {
+   "id": "nvidia:rtx-4070",
+   "brand": "nvidia",
+   "line": "RTX 40",
+   "model": "RTX 4070",
+   "category": "gpu",
+   "aliases": [
+    "rtx4070"
+   ],
+   "verified": false,
+   "compatible_brands": [
+    "asus",
+    "msi",
+    "gigabyte"
+   ],
+   "benign_suffixes": [
+    "tuf",
+    "rog",
+    "strix",
+    "dual",
+    "ventus",
+    "gaming",
+    "suprim",
+    "windforce",
+    "eagle",
+    "aorus",
+    "trio",
+    "oc",
+    "white",
+    "black",
+    "2x",
+    "3x",
+    "x3",
+    "x2",
+    "x",
+    "vision",
+    "프로스트",
+    "벤투스",
+    "윈드포스",
+    "이글",
+    "듀얼",
+    "슈프림",
+    "트리오",
+    "스트릭스"
+   ]
+  },
+  {
+   "id": "nvidia:rtx-4060-ti",
+   "brand": "nvidia",
+   "line": "RTX 40",
+   "model": "RTX 4060 Ti",
+   "category": "gpu",
+   "aliases": [
+    "rtx4060ti"
+   ],
+   "verified": false,
+   "compatible_brands": [
+    "asus",
+    "msi",
+    "gigabyte"
+   ],
+   "benign_suffixes": [
+    "tuf",
+    "rog",
+    "strix",
+    "dual",
+    "ventus",
+    "gaming",
+    "suprim",
+    "windforce",
+    "eagle",
+    "aorus",
+    "trio",
+    "oc",
+    "white",
+    "black",
+    "2x",
+    "3x",
+    "x3",
+    "x2",
+    "x",
+    "vision",
+    "프로스트",
+    "벤투스",
+    "윈드포스",
+    "이글",
+    "듀얼",
+    "슈프림",
+    "트리오",
+    "스트릭스"
+   ]
+  },
+  {
+   "id": "nvidia:rtx-4060",
+   "brand": "nvidia",
+   "line": "RTX 40",
+   "model": "RTX 4060",
+   "category": "gpu",
+   "aliases": [
+    "rtx4060"
+   ],
+   "verified": false,
+   "compatible_brands": [
+    "asus",
+    "msi",
+    "gigabyte"
+   ],
+   "benign_suffixes": [
+    "tuf",
+    "rog",
+    "strix",
+    "dual",
+    "ventus",
+    "gaming",
+    "suprim",
+    "windforce",
+    "eagle",
+    "aorus",
+    "trio",
+    "oc",
+    "white",
+    "black",
+    "2x",
+    "3x",
+    "x3",
+    "x2",
+    "x",
+    "vision",
+    "프로스트",
+    "벤투스",
+    "윈드포스",
+    "이글",
+    "듀얼",
+    "슈프림",
+    "트리오",
+    "스트릭스"
+   ]
+  },
+  {
+   "id": "nintendo:switch-oled",
+   "brand": "nintendo",
+   "line": "Switch",
+   "model": "Switch OLED",
+   "category": "console",
+   "aliases": [
+    "스위치 oled",
+    "스위치 올레드"
+   ],
+   "verified": false
+  },
+  {
+   "id": "nintendo:switch-lite",
+   "brand": "nintendo",
+   "line": "Switch",
+   "model": "Switch Lite",
+   "category": "console",
+   "aliases": [
+    "스위치 라이트"
+   ],
+   "verified": false
+  }
+ ]
+}

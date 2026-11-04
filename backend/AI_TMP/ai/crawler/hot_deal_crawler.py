@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import Callable
+from typing import Any, Callable
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import Request, urlopen
 
@@ -14,6 +14,7 @@ from .adapters import SiteAdapter
 from .quality import QualityReport, assess_batch
 from .registry import AdapterRegistry, default_registry
 from .schema import NormalizedDeal
+from .validation import Severity, validate_deal
 
 DEFAULT_SOURCE_URL = "https://quasarzone.com/bbs/qb_saleinfo"
 
@@ -29,8 +30,9 @@ class NormalizedCrawl:
     source: str
     site_id: str
     fetched_at: datetime
-    deals: list[NormalizedDeal]
+    deals: list[NormalizedDeal]  # 오류가 없는 글 (경고는 issues 에 코드로 남아 있다)
     quality: QualityReport
+    quarantined: list[NormalizedDeal] = field(default_factory=list)  # 오류 수준 이슈가 있어 쓰지 않는 글
 
 
 class HotDealCrawler:
@@ -55,24 +57,40 @@ class HotDealCrawler:
         self,
         adapter: SiteAdapter | None = None,
         registry: AdapterRegistry | None = None,
+        resolver: Any = None,
     ) -> NormalizedCrawl:
-        """사이트 어댑터로 읽고 공통 스키마로 정규화한 뒤 수집 품질을 점검한다.
+        """사이트 어댑터로 읽고 공통 스키마로 정규화한 뒤 오염을 검증하고 수집 품질을 점검한다.
 
         adapter 를 주지 않으면 source_url 의 도메인으로 레지스트리에서 찾는다. 등록되지
         않은 사이트는 UnknownSiteError 다 (다른 사이트의 파서로 읽지 않는다).
+        오류 수준 이슈가 있는 글은 quarantined 로 분리한다. resolver(identity.ProductResolver)를
+        주면 글마다 제조사·모델 단위 식별 결과를 붙인다.
         quality.ok 가 False 면 사이트 마크업이 바뀌었을 가능성이 있으니 저장 전에 확인한다.
         """
         resolved = adapter or (registry or default_registry()).adapter_for_url(self.source_url)
         html = self.fetch(self.source_url)
-        deals = resolved.parse_listing(html)
+        listing = resolved.parse_listing(html)
         fetched_at = datetime.now(timezone.utc)
-        normalized = [resolved.normalize(deal, fetched_at=fetched_at) for deal in deals]
+
+        clean: list[NormalizedDeal] = []
+        quarantined: list[NormalizedDeal] = []
+        for deal in listing:
+            normalized = resolved.normalize(deal, fetched_at=fetched_at)
+            found = validate_deal(normalized, now=fetched_at)
+            normalized = replace(
+                normalized,
+                issues=tuple(i.code for i in found),
+                identity=resolver.resolve(normalized.title) if resolver is not None else None,
+            )
+            (quarantined if any(i.severity == Severity.ERROR for i in found) else clean).append(normalized)
+
         return NormalizedCrawl(
             source=self.source_url,
             site_id=resolved.site_id,
             fetched_at=fetched_at,
-            deals=normalized,
-            quality=assess_batch(normalized, resolved.capabilities),
+            deals=clean,
+            quality=assess_batch(clean + quarantined, resolved.capabilities),
+            quarantined=quarantined,
         )
 
     def _build_url(self, query_params: dict[str, int | str]) -> str:
