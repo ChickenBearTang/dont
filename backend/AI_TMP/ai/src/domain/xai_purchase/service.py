@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import urllib.request
 
 from ai.models import CrawlResult, HotDeal
+from ai.finance_engine.explain import explain_finance_signal
 from ai.finance_engine.inference import predict_finance_signal
 from ai.price_engine.inference import predict_price_signal
 from ai.xai.analyzer import ExplainabilityAnalyzer
@@ -764,6 +765,32 @@ def _counterfactual_target_decision(
     return normalized_current
 
 
+def _explain_finance(
+    *,
+    shap_enabled: bool,
+    finance_model_state: dict[str, Any],
+    current_price: int | None,
+    finance_profile: dict[str, float | int],
+) -> tuple[dict[str, float], dict[str, Any]]:
+    """재무 요인의 실제 SHAP 설명. 만들 수 없으면 ({}, 사유).
+
+    재무 모델이 꺼졌거나 못 읽었으면 설명할 모델이 없으므로 시도하지 않는다.
+    가짜 점수로 대신 채우지 않는다.
+    """
+    if not shap_enabled:
+        return {}, {"enabled": False, "backend": "disabled", "reason": "shap_disabled_by_config"}
+    if not bool(finance_model_state.get("enabled", False)):
+        return {}, {
+            "enabled": False,
+            "backend": "fallback",
+            "reason": f"finance_model_{finance_model_state.get('reason', 'unavailable')}",
+        }
+    return explain_finance_signal(
+        current_price=current_price,
+        finance_profile=finance_profile,
+    )
+
+
 def evaluate_pr_purchase_xai(
     request: PurchaseXaiEvaluationRequest,
 ) -> PurchaseXaiEvaluationResponse:
@@ -810,8 +837,19 @@ def evaluate_pr_purchase_xai(
         request.purchase.purchase_url
         or f"https://purchase-request.local/{request.purchase.post_id}"
     )
-    heavy_xai_enabled = _env_flag("AI_XAI_HEAVY_ENABLED", False)
     shap_enabled = _env_flag("AI_XAI_SHAP_ENABLED", True)
+    finance_explanation, finance_explanation_state = _explain_finance(
+        shap_enabled=shap_enabled,
+        finance_model_state=finance_model_state,
+        current_price=current_price,
+        finance_profile=finance_profile,
+    )
+    if not finance_explanation:
+        seed_warnings.append(
+            "FINANCE_EXPLANATION_UNAVAILABLE:"
+            f"{finance_explanation_state.get('reason', 'unknown')}"
+        )
+    heavy_xai_enabled = _env_flag("AI_XAI_HEAVY_ENABLED", False)
     dice_enabled = _env_flag("AI_XAI_DICE_ENABLED", heavy_xai_enabled)
 
     fallback_counterfactual_engine = CounterfactualEngine()
@@ -826,6 +864,8 @@ def evaluate_pr_purchase_xai(
         finance_profile=resolved_profile,
         price_model_signal=price_model_signal,
         finance_model_signal=finance_model_signal,
+        finance_explanation=finance_explanation,
+        finance_explanation_state=finance_explanation_state,
         counterfactual_engine=fallback_counterfactual_engine,
         dice_counterfactual_engine=dice_engine,
         shap_contribution_engine=shap_engine,

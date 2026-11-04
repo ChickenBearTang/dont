@@ -54,6 +54,47 @@ REASON_TEXT.setdefault(
 )
 
 
+# signed=True 일 때 쓰는 방향별 문구. score 는 '구매에 유리한 정도'다.
+#   (유리할 때, 불리할 때, 영향이 미미할 때)
+# 불리할 때 문구는 예전 REASON_TEXT 와 같다. 예전에는 점수 부호와 상관없이 이 문구가
+# 고정으로 나가서, 형편이 좋은 사용자에게도 "비상자금이 부족합니다"가 나왔다.
+SIGNED_REASON_TEXT: dict[str, tuple[str, str, str]] = {
+    "PRICE_RELATIVE_TO_30D_AVG": (
+        "현재 가격이 최근 30일 평균가보다 낮아 유리합니다.",
+        "현재 가격이 최근 30일 평균가 대비 높게 형성되어 있습니다.",
+        "현재 가격은 최근 30일 평균가와 비슷해 판단에 큰 영향을 주지 않았습니다.",
+    ),
+    "PRICE_MODEL_GAP_SIGNAL": (
+        "가격 모델이 예상하는 적정가보다 현재 가격이 낮습니다.",
+        "가격 모델이 예상하는 적정가보다 현재 가격이 높습니다.",
+        "현재 가격은 가격 모델의 적정가와 비슷해 판단에 큰 영향을 주지 않았습니다.",
+    ),
+    "EMERGENCY_FUND_TOO_LOW": (
+        "비상자금이 충분해 재무 안정성이 높습니다.",
+        "비상자금 수준이 낮아 재무 안정성이 부족합니다.",
+        "비상자금 수준은 판단에 큰 영향을 주지 않았습니다.",
+    ),
+    "BALANCE_AFTER_PURCHASE_TOO_LOW": (
+        "구매 후에도 남는 여유 자금이 충분합니다.",
+        "구매 후 예상 잔액이 낮아질 가능성이 큽니다.",
+        "구매 후 예상 잔액은 판단에 큰 영향을 주지 않았습니다.",
+    ),
+    "PRICE_TOO_LARGE_VS_MONTHLY_SPENDING": (
+        "상품 가격이 월 지출 규모에 비해 부담스럽지 않습니다.",
+        "상품 가격이 월 지출 규모 대비 크게 느껴집니다.",
+        "상품 가격과 월 지출의 비율은 판단에 큰 영향을 주지 않았습니다.",
+    ),
+    "CARD_DUE_SOON": (
+        "카드 결제 부담이 작아 단기 현금흐름에 여유가 있습니다.",
+        "카드 결제일이 가까워 단기 현금흐름 부담이 있습니다.",
+        "카드 결제 부담은 판단에 큰 영향을 주지 않았습니다.",
+    ),
+}
+
+# |score| 가 이 값 이하면 방향을 말하지 않고 '영향 미미'로 표현한다.
+SIGNED_NEUTRAL_BAND = 0.05
+
+
 def rank_reason_features(
     feature_scores: Mapping[str, Any],
     top_k: int,
@@ -78,14 +119,30 @@ def rank_reason_features(
     return numeric_pairs[:top_k]
 
 
-def build_reason_item(feature: str, score: float) -> ReasonItem | None:
+def _signed_text(reason_code: str, score: float) -> str:
+    texts = SIGNED_REASON_TEXT.get(reason_code)
+    if texts is None:
+        return REASON_TEXT[reason_code]  # 방향을 말할 수 없는 항목
+    favorable, unfavorable, neutral = texts
+    if abs(score) <= SIGNED_NEUTRAL_BAND:
+        return neutral
+    return favorable if score > 0 else unfavorable
+
+
+def build_reason_item(
+    feature: str, score: float, *, signed: bool = False
+) -> ReasonItem | None:
+    """signed=True 면 score 를 '구매에 유리한 정도'로 보고 부호에 맞는 문구를 쓴다.
+
+    signed=False(기본)는 부호의 뜻이 정해지지 않은 예전 점수용이라 문구를 바꾸지 않는다.
+    """
     if feature not in REASON_CODE_MAP:
         return None
 
     reason_code, source_type = REASON_CODE_MAP[feature]
     return ReasonItem(
         reason_code=reason_code,
-        reason_text=REASON_TEXT[reason_code],
+        reason_text=_signed_text(reason_code, float(score)) if signed else REASON_TEXT[reason_code],
         feature=feature,
         score=float(score),
         source_type=source_type,
@@ -95,11 +152,13 @@ def build_reason_item(feature: str, score: float) -> ReasonItem | None:
 def extract_top_reasons(
     feature_scores: Mapping[str, Any],
     top_k: int = 3,
+    *,
+    signed: bool = False,
 ) -> list[ReasonItem]:
     ranked_pairs = rank_reason_features(feature_scores, top_k=top_k)
     reasons: list[ReasonItem] = []
     for feature, score in ranked_pairs:
-        reason = build_reason_item(feature, score)
+        reason = build_reason_item(feature, score, signed=signed)
         if reason is not None:
             reasons.append(reason)
     return reasons

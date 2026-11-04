@@ -29,8 +29,9 @@ class ReasoningEngine:
     }
 
     def analyze(
-        self, feature_scores: dict[str, Any], top_k: int
+        self, feature_scores: dict[str, Any], top_k: int, *, signed: bool = False
     ) -> list[dict[str, Any]]:
+        """signed=True 면 score 를 '구매에 유리한 정도'로 보고 부호에 맞는 문구를 쓴다."""
         if top_k <= 0:
             raise ValueError("top_k must be greater than 0")
 
@@ -43,10 +44,15 @@ class ReasoningEngine:
         if len(ranked_pairs) == 0:
             return [self._FALLBACK_REASON.copy()]
 
-        return [self._build_reason(feature, score) for feature, score in ranked_pairs]
+        return [
+            self._build_reason(feature, score, signed=signed)
+            for feature, score in ranked_pairs
+        ]
 
-    def _build_reason(self, feature: str, score: float) -> dict[str, Any]:
-        reason_item = canonical_reasons.build_reason_item(feature, score)
+    def _build_reason(
+        self, feature: str, score: float, *, signed: bool = False
+    ) -> dict[str, Any]:
+        reason_item = canonical_reasons.build_reason_item(feature, score, signed=signed)
         template = (
             _ReasonTemplate(
                 code=reason_item.reason_code,

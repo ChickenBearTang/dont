@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from importlib import import_module
-from typing import Any
+from typing import Any, Mapping
 
 from ..models import CrawlResult
 from .audit_log import XAIAuditLogEntry, build_model_input_vector_hash
@@ -40,7 +40,18 @@ class ExplainabilityAnalyzer:
         finance_profile: dict[str, float | int] | ResolvedFinanceProfile | None = None,
         price_model_signal: dict[str, float] | None = None,
         finance_model_signal: dict[str, float | str] | None = None,
+        finance_explanation: Mapping[str, float] | None = None,
+        finance_explanation_state: Mapping[str, Any] | None = None,
     ) -> None:
+        """finance_explanation 이 주어지면(빈 dict 포함) '부호 있는 설명' 모드다.
+
+        - 값: 재무 요인별 '구매에 유리한 정도'(finance_engine.explain.explain_finance_signal).
+          양수 = 유리, 음수 = 불리. 문구도 부호에 맞춰 나간다.
+        - 빈 dict 는 '설명을 만들지 못했다'는 뜻이다. 가짜 점수로 채우지 않고 재무
+          요인을 설명에서 뺀다.
+        - 없으면(None) 예전 방식이다. 판단 규칙용 점수에 가짜 SHAP 을 씌워 설명한다.
+          부호가 의미 없어서 CLI/진단용으로만 남겨 둔다.
+        """
         features_module = import_module("ai.xai.features")
         reasoning_module = import_module("ai.xai.reasoning")
         counterfactuals_module = import_module("ai.xai.counterfactuals")
@@ -83,6 +94,12 @@ class ExplainabilityAnalyzer:
         self._finance_profile = self._resolved_profile.as_dict()
         self._price_model_signal = price_model_signal or {}
         self._finance_model_signal = finance_model_signal or {}
+        self._finance_explanation: dict[str, float] | None = (
+            None
+            if finance_explanation is None
+            else {str(k): float(v) for k, v in finance_explanation.items()}
+        )
+        self._finance_explanation_state = dict(finance_explanation_state or {})
 
     @staticmethod
     def _resolve_profile(
@@ -134,33 +151,40 @@ class ExplainabilityAnalyzer:
                 feature_scores = self._build_feature_scores(
                     features, window_stats=window_stats
                 )
-                shap_scores = dict(feature_scores)
-                if self._shap_contribution_engine is not None and hasattr(
-                    self._shap_contribution_engine, "compute"
-                ):
-                    computed, shap_meta = self._shap_contribution_engine.compute(
-                        feature_scores=shap_scores
+                if self._finance_explanation is not None:
+                    shap_scores, reasons, shap_engine_state = self._signed_explanation(
+                        features,
+                        window_stats=window_stats,
+                        top_k=requested_top_k,
                     )
-                    if isinstance(computed, dict):
-                        shap_scores = {
-                            str(name): float(value)
-                            for name, value in computed.items()
-                            if isinstance(name, str)
-                        }
-                    if isinstance(shap_meta, dict):
-                        shap_engine_state = {
-                            "enabled": bool(shap_meta.get("enabled", False)),
-                            "backend": str(shap_meta.get("backend", "fallback")),
-                        }
-                        if "reason" in shap_meta:
-                            shap_engine_state["reason"] = str(shap_meta.get("reason"))
-                        if "feature_count" in shap_meta:
-                            shap_engine_state["feature_count"] = int(
-                                shap_meta.get("feature_count", len(shap_scores))
-                            )
-                reasons = self._reasoning_engine.analyze(
-                    shap_scores, top_k=requested_top_k
-                )
+                else:
+                    shap_scores = dict(feature_scores)
+                    if self._shap_contribution_engine is not None and hasattr(
+                        self._shap_contribution_engine, "compute"
+                    ):
+                        computed, shap_meta = self._shap_contribution_engine.compute(
+                            feature_scores=shap_scores
+                        )
+                        if isinstance(computed, dict):
+                            shap_scores = {
+                                str(name): float(value)
+                                for name, value in computed.items()
+                                if isinstance(name, str)
+                            }
+                        if isinstance(shap_meta, dict):
+                            shap_engine_state = {
+                                "enabled": bool(shap_meta.get("enabled", False)),
+                                "backend": str(shap_meta.get("backend", "fallback")),
+                            }
+                            if "reason" in shap_meta:
+                                shap_engine_state["reason"] = str(shap_meta.get("reason"))
+                            if "feature_count" in shap_meta:
+                                shap_engine_state["feature_count"] = int(
+                                    shap_meta.get("feature_count", len(shap_scores))
+                                )
+                    reasons = self._reasoning_engine.analyze(
+                        shap_scores, top_k=requested_top_k
+                    )
                 decision_outcome = self._decision_engine.decide(feature_scores)
                 price_int = features.get("price_int")
                 price_value = price_int if isinstance(price_int, int) else None
@@ -328,6 +352,76 @@ class ExplainabilityAnalyzer:
         # 필수 필드 기준 0 이어야 하는 지표다.
         payload["input_contract"] = self._resolved_profile.to_report()
         return payload
+
+    def _signed_explanation(
+        self,
+        features: dict[str, Any],
+        *,
+        window_stats: dict[str, dict[str, float | int | None]] | None,
+        top_k: int,
+    ) -> tuple[dict[str, float], list[dict[str, Any]], dict[str, Any]]:
+        """부호 있는 설명 점수와 이유. 점수는 모두 '구매에 유리한 정도'다.
+
+        - 재무 요인: 학습된 재무 모델의 실제 SHAP (service 가 계산해 넘겨준다).
+        - 가격 요인: 30일 평균가 대비 위치, 가격 모델이 본 적정가와의 차이. 둘 다
+          0 을 기준으로 양수가 '싸다'(유리)가 되도록 중심을 맞춘 값이다.
+        두 묶음은 단위가 달라(SHAP 은 로짓, 가격은 -1~1) 한 줄로 순위를 매기지 않는다.
+        가격 요인에 최대 (top_k - 2)개 자리를 주고 나머지는 재무 요인이 채운다.
+        """
+        from ai.xai.purchase_core.reasons import SIGNED_NEUTRAL_BAND
+
+        finance_scores = dict(self._finance_explanation or {})
+
+        price_scores: dict[str, float] = {}
+        price_int = features.get("price_int")
+        avg_price = ((window_stats or {}).get("30d", {}) or {}).get("avg_price")
+        if (
+            isinstance(price_int, int)
+            and price_int > 0
+            and isinstance(avg_price, (int, float))
+            and float(avg_price) > 0
+        ):
+            ratio = float(price_int) / float(avg_price)
+            price_scores["avg_price_30d"] = max(min(1.0 - ratio, 1.0), -1.0)
+        gap_raw = self._price_model_signal.get("price_model_gap_score")
+        if isinstance(gap_raw, (int, float)):
+            price_scores["price_model_gap_score"] = max(min(float(gap_raw), 1.0), -1.0)
+        # 영향이 없는 가격 요인은 자리를 차지하지 않게 뺀다.
+        price_scores = {
+            name: value
+            for name, value in price_scores.items()
+            if abs(value) > SIGNED_NEUTRAL_BAND
+        }
+
+        if finance_scores:
+            price_slots = min(len(price_scores), max(0, top_k - 2))
+        else:
+            price_slots = min(len(price_scores), top_k)
+        finance_slots = min(len(finance_scores), top_k - price_slots)
+
+        reasons: list[dict[str, Any]] = []
+        if finance_slots > 0:
+            reasons += self._reasoning_engine.analyze(
+                finance_scores, top_k=finance_slots, signed=True
+            )
+        if price_slots > 0:
+            reasons += self._reasoning_engine.analyze(
+                price_scores, top_k=price_slots, signed=True
+            )
+
+        explanation_scores = {**finance_scores, **price_scores}
+        state_src = self._finance_explanation_state
+        state: dict[str, Any] = {
+            "enabled": bool(finance_scores) and bool(state_src.get("enabled", True)),
+            "backend": str(state_src.get("backend", "shap_tree" if finance_scores else "fallback")),
+        }
+        if "reason" in state_src:
+            state["reason"] = str(state_src["reason"])
+        if finance_scores:
+            state["feature_count"] = int(state_src.get("feature_count", len(finance_scores)))
+        elif "reason" not in state:
+            state["reason"] = "finance_explanation_unavailable"
+        return explanation_scores, reasons, state
 
     def _normalize_counterfactual_messages(
         self, counterfactuals: list[dict[str, Any]]

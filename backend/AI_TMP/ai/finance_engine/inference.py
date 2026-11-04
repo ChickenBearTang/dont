@@ -94,6 +94,62 @@ def _load_cached_artifact(resolved_artifact_dir: str) -> Any:
     return load_finance_model_artifact(resolved_artifact_dir)
 
 
+def load_validated_artifact(
+    explicit_model_path: str | None,
+) -> tuple[Any | None, str | None, dict[str, Any] | None]:
+    """아티팩트를 읽고 스키마/열/타깃을 검증한다. (artifact, path, 실패 상태).
+
+    예측(predict_finance_signal)과 설명(explain)이 같은 검증을 쓰도록 한 곳에 둔다.
+    실패하면 artifact 는 None 이고 세 번째 값에 사유가 들어 있다.
+    """
+    model_path_raw = _resolve_model_path(explicit_model_path)
+    if model_path_raw is None:
+        return None, None, {
+            "enabled": False,
+            "backend": "fallback",
+            "reason": "model_path_missing",
+        }
+    model_path = str(Path(model_path_raw))
+
+    try:
+        artifact = _load_cached_artifact(model_path)
+    except Exception as exc:
+        return None, None, {
+            "enabled": False,
+            "backend": "fallback",
+            "reason": "model_load_failed",
+            "artifact_path": model_path,
+            "error_type": type(exc).__name__,
+        }
+
+    metadata = artifact.metadata
+    if str(metadata.get("schema_version", "")) != SCHEMA_VERSION:
+        return None, None, {
+            "enabled": False,
+            "backend": "fallback",
+            "reason": "schema_version_mismatch",
+            "artifact_path": model_path,
+        }
+
+    trained_features = metadata.get("feature_names")
+    expected_features = list(training_feature_names())
+    if trained_features != expected_features:
+        return None, None, {
+            "enabled": False,
+            "backend": "fallback",
+            "reason": "feature_schema_mismatch",
+            "artifact_path": model_path,
+        }
+    if str(metadata.get("target_name", "")) != TARGET_NAME:
+        return None, None, {
+            "enabled": False,
+            "backend": "fallback",
+            "reason": "target_schema_mismatch",
+            "artifact_path": model_path,
+        }
+    return artifact, model_path, None
+
+
 def predict_finance_signal(
     *,
     current_price: int | None,
@@ -111,51 +167,10 @@ def predict_finance_signal(
             "reason": "finance_model_disabled",
         }
 
-    model_path_raw = _resolve_model_path(explicit_model_path)
-    if model_path_raw is None:
-        return {}, {
-            "enabled": False,
-            "backend": "fallback",
-            "reason": "model_path_missing",
-        }
-    model_path = str(Path(model_path_raw))
-
-    try:
-        artifact = _load_cached_artifact(model_path)
-    except Exception as exc:
-        return {}, {
-            "enabled": False,
-            "backend": "fallback",
-            "reason": "model_load_failed",
-            "artifact_path": model_path,
-            "error_type": type(exc).__name__,
-        }
-
+    artifact, model_path, failure = load_validated_artifact(explicit_model_path)
+    if failure is not None or artifact is None:
+        return {}, failure or {"enabled": False, "backend": "fallback", "reason": "model_load_failed"}
     metadata = artifact.metadata
-    if str(metadata.get("schema_version", "")) != SCHEMA_VERSION:
-        return {}, {
-            "enabled": False,
-            "backend": "fallback",
-            "reason": "schema_version_mismatch",
-            "artifact_path": model_path,
-        }
-
-    trained_features = metadata.get("feature_names")
-    expected_features = list(training_feature_names())
-    if trained_features != expected_features:
-        return {}, {
-            "enabled": False,
-            "backend": "fallback",
-            "reason": "feature_schema_mismatch",
-            "artifact_path": model_path,
-        }
-    if str(metadata.get("target_name", "")) != TARGET_NAME:
-        return {}, {
-            "enabled": False,
-            "backend": "fallback",
-            "reason": "target_schema_mismatch",
-            "artifact_path": model_path,
-        }
 
     payload = build_finance_inference_payload(
         current_price=current_price,
