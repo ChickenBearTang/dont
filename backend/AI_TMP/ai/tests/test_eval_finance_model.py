@@ -17,10 +17,15 @@ SMALL = {"train_rows": 800, "test_rows": 1500, "train_seeds": (1,), "test_seed":
 
 
 class FeatureSetDefinitionTest(unittest.TestCase):
-    def test_원본7_구성이_모델_허용목록과_같다(self) -> None:
+    def test_원본7_구성이_호출하는_쪽_입력과_같다(self) -> None:
+        from ..finance_engine.allowlist import raw_input_names
+
+        self.assertEqual(tuple(FEATURE_SETS["raw7"]), raw_input_names())
+
+    def test_raw7_derived3_구성이_운영_모델_열과_같다(self) -> None:
         from ..finance_engine.allowlist import training_feature_names
 
-        self.assertEqual(tuple(FEATURE_SETS["raw7"]), training_feature_names())
+        self.assertEqual(tuple(FEATURE_SETS["raw7_derived3"]), training_feature_names())
 
     def test_옛_12개는_제거된_입력을_모두_포함한다(self) -> None:
         old12 = set(FEATURE_SETS["old12"])
@@ -52,7 +57,11 @@ class EvaluateTest(unittest.TestCase):
         self.assertEqual(rule["high_recall"], 1.0)
 
     def test_모든_후보가_같은_지표를_낸다(self) -> None:
-        for name in ("raw7", "raw7_derived3", "old12", "logistic_raw7", "majority_class"):
+        for name in (
+            "raw7", "raw7_derived3", "old12",
+            "catboost_raw7", "catboost_raw7_derived3",
+            "logistic_raw7", "majority_class",
+        ):
             with self.subTest(candidate=name):
                 metrics = self.result["candidates"][name]
                 for key in ("macro_f1", "high_recall", "high_precision", "high_pr_auc"):
@@ -83,6 +92,11 @@ class EvaluateTest(unittest.TestCase):
             again["candidates"]["raw7"]["macro_f1"],
             self.result["candidates"]["raw7"]["macro_f1"],
         )
+
+    def test_요약은_합성_점수로_운영_모델을_바꾸지_말라고_경고한다(self) -> None:
+        text = summarize(self.result)
+
+        self.assertIn("운영 모델을 바꾸는 근거로 쓰면 안 된다", text)
 
     def test_요약_문자열에_점수의_의미_경고가_들어_있다(self) -> None:
         text = summarize(self.result)

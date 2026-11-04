@@ -20,8 +20,15 @@ from ai.finance_engine.allowlist import (  # noqa: E402
     training_feature_names,
 )
 from ai.finance_engine.artifacts import save_finance_model_artifact  # noqa: E402
+from ai.finance_engine.features import build_feature_frame  # noqa: E402
+from ai.finance_engine.models import (  # noqa: E402
+    DEFAULT_FAMILY,
+    FAMILIES,
+    FAMILY_LABELS,
+    predict_labels,
+    train_finance_model,
+)
 from ai.finance_engine.synthetic import RULE_VERSION, generate_rows  # noqa: E402
-from ai.finance_engine.train_lgbm import train_finance_model_lgbm  # noqa: E402
 
 
 def _train_test_split(
@@ -47,8 +54,14 @@ def _train_test_split(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train finance_engine LGBM model")
+    parser = argparse.ArgumentParser(description="Train finance_engine model (LightGBM or CatBoost)")
     parser.add_argument("--output-dir", required=True, help="Directory to save model artifacts")
+    parser.add_argument(
+        "--family",
+        choices=FAMILIES,
+        default=DEFAULT_FAMILY,
+        help="Model family. Production default is lightgbm; catboost is the challenger.",
+    )
     parser.add_argument("--rows", type=int, default=12000, help="Mock training row count")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument(
@@ -65,30 +78,32 @@ def main() -> None:
         test_ratio=args.test_ratio,
         seed=args.seed,
     )
-    model = train_finance_model_lgbm(train_rows, target_name=TARGET_NAME)
+    model = train_finance_model(
+        train_rows, family=args.family, target_name=TARGET_NAME, seed=args.seed
+    )
 
     extra_metadata: dict[str, Any] = {
         "train_row_count": len(train_rows),
         "test_row_count": len(test_rows),
         "total_row_count": len(all_rows),
         "class_labels": list(CLASS_LABELS),
-        "generated_from": "mock_finance_rows_v2",
+        "generated_from": "mock_finance_rows_v3",
         # 이 라벨은 손으로 쓴 규칙이 붙인 것이다. accuracy_test 는 '정확도'가 아니라
         # 규칙을 얼마나 흉내 냈는지를 뜻한다.
         "label_source": "synthetic_rule",
         "label_rule_version": RULE_VERSION,
     }
     if test_rows:
-        from sklearn.metrics import accuracy_score
-        import pandas as pd
+        from sklearn.metrics import accuracy_score, f1_score
 
-        x_test = pd.DataFrame(
-            [{name: row[name] for name in training_feature_names()} for row in test_rows],
-            columns=list(training_feature_names()),
-        )
+        x_test = build_feature_frame(test_rows)
         y_test = [str(row[TARGET_NAME]) for row in test_rows]
-        prediction = model.predict(x_test)
+        prediction = predict_labels(model, x_test)
         extra_metadata["accuracy_test"] = float(accuracy_score(y_test, prediction))
+        # high 가 적어 accuracy 는 부풀려진다. macro-F1 을 같이 남긴다.
+        extra_metadata["macro_f1_test"] = float(
+            f1_score(y_test, prediction, labels=list(CLASS_LABELS), average="macro", zero_division=0)
+        )
 
     artifact = save_finance_model_artifact(
         model=model,
@@ -96,7 +111,7 @@ def main() -> None:
         schema_version=SCHEMA_VERSION,
         feature_names=list(training_feature_names()),
         target_name=TARGET_NAME,
-        model_family="lightgbm_classifier",
+        model_family=FAMILY_LABELS[args.family],
         extra_metadata=extra_metadata,
     )
     print(
@@ -108,7 +123,9 @@ def main() -> None:
                 "feature_count": len(artifact.metadata["feature_names"]),
                 "train_row_count": artifact.metadata.get("train_row_count"),
                 "test_row_count": artifact.metadata.get("test_row_count"),
+                "model_family": artifact.metadata["model_family"],
                 "accuracy_test": artifact.metadata.get("accuracy_test"),
+                "macro_f1_test": artifact.metadata.get("macro_f1_test"),
                 "trained_at": datetime.now().isoformat(),
             },
             ensure_ascii=True,

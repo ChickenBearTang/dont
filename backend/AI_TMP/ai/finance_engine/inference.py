@@ -5,13 +5,20 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .allowlist import CLASS_LABELS, SCHEMA_VERSION, TARGET_NAME, training_feature_names
+from .allowlist import (
+    CLASS_LABELS,
+    SCHEMA_VERSION,
+    TARGET_NAME,
+    raw_input_names,
+    training_feature_names,
+)
 from .artifacts import load_finance_model_artifact
+from .features import build_feature_frame
 
 
 # 모델 입력 중 finance_profile 에서 오는 것. product_price 는 요청의 가격에서 온다.
 _PROFILE_INPUT_NAMES: tuple[str, ...] = tuple(
-    name for name in training_feature_names() if name != "product_price"
+    name for name in raw_input_names() if name != "product_price"
 )
 
 
@@ -55,7 +62,7 @@ def build_finance_inference_payload(
     current_price: int | None,
     finance_profile: dict[str, float | int],
 ) -> dict[str, float]:
-    """모델 입력(원본 7개)을 만든다.
+    """모델 입력(원본 7개)을 만든다. 파생 비율은 여기서 만들지 않는다(features.py).
 
     finance_profile 은 입력 계약(xai.input_contract)을 통과해 모든 키가 채워진
     값이어야 한다. 예전에는 여기서 `.get(키, 0.0)` 과 소득 1_000_000 같은 기본값이
@@ -156,8 +163,8 @@ def predict_finance_signal(
     )
 
     try:
-        import pandas as pd
-    except Exception:
+        frame = build_feature_frame([payload])
+    except ImportError:
         return {}, {
             "enabled": False,
             "backend": "fallback",
@@ -165,8 +172,6 @@ def predict_finance_signal(
             "artifact_path": model_path,
         }
 
-    feature_order = list(training_feature_names())
-    frame = pd.DataFrame([payload], columns=feature_order)
     model = artifact.model
     try:
         probabilities = model.predict_proba(frame)[0]

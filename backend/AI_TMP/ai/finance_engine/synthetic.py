@@ -12,28 +12,22 @@
     입력을 Spring 이 실제로 보내는 값으로 줄이면서(원본 7개) 그 조건을 제거했다.
     나머지 네 조건의 임계값은 v1 과 같다.
 
-generate_rows() 는 비교 실험을 위해 제거된 입력(고정 수입/지출, 파생 비율)도
-열로 함께 내보낸다. 라벨은 원본 7개에만 의존하므로 그 열들은 라벨에 영향이 없다.
+generate_rows() 는 원본 7개와 파생 3개(features.py 로 계산), 그리고 비교 실험용으로
+제거된 입력(고정 수입/지출)을 열로 함께 내보낸다. 라벨은 원본 7개에만 의존하므로
+나머지 열은 라벨에 영향이 없다.
 """
 
 from __future__ import annotations
 
 from typing import Any, Mapping
 
-from .allowlist import TARGET_NAME
+from .allowlist import RAW_INPUT_NAMES, TARGET_NAME
+from .features import derive_model_features
 
 RULE_VERSION = "finance-risk-rule-v2"
 
-# 라벨 규칙과 모델 입력이 공유하는 원본 7개. allowlist 와 같아야 한다 (테스트로 고정).
-RAW_INPUT_NAMES: tuple[str, ...] = (
-    "current_balance",
-    "emergency_fund_balance",
-    "savebox_balance",
-    "expected_card_payment_amount",
-    "days_until_card_due",
-    "monthly_spending_30d",
-    "product_price",
-)
+# 라벨 규칙과 모델 입력이 공유하는 원본 7개는 allowlist.RAW_INPUT_NAMES 하나만 쓴다.
+__all__ = ["RAW_INPUT_NAMES", "RULE_VERSION", "generate_rows", "rule_bucket"]
 
 
 def rule_bucket(row: Mapping[str, Any]) -> str:
@@ -88,13 +82,12 @@ def generate_rows(*, row_count: int, seed: int) -> list[dict[str, Any]]:
             "days_until_card_due": days,
             "monthly_spending_30d": monthly,
             "product_price": price,
-            # 아래는 모델 입력이 아니다. 입력 구성 비교 실험에서만 쓴다.
-            "available_fixed_expense": fixed_expense,
-            "available_fixed_income": fixed_income,
-            "product_price_vs_monthly_spending": price / max(monthly, 1.0),
-            "projected_balance_after_purchase": savebox - price,
-            "product_price_vs_emergency_fund": price / max(emergency, 1.0),
         }
+        # 파생 비율은 모델과 같은 함수(features.py)로 계산한다. 정의가 갈라지지 않는다.
+        row.update(derive_model_features(row))
+        # 아래는 모델 입력이 아니다. 입력 구성 비교 실험(옛 12개)에서만 쓴다.
+        row["available_fixed_expense"] = fixed_expense
+        row["available_fixed_income"] = fixed_income
         row[TARGET_NAME] = rule_bucket(row)
         rows.append(row)
     return rows

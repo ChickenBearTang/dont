@@ -32,29 +32,44 @@ ROOT_PARENT = Path(__file__).resolve().parents[2]
 if str(ROOT_PARENT) not in sys.path:
     sys.path.insert(0, str(ROOT_PARENT))
 
-from ai.finance_engine.allowlist import CLASS_LABELS, TARGET_NAME  # noqa: E402
-from ai.finance_engine.synthetic import (  # noqa: E402
+from ai.finance_engine.allowlist import (  # noqa: E402
+    CLASS_LABELS,
+    DERIVED_FEATURE_NAMES,
     RAW_INPUT_NAMES,
+    TARGET_NAME,
+)
+from ai.finance_engine.models import (  # noqa: E402
+    DEFAULT_CATBOOST_PARAMS,
+    DEFAULT_LGBM_PARAMS,
+    class_probability,
+    fit_classifier,
+    predict_labels,
+)
+from ai.finance_engine.synthetic import (  # noqa: E402
     RULE_VERSION,
     generate_rows,
     rule_bucket,
 )
-from ai.finance_engine.train_lgbm import DEFAULT_LGBM_PARAMS  # noqa: E402
 
-_DERIVED3 = (
-    "product_price_vs_monthly_spending",
-    "projected_balance_after_purchase",
-    "product_price_vs_emergency_fund",
-)
-
-# 비교할 입력 구성. raw7 이 새 모델, old12 가 이전 모델의 입력이다.
+# 비교할 입력 구성. raw7_derived3 가 현재 운영 모델의 열(10개), raw7 은 파생 비율을
+# 뺀 것, old12 는 v1 모델의 입력이다.
 FEATURE_SETS: dict[str, tuple[str, ...]] = {
     "raw7": RAW_INPUT_NAMES,
-    "raw7_derived3": RAW_INPUT_NAMES + _DERIVED3,
+    "raw7_derived3": RAW_INPUT_NAMES + DERIVED_FEATURE_NAMES,
     "old12": RAW_INPUT_NAMES
     + ("available_fixed_expense", "available_fixed_income")
-    + _DERIVED3,
+    + DERIVED_FEATURE_NAMES,
 }
+
+# (후보 이름, 모델 패밀리, 입력 구성). 입력 구성 비교는 LightGBM 으로 하고,
+# 모델 패밀리 비교는 같은 입력(raw7_derived3, raw7)에서 CatBoost 를 더한다.
+CANDIDATES: tuple[tuple[str, str, str], ...] = (
+    ("raw7", "lightgbm", "raw7"),
+    ("raw7_derived3", "lightgbm", "raw7_derived3"),
+    ("old12", "lightgbm", "old12"),
+    ("catboost_raw7", "catboost", "raw7"),
+    ("catboost_raw7_derived3", "catboost", "raw7_derived3"),
+)
 
 _METRICS = ("macro_f1", "high_recall", "high_precision", "high_pr_auc")
 
@@ -102,7 +117,6 @@ def evaluate(
     test_seed: int = 999,
 ) -> dict[str, Any]:
     """입력 구성별로 학습하고 같은 새 테스트 세트에서 비교한다."""
-    import lightgbm as lgb
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
@@ -114,22 +128,23 @@ def evaluate(
     y_test = [str(r[TARGET_NAME]) for r in test]
 
     per_candidate: dict[str, list[dict[str, float]]] = {
-        name: [] for name in (*FEATURE_SETS, "logistic_raw7", "majority_class")
+        name: [] for name in (*(c[0] for c in CANDIDATES), "logistic_raw7", "majority_class")
     }
 
     for seed in train_seeds:
         train = generate_rows(row_count=train_rows, seed=seed)
         y_train = [str(r[TARGET_NAME]) for r in train]
 
-        for name, columns in FEATURE_SETS.items():
-            model = lgb.LGBMClassifier(**{**DEFAULT_LGBM_PARAMS, "random_state": seed})
-            model.fit(_frame(train, columns), y_train)
+        for name, family, feature_set in CANDIDATES:
+            columns = FEATURE_SETS[feature_set]
+            model = fit_classifier(family, _frame(train, columns), y_train, seed=seed)
             x_test = _frame(test, columns)
-            predicted = [str(p) for p in model.predict(x_test)]
-            proba = model.predict_proba(x_test)
-            high_index = [str(c) for c in model.classes_].index("high")
             per_candidate[name].append(
-                _score(y_test, predicted, [float(row[high_index]) for row in proba])
+                _score(
+                    y_test,
+                    predict_labels(model, x_test),
+                    class_probability(model, x_test, "high"),
+                )
             )
 
         logistic = make_pipeline(StandardScaler(), LogisticRegression(max_iter=3000))
@@ -160,6 +175,7 @@ def evaluate(
             "test_seed": test_seed,
             "rule_version": RULE_VERSION,
             "lgbm_params": {k: DEFAULT_LGBM_PARAMS[k] for k in ("n_estimators", "learning_rate", "num_leaves")},
+            "catboost_params": {k: DEFAULT_CATBOOST_PARAMS[k] for k in ("iterations", "learning_rate", "depth")},
             "test_class_share": class_share,
         },
         "rule_baseline": rule_scores,
@@ -175,7 +191,7 @@ def summarize(result: dict[str, Any]) -> str:
         "  테스트 클래스 비율: "
         + ", ".join(f"{k} {v:.1%}" for k, v in cfg["test_class_share"].items()),
         "",
-        f"  {'후보':<16}{'macro-F1':>16}{'high 재현율':>16}{'high 정밀도':>14}{'high PR-AUC':>14}",
+        f"  {'후보':<24}{'macro-F1':>16}{'high 재현율':>16}{'high 정밀도':>14}{'high PR-AUC':>14}",
     ]
 
     def cell(m: dict[str, float]) -> str:
@@ -183,18 +199,20 @@ def summarize(result: dict[str, Any]) -> str:
 
     rule = result["rule_baseline"]
     lines.append(
-        f"  {'규칙(기준선)':<14}{rule['macro_f1']:>16.3f}{rule['high_recall']:>16.3f}"
+        f"  {'규칙(기준선)':<22}{rule['macro_f1']:>16.3f}{rule['high_recall']:>16.3f}"
         f"{rule['high_precision']:>14.3f}{rule['high_pr_auc']:>14.3f}   <- 구조상 1.0"
     )
     for name, metrics in result["candidates"].items():
         lines.append(
-            f"  {name:<16}{cell(metrics['macro_f1']):>16}{cell(metrics['high_recall']):>16}"
+            f"  {name:<24}{cell(metrics['macro_f1']):>16}{cell(metrics['high_recall']):>16}"
             f"{cell(metrics['high_precision']):>14}{cell(metrics['high_pr_auc']):>14}"
         )
     lines += [
         "",
         "주의: 라벨이 규칙으로 만든 합성 데이터라서 위 점수는 정확도가 아니라",
         "      '규칙을 얼마나 흉내 냈나'다. 규칙 자신이 1.0 이고 모델은 넘을 수 없다.",
+        "      LightGBM/CatBoost 중 운영 모델을 바꾸는 근거로 쓰면 안 된다.",
+        "      그 판단은 실제 라벨 10만 건 이후 finance_engine/selection.py 관문에서 한다.",
     ]
     return "\n".join(lines)
 

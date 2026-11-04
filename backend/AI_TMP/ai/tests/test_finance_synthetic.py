@@ -15,6 +15,7 @@ from ..finance_engine.allowlist import (
     CLASS_LABELS,
     SCHEMA_VERSION,
     TARGET_NAME,
+    raw_input_names,
     training_feature_names,
 )
 from ..finance_engine.synthetic import (
@@ -26,9 +27,9 @@ from ..finance_engine.synthetic import (
 
 
 class AllowlistTest(unittest.TestCase):
-    def test_입력은_원본_7개이고_파생값이_없다(self) -> None:
+    def test_호출하는_쪽이_채우는_입력은_원본_7개다(self) -> None:
         self.assertEqual(
-            training_feature_names(),
+            raw_input_names(),
             (
                 "current_balance",
                 "emergency_fund_balance",
@@ -40,22 +41,28 @@ class AllowlistTest(unittest.TestCase):
             ),
         )
 
-    def test_파생_비율_피처는_입력에_없다(self) -> None:
-        for name in training_feature_names():
-            self.assertNotIn("_vs_", name)
-            self.assertNotIn("projected_", name)
+    def test_모델_열은_원본_7개_뒤에_파생_3개가_붙은_10개다(self) -> None:
+        self.assertEqual(
+            training_feature_names(),
+            raw_input_names()
+            + (
+                "product_price_vs_monthly_spending",
+                "projected_balance_after_purchase",
+                "product_price_vs_emergency_fund",
+            ),
+        )
 
-    def test_Spring이_보내지_않는_값은_입력에_없다(self) -> None:
+    def test_Spring이_보내지_않는_값은_모델에_없다(self) -> None:
         """고정 수입/지출은 Spring 이 보내지 않아 운영에서 항상 기본값이었다."""
         self.assertNotIn("available_fixed_income", training_feature_names())
         self.assertNotIn("available_fixed_expense", training_feature_names())
 
     def test_스키마_버전이_올라갔다(self) -> None:
-        """입력이 바뀌었으니 옛 아티팩트는 schema_version_mismatch 로 거부돼야 한다."""
-        self.assertEqual(SCHEMA_VERSION, "finance-engine-mvp-v2")
+        """모델 열이 바뀌었으니 옛 아티팩트는 schema_version_mismatch 로 거부돼야 한다."""
+        self.assertEqual(SCHEMA_VERSION, "finance-engine-mvp-v3")
 
     def test_합성_원본_이름이_허용목록과_같다(self) -> None:
-        self.assertEqual(tuple(RAW_INPUT_NAMES), training_feature_names())
+        self.assertEqual(tuple(RAW_INPUT_NAMES), raw_input_names())
 
 
 class GenerationTest(unittest.TestCase):

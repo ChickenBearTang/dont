@@ -1,5 +1,5 @@
 {
-  "schema_version": "finance-engine-mvp-v2",
+  "schema_version": "finance-engine-mvp-v3",
   "model_family": "lightgbm_classifier",
   "target_name": "finance_risk_bucket",
   "feature_names": [
@@ -9,9 +9,12 @@
     "expected_card_payment_amount",
     "days_until_card_due",
     "monthly_spending_30d",
-    "product_price"
+    "product_price",
+    "product_price_vs_monthly_spending",
+    "projected_balance_after_purchase",
+    "product_price_vs_emergency_fund"
   ],
-  "trained_at": "2026-11-04T12:22:27.878047+00:00",
+  "trained_at": "2026-11-04T12:51:00.565931+00:00",
   "train_row_count": 9600,
   "test_row_count": 2400,
   "total_row_count": 12000,
@@ -20,8 +23,9 @@
     "medium",
     "high"
   ],
-  "generated_from": "mock_finance_rows_v2",
+  "generated_from": "mock_finance_rows_v3",
   "label_source": "synthetic_rule",
   "label_rule_version": "finance-risk-rule-v2",
-  "accuracy_test": 0.9670833333333333
+  "accuracy_test": 0.9783333333333334,
+  "macro_f1_test": 0.9554068183381622
 }

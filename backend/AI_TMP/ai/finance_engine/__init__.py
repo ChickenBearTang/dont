@@ -3,6 +3,7 @@ from .allowlist import (
     FEATURE_ALLOWLIST_PHASE1,
     SCHEMA_VERSION,
     TARGET_NAME,
+    raw_input_names,
     training_feature_names,
 )
 from .artifacts import load_finance_model_artifact, save_finance_model_artifact
@@ -14,6 +15,7 @@ __all__ = [
     "FEATURE_ALLOWLIST_PHASE1",
     "SCHEMA_VERSION",
     "TARGET_NAME",
+    "raw_input_names",
     "training_feature_names",
     "load_finance_model_artifact",
     "save_finance_model_artifact",

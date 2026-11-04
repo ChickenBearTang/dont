@@ -3,7 +3,12 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from ..finance_engine.allowlist import SCHEMA_VERSION, TARGET_NAME, training_feature_names
+from ..finance_engine.allowlist import (
+    SCHEMA_VERSION,
+    TARGET_NAME,
+    raw_input_names,
+    training_feature_names,
+)
 from ..finance_engine.inference import (
     build_finance_inference_payload,
     predict_finance_signal,
@@ -30,7 +35,7 @@ class _FakeFinanceArtifact:
 
 
 class FinanceEngineRuntimeInferenceTest(unittest.TestCase):
-    def test_build_inference_payload_matches_allowlist(self) -> None:
+    def test_build_inference_payload_는_원본_입력과_같다(self) -> None:
         payload = build_finance_inference_payload(
             current_price=200_000,
             finance_profile={
@@ -42,7 +47,7 @@ class FinanceEngineRuntimeInferenceTest(unittest.TestCase):
                 "monthly_spending_30d": 1_300_000,
             },
         )
-        self.assertEqual(set(payload.keys()), set(training_feature_names()))
+        self.assertEqual(set(payload.keys()), set(raw_input_names()))
         self.assertEqual(payload["monthly_spending_30d"], 1_300_000.0)
         self.assertEqual(payload["product_price"], 200_000.0)
 
