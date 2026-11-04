@@ -2,7 +2,8 @@
 
     cd backend/AI_TMP
     python -m ai.scripts.eval_product_identity
-    python -m ai.scripts.eval_product_identity --labeled path/to/real_labeled.json
+    python -m ai.scripts.eval_product_identity --labeled path/to/real_labeled.json   # JSON 또는 CSV
+    python -m ai.scripts.eval_product_identity --labels-sql "SELECT title, product_id FROM labeled_titles"
 
 읽는 법 (중요)
     기본으로 쓰는 평가 세트는 합성이다 (tests/fixtures/crawler/identity_labeled.json). 제목도
@@ -22,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
+import csv
 import json
 from pathlib import Path
 import sys
@@ -34,6 +36,19 @@ if str(ROOT_PARENT) not in sys.path:
 from ai.crawler.identity import ProductResolver  # noqa: E402
 
 DEFAULT_LABELED = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "crawler" / "identity_labeled.json"
+
+
+def load_labeled(path: Path) -> list[dict[str, Any]]:
+    """정답 파일(JSON {"rows": [...]} 또는 CSV[title,id,kind,note])을 읽는다. 빈 id 는 None."""
+    if path.suffix.lower() == ".csv":
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            return [
+                {"kind": row.get("kind") or "labeled", "title": row["title"], "id": (row.get("id") or "").strip() or None,
+                 **({"note": row["note"]} if row.get("note") else {})}
+                for row in csv.DictReader(handle)
+                if row.get("title")
+            ]
+    return json.loads(path.read_text(encoding="utf-8"))["rows"]
 
 
 def evaluate(rows: Iterable[dict[str, Any]], resolver: ProductResolver | None = None) -> dict[str, Any]:
@@ -96,13 +111,22 @@ def summarize(result: dict[str, Any], *, synthetic: bool) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate product identity resolution")
-    parser.add_argument("--labeled", type=Path, default=DEFAULT_LABELED)
+    parser.add_argument("--labeled", type=Path, default=DEFAULT_LABELED, help="정답 파일(JSON 또는 CSV)")
+    parser.add_argument("--labels-sql", help="DB 에서 정답을 읽는 SELECT (title, id 두 열). --dsn 또는 AI_POSTGRES_* 사용")
+    parser.add_argument("--dsn")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    data = json.loads(args.labeled.read_text(encoding="utf-8"))
-    result = evaluate(data["rows"])
-    print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else summarize(result, synthetic=args.labeled == DEFAULT_LABELED))
+    if args.labels_sql:
+        from ai.crawler.identity.dbio import default_dsn, fetch_labels
+
+        rows = fetch_labels(args.dsn or default_dsn(), args.labels_sql)
+        synthetic = False
+    else:
+        rows = load_labeled(args.labeled)
+        synthetic = args.labeled == DEFAULT_LABELED
+    result = evaluate(rows)
+    print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else summarize(result, synthetic=synthetic))
 
 
 if __name__ == "__main__":

@@ -167,7 +167,7 @@ class ProductResolver:
         lexicon: BrandLexicon | None = None,
         llm: LlmExtractor | None = None,
     ) -> None:
-        self._catalog = catalog or Catalog.load()
+        self._catalog = catalog or Catalog.load_default()
         self._lexicon = lexicon or BrandLexicon.load()
         self._llm = llm
         self._brand_alias_set = frozenset(a for b in self._lexicon.brands() for a in self._lexicon.aliases_of(b))

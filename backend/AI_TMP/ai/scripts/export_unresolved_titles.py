@@ -69,13 +69,39 @@ def build_template(titles: Iterable[str], resolver: ProductResolver | None = Non
     }
 
 
+def write_csv(path: Path, template: dict[str, Any]) -> None:
+    """엑셀/DB 에 붙여 넣기 쉬운 CSV. 사람이 id 열을 채운다 (없는 상품이면 비워 두고 note 에 이유)."""
+    with path.open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["title", "id", "kind", "note", "seen", "resolver_status", "resolver_candidates", "resolver_guess"])
+        for row in template["rows"]:
+            writer.writerow([row["title"], "", "labeled", "", row["seen"], row["resolver_status"],
+                             "|".join(row["resolver_candidates"]), row["resolver_guess"] or ""])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export titles that need human labels")
-    parser.add_argument("--input", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    src = parser.add_mutually_exclusive_group(required=True)
+    src.add_argument("--input", type=Path, help="JSONL({title}) 또는 title 열이 있는 CSV")
+    src.add_argument("--from-db", action="store_true", help="크롤 DB(crawl_items)에서 직접 읽는다 (읽기 전용)")
+    parser.add_argument("--dsn", help="없으면 AI_POSTGRES_DSN / AI_POSTGRES_* 환경변수")
+    parser.add_argument("--source", help="--from-db: 수집처(source 열)로 거른다")
+    parser.add_argument("--since", help="--from-db: 이 시각 이후 본 제목만 (예: 2025-01-01)")
+    parser.add_argument("--limit", type=int, help="--from-db: 최근 N 건만")
+    parser.add_argument("--output", type=Path, required=True, help=".json 또는 .csv")
     args = parser.parse_args()
-    template = build_template(read_titles(args.input))
-    args.output.write_text(json.dumps(template, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    if args.from_db:
+        from ai.crawler.identity.dbio import default_dsn, fetch_titles
+
+        titles = fetch_titles(args.dsn or default_dsn(), source=args.source, since=args.since, limit=args.limit)
+    else:
+        titles = read_titles(args.input)
+    template = build_template(titles)
+    if args.output.suffix.lower() == ".csv":
+        write_csv(args.output, template)
+    else:
+        args.output.write_text(json.dumps(template, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps(template["summary"], ensure_ascii=False))
 
 

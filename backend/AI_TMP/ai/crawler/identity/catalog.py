@@ -14,8 +14,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+from typing import Any
 
-from .text import compact, compact_code, find_on_boundaries, tokenize
+from .text import compact, compact_code, tokenize
 
 _DEFAULT_PATH = Path(__file__).resolve().parent / "data" / "catalog_seed.json"
 
@@ -34,6 +35,11 @@ class CatalogEntry:
     compatible_brands: tuple[str, ...] = ()
     # 이 상품의 모델명 뒤에 붙어도 상품을 바꾸지 않는 말 (그래픽카드 파트너 제품명 TUF/Ventus/OC ...).
     benign_suffixes: tuple[str, ...] = ()
+    # True 면 제목에 이 상품의 브랜드가 있을 때만 맞춘다. 짧거나 흔한 코드(K2, A1234)가 다른 글의
+    # 숫자/문자와 우연히 일치하는 것을 막는다. KC 인증 DB 에서 가져온 항목은 대개 True 다.
+    requires_brand: bool = False
+    source: str = "seed"  # "seed"(손으로 쓴 예시) | "kc"(공공 인증 DB) | "curated"(검수)
+    kc: Any = None  # KC 인증 정보 (인증/관리번호, 제조자, 기자재명칭 ...)
 
     def sold_under(self, brands: list[str] | None) -> bool:
         """제목의 브랜드가 이 상품과 양립하는가. 브랜드를 모르면 True."""
@@ -62,6 +68,18 @@ class CatalogMatch:
     following: tuple[str, ...] = ()  # 일치한 모델명 바로 뒤의 토큰들 (최대 4개)
 
 
+def _token_spans(tokens: list[str], max_len: int):
+    """토큰 경계에서 시작하고 끝나는 모든 구간 (시작, 끝, 이어 붙인 문자열). 길이는 max_len 까지."""
+    offsets = [0]
+    for token in tokens:
+        offsets.append(offsets[-1] + len(token))
+    for i in range(len(tokens)):
+        for j in range(i + 1, len(tokens) + 1):
+            if offsets[j] - offsets[i] > max_len:
+                break
+            yield offsets[i], offsets[j], "".join(tokens[i:j])
+
+
 class Catalog:
     def __init__(self, entries: list[CatalogEntry]) -> None:
         ids = [e.id for e in entries]
@@ -74,11 +92,66 @@ class Catalog:
                     raise ValueError(f"code {code!r} is claimed by both {owners[code]} and {entry.id}")
                 owners[code] = entry.id
         self._entries = entries
+        self.skipped: list[tuple[str, str]] = []  # load_many 가 건너뛴 항목 (id, 이유)
         self._by_id = {e.id: e for e in entries}
+        # 색인: 표기(compact_code) -> 항목들. 제목은 토큰 구간을 이어 붙인 문자열로 조회한다.
+        # 전수 탐색(항목 수 x 표기 수)을 제목 길이에 비례하는 조회로 바꿔 수십만 건에서도 빠르다.
+        self._code_index: dict[str, list[CatalogEntry]] = {}
+        self._line_index: dict[str, list[CatalogEntry]] = {}
+        for entry in entries:
+            for code in entry.codes:
+                self._code_index.setdefault(code, []).append(entry)
+            for line_code in entry.line_codes:
+                self._line_index.setdefault(line_code, []).append(entry)
+        self._max_code_len = max((len(c) for c in self._code_index), default=0)
+        self._max_line_len = max((len(c) for c in self._line_index), default=0)
 
     @classmethod
     def load(cls, path: Path | None = None) -> "Catalog":
-        data = json.loads((path or _DEFAULT_PATH).read_text(encoding="utf-8"))
+        return cls(cls._read_entries(path or _DEFAULT_PATH))
+
+    @classmethod
+    def load_many(cls, paths: list[Path]) -> "Catalog":
+        """여러 카탈로그 파일을 읽는다. 앞선 파일이 우선한다(검수본 -> KC 순으로 준다).
+
+        뒤 파일의 항목이 이미 있는 id 이거나 앞 항목과 같은 표기(코드)를 쓰면 그 항목만 건너뛰고
+        catalog.skipped 에 이유와 함께 남긴다. 충돌을 조용히 덮어쓰지도, 전체를 멈추지도 않는다.
+        """
+        merged: list[CatalogEntry] = []
+        seen_ids: set[str] = set()
+        code_owner: dict[str, str] = {}
+        skipped: list[tuple[str, str]] = []
+        for path in paths:
+            for entry in cls._read_entries(Path(path)):
+                if entry.id in seen_ids:
+                    skipped.append((entry.id, f"duplicate id (already loaded before {Path(path).name})"))
+                    continue
+                clash = next((c for c in entry.codes if c in code_owner and code_owner[c] != entry.id), None)
+                if clash is not None:
+                    skipped.append((entry.id, f"same code {clash!r} as {code_owner[clash]}"))
+                    continue
+                seen_ids.add(entry.id)
+                for code in entry.codes:
+                    code_owner[code] = entry.id
+                merged.append(entry)
+        catalog = cls(merged)
+        catalog.skipped = skipped
+        return catalog
+
+    @classmethod
+    def load_default(cls) -> "Catalog":
+        """시드 카탈로그 + AI_PRODUCT_CATALOG_PATHS(os.pathsep 로 구분)의 추가 파일들.
+
+        추가 파일은 시드보다 뒤에 읽으므로 시드(검수한 항목)가 우선한다.
+        """
+        import os
+
+        extra = [Path(p) for p in os.getenv("AI_PRODUCT_CATALOG_PATHS", "").split(os.pathsep) if p.strip()]
+        return cls.load_many([_DEFAULT_PATH, *extra]) if extra else cls.load()
+
+    @staticmethod
+    def _read_entries(path: Path) -> list["CatalogEntry"]:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
         entries = [
             CatalogEntry(
                 id=p["id"], brand=p["brand"], line=p.get("line", ""), model=p["model"], category=p.get("category", ""),
@@ -86,10 +159,13 @@ class Catalog:
                 verified=bool(p.get("verified", False)),
                 compatible_brands=tuple(p.get("compatible_brands", ())),
                 benign_suffixes=tuple(p.get("benign_suffixes", ())),
+                requires_brand=bool(p.get("requires_brand", False)),
+                source=str(p.get("source", "seed")),
+                kc=p.get("kc"),
             )
             for p in data["products"]
         ]
-        return cls(entries)
+        return entries
 
     def __len__(self) -> int:
         return len(self._entries)
@@ -101,13 +177,19 @@ class Catalog:
         """brands: 제목에서 찾은 브랜드 ID. 주어지면 그 브랜드 상품만 후보로 한다."""
         tokens = tokenize(title)
         haystack = compact(tokens)
-        pool = [e for e in self._entries if e.sold_under(brands)]
+        brand_known = bool(brands)
 
+        def eligible(entry: CatalogEntry) -> bool:
+            if entry.requires_brand and not brand_known:
+                return False
+            return entry.sold_under(brands)
+
+        spans = list(_token_spans(tokens, self._max_code_len))
         hits: list[tuple[int, int, CatalogEntry, str]] = []  # (start, end, entry, code)
-        for entry in pool:
-            for code in entry.codes:
-                for start, end in find_on_boundaries(haystack, code):
-                    hits.append((start, end, entry, code))
+        for start, end, text in spans:
+            for entry in self._code_index.get(text, ()):
+                if eligible(entry):
+                    hits.append((start, end, entry, text))
 
         # 더 긴 일치 안에 완전히 들어가는 일치는 버린다.
         kept = [
@@ -127,9 +209,10 @@ class Catalog:
 
         # 완전한 모델 일치가 없다. 같은 line 만 있고 버전을 가리는 토큰이 없는 경우.
         line_candidates: dict[str, CatalogEntry] = {}
-        for entry in pool:
-            if any(find_on_boundaries(haystack, lc) for lc in entry.line_codes):
-                line_candidates[entry.id] = entry
+        for _, _, text in _token_spans(tokens, self._max_line_len):
+            for entry in self._line_index.get(text, ()):
+                if eligible(entry):
+                    line_candidates[entry.id] = entry
         if len(line_candidates) > 1:
             return CatalogMatch(
                 "ambiguous_variant", None, tuple(line_candidates.values()), "",
