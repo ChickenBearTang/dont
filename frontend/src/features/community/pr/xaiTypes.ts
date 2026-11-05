@@ -13,7 +13,8 @@ export interface PrXaiTopFactorData {
   code: string;
   label: string;
   direction: string;
-  impact: number;
+  /** 작성자가 아닌 사용자에게는 재무 요인의 영향도를 주지 않는다 (null). */
+  impact: number | null;
 }
 
 export interface PrXaiEvidenceData {
@@ -62,6 +63,11 @@ export interface PrXaiEvaluationResponseData {
   schemaVersion: string;
   modelVersion?: string | null;
   ruleVersion?: string | null;
+  /**
+   * true 면 PR 작성자가 아닌 사용자에게 내려온 응답이라 작성자의 잔액·소득·지출 금액이 빠져 있다.
+   * (재무 지표, 반사실, 재무 근거, 재무 요인의 영향도, 재무 경고)
+   */
+  financialDetailsHidden?: boolean;
 }
 
 export interface PrXaiAvailabilityResponseData {

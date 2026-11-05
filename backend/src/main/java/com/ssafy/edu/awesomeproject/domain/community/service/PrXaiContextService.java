@@ -178,6 +178,21 @@ public class PrXaiContextService {
                 recentTransactions);
     }
 
+    /**
+     * 이 PR 을 올린 사람인지. XAI 평가는 작성자의 재무로 계산하므로 작성자가 아닌 사용자에게는 금액을 가린다
+     * (PrXaiEvaluationRedactor). 글을 찾지 못하거나 확인할 수 없으면 작성자가 아닌 것으로 본다 (기본이 숨김).
+     */
+    @Transactional(readOnly = true)
+    public boolean isPurchaseRequester(Long postId, Long userId) {
+        if (postId == null || userId == null) {
+            return false;
+        }
+        return prPostRepository
+                .findByPost_Id(postId)
+                .map(prPost -> prPost.getPost().isAuthor(userId))
+                .orElse(false);
+    }
+
     /** 계좌 거래에서 추정한 값. 입력 계약에서 isEstimated 로 읽혀 경고(FINANCE_FIELD_ESTIMATED)가 붙는다. */
     private static PrXaiProvenanceValueDto estimated(
             long value, String kind, Long userId, String snapshotDate) {

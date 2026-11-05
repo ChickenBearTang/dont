@@ -19,4 +19,5 @@ public record PrXaiEvaluationResponseDto(
         OffsetDateTime generatedAt,
         String schemaVersion,
         String modelVersion,
-        String ruleVersion) {}
+        String ruleVersion,
+        boolean financialDetailsHidden) {}

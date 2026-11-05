@@ -81,7 +81,8 @@ class PrXaiEvaluationControllerTest {
                         OffsetDateTime.of(2026, 3, 24, 18, 0, 0, 0, ZoneOffset.UTC),
                         "v1",
                         null,
-                        "rule-v1");
+                        "rule-v1",
+                        false);
         when(prXaiEvaluationService.evaluate(67L, 10L)).thenReturn(responseDto);
 
         mockMvc.perform(

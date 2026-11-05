@@ -38,12 +38,18 @@ public class PrXaiEvaluationService {
         }
 
         PrXaiEvaluationRequestDto request = prXaiContextService.buildContext(postId, userId);
+        // 평가는 작성자의 재무로 계산한다. 작성자가 아닌 사용자에게는 금액을 가려서 준다 (확인이 안 되면 가리는 쪽).
+        boolean requester = prXaiContextService.isPurchaseRequester(postId, userId);
         try {
             PrXaiEvaluationResponseDto response = aiClient.evaluatePrXai(request.requestId(), request);
             if (response == null) {
                 throw new CommunityException(CommunityErrorCode.PURCHASE_REQUEST_XAI_UPSTREAM_ERROR);
             }
-            return response;
+            if (requester) {
+                return response;
+            }
+            return PrXaiEvaluationRedactor.forNonRequester(
+                    response, PrXaiEvaluationRedactor.sensitiveAmounts(request.financeProfile()));
         } catch (CommunityException exception) {
             throw exception;
         } catch (ResourceAccessException exception) {

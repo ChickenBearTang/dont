@@ -587,6 +587,8 @@ export const PrDetailPage = () => {
       ? detail.events[detail.events.length - 1].createdAt
       : detail.closedAt ?? detail.updatedAt;
   const xaiSummaryParts = xaiEvaluation ? parseXaiSummary(xaiEvaluation.summary) : null;
+  // 작성자가 아닌 사용자에게는 서버가 작성자의 재무 금액을 빼고 내려준다.
+  const financialDetailsHidden = xaiEvaluation?.financialDetailsHidden === true;
   const priceMetrics = xaiEvaluation
     ? xaiEvaluation.priceEvaluation.keyMetrics.filter(
         (metric) => metric.code !== 'requested_price_amount',
@@ -1072,8 +1074,12 @@ export const PrDetailPage = () => {
                   <div className="mt-3 space-y-1.5 rounded-xl border border-light-gray bg-white/80 px-3 py-2 text-sm font-semibold leading-relaxed text-eel/85">
                     <p className="font-black text-eel">판단 요약</p>
                     <p>{xaiSummaryParts?.verdict ?? '-'}</p>
-                    <p>핵심 근거: {xaiSummaryParts?.keyReason ?? '-'}</p>
-                    <p>개선 포인트: {xaiSummaryParts?.improvementPoint ?? '-'}</p>
+                    {!financialDetailsHidden && (
+                      <>
+                        <p>핵심 근거: {xaiSummaryParts?.keyReason ?? '-'}</p>
+                        <p>개선 포인트: {xaiSummaryParts?.improvementPoint ?? '-'}</p>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1142,6 +1148,13 @@ export const PrDetailPage = () => {
                   <p className="text-xs font-bold text-text-muted">
                     상태: {getXaiSectionStatusLabel(xaiEvaluation.financialEvaluation.status)}
                   </p>
+                  {financialDetailsHidden ? (
+                    <p className="rounded-xl border border-light-gray bg-surface-muted/40 px-3 py-2 text-sm font-medium text-text-muted">
+                      작성자의 잔액·소득·지출 금액은 작성자에게만 보여요. 판단 결과와 이유, 가격 평가는 그대로
+                      볼 수 있어요.
+                    </p>
+                  ) : (
+                    <>
                   <div className="group rounded-xl border border-light-gray bg-surface-muted/40 p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm">
                     <p className="text-xs font-black uppercase tracking-widest text-text-subtle">
                       세이브박스 잔액
@@ -1198,6 +1211,8 @@ export const PrDetailPage = () => {
                     <span className="text-text-subtle">월간 수지</span>
                     <span className={monthlyCashflowToneClass}>{monthlyCashflowLabel}</span>
                   </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-2 rounded-2xl border border-light-gray bg-white p-4">
@@ -1213,9 +1228,11 @@ export const PrDetailPage = () => {
                             <span className="mr-2 text-primary-blue">{String(index + 1).padStart(2, '0')}</span>
                             {factor.label}
                           </p>
-                          <p className="mt-1 text-xs font-black text-primary-blue">
-                            영향도 {formatImpactPercent(factor.impact)}
-                          </p>
+                          {factor.impact != null && (
+                            <p className="mt-1 text-xs font-black text-primary-blue">
+                              영향도 {formatImpactPercent(factor.impact)}
+                            </p>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -1249,7 +1266,7 @@ export const PrDetailPage = () => {
                   )}
                 </div>
 
-                {xaiEvaluation.decision.trim().toUpperCase() !== 'BUY_NOW' && (
+                {!financialDetailsHidden && xaiEvaluation.decision.trim().toUpperCase() !== 'BUY_NOW' && (
                   <div className="space-y-2 rounded-2xl border border-light-gray bg-white p-4">
                     <p className="text-sm font-black text-eel">Counterfactual</p>
                     {xaiEvaluation.counterfactuals.length > 0 ? (

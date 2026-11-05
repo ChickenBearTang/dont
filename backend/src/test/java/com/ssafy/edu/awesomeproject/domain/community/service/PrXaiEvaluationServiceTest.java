@@ -5,13 +5,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrXaiEvaluationRequestDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrXaiFinanceProfileDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrXaiProvenanceValueDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrXaiPurchaseContextDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiAvailabilityResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiConfidenceDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiCounterfactualDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiEvaluationResponseDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiMetricDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiRuntimeEnginesDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiSectionDto;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
@@ -66,14 +70,66 @@ class PrXaiEvaluationServiceTest {
                         OffsetDateTime.of(2026, 3, 25, 0, 0, 0, 0, ZoneOffset.UTC),
                         "v1",
                         null,
-                        "rule-v1");
+                        "rule-v1",
+                        false);
         when(prXaiAvailabilityService.checkAvailability(67L, 10L)).thenReturn(available());
         when(prXaiContextService.buildContext(67L, 10L)).thenReturn(request);
+        when(prXaiContextService.isPurchaseRequester(67L, 10L)).thenReturn(true);
         when(aiClient.evaluatePrXai("req-123", request)).thenReturn(expected);
 
         PrXaiEvaluationResponseDto result = prXaiEvaluationService.evaluate(67L, 10L);
 
         assertThat(result).isSameAs(expected);
+    }
+
+    @Test
+    void someoneWhoIsNotThePostAuthorNeverReceivesTheAuthorsAmounts() throws Exception {
+        // buildRequest() 의 작성자 값: 잔액 3,000,000 / 비상금 800,000 / 세이브박스 800,000 / 카드 250,000
+        PrXaiEvaluationRequestDto request = buildRequest();
+        PrXaiEvaluationResponseDto fromAi =
+                new PrXaiEvaluationResponseDto(
+                        "req-123",
+                        67L,
+                        "WAIT",
+                        "조금 더 지켜보는 것을 권합니다. 구매 후 예상 잔액이 낮아질 가능성이 큽니다. "
+                                + "세이브박스 800,000원에 200,000원을 더 모으면 구매를 검토할 수 있어요.",
+                        new PrXaiSectionDto(
+                                "caution",
+                                List.of(new PrXaiMetricDto("savebox_balance", "세이브박스 잔액", "800,000원"))),
+                        new PrXaiSectionDto(
+                                "favorable",
+                                List.of(new PrXaiMetricDto("current_effective_price", "현재 판단 가격", "2,500,000원"))),
+                        List.of(),
+                        List.of(),
+                        List.of(new PrXaiCounterfactualDto("세이브박스를 200,000원 더 모으면 구매를 검토할 수 있어요.", "REVIEW", true)),
+                        List.of("FINANCE_FIELD_ESTIMATED:available_fixed_income", "NO_PRICE_HISTORY"),
+                        new PrXaiConfidenceDto(0.7, 0.8, 0.9),
+                        new PrXaiRuntimeEnginesDto("rule_engine_v1", "rule_trace", "disabled", "disabled"),
+                        OffsetDateTime.of(2026, 3, 25, 0, 0, 0, 0, ZoneOffset.UTC),
+                        "v1",
+                        null,
+                        "rule-v1",
+                        false);
+        // 다른 사용자(11)가 조회한다. isPurchaseRequester 는 stub 하지 않아 false (= 확인이 안 되면 가린다).
+        when(prXaiAvailabilityService.checkAvailability(67L, 11L)).thenReturn(available());
+        when(prXaiContextService.buildContext(67L, 11L)).thenReturn(request);
+        when(aiClient.evaluatePrXai("req-123", request)).thenReturn(fromAi);
+
+        PrXaiEvaluationResponseDto result = prXaiEvaluationService.evaluate(67L, 11L);
+
+        assertThat(result.financialDetailsHidden()).isTrue();
+        assertThat(result.financialEvaluation().keyMetrics()).isEmpty();
+        assertThat(result.counterfactuals()).isEmpty();
+        assertThat(result.warnings()).containsExactly("NO_PRICE_HISTORY");
+        // 상품 가격 평가는 공개 정보라서 그대로다.
+        assertThat(result.priceEvaluation()).isEqualTo(fromAi.priceEvaluation());
+        String json = new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(result);
+        assertThat(json)
+                .doesNotContain("800,000")
+                .doesNotContain("200,000")
+                .doesNotContain("3,000,000")
+                .doesNotContain("3000000")
+                .contains("2,500,000원");
     }
 
     @Test
