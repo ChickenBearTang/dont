@@ -1,0 +1,5 @@
+﻿category_code,label_ko,kc_record_expected_yn,price_pool_yn,reviewed_yn,sort_order,note
+OFFICIAL_IMPORT,정식수입(국내 정발),Y,Y,N,10,초기 가정(검수 필요)
+PARALLEL_IMPORT,병행수입,U,N,N,20,초기 가정(검수 필요). 인증 기록 기대 여부는 확인 전이라 U
+DIRECT_PURCHASE,해외직구,N,N,N,30,초기 가정(검수 필요). 국내 인증 기록이 없는 것이 정상이라 N
+PURCHASING_AGENCY,구매대행,U,N,N,40,초기 가정(검수 필요)

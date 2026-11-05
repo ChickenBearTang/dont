@@ -1,0 +1,21 @@
+<!--
+  판매처 상품 페이지 픽스처 (합성). 실제 사이트에서 저장한 HTML 이 아니라 schema.org Product
+  구조화 데이터의 대표적인 모양을 손으로 만들었다 (JSON-LD, @graph, 브랜드 객체, 배열 type).
+  gtin13 은 체크 숫자가 맞는 유효한 값(4006381333931)이다.
+-->
+<html><head>
+<meta property="og:title" content="로지텍 MX Master 3S 무선 마우스" />
+<script type="application/ld+json">
+{"@context": "https://schema.org",
+ "@graph": [
+   {"@type": "BreadcrumbList", "itemListElement": []},
+   {"@type": ["Product", "IndividualProduct"],
+    "name": "로지텍 MX Master 3S 무선 마우스",
+    "brand": {"@type": "Brand", "name": "Logitech"},
+    "mpn": "910-006556",
+    "sku": "ABC-123",
+    "gtin13": "4006381333931",
+    "offers": {"@type": "Offer", "price": "109000", "priceCurrency": "KRW"}}
+ ]}
+</script>
+</head><body></body></html>

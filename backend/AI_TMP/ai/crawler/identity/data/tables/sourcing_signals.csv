@@ -1,0 +1,25 @@
+﻿category_code,match_type,pattern,priority,enabled_yn,note
+DIRECT_PURCHASE,domain,aliexpress.com,10,Y,알리익스프레스
+DIRECT_PURCHASE,domain,amazon.com,10,Y,아마존 미국
+DIRECT_PURCHASE,domain,amazon.co.jp,10,Y,아마존 일본
+DIRECT_PURCHASE,domain,amazon.de,10,Y,아마존 독일
+DIRECT_PURCHASE,domain,ebay.com,10,Y,이베이
+DIRECT_PURCHASE,domain,taobao.com,10,Y,타오바오
+DIRECT_PURCHASE,domain,iherb.com,10,Y,아이허브
+DIRECT_PURCHASE,keyword,직구,50,Y,해외직구/직구템 포함
+DIRECT_PURCHASE,keyword,알리익스프레스,50,Y,
+DIRECT_PURCHASE,keyword,아마존,50,Y,
+DIRECT_PURCHASE,keyword,이베이,50,Y,
+DIRECT_PURCHASE,keyword,타오바오,50,Y,
+DIRECT_PURCHASE,keyword,관부가세,50,Y,관세·부가세 언급은 해외 구매의 신호
+DIRECT_PURCHASE,keyword,배대지,50,Y,배송대행지
+DIRECT_PURCHASE,token,aliexpress,50,Y,
+DIRECT_PURCHASE,token,amazon,50,Y,
+DIRECT_PURCHASE,token,ebay,50,Y,
+DIRECT_PURCHASE,token,taobao,50,Y,
+PARALLEL_IMPORT,keyword,병행,50,Y,병행수입/병행품 포함
+PURCHASING_AGENCY,keyword,구매대행,40,Y,'해외직구 구매대행'처럼 직구와 함께 나오면 더 구체적인 이 신호를 따른다
+OFFICIAL_IMPORT,keyword,정발,50,Y,국내정발
+OFFICIAL_IMPORT,keyword,정식발매,50,Y,
+OFFICIAL_IMPORT,keyword,정식수입,50,Y,
+OFFICIAL_IMPORT,keyword,공식수입,50,Y,
