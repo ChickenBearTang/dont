@@ -54,7 +54,11 @@ def merge_to_price_observation(
     식별한 *신뢰 가능한* 결과만 상품 ID/브랜드에 쓴다. 신뢰하지 못하면 예전 방식(바코드/MPN/
     모델코드/제목 해시)을 그대로 쓴다. 주지 않으면 동작이 이전과 같다."""
     identity = (
-        identity_resolver.resolve(listing.title_raw or "") if identity_resolver is not None else None
+        identity_resolver.resolve(
+            listing.title_raw or "", url=(merchant_offer.merchant_url if merchant_offer is not None else None)
+        )
+        if identity_resolver is not None
+        else None
     )
     listed_candidates: list[tuple[str, int | None]] = [
         ("list", _to_int(listing.price_raw))

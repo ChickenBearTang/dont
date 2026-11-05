@@ -16,7 +16,7 @@ canonical_id 는 신뢰 상태(RESOLVED_*)에서만 채운다. 신뢰하지 않�
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 import re
 
@@ -25,6 +25,7 @@ from .catalog import Catalog
 from .gtin import find_gtins
 from .llm import LlmExtractor, verify_llm_candidate
 from .structured import extract_structured_product
+from .tables.sourcing import SourcingClassifier, SourcingResult
 from .text import compact_code, tokenize
 
 
@@ -55,10 +56,22 @@ class ProductIdentity:
     evidence: tuple[str, ...] = ()
     candidates: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
+    # 유통경로(정식수입/병행수입/직구/구매대행). 신호가 없으면 sourcing_category=None (국내 판매로 가정하지 않는다).
+    sourcing_status: str = "none"  # "classified" | "conflict" | "none"
+    sourcing_category: str | None = None
+    price_pool: bool | None = None  # False 면 이 경로의 가격은 같은 상품의 다른 경로 가격과 합치지 않는다
+    sourcing_evidence: tuple[str, ...] = ()
 
     @property
     def trusted(self) -> bool:
         return self.status in _TRUSTED
+
+    @property
+    def series_key(self) -> str:
+        """가격 이력을 쌓는 단위. 경로가 다르면 가격 수준이 달라(관부가세/배송/보증) 따로 쌓는다."""
+        if self.sourcing_category and self.price_pool is False:
+            return f"{self.group_key}|{self.sourcing_category.lower()}"
+        return self.group_key
 
 
 # 모델명이 아닌 말. 제조사 뒤에서 이 말이 나오면 모델명 추출을 멈춘다.
@@ -166,13 +179,44 @@ class ProductResolver:
         catalog: Catalog | None = None,
         lexicon: BrandLexicon | None = None,
         llm: LlmExtractor | None = None,
+        sourcing: SourcingClassifier | None = None,
     ) -> None:
-        self._catalog = catalog or Catalog.load_default()
+        tables = None
+        if catalog is None or sourcing is None:
+            from .tables.loader import load_default_tables
+
+            tables, _, _ = load_default_tables()
+        self._catalog = catalog or Catalog.load_default(tables=tables)
+        self._sourcing = sourcing if sourcing is not None else SourcingClassifier.from_tables(tables)
         self._lexicon = lexicon or BrandLexicon.load()
         self._llm = llm
         self._brand_alias_set = frozenset(a for b in self._lexicon.brands() for a in self._lexicon.aliases_of(b))
 
-    def resolve(self, title: str, *, page_html: str | None = None) -> ProductIdentity:
+    def resolve(self, title: str, *, page_html: str | None = None, url: str | None = None) -> ProductIdentity:
+        """url: 글/상품 주소. 주소의 도메인(aliexpress.com 등)도 유통경로 판단 신호로 쓴다."""
+        identity = self._resolve_identity(title, page_html=page_html)
+        return self._with_sourcing(identity, title or "", url)
+
+    def _with_sourcing(self, identity: ProductIdentity, title: str, url: str | None) -> ProductIdentity:
+        result = self._sourcing.classify(title, url)
+        if result.status == "none":
+            return identity
+        warnings = list(identity.warnings)
+        if result.status == "conflict":
+            warnings.append(f"SOURCING_CONFLICT: {', '.join(result.conflicting)}")
+            return replace(
+                identity, sourcing_status="conflict", sourcing_evidence=result.evidence, warnings=tuple(warnings),
+            )
+        if result.kc_record_expected == "Y":
+            entry = self._catalog.get(identity.canonical_id) if identity.canonical_id else None
+            if entry is None or entry.kc_certified != "Y":
+                warnings.append(f"KC_RECORD_EXPECTED_BUT_MISSING: {result.category_code} 경로인데 인증 DB 기록이 연결된 카탈로그 항목이 없다")
+        return replace(
+            identity, sourcing_status="classified", sourcing_category=result.category_code, price_pool=result.price_pool,
+            sourcing_evidence=result.evidence, warnings=tuple(warnings),
+        )
+
+    def _resolve_identity(self, title: str, *, page_html: str | None = None) -> ProductIdentity:
         title = title or ""
         warnings: list[str] = []
 

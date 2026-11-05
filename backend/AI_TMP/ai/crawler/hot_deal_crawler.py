@@ -80,7 +80,7 @@ class HotDealCrawler:
             normalized = replace(
                 normalized,
                 issues=tuple(i.code for i in found),
-                identity=resolver.resolve(normalized.title) if resolver is not None else None,
+                identity=resolver.resolve(normalized.title, url=normalized.url) if resolver is not None else None,
             )
             (quarantined if any(i.severity == Severity.ERROR for i in found) else clean).append(normalized)
 

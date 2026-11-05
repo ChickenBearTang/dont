@@ -40,6 +40,13 @@ class CatalogEntry:
     requires_brand: bool = False
     source: str = "seed"  # "seed"(손으로 쓴 예시) | "kc"(공공 인증 DB) | "curated"(검수)
     kc: Any = None  # KC 인증 정보 (인증/관리번호, 제조자, 기자재명칭 ...)
+    # 인증 DB 에 기록이 있는가: "Y" | "N" | "U"(확인 안 함). 유통경로 규칙(kc_record_expected_yn)과 짝을 이룬다.
+    kc_certified: str = "U"
+    # 이 표기(compact_code)는 제목에 브랜드가 있을 때만 인정한다. 짧거나 통칭인 이름("마스터 3S")이
+    # 다른 브랜드의 글에서 우연히 맞는 것을 막는다. 항목 전체를 막는 requires_brand 와 달리 이름 하나만 막는다.
+    gated_codes: frozenset[str] = frozenset()
+    # 별칭 표기 -> 별칭 종류(별칭 테이블의 alias_type). 어떤 이름으로 맞았는지 근거에 남기는 데 쓴다.
+    code_types: tuple[tuple[str, str], ...] = ()
 
     def sold_under(self, brands: list[str] | None) -> bool:
         """제목의 브랜드가 이 상품과 양립하는가. 브랜드를 모르면 True."""
@@ -52,6 +59,9 @@ class CatalogEntry:
         """이 상품을 가리키는 모든 표기 (compact_code 형태, 긴 것부터)."""
         found = {compact_code(self.model), *(compact_code(a) for a in self.aliases)}
         return tuple(sorted((c for c in found if c), key=lambda c: (-len(c), c)))
+
+    def code_type(self, code: str) -> str | None:
+        return dict(self.code_types).get(code)
 
     @property
     def line_codes(self) -> tuple[str, ...]:
@@ -93,6 +103,7 @@ class Catalog:
                 owners[code] = entry.id
         self._entries = entries
         self.skipped: list[tuple[str, str]] = []  # load_many 가 건너뛴 항목 (id, 이유)
+        self.issues: list[Any] = []  # 테이블(별칭/카탈로그 행)을 얹을 때 걸러진 행과 이유 (tables.Issue)
         self._by_id = {e.id: e for e in entries}
         # 색인: 표기(compact_code) -> 항목들. 제목은 토큰 구간을 이어 붙인 문자열로 조회한다.
         # 전수 탐색(항목 수 x 표기 수)을 제목 길이에 비례하는 조회로 바꿔 수십만 건에서도 빠르다.
@@ -139,15 +150,24 @@ class Catalog:
         return catalog
 
     @classmethod
-    def load_default(cls) -> "Catalog":
-        """시드 카탈로그 + AI_PRODUCT_CATALOG_PATHS(os.pathsep 로 구분)의 추가 파일들.
+    def load_default(cls, tables: Any = None) -> "Catalog":
+        """시드 카탈로그 + AI_PRODUCT_CATALOG_PATHS(os.pathsep 로 구분)의 추가 파일들, 그 위에 별칭/카탈로그 테이블.
 
-        추가 파일은 시드보다 뒤에 읽으므로 시드(검수한 항목)가 우선한다.
+        추가 파일은 시드보다 뒤에 읽으므로 시드(검수한 항목)가 우선한다. 테이블(tables.loader 가 환경변수로
+        정한 곳: DB, CSV 디렉터리, 패키지 초기 파일)은 맨 위에 얹는다: 승인된 별칭이 항목에 붙고, 아직 없는
+        상품이 더해진다. tables 를 주면 그것을 쓴다(이미 읽은 것을 재사용할 때).
         """
         import os
 
+        from .tables.loader import load_default_tables
+        from .tables.overlay import apply_tables
+
         extra = [Path(p) for p in os.getenv("AI_PRODUCT_CATALOG_PATHS", "").split(os.pathsep) if p.strip()]
-        return cls.load_many([_DEFAULT_PATH, *extra]) if extra else cls.load()
+        base = cls.load_many([_DEFAULT_PATH, *extra]) if extra else cls.load()
+        if tables is None:
+            tables, _, _ = load_default_tables()
+        merged, _ = apply_tables(base, tables)
+        return merged
 
     @staticmethod
     def _read_entries(path: Path) -> list["CatalogEntry"]:
@@ -170,6 +190,10 @@ class Catalog:
     def __len__(self) -> int:
         return len(self._entries)
 
+    @property
+    def entries(self) -> tuple[CatalogEntry, ...]:
+        return tuple(self._entries)
+
     def get(self, entry_id: str) -> CatalogEntry | None:
         return self._by_id.get(entry_id)
 
@@ -179,8 +203,8 @@ class Catalog:
         haystack = compact(tokens)
         brand_known = bool(brands)
 
-        def eligible(entry: CatalogEntry) -> bool:
-            if entry.requires_brand and not brand_known:
+        def eligible(entry: CatalogEntry, code: str) -> bool:
+            if (entry.requires_brand or code in entry.gated_codes) and not brand_known:
                 return False
             return entry.sold_under(brands)
 
@@ -188,7 +212,7 @@ class Catalog:
         hits: list[tuple[int, int, CatalogEntry, str]] = []  # (start, end, entry, code)
         for start, end, text in spans:
             for entry in self._code_index.get(text, ()):
-                if eligible(entry):
+                if eligible(entry, text):
                     hits.append((start, end, entry, text))
 
         # 더 긴 일치 안에 완전히 들어가는 일치는 버린다.
@@ -202,7 +226,9 @@ class Catalog:
             ordered = sorted(haystack[1])
             token_index = ordered.index(end)  # end 는 토큰 경계이므로 항상 있다
             following = tuple(tokens[token_index: token_index + 4])
-            return CatalogMatch("match", entry, (entry,), code, (f"catalog code '{code}'",), following)
+            kind = entry.code_type(code)
+            note = f"catalog code '{code}'" + (f" (alias: {kind})" if kind else "")
+            return CatalogMatch("match", entry, (entry,), code, (note,), following)
         if len(distinct) > 1:
             entries = tuple(h[2] for h in distinct.values())
             return CatalogMatch("multiple_products", None, entries, "", ("title mentions several catalog products",))
@@ -211,7 +237,7 @@ class Catalog:
         line_candidates: dict[str, CatalogEntry] = {}
         for _, _, text in _token_spans(tokens, self._max_line_len):
             for entry in self._line_index.get(text, ()):
-                if eligible(entry):
+                if eligible(entry, text):
                     line_candidates[entry.id] = entry
         if len(line_candidates) > 1:
             return CatalogMatch(
