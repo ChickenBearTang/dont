@@ -11,7 +11,6 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountReposit
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountTransactionRepository;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -63,6 +62,12 @@ public class LedgerService {
     public static final BigDecimal ONE_TIME_TRANSFER_LIMIT = new BigDecimal("100000000");
 
     public static final BigDecimal DAILY_TRANSFER_LIMIT = new BigDecimal("500000000");
+
+    /**
+     * 한 건의 금액 정수부 최대 자릿수. 잔액·거래 금액 열이 numeric(15, 2) 라서 정수부는 13자리까지다
+     * (DTO 의 @Digits 와 같은 값).
+     */
+    public static final int MAX_AMOUNT_DIGITS = 13;
 
     static final String TYPE_DEPOSIT = "1";
     static final String TYPE_WITHDRAWAL = "2";
@@ -253,16 +258,25 @@ public class LedgerService {
         }
     }
 
-    /** 원 단위 정수만 받는다. 0 이하이거나 소수점 이하가 남는 금액은 거절한다 (조용히 내림하지 않는다). */
+    /**
+     * 원 단위 정수만 받는다. 0 이하이거나 소수점 이하가 남는 금액은 거절한다 (조용히 내림하지 않는다).
+     *
+     * <p>금액은 요청 본문에서 그대로 온다. "1E+4000000" 처럼 짧은 지수 표기는 BigDecimal 로는 아주 작지만 setScale 로
+     * 정수로 펼치면 400만 자리가 되어 CPU 를 쓰고(약 2초) 열 범위를 넘는 채로 DB 까지 간다. 그래서 펼치기 전에 크기를
+     * 먼저 본다 (stripTrailingZeros 는 지수만 만지므로 값이 커도 싸다).
+     */
     static BigDecimal normalizeAmount(BigDecimal amount) {
         if (amount == null || amount.signum() <= 0) {
             throw new AccountException(AccountErrorCode.INVALID_AMOUNT);
         }
-        BigDecimal won = amount.setScale(0, RoundingMode.DOWN);
-        if (won.compareTo(amount) != 0 || won.signum() <= 0) {
+        BigDecimal stripped = amount.stripTrailingZeros();
+        if (stripped.scale() > 0) { // 소수점 이하가 남는다 (1E-4000000 도 여기서 걸린다)
             throw new AccountException(AccountErrorCode.INVALID_AMOUNT);
         }
-        return won;
+        if (stripped.precision() - stripped.scale() > MAX_AMOUNT_DIGITS) { // 열에 안 들어가는 크기
+            throw new AccountException(AccountErrorCode.INVALID_AMOUNT);
+        }
+        return stripped.setScale(0); // scale <= 0 이고 자릿수가 제한돼 있어 정확하고 싸다
     }
 
     private String nextAccountNo() {

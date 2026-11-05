@@ -2,6 +2,7 @@ package com.ssafy.edu.awesomeproject.domain.fin.account.ledger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.fin.FinFixtures;
@@ -14,6 +15,7 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountReposit
 import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountTransactionRepository;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -165,6 +167,30 @@ class LedgerServiceTest {
         // 소수점이 0인 값(1000.00)은 정수 금액이다.
         ledger.deposit(primary.getId(), new BigDecimal("1000.00"), "입금", null, null);
         assertThat(balanceInDb(primary.getId())).isEqualByComparingTo("1000");
+    }
+
+    @Test
+    void absurdMagnitudesAreRejectedQuicklyInsteadOfBeingExpanded() {
+        // 지수 표기로 짧게 쓴 거대한 수. 예전에는 setScale 이 이걸 실제 정수로 펼치느라 CPU 를 쓰고(1E+4000000 은 약 2초)
+        // 심지어 유효한 금액으로 통과시켰다. 크기를 먼저 보고 거절해야 한다.
+        for (String huge :
+                new String[] {"1E+4000000", "1E+999999999", "1E-4000000", "1E-999999999", "10000000000000"}) {
+            BigDecimal amount = new BigDecimal(huge);
+            assertTimeout(
+                    Duration.ofSeconds(1),
+                    () ->
+                            assertThatThrownBy(() -> ledger.deposit(primary.getId(), amount, "x", null, null))
+                                    .as("deposit %s", huge)
+                                    .isInstanceOfSatisfying(
+                                            AccountException.class,
+                                            e ->
+                                                    assertThat(e.getErrorCode())
+                                                            .isEqualTo(AccountErrorCode.INVALID_AMOUNT)));
+        }
+        assertThat(balanceInDb(primary.getId())).isEqualByComparingTo("0");
+        // 열(15자리, 소수 2자리)의 정수부 13자리 안에 드는 가장 큰 값은 받는다.
+        ledger.deposit(primary.getId(), new BigDecimal("9999999999999"), "입금", null, null);
+        assertThat(balanceInDb(primary.getId())).isEqualByComparingTo("9999999999999");
     }
 
     @Test
