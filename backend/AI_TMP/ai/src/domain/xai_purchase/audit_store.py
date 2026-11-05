@@ -6,12 +6,12 @@ from pathlib import Path
 import threading
 from typing import Any
 
-from config import DATA_DIR
+from config import RUNTIME_DIR
 
 
 class JsonlXaiAuditLogStore:
     def __init__(self, path: Path | None = None) -> None:
-        self._path = path or (DATA_DIR / "xai_audit_log.jsonl")
+        self._path = path or (RUNTIME_DIR / "xai_audit_log.jsonl")
         self._path.parent.mkdir(parents=True, exist_ok=True)
         # 사용자 반응이 '우리가 만든 평가'에 대한 것인지 확인하는 색인.
         # 파일은 추가만 되므로 지난번에 읽은 곳부터 새로 생긴 줄만 읽는다.

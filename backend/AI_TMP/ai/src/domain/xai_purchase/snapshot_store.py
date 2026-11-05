@@ -15,7 +15,7 @@ from pathlib import Path
 import threading
 from typing import Any
 
-from config import DATA_DIR
+from config import RUNTIME_DIR
 
 # 스냅샷에 넣어도 되는 재무 필드. 숫자만이다.
 SNAPSHOT_FINANCE_FIELDS = (
@@ -32,7 +32,7 @@ SNAPSHOT_FINANCE_FIELDS = (
 
 class JsonlXaiSnapshotStore:
     def __init__(self, path: Path | None = None) -> None:
-        self._path = path or (DATA_DIR / "xai_input_snapshots.jsonl")
+        self._path = path or (RUNTIME_DIR / "xai_input_snapshots.jsonl")
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
 

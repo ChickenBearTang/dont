@@ -6,6 +6,10 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
+# 서비스가 실행 중에 쓰는 파일(사용자 반응, 감사 로그, 입력 스냅샷)의 위치. 기본은 DATA_DIR 이지만 DATA_DIR 에는
+# 이미지에 들어 있는 모델 파일(artifacts)도 있어서, 컨테이너에서는 AI_RUNTIME_DIR 로 따로 잡아 볼륨을 붙인다
+# (DATA_DIR 전체에 볼륨을 붙이면 이미지가 새 모델을 담아도 볼륨의 옛 파일이 가려 버린다).
+RUNTIME_DIR = Path(os.environ.get("AI_RUNTIME_DIR") or DATA_DIR)
 RAW_DATA_DIR = DATA_DIR / "raw"
 GENERATED_DATA_DIR = DATA_DIR / "generated"
 FRONTEND_DIR = BASE_DIR / "frontend"

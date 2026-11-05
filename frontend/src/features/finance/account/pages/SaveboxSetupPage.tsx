@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGetMyAccounts } from '../hooks/useAccountQueries';
-import { useSetPrimaryAccount, useCreateSaveBox, useLinkFinanceAccount, useRefreshAccounts } from '../hooks/useAccountMutations';
+import { useSetPrimaryAccount, useCreateSaveBox, useOpenAccount, useRefreshAccounts } from '../hooks/useAccountMutations';
 import { accountKeys } from '../queries/accountKeys';
 import { Button } from '@/shared/components';
 import type { AccountDetail } from '../types';
@@ -53,9 +53,8 @@ export const SaveboxSetupPage: React.FC = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
 
-  const [userKey, setUserKey] = useState('');
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const { mutate: linkAccount, isPending: isLinking } = useLinkFinanceAccount();
+  const [openError, setOpenError] = useState<string | null>(null);
+  const { mutate: openAccount, isPending: isOpening } = useOpenAccount();
 
 
   useEffect(() => {
@@ -71,22 +70,12 @@ export const SaveboxSetupPage: React.FC = () => {
   const { data: accounts, isLoading, isError } = useGetMyAccounts();
 
 
-  const handleLinkAccount = () => {
-    if (!userKey.trim()) return;
-    setLinkError(null);
-    linkAccount(userKey, {
-      onSuccess: () => {
-        setUserKey('');
-
+  const handleOpenAccount = () => {
+    setOpenError(null);
+    openAccount(undefined, {
+      onError: () => {
+        setOpenError('계좌를 개설하지 못했어요. 잠시 뒤 다시 시도해 주세요.');
       },
-      onError: (err: any) => {
-        const errorData = err.response?.data;
-        if (errorData?.code === 'ACC_409_1') {
-          setLinkError('중복된 API 키입니다. 이미 다른 계정에 연동되어 있습니다.');
-        } else {
-          setLinkError('연동 중 오류가 발생했습니다. 키를 다시 확인해 주세요.');
-        }
-      }
     });
   };
 
@@ -120,7 +109,7 @@ export const SaveboxSetupPage: React.FC = () => {
 
       await setPrimary(selectedAccountId);
 
-      await createSaveBox({ accountTypeUniqueNo: '999-1-792bcf290d6a48' });
+      await createSaveBox({});
 
       await refreshAccounts();
       await queryClient.refetchQueries({ queryKey: accountKeys.lists() });
@@ -186,7 +175,7 @@ export const SaveboxSetupPage: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
         <div className="text-red-500 mb-4 text-4xl">⚠️</div>
         <h2 className="text-xl font-bold text-eel mb-2">계좌 정보를 불러울 수 없습니다.</h2>
-        <p className="text-gray mb-6">금융사 연결 상태를 확인하거나 잠시 후 다시 시도해 주세요.</p>
+        <p className="text-gray mb-6">잠시 후 다시 시도해 주세요.</p>
         <button
           onClick={() => window.location.reload()}
           className="px-6 py-2 bg-primary-blue text-white rounded-lg font-bold"
@@ -225,25 +214,17 @@ export const SaveboxSetupPage: React.FC = () => {
         {accounts?.length === 0 && (
           <div className="flex flex-col gap-6">
             <div className="text-center py-10 bg-blue-bg rounded-2xl border-2 border-dashed border-light-gray flex flex-col items-center">
-              <p className="text-gray text-sm mb-4">연결된 계좌가 없습니다.</p>
+              <p className="text-gray text-sm mb-4">개설된 계좌가 없습니다.</p>
               <div className="w-full px-6">
-                <p className="text-xs text-secondary-blue font-bold mb-2 text-left">SSAFY Finance API Key 연동</p>
-                <input
-                  type="text"
-                  value={userKey}
-                  onChange={(e) => setUserKey(e.target.value)}
-                  placeholder="API 키를 입력해 주세요."
-                  className="w-full p-4 rounded-xl border-2 border-light-gray focus:border-primary-blue outline-none text-sm transition-all bg-white"
-                />
-                {linkError && (
-                  <p className="text-red-500 text-xs mt-2 text-left font-medium">{linkError}</p>
+                {openError && (
+                  <p className="text-red-500 text-xs mb-2 text-left font-medium">{openError}</p>
                 )}
                 <Button
-                  onClick={handleLinkAccount}
-                  disabled={!userKey.trim() || isLinking}
-                  className="w-full mt-4 h-12 text-sm"
+                  onClick={handleOpenAccount}
+                  disabled={isOpening}
+                  className="w-full mt-2 h-12 text-sm"
                 >
-                  {isLinking ? '연동 중...' : '금융 계좌 연동하기'}
+                  {isOpening ? '개설 중...' : '입출금 계좌 개설하기'}
                 </Button>
               </div>
             </div>
@@ -251,8 +232,8 @@ export const SaveboxSetupPage: React.FC = () => {
             <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
               <h4 className="text-xs font-bold text-primary-blue mb-1">💡 안내</h4>
               <p className="text-[11px] text-gray leading-relaxed">
-                계좌 연동을 위해 SSAFY Finance에서 발급받은 API 키를 입력해 주세요.
-                연동 시 계좌 목록과 최근 거래 내역이 자동으로 동기화됩니다.
+                서비스 안에서 쓰는 입출금 계좌를 개설합니다. 외부 금융사와 연결되지 않아요.
+                개설한 계좌가 주 계좌가 되고, 세이브박스로 저축할 돈이 이 계좌에서 나가요.
               </p>
             </div>
           </div>

@@ -60,8 +60,14 @@ export interface SavingsSetting {
 }
 
 
+/** 계좌 별칭은 비워도 된다. 비우면 서버가 기본 이름("세이브박스")을 쓴다. */
 export interface SaveBoxCreateRequest {
-  accountTypeUniqueNo: string;
+  accountName?: string;
+}
+
+/** 입출금 계좌 개설. 계좌 별칭은 비워도 된다 (기본 "입출금 통장"). */
+export interface AccountOpenRequest {
+  accountName?: string;
 }
 
 export interface SavingsSettingRequest {

@@ -57,7 +57,7 @@ export const AccountList: React.FC = () => {
       <div className="flex flex-col items-center justify-center p-12 text-center bg-blue-bg/30 border-2 border-dashed border-light-gray rounded-2xl">
         <div className="mb-4 text-4xl">🏦</div>
         <h3 className="mb-2 text-lg font-bold text-gray">연결된 계좌가 없습니다.</h3>
-        <p className="mb-6 text-gray">오픈뱅킹 연동을 통해 계좌를 등록해 보세요.</p>
+        <p className="mb-6 text-gray">입출금 계좌를 개설하면 여기에 보여요.</p>
         <button className="px-6 py-2 font-medium text-primary-blue transition-colors border-2 border-primary-blue rounded-lg hover:bg-primary-blue hover:text-white">
           계좌 등록하기
         </button>

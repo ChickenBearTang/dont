@@ -11,6 +11,7 @@ import type {
 import { useUIStore } from '@/shared/store/useUIStore';
 import { formatRelativeTime } from '@/shared/utils/date';
 import { UserAvatar } from '@/features/community/components/UserAvatar';
+import { getXaiWarningLabel } from '../xaiWarningLabels';
 
 const formatCurrency = (value: number): string =>
   new Intl.NumberFormat('ko-KR', {
@@ -179,21 +180,8 @@ const xaiSectionStatusLabelMap: Record<string, string> = {
   neutral: '보통',
 };
 
-const xaiWarningLabelMap: Record<string, string> = {
-  CRAWL_FETCH_FAILED: '상품 페이지 크롤링에 실패했습니다.',
-  PRICE_ESTIMATED_FROM_REQUEST: '요청 가격 기준으로 대체 계산했습니다.',
-  SHAP_UNAVAILABLE: 'SHAP 설명 엔진을 사용할 수 없습니다.',
-  DICE_UNAVAILABLE: 'DICE 반사실 설명 엔진을 사용할 수 없습니다.',
-  NO_PRICE_HISTORY: '가격 이력 데이터가 부족합니다.',
-  PRICE_HISTORY_READ_FAILED: '가격 이력 조회에 실패했습니다.',
-  MISSING_PURCHASE_URL: '구매 URL이 없어 크롤링을 생략했습니다.',
-  FINANCE_PROFILE_EMPTY_FALLBACK: '재무 데이터가 부족해 가격 중심으로 판단했습니다.',
-};
-
 const getXaiSectionStatusLabel = (status: string): string =>
   xaiSectionStatusLabelMap[status.trim().toLowerCase()] ?? status;
-
-const getXaiWarningLabel = (warning: string): string => xaiWarningLabelMap[warning] ?? warning;
 
 const cleanSummarySegment = (value: string): string =>
   value.replace(/^[\s.·\-:]+/, '').replace(/\s+/g, ' ').trim();

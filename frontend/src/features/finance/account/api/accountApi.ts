@@ -5,6 +5,7 @@ import type {
   AccountListResponse,
   AccountTransactionResponse,
   SaveBoxCreateRequest,
+  AccountOpenRequest,
   SavingsSetting,
   SavingsSettingRequest,
   AccountCreateResponse,
@@ -69,9 +70,7 @@ export const accountApi = {
   },
 
 
-  linkFinanceAccount: (userKey: string): Promise<ApiResponse<AccountListResponse>> => {
-    return axiosInstance.post('/fin/accounts/link', null, {
-      params: { userKey },
-    });
+  openAccount: (data?: AccountOpenRequest): Promise<ApiResponse<AccountCreateResponse>> => {
+    return axiosInstance.post('/fin/accounts', data ?? {});
   },
 };

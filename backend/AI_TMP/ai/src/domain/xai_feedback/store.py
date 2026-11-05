@@ -14,7 +14,7 @@ from pathlib import Path
 import threading
 from typing import Any, Iterator
 
-from config import DATA_DIR
+from config import RUNTIME_DIR
 
 from .schemas import FeedbackStatus, PurchaseFeedbackRequest
 
@@ -33,7 +33,7 @@ def feedback_id_for(request_id: str, aspect: str, verdict: str, action: str, rea
 
 class JsonlFeedbackStore:
     def __init__(self, path: Path | None = None) -> None:
-        self._path = path or (DATA_DIR / "xai_feedback.jsonl")
+        self._path = path or (RUNTIME_DIR / "xai_feedback.jsonl")
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         # (requestId, aspect) -> 현재 값의 feedbackId. 시작할 때 파일에서 복원한다.

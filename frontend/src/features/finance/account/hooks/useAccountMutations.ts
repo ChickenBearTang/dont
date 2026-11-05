@@ -88,11 +88,11 @@ export const useExecuteManualWithdrawal = () => {
 };
 
 
-export const useLinkFinanceAccount = () => {
+export const useOpenAccount = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: accountApi.linkFinanceAccount,
+    mutationFn: accountApi.openAccount,
     onSuccess: () => {
 
       queryClient.invalidateQueries({ queryKey: accountKeys.all });

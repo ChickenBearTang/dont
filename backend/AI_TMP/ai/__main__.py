@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from typing import Any
 
 from ai.crawler.hot_deal_crawler import HotDealCrawler
-from ai.finance_profile import fetch_finance_profile
 from ai.manager import AIPipelineManager
 from ai.models import CrawlResult
 from ai.xai.analyzer import ExplainabilityAnalyzer
@@ -21,26 +19,10 @@ def _basic_payload(result: CrawlResult) -> dict[str, Any]:
     }
 
 
-def _resolve_finance_profile(
-    *,
-    finance_api_url: str | None,
-    finance_api_timeout: int,
-) -> dict[str, float | int] | None:
-    resolved_url = finance_api_url or os.environ.get("AI_FINANCE_API_URL")
-    if resolved_url is None or resolved_url.strip() == "":
-        return None
-    return fetch_finance_profile(
-        resolved_url,
-        timeout=max(finance_api_timeout, 1),
-    )
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--xai", action="store_true")
     parser.add_argument("--xai-top-k", type=int, default=3)
-    parser.add_argument("--finance-api-url", default=None)
-    parser.add_argument("--finance-api-timeout", type=int, default=3)
     args = parser.parse_args()
 
     crawler = HotDealCrawler(fetch=lambda _: "")
@@ -53,13 +35,9 @@ def main() -> None:
         print(json.dumps(payload, ensure_ascii=True))
         return
 
-    finance_profile = _resolve_finance_profile(
-        finance_api_url=args.finance_api_url,
-        finance_api_timeout=args.finance_api_timeout,
-    )
     fallback_counterfactual_engine = CounterfactualEngine()
     analyzer = ExplainabilityAnalyzer(
-        finance_profile=finance_profile or {},
+        finance_profile={},  # 이 CLI 는 크롤 결과 설명 시연용이다. 사용자 재무 입력은 Spring 요청(/api/v1/xai/purchase-evaluations)으로만 받는다.
         counterfactual_engine=fallback_counterfactual_engine,
         dice_counterfactual_engine=DiceCounterfactualEngine(
             fallback_engine=fallback_counterfactual_engine
