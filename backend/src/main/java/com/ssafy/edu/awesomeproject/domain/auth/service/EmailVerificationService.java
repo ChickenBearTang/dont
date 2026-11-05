@@ -6,15 +6,17 @@ import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
 import com.ssafy.edu.awesomeproject.domain.auth.token.EmailVerificationStore;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Locale;
-import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class EmailVerificationService {
     private static final int VERIFICATION_CODE_LENGTH = 6;
+    /** 인증 코드는 추측할 수 없어야 하므로 예측 가능한 난수(ThreadLocalRandom)가 아니라 SecureRandom 을 쓴다. */
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
     private final EmailVerificationStore emailVerificationStore;
@@ -97,7 +99,7 @@ public class EmailVerificationService {
     private String generateCode() {
         int bound = (int) Math.pow(10, VERIFICATION_CODE_LENGTH);
         return String.format(
-                "%0" + VERIFICATION_CODE_LENGTH + "d", ThreadLocalRandom.current().nextInt(bound));
+                "%0" + VERIFICATION_CODE_LENGTH + "d", SECURE_RANDOM.nextInt(bound));
     }
 
     public record SendResult(String email, long expiresInSeconds) {}
