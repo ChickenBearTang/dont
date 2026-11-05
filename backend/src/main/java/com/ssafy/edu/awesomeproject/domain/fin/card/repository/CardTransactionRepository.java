@@ -57,6 +57,15 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    /** 환불/취소(음수)는 지출이 아니므로 빼고, 양수 결제만 더한다. recentTransactions 의 max(amount, 0) 과 같은 기준이다. */
+    @Query(
+            "select coalesce(sum(case when ct.transactionAmount > 0 then ct.transactionAmount else 0 end), 0) "
+                    + "from CardTransaction ct where ct.userId = :userId and ct.transactionDate between :startDate and :endDate")
+    Long sumPositiveAmountByUserIdAndDateRange(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
     @Query(
             """
             select ct.card.id as cardId, coalesce(sum(ct.transactionAmount), 0) as totalAmount

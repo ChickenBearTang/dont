@@ -33,6 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class PrXaiContextService {
 
     private static final DateTimeFormatter BASIC_DATE = DateTimeFormatter.BASIC_ISO_DATE;
+    /** AI 서버가 '최근 30일 지출'로 세는 창의 길이 (오늘 포함). xai/spending.py 의 WINDOW_DAYS 와 같아야 한다. */
+    private static final int SPENDING_WINDOW_DAYS = 30;
 
     private final PrPostRepository prPostRepository;
     private final UserRepository userRepository;
@@ -86,6 +88,10 @@ public class PrXaiContextService {
                 buildRecentTransactions(purchaseRequesterId);
         Optional<MonthlyBudgetBasisEstimator.Basis> budgetBasis =
                 financeBudgetBasisService.estimate(purchaseRequesterId);
+        LocalDate spendingEnd = LocalDate.now(ZoneOffset.UTC);
+        Long spending30d =
+                cardTransactionRepository.sumPositiveAmountByUserIdAndDateRange(
+                        purchaseRequesterId, spendingEnd.minusDays(SPENDING_WINDOW_DAYS - 1L), spendingEnd);
 
         return new PrXaiEvaluationRequestDto(
                 UUID.randomUUID().toString(),
@@ -158,7 +164,17 @@ public class PrXaiContextService {
                                                         "fixed-expense",
                                                         purchaseRequesterId,
                                                         todaySnapshot))
-                                .orElse(null)),
+                                .orElse(null),
+                        spending30d == null || spending30d <= 0L
+                                ? null
+                                : new PrXaiProvenanceValueDto(
+                                        spending30d,
+                                        "spring.card_transactions",
+                                        "card-spending-30d:%d:%s"
+                                                .formatted(purchaseRequesterId, todaySnapshot),
+                                        false,
+                                        false,
+                                        null)),
                 recentTransactions);
     }
 

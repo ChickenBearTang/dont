@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+import math
 import os
 from pathlib import Path
 import threading
@@ -135,11 +136,34 @@ def _resolve_finance(
         )
 
     spending = _estimate_request_spending(request, as_of=as_of)
-    if spending.amount is not None:
-        raw["monthly_spending_30d"] = RawField(
-            value=spending.amount, is_estimated=spending.truncated
+    upstream = raw.get("monthly_spending_30d")
+    if upstream is not None and _usable_spending_total(upstream):
+        # Spring 이 DB 에서 최근 30일 합계를 직접 보냈다. 거래 목록은 최대 50건이라 많이 쓰는 사용자는 잘려서
+        # 하한값이 되는데, 합계는 잘리지 않는다. 그래서 거래 목록으로 다시 계산하지 않고 그대로 쓴다.
+        spending = SpendingEstimate(
+            amount=float(upstream.value),
+            transaction_count=spending.transaction_count,
+            truncated=False,
+            invalid_rows=spending.invalid_rows,
         )
+    else:
+        # 보내지 않았거나 쓸 수 없는 값(0 이하, 숫자 아님)이면 거래 목록에서 계산한다 (없으면 모른다고 답한다).
+        raw["monthly_spending_30d"] = None
+        if spending.amount is not None:
+            raw["monthly_spending_30d"] = RawField(
+                value=spending.amount, is_estimated=spending.truncated
+            )
     return resolve_finance_profile(raw, strict=True), spending
+
+
+def _usable_spending_total(field: RawField) -> bool:
+    """업스트림이 보낸 월 지출 합계를 그대로 믿어도 되는가. 기본값 표시가 없고 0 보다 큰 숫자여야 한다."""
+    if field.is_default:
+        return False
+    value = field.value
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return math.isfinite(float(value)) and float(value) > 0
 
 
 def _resolve_request_finance_profile(

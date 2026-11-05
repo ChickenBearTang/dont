@@ -35,7 +35,7 @@ python3 backend/demo-db/demo.py unload --finance-dsn ... --crawl-dsn ...
 시드의 날짜는 `--as-of`(기본: 오늘)에서 거꾸로 센 절대 날짜라서, 오래 두면 낡는다. 같은 `load` 를 다시 돌리면 된다.
 
 Spring 이 이 DB 를 쓰게 하려면 `DB_URL`(`DB_USERNAME`, `DB_PASSWORD`)을 금융 demo DB 로, `AI_POSTGRES_HOST/PORT/DB/USER/PASSWORD`
-(`PrXaiAvailabilityService` 가 직접 읽는다)를 가격 demo DB 로 지정한다. 이 연결은 **직접 돌려 보지 못했다** (아래).
+(`PrXaiAvailabilityService` 가 직접 읽는다)를 가격 demo DB 로 지정한다. 이 연결은 실제로 띄워서 확인했다 (아래 "Spring 까지 실제로 돌린 결과").
 
 ### 안전장치
 
@@ -107,22 +107,36 @@ Spring 이 이 DB 를 쓰게 하려면 `DB_URL`(`DB_USERNAME`, `DB_PASSWORD`)을
 - 가격 데이터가 기존 `build_price_feature_snapshot_v1` 을 통과하고, 17개 feature 중 12개가 값이 변함 (실제 크롤 67행은 0개).
   단 이 숫자는 이 테스트 안의 최소 변환(제품=`item_family`, 판매처=제목의 `[몰]`)에서 나온 것이다.
 
+**Spring 까지 실제로 돌린 결과** (PostgreSQL 16 + Redis + AI 서버(uvicorn) + Spring jar, 모두 로컬, 외부 호출 없음):
+
+- 데모 사용자 12명이 `demo-pass-1234` 로 로그인해 구매 PR 을 올리고 3개 품목을 평가했다 — 36건 모두 200.
+  Spring 이 보낸 요청을 중간에서 받아 보니 월 소득·고정지출(`isEstimated`)이 시드의 정답과 11명 모두 정확히 같았고(계좌가 없는
+  d12 는 보내지 않음), 월 지출(`monthlySpending30d`)은 DB 합계라 80건을 쓴 d11 도 시드의 700,000원과 같았다.
+- 결과 (MX Master 3S 130,000원 기준): 한도 안(d01·d03·d05·d08)은 `BUY_NOW`, 빠듯함(d02)은 `WAIT`, 한도 초과(d04·d06·d11)는 `NOT_RECOMMENDED`, 한도 안이어도 d07 은 카드 결제일이 가깝고 구매 후 세이브박스 잔액이 얇아 `WAIT`, d10 은 비상금이 없어 `NOT_RECOMMENDED`,
+  입력을 믿을 수 없는 경우(d09 카드 없음, d12 금융 정보 없음)는 `REVIEW`/`WAIT`. 예전에는 36건 중 `BUY_NOW` 가 0건이었다.
+- 새 사용자가 계좌 개설 → 세이브박스 → 저축 규칙 → 모의 입금(자동저축) → 수동 저축/꺼내기 → 카드 등록·결제 입력을 거치고,
+  주계좌+세이브박스 합계와 거래 내역 재계산이 맞는지, 남의 계좌·카드가 막히는지 확인했다.
+- 같은 사용자에게 입금·저축·꺼내기 70건을 동시에 보내도 교착·5xx 없이 돈이 보존되고 자동저축이 입금마다 정확히 한 번 실행된다.
+  구매 평가 48건 동시 호출도 모두 같은 판단이고 가격 이력 조회 실패가 없다.
+
+돌릴 때 알아둘 것: 이 demo 스키마는 금융 테이블만 만든다. PR 작성·평가를 보려면 커뮤니티 테이블(`boards`, `posts`, `pr_posts` …)이
+필요한데 저장소에 DDL 이 없다(`ddl-auto=none`). 한 번만 `SPRING_JPA_HIBERNATE_DDL_AUTO=update` 로 Spring 을 띄워 나머지 테이블을
+만들고, `boards` 에 `category='PR'` 행을 하나 넣었다. 돈과 카드는 `FINANCE_MOCK_DATA_ENABLED=true` 일 때만 API 로 넣을 수 있다.
+
 **확인하지 못함:**
 
-- **Spring(Java)을 실행하지 않았다.** Hibernate 가 이 테이블을 실제로 읽고 쓰는지, 로그인(`demo-pass-1234`)이 되는지,
-  `FinanceProfileService`·`PrXaiContextService`·`PrXaiAvailabilityService` 가 이 DB 에서 기대한 값을 내는지는 확인하지 못했다.
-  SQL 로 같은 집계를 계산해 비교했을 뿐이다. Gradle 로 띄워서 한 번 돌려 보는 것이 다음 확인이다.
 - `docker compose` 연동은 만들지도 시험하지도 않았다. 컨테이너로 띄우려면 `postgres:16` 의
   `/docker-entrypoint-initdb.d` 에 `schema/*.sql` 과 `demo.py generate` 결과를 마운트하면 되지만, 직접 해 보지 않았다.
 - 가격 모델을 이 데이터로 학습하지 않았다. 학습해도 의미 있는 검증이 아니다 (위 안내), 그리고 아래 설계 문제는 데이터와 무관하게 남는다.
 
 ## 이 작업 중에 알게 된 것 (Spring/AI 쪽 사실)
 
-1. **Spring DB 에 월 소득·고정지출이 없다.** 5·3·2 예산 규칙은 이 두 값이 있어야 켜지는데, 지금 `FinanceProfileService` 는 보내지 않는다.
-   데모에서는 계좌 거래에서 읽을 수 있게 남겼다. 실제 서비스에서도 급여 입금·고정 출금을 거래에서 추정할지, 사용자에게 입력받을지 정해야 한다.
+1. **Spring DB 에 월 소득·고정지출 열이 없다.** 5·3·2 예산 규칙은 이 두 값이 있어야 켜진다. 이제 Spring 이 입출금 계좌 거래의
+   최근 3개월(이번 달 제외) 중앙값으로 추정해 `isEstimated` 로 보낸다(`MonthlyBudgetBasisEstimator`). 근거가 없으면 보내지 않는다.
+   다만 추정이므로, 사용자에게 직접 입력받을지는 여전히 정해야 한다.
 2. **`current_balance` 에 세이브박스가 포함된다.** `sumBalanceByUserId` 는 모든 계좌(세이브박스 포함)의 합이고,
    `emergency_fund_balance` 와 `savebox_balance` 는 보통 같은 세이브박스 잔액이다 (`resolveSaveboxBalance` 가 비상금으로 대체하기도 한다).
    재무 모델의 두 입력이 운영에서는 같은 값일 가능성이 높다 — 합성 학습 데이터의 상관(0.95~0.998)과 같은 방향의 문제다.
-3. **최근 50건 제한이 예산 판단을 뒤집을 수 있다.** 30일에 50건 넘게 쓰는 사용자(d11)는 월 지출이 낮게 잡혀 한도 초과가 "여유"로 보인다.
-   `SPENDING_TRUNCATED` 경고는 나오지만 판정은 그대로다. 합계를 Spring 이 SQL 로 계산해 보내는 편이 근본 해결이다.
+3. **(해결) 최근 50건 제한이 예산 판단을 뒤집을 수 있었다.** 이제 Spring 이 최근 30일 카드 지출 합계를 SQL 로 계산해
+   `monthlySpending30d` 로 보내고 AI 는 그 값을 그대로 쓴다(거래 목록은 합계를 보내지 못한 호출자용 대체 경로로만 남는다).
 4. 카드 거래가 없으면 `days_until_card_due` 는 14일 기본값이 `isDefault` 표시 없이 들어간다 (`FinanceProfileService` 의 `orElse(14)`).

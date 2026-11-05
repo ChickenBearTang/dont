@@ -128,6 +128,7 @@ class PrXaiEvaluationServiceTest {
                         new PrXaiProvenanceValueDto(250000.0, "spring.finance_profile", "fin-10", false, false, null),
                         new PrXaiProvenanceValueDto(12, "spring.finance_profile", "fin-10", false, false, null),
                         null,
+                        null,
                         null),
                 List.of());
     }

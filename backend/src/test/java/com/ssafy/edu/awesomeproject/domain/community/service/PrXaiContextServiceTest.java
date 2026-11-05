@@ -153,6 +153,50 @@ class PrXaiContextServiceTest {
     }
 
     @Test
+    void buildContextSendsTheExactThirtyDayCardSpendingFromTheDatabase() {
+        // 거래 목록은 최대 50건이라 많이 쓰는 사용자는 잘린다. 잘리지 않는 DB 합계를 따로 보낸다.
+        when(cardTransactionRepository.sumPositiveAmountByUserIdAndDateRange(
+                        org.mockito.ArgumentMatchers.eq(21L),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(1_234_000L);
+
+        PrXaiEvaluationRequestDto result = buildContextWithBudgetBasis(Optional.empty());
+
+        var spending = result.financeProfile().monthlySpending30d();
+        assertThat(spending.value()).isEqualTo(1_234_000L);
+        assertThat(spending.isEstimated()).isFalse(); // 합계는 추정이 아니다
+        assertThat(spending.isDefault()).isFalse();
+        assertThat(spending.source()).isEqualTo("spring.card_transactions");
+        assertThat(spending.snapshotId()).contains("card-spending-30d").contains("21");
+    }
+
+    @Test
+    void buildContextAsksForAThirtyDayWindowEndingTodayInUtc() {
+        org.mockito.ArgumentCaptor<LocalDate> start = org.mockito.ArgumentCaptor.forClass(LocalDate.class);
+        org.mockito.ArgumentCaptor<LocalDate> end = org.mockito.ArgumentCaptor.forClass(LocalDate.class);
+        when(cardTransactionRepository.sumPositiveAmountByUserIdAndDateRange(
+                        org.mockito.ArgumentMatchers.eq(21L), start.capture(), end.capture()))
+                .thenReturn(10L);
+
+        buildContextWithBudgetBasis(Optional.empty());
+
+        // AI 는 오늘을 포함한 30일(오늘-29 ~ 오늘)을 최근 30일로 센다.
+        assertThat(java.time.temporal.ChronoUnit.DAYS.between(start.getValue(), end.getValue())).isEqualTo(29);
+        assertThat(end.getValue()).isEqualTo(LocalDate.now(java.time.ZoneOffset.UTC));
+    }
+
+    @Test
+    void buildContextOmitsTheSpendingTotalWhenThereWasNoSpending() throws Exception {
+        // 합계 0원은 '안 썼다'가 아니라 '카드가 없거나 거래가 없다'일 수 있어서 모른다고 두고 보내지 않는다.
+        PrXaiEvaluationRequestDto result = buildContextWithBudgetBasis(Optional.empty());
+
+        assertThat(result.financeProfile().monthlySpending30d()).isNull();
+        String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(result.financeProfile());
+        assertThat(json).doesNotContain("monthlySpending30d");
+    }
+
+    @Test
     void buildContextThrowsWhenPrMissing() {
         User user = org.mockito.Mockito.mock(User.class);
         when(userRepository.findActiveById(10L)).thenReturn(Optional.of(user));

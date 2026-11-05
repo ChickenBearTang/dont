@@ -46,6 +46,10 @@ class FinanceProfileContext(BaseModel):
         default=None,
         alias="availableFixedIncome",
     )
+    monthly_spending_30d: ProvenanceValue | None = Field(
+        default=None,
+        alias="monthlySpending30d",
+    )
 
     model_config = {"populate_by_name": True}
 
