@@ -48,7 +48,8 @@ public class PostService {
             List.of(PostStatus.ACTIVE, PostStatus.BLINDED);
     private static final List<CommentStatus> READABLE_COMMENT_STATUSES =
             List.of(CommentStatus.ACTIVE, CommentStatus.BLINDED);
-    private static final String BLINDED_POST_MESSAGE = "신고 처리된 게시물입니다.";
+    /** 신고로 가려진 글의 제목·내용 자리에 내려 주는 문구 (핫딜/토론 상세도 같은 문구를 쓴다). */
+    static final String BLINDED_POST_MESSAGE = "신고 처리된 게시물입니다.";
 
     private final PostRepository postRepository;
     private final BoardRepository boardRepository;

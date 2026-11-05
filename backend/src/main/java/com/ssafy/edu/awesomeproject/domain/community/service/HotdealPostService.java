@@ -12,11 +12,13 @@ import com.ssafy.edu.awesomeproject.domain.community.entity.Board;
 import com.ssafy.edu.awesomeproject.domain.community.entity.BoardCategory;
 import com.ssafy.edu.awesomeproject.domain.community.entity.HotdealPost;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Post;
+import com.ssafy.edu.awesomeproject.domain.community.entity.PostStatus;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.BoardRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.HotdealPostRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,21 +83,27 @@ public class HotdealPostService {
                                 () -> new CommunityException(CommunityErrorCode.HOTDEAL_NOT_FOUND));
 
         Post post = hotdealPost.getPost();
+        // 이 조회는 로그인 없이 열려 있다. 일반 조회(PostService#getPost)와 같게, 삭제된 글은 없는 글로 보고 신고로
+        // 가려진 글은 내용 없이 안내 문구만 준다. 예전에는 글 상태를 보지 않아 둘 다 내용이 그대로 나갔다.
+        if (post.getStatus() == PostStatus.DELETED) {
+            throw new CommunityException(CommunityErrorCode.HOTDEAL_NOT_FOUND);
+        }
+        boolean blinded = post.getStatus() == PostStatus.BLINDED;
         return new HotdealDetailResponseDto(
                 post.getId(),
-                post.getTitle(),
-                post.getContent(),
+                blinded ? PostService.BLINDED_POST_MESSAGE : post.getTitle(),
+                blinded ? PostService.BLINDED_POST_MESSAGE : post.getContent(),
                 post.getUser().getId(),
                 post.getUser().getNickname(),
                 s3AssetUrlResolver.resolvePublicUrlOrNull(post.getUser().getProfileImageUrl()),
-                hotdealPost.getProductName(),
-                hotdealPost.getStoreName(),
+                blinded ? PostService.BLINDED_POST_MESSAGE : hotdealPost.getProductName(),
+                blinded ? null : hotdealPost.getStoreName(),
                 hotdealPost.getDealPriceAmount(),
                 hotdealPost.getOriginalPriceAmount(),
-                hotdealPost.getDealUrl(),
-                hotdealPost.getShippingInfo(),
+                blinded ? null : hotdealPost.getDealUrl(),
+                blinded ? null : hotdealPost.getShippingInfo(),
                 hotdealPost.getExpiredAt(),
-                postAttachmentService.getAttachments(post.getId()),
+                blinded ? List.of() : postAttachmentService.getAttachments(post.getId()),
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }

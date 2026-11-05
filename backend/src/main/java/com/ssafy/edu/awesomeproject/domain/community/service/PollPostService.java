@@ -16,6 +16,7 @@ import com.ssafy.edu.awesomeproject.domain.community.entity.PollPost;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PollVote;
 import com.ssafy.edu.awesomeproject.domain.community.entity.PollVoteOption;
 import com.ssafy.edu.awesomeproject.domain.community.entity.Post;
+import com.ssafy.edu.awesomeproject.domain.community.entity.PostStatus;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.community.repository.BoardRepository;
@@ -23,6 +24,7 @@ import com.ssafy.edu.awesomeproject.domain.community.repository.PollPostReposito
 import com.ssafy.edu.awesomeproject.domain.community.repository.PollVoteRepository;
 import com.ssafy.edu.awesomeproject.domain.community.repository.PostRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -96,6 +98,12 @@ public class PollPostService {
                                 () -> new CommunityException(CommunityErrorCode.POLL_NOT_FOUND));
 
         Post post = pollPost.getPost();
+        // 로그인 없이 열린 조회라서 일반 조회(PostService#getPost)와 같게 처리한다: 삭제된 글은 없는 글, 신고로 가려진
+        // 글은 내용 없이 안내 문구만. 예전에는 글 상태를 보지 않아 둘 다 내용이 그대로 나갔다.
+        if (post.getStatus() == PostStatus.DELETED) {
+            throw new CommunityException(CommunityErrorCode.POLL_NOT_FOUND);
+        }
+        boolean blinded = post.getStatus() == PostStatus.BLINDED;
         long optionACount =
                 pollVoteRepository.countByPostIdAndVoteOption(postId, PollVoteOption.OPTION_A);
         long optionBCount =
@@ -105,20 +113,20 @@ public class PollPostService {
 
         return new PollDetailResponseDto(
                 post.getId(),
-                post.getTitle(),
-                post.getContent(),
+                blinded ? PostService.BLINDED_POST_MESSAGE : post.getTitle(),
+                blinded ? PostService.BLINDED_POST_MESSAGE : post.getContent(),
                 post.getUser().getId(),
                 post.getUser().getNickname(),
                 s3AssetUrlResolver.resolvePublicUrlOrNull(post.getUser().getProfileImageUrl()),
-                pollPost.getQuestion(),
-                pollPost.getOptionA(),
-                pollPost.getOptionB(),
+                blinded ? PostService.BLINDED_POST_MESSAGE : pollPost.getQuestion(),
+                blinded ? "선택지 A" : pollPost.getOptionA(),
+                blinded ? "선택지 B" : pollPost.getOptionB(),
                 pollPost.getDeadlineAt(),
                 isClosed,
                 optionACount,
                 optionBCount,
                 totalVoteCount,
-                postAttachmentService.getAttachments(post.getId()),
+                blinded ? List.of() : postAttachmentService.getAttachments(post.getId()),
                 post.getCreatedAt(),
                 post.getUpdatedAt());
     }
