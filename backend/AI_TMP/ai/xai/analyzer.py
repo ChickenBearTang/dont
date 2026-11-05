@@ -21,6 +21,16 @@ from .types import (
 )
 
 _BUDGET_INPUT_PREFIX = "budget_ratio_"
+# 재무 모델에 들어가는 입력. 이 중 하나라도 기본값이거나, 월 지출이 일부만 집계된(하한값) 경우에는
+# '지금 구매'로 판단하지 않는다 (decision_engine.decide 의 inputs_reliable).
+_MODEL_INPUT_FIELDS = (
+    "current_balance",
+    "emergency_fund_balance",
+    "savebox_balance",
+    "expected_card_payment_amount",
+    "days_until_card_due",
+    "monthly_spending_30d",
+)
 # 이 필드가 기본값(앞단이 안 보냄)이면 예산을 판단하지 않는다. (필드, 사유 코드)
 _BUDGET_REQUIRED_FIELDS = (
     ("available_fixed_income", "income_not_provided_by_upstream"),
@@ -191,7 +201,17 @@ class ExplainabilityAnalyzer:
                 shap_scores, reasons = self._with_budget_reason(
                     budget, shap_scores, reasons
                 )
-                decision_outcome = self._decision_engine.decide(feature_scores)
+                inputs_reliable, unreliable_cause = self._input_reliability()
+                decision_outcome = self._decision_engine.decide(
+                    feature_scores, inputs_reliable=inputs_reliable
+                )
+                buy_blocked = (
+                    self._decision_engine.BLOCKED_BUY_RULE_ID in decision_outcome.fired_rule_ids
+                )
+                if buy_blocked:
+                    shap_scores, reasons = self._with_input_reliability_reason(
+                        unreliable_cause, shap_scores, reasons
+                    )
                 price_int = features.get("price_int")
                 price_value = price_int if isinstance(price_int, int) else None
                 monthly_spending_30d = self._monthly_spending_30d()
@@ -285,6 +305,8 @@ class ExplainabilityAnalyzer:
                         "finance_model_affordability_score"
                     ),
                 }
+                if buy_blocked:
+                    observed_features["input_reliability"] = unreliable_cause
 
                 item = self._explanation_engine.build_item_explanation(
                     item_id=deal.url,
@@ -374,6 +396,33 @@ class ExplainabilityAnalyzer:
         # 필수 필드 기준 0 이어야 하는 지표다.
         payload["input_contract"] = self._resolved_profile.to_report()
         return payload
+
+    def _input_reliability(self) -> tuple[bool, str | None]:
+        """판단에 쓰는 입력을 믿을 수 있는가. (믿을 만한가, 아니라면 이유: 'default' | 'truncated')
+
+        기본값(앞단이 못 채운 값)이나 하한값(거래가 잘려 일부만 집계된 월 지출)은 실제보다 형편이
+        좋아 보이게 만들 수 있다. 소득/고정지출을 거래에서 추정한 값(estimated)은 출처가 기록되므로
+        여기서 막지 않는다.
+        """
+        origins = self._resolved_profile.origins
+        if any(origins.get(name) == Origin.DEFAULT for name in _MODEL_INPUT_FIELDS):
+            return False, "default"
+        if origins.get("monthly_spending_30d") == Origin.ESTIMATED:
+            return False, "truncated"
+        return True, None
+
+    def _with_input_reliability_reason(
+        self,
+        cause: str | None,
+        scores: dict[str, float],
+        reasons: list[dict[str, Any]],
+    ) -> tuple[dict[str, float], list[dict[str, Any]]]:
+        """'지금 구매'를 막은 이유를 요인 목록 맨 앞에 넣는다 (점수는 불리한 쪽 고정값)."""
+        from ai.xai.purchase_core.reasons import INPUT_UNRELIABLE_TEXT
+
+        reason = self._reasoning_engine.analyze({"input_reliability": -0.5}, top_k=1, signed=True)[0]
+        reason["reason_text"] = INPUT_UNRELIABLE_TEXT[cause or "default"]
+        return {**scores, "input_reliability": -0.5}, [reason, *reasons]
 
     def _assess_budget(self, price: object) -> BudgetAssessment:
         """5·3·2 예산 적합도. 소득/고정지출/월 지출 중 하나라도 기본값이면 판단하지 않는다.
@@ -518,7 +567,9 @@ class ExplainabilityAnalyzer:
             {"price_int": scenario_price, "missing_fields": []},
             window_stats=window_stats,
         )
-        decision = self._decision_engine.decide(scores)
+        decision = self._decision_engine.decide(
+            scores, inputs_reliable=self._input_reliability()[0]
+        )
         risk = scores.get("finance_model_risk_score")
         return Outcome(
             decision=decision.final_decision,

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 import os
 from pathlib import Path
+import threading
 from typing import Any
 from urllib.parse import urlparse
 
@@ -251,6 +252,34 @@ def _budget_metrics(budget: dict[str, Any] | None) -> list[EvaluationMetric]:
     ]
 
 
+_CRAWL_STORES: dict[str, PostgresCrawlStore] = {}
+_CRAWL_STORES_LOCK = threading.Lock()
+
+
+def _crawl_store(dsn: str) -> PostgresCrawlStore:
+    """DSN 마다 스토어를 프로세스당 한 번만 만든다.
+
+    PostgresCrawlStore 는 만들 때마다 스키마 점검(CREATE/ALTER/INDEX + 보정 UPDATE)을 한다. 요청마다 새로
+    만들면 동시 요청이 서로 교착해서 가격 이력 조회가 조용히 실패(NO_PRICE_HISTORY)하고, 같은 입력의
+    판단이 흔들린다. 만들다 실패하면 캐시하지 않고 예외를 그대로 올린다 (다음 요청이 다시 시도한다).
+    """
+    store = _CRAWL_STORES.get(dsn)
+    if store is not None:
+        return store
+    with _CRAWL_STORES_LOCK:
+        store = _CRAWL_STORES.get(dsn)
+        if store is None:
+            store = PostgresCrawlStore(dsn)
+            _CRAWL_STORES[dsn] = store
+        return store
+
+
+def _reset_crawl_stores() -> None:
+    """테스트용: 캐시한 스토어를 비운다."""
+    with _CRAWL_STORES_LOCK:
+        _CRAWL_STORES.clear()
+
+
 def _read_window_stats(
     price_value: int | None,
     item_name: str | None,
@@ -271,7 +300,7 @@ def _read_window_stats(
 
     if dsn:
         try:
-            store = PostgresCrawlStore(dsn)
+            store = _crawl_store(dsn)
             if item_family is None:
                 warnings.append("ITEM_FAMILY_UNCLASSIFIED")
                 return store.read_window_stats(), warnings

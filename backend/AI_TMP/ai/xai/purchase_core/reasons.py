@@ -22,6 +22,7 @@ REASON_CODE_MAP: dict[str, tuple[str, str]] = {
     "days_until_card_due": ("CARD_DUE_SOON", "finance_shap"),
     "price_model_gap_score": ("PRICE_MODEL_GAP_SIGNAL", "price_model"),
     "budget_zone_usage": ("BUDGET_ZONE_USAGE", "budget_rule"),
+    "input_reliability": ("INPUT_UNRELIABLE", "input_quality"),
     "finance_model_risk_score": ("FINANCE_MODEL_HIGH_RISK_SIGNAL", "finance_model"),
     "finance_model_affordability_score": (
         "FINANCE_MODEL_AFFORDABILITY_SIGNAL",
@@ -50,6 +51,13 @@ BUDGET_STATUS_REASON_TEXT: dict[str, str] = {
     "over": "이번 구매로 생활비 구역(소득의 50%)을 넘게 됩니다.",
     "already_over": "이번 달 생활비 구역(소득의 50%)을 이미 넘긴 상태입니다.",
 }
+
+# '지금 구매'를 막았을 때의 이유. 점수 부호가 아니라 원인(기본값 / 잘림)으로 문구를 고른다.
+INPUT_UNRELIABLE_TEXT: dict[str, str] = {
+    "default": "일부 재무 정보를 받지 못해 기본값으로 계산했어요. 확인되기 전에는 '지금 구매'로 판단하지 않아요.",
+    "truncated": "최근 거래가 많아 월 지출이 일부만 집계됐어요(실제보다 작을 수 있어요). 그래서 '지금 구매'로 판단하지 않아요.",
+}
+REASON_TEXT["INPUT_UNRELIABLE"] = INPUT_UNRELIABLE_TEXT["default"]
 
 REASON_TEXT.setdefault(
     "PRICE_MODEL_GAP_SIGNAL",

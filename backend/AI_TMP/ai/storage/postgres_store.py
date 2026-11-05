@@ -22,6 +22,9 @@ _CNY_PATTERN = re.compile(r"(?:\bCNY\b|RMB|元|위안)", re.IGNORECASE)
 _NUMERIC_PATTERN = re.compile(r"\d+(?:[.,]\d+)?")
 _ITEM_FAMILY_NORMALIZE_PATTERN = re.compile(r"[^a-z0-9\uac00-\ud7a3]+")
 
+# pg_advisory_xact_lock 키. 스키마 점검(_initialize) 직렬화 전용이라 값 자체에는 뜻이 없다.
+_SCHEMA_LOCK_KEY = 7_316_002_201
+
 
 @dataclass(frozen=True)
 class PostgresSampleResult:
@@ -190,6 +193,9 @@ class PostgresCrawlStore:
     def _initialize(self) -> None:
         with self._connect() as connection:
             with connection.cursor() as cursor:
+                # 여러 요청/프로세스가 동시에 스키마를 점검하면 ALTER TABLE 끼리 교착(deadlock)한다.
+                # 트랜잭션 단위 advisory lock 으로 한 번에 하나씩 하게 줄 세운다 (커밋 때 자동으로 풀린다).
+                cursor.execute("SELECT pg_advisory_xact_lock(%s)", (_SCHEMA_LOCK_KEY,))
                 cursor.execute(
                     """
                     CREATE TABLE IF NOT EXISTS crawl_items (

@@ -16,7 +16,28 @@ class DecisionOutcome:
 class DecisionEngine:
     RULE_VERSION = "financial-purchase-copilot-xai-rules-v1"
 
-    def decide(self, feature_scores: dict[str, Any]) -> DecisionOutcome:
+    # 입력이 믿을 만하지 않을 때 '지금 구매'를 막고 대신 내리는 판단.
+    BLOCKED_BUY_RULE_ID = "BUY_BLOCKED_UNRELIABLE_INPUT"
+
+    def decide(
+        self, feature_scores: dict[str, Any], *, inputs_reliable: bool = True
+    ) -> DecisionOutcome:
+        """구매 판단.
+
+        inputs_reliable=False 는 재무 모델 입력이 기본값이거나 월 지출이 일부만 집계된(하한값) 경우다.
+        그 값으로는 '여유가 있다'를 증명할 수 없으므로 BUY_NOW 를 막고 REVIEW 로 내린다.
+        (비추천/관망은 그대로 둔다 — 부족한 정보가 '사도 된다'는 쪽으로만 틀리게 하지 않는다.)
+        """
+        outcome = self._decide_core(feature_scores)
+        if outcome.final_decision == "BUY_NOW" and not inputs_reliable:
+            return DecisionOutcome(
+                final_decision="REVIEW",
+                decision_confidence=min(outcome.decision_confidence, 0.5),
+                fired_rule_ids=[*outcome.fired_rule_ids, self.BLOCKED_BUY_RULE_ID],
+            )
+        return outcome
+
+    def _decide_core(self, feature_scores: dict[str, Any]) -> DecisionOutcome:
         current_price = float(feature_scores.get("current_price", 0.0))
         relative_price = float(feature_scores.get("avg_price_30d", 0.0))
         model_price_gap = float(feature_scores.get("price_model_gap_score", 0.0))
@@ -41,6 +62,18 @@ class DecisionEngine:
                 ),
                 fired_rule_ids=["BUDGET_ZONE_EXCEEDED"],
             )
+
+        has_finance_model_signal = (
+            "finance_model_risk_score" in feature_scores
+            or "finance_model_affordability_score" in feature_scores
+        )
+
+        # 더 심각한 판정(비추천)을 덜 심각한 판정(관망)이 덮어쓰면 가격이 오를수록 판단이 좋아지는
+        # 구간이 생긴다. 그래서 예산이 '빠듯함'이어도 재무 위험 검사를 먼저 하고, 그 뒤에 관망을 낸다.
+        severe = self._severe_finance_outcome(feature_scores, has_finance_model_signal)
+        if severe is not None:
+            return severe
+
         if budget_status == BudgetStatus.TIGHT:
             return DecisionOutcome(
                 final_decision="WAIT",
@@ -49,11 +82,6 @@ class DecisionEngine:
                 ),
                 fired_rule_ids=["BUDGET_ZONE_NEARLY_FULL"],
             )
-
-        has_finance_model_signal = (
-            "finance_model_risk_score" in feature_scores
-            or "finance_model_affordability_score" in feature_scores
-        )
         if not has_finance_model_signal:
             spend_pressure = float(
                 feature_scores.get("product_price_vs_monthly_spending", 0.0)
@@ -64,14 +92,6 @@ class DecisionEngine:
             )
             due_pressure = float(feature_scores.get("days_until_card_due", 0.0))
             finance_stress = spend_pressure - emergency_buffer - projected_balance
-
-            if finance_stress > 1.2:
-                confidence = self._clamp_confidence((finance_stress - 1.2) / 2.0)
-                return DecisionOutcome(
-                    final_decision="NOT_RECOMMENDED",
-                    decision_confidence=confidence,
-                    fired_rule_ids=["FIN_HIGH_STRESS"],
-                )
 
             if price_signal >= 1.2 and finance_stress <= 0.2:
                 confidence = self._clamp_confidence((price_signal - finance_stress) / 2.0)
@@ -103,14 +123,6 @@ class DecisionEngine:
             feature_scores.get("finance_model_affordability_score", 0.0)
         )
         due_pressure = float(feature_scores.get("days_until_card_due", 0.0))
-
-        if finance_model_risk >= 0.55:
-            confidence = self._clamp_confidence((finance_model_risk - 0.55) * 2.0 + 0.6)
-            return DecisionOutcome(
-                final_decision="NOT_RECOMMENDED",
-                decision_confidence=confidence,
-                fired_rule_ids=["FINANCE_MODEL_HIGH_RISK"],
-            )
 
         if price_signal >= 1.2 and finance_model_affordability >= 0.1:
             confidence = self._clamp_confidence(
@@ -154,6 +166,31 @@ class DecisionEngine:
             decision_confidence=confidence,
             fired_rule_ids=["DECISION_REVIEW_REQUIRED"],
         )
+
+    def _severe_finance_outcome(
+        self, feature_scores: dict[str, Any], has_finance_model_signal: bool
+    ) -> DecisionOutcome | None:
+        """재무 상태만으로 '권하지 않는다'가 되는 경우. 해당하지 않으면 None."""
+        if has_finance_model_signal:
+            risk = float(feature_scores.get("finance_model_risk_score", 0.0))
+            if risk >= 0.55:
+                return DecisionOutcome(
+                    final_decision="NOT_RECOMMENDED",
+                    decision_confidence=self._clamp_confidence((risk - 0.55) * 2.0 + 0.6),
+                    fired_rule_ids=["FINANCE_MODEL_HIGH_RISK"],
+                )
+            return None
+        spend_pressure = float(feature_scores.get("product_price_vs_monthly_spending", 0.0))
+        emergency_buffer = float(feature_scores.get("emergency_fund_balance", 0.0))
+        projected_balance = float(feature_scores.get("projected_balance_after_purchase", 0.0))
+        finance_stress = spend_pressure - emergency_buffer - projected_balance
+        if finance_stress > 1.2:
+            return DecisionOutcome(
+                final_decision="NOT_RECOMMENDED",
+                decision_confidence=self._clamp_confidence((finance_stress - 1.2) / 2.0),
+                fired_rule_ids=["FIN_HIGH_STRESS"],
+            )
+        return None
 
     @staticmethod
     def _budget_status(feature_scores: dict[str, Any]) -> BudgetStatus | None:
