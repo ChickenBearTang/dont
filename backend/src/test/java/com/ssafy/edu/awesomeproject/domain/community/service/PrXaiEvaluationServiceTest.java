@@ -2,16 +2,19 @@ package com.ssafy.edu.awesomeproject.domain.community.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrXaiEvaluationRequestDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrXaiFinanceProfileDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrXaiProvenanceValueDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.request.PrXaiPurchaseContextDto;
+import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiAvailabilityResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiConfidenceDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiEvaluationResponseDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiRuntimeEnginesDto;
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiSectionDto;
+import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.AiClient;
 import java.time.OffsetDateTime;
@@ -28,13 +31,19 @@ import org.springframework.web.client.ResourceAccessException;
 class PrXaiEvaluationServiceTest {
 
     @Mock private PrXaiContextService prXaiContextService;
+    @Mock private PrXaiAvailabilityService prXaiAvailabilityService;
     @Mock private AiClient aiClient;
 
     private PrXaiEvaluationService prXaiEvaluationService;
 
     @BeforeEach
     void setUp() {
-        prXaiEvaluationService = new PrXaiEvaluationService(prXaiContextService, aiClient);
+        prXaiEvaluationService =
+                new PrXaiEvaluationService(prXaiContextService, prXaiAvailabilityService, aiClient);
+    }
+
+    private static PrXaiAvailabilityResponseDto available() {
+        return new PrXaiAvailabilityResponseDto(true, "ok", "URL_EXACT", "title", "https://example.com");
     }
 
     @Test
@@ -58,6 +67,7 @@ class PrXaiEvaluationServiceTest {
                         "v1",
                         null,
                         "rule-v1");
+        when(prXaiAvailabilityService.checkAvailability(67L, 10L)).thenReturn(available());
         when(prXaiContextService.buildContext(67L, 10L)).thenReturn(request);
         when(aiClient.evaluatePrXai("req-123", request)).thenReturn(expected);
 
@@ -69,6 +79,7 @@ class PrXaiEvaluationServiceTest {
     @Test
     void evaluateMapsResourceAccessToGatewayTimeout() {
         PrXaiEvaluationRequestDto request = buildRequest();
+        when(prXaiAvailabilityService.checkAvailability(67L, 10L)).thenReturn(available());
         when(prXaiContextService.buildContext(67L, 10L)).thenReturn(request);
         when(aiClient.evaluatePrXai("req-123", request))
                 .thenThrow(new ResourceAccessException("timeout"));
@@ -76,6 +87,25 @@ class PrXaiEvaluationServiceTest {
         assertThatThrownBy(() -> prXaiEvaluationService.evaluate(67L, 10L))
                 .isInstanceOf(CommunityException.class)
                 .hasMessageContaining("XAI 평가 응답 시간이 초과되었습니다");
+    }
+
+    @Test
+    void evaluateRejectsUnsupportedItemWithItsOwnErrorCodeAndKoreanReason() {
+        String reason = "현재 XAI 평가는 F87, VXE R1, MX Master 3S 품목만 지원해요.";
+        when(prXaiAvailabilityService.checkAvailability(67L, 10L))
+                .thenReturn(new PrXaiAvailabilityResponseDto(false, reason, "ITEM_WHITELIST_ONLY", null, null));
+
+        assertThatThrownBy(() -> prXaiEvaluationService.evaluate(67L, 10L))
+                .isInstanceOfSatisfying(
+                        CommunityException.class,
+                        exception -> {
+                            // '열려있는 PR에서만 투표할 수 있습니다'(PR_409_2)로 나가던 오류다.
+                            assertThat(exception.getErrorCode())
+                                    .isEqualTo(CommunityErrorCode.PURCHASE_REQUEST_XAI_UNSUPPORTED);
+                            assertThat(exception.getErrorCode().code()).isEqualTo("PR_422_1");
+                            assertThat(exception.getDetails()).isEqualTo(reason);
+                        });
+        verifyNoInteractions(prXaiContextService, aiClient);
     }
 
     private PrXaiEvaluationRequestDto buildRequest() {
@@ -94,8 +124,11 @@ class PrXaiEvaluationServiceTest {
                 new PrXaiFinanceProfileDto(
                         new PrXaiProvenanceValueDto(3000000.0, "spring.finance_profile", "fin-10", false, false, null),
                         new PrXaiProvenanceValueDto(800000.0, "spring.finance_profile", "fin-10", false, false, null),
+                        new PrXaiProvenanceValueDto(800000.0, "spring.savebox", "savebox-10", false, false, null),
                         new PrXaiProvenanceValueDto(250000.0, "spring.finance_profile", "fin-10", false, false, null),
-                        new PrXaiProvenanceValueDto(12, "spring.finance_profile", "fin-10", false, false, null)),
+                        new PrXaiProvenanceValueDto(12, "spring.finance_profile", "fin-10", false, false, null),
+                        null,
+                        null),
                 List.of());
     }
 }

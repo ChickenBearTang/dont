@@ -1,16 +1,21 @@
 package com.ssafy.edu.awesomeproject.domain.fin.card.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.CardRegisterRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.MockCardTransactionRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardSummaryResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardTransactionResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.service.CardService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,11 +34,25 @@ public class CardController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/refresh")
-    @Operation(summary = "카드 목록 새로고침", description = "외부 API 기준으로 카드 정보를 재동기화합니다.")
-    public ResponseEntity<CardListResponse> refreshMyCards(@CurrentUserId Long userId) {
-        CardListResponse response = cardService.refreshCardList(userId);
-        return ResponseEntity.ok(response);
+    @PostMapping
+    @Operation(
+            summary = "카드 등록 (개발·시연용)",
+            description = "카드를 등록합니다. 외부 카드사 연동이 없습니다. finance.mock-data.enabled=true 인 환경에서만 동작합니다.")
+    public ResponseEntity<CardListResponse.CardItem> registerCard(
+            @CurrentUserId Long userId, @Valid @RequestBody CardRegisterRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(cardService.registerCard(userId, request));
+    }
+
+    @PostMapping("/{cardId}/transactions")
+    @Operation(
+            summary = "카드 결제내역 입력 (개발·시연용)",
+            description = "카드 결제내역 한 건을 입력합니다. finance.mock-data.enabled=true 인 환경에서만 동작합니다.")
+    public ResponseEntity<CardTransactionResponse.TransactionItem> addMockTransaction(
+            @CurrentUserId Long userId,
+            @PathVariable Long cardId,
+            @Valid @RequestBody MockCardTransactionRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(cardService.addMockTransaction(userId, cardId, request));
     }
 
     @GetMapping("/{cardId}/transactions")

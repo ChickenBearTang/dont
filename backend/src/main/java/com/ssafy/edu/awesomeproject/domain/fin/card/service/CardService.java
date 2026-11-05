@@ -2,11 +2,16 @@ package com.ssafy.edu.awesomeproject.domain.fin.card.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.auth.repository.UserRepository;
-import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.request.OpenBankRequest;
-import com.ssafy.edu.awesomeproject.domain.fin.card.client.dto.response.OpenBankResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.Account;
+import com.ssafy.edu.awesomeproject.domain.fin.account.entity.AccountRole;
+import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountErrorCode;
+import com.ssafy.edu.awesomeproject.domain.fin.account.error.AccountException;
+import com.ssafy.edu.awesomeproject.domain.fin.account.repository.AccountRepository;
+import com.ssafy.edu.awesomeproject.domain.auth.entity.User;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiCardRecommendationDbRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.CardRegisterRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.MockCardTransactionRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.request.AiDateRangeRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.AiAnalysisResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.card.dto.response.CardListResponse;
@@ -18,20 +23,18 @@ import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.AiClient;
-import com.ssafy.edu.awesomeproject.domain.fin.global.client.OpenBankClient;
-import com.ssafy.edu.awesomeproject.domain.fin.global.client.dto.OpenBankReqHeader;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.time.Duration;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -51,10 +54,10 @@ public class CardService {
     private static final int RECOMMENDATION_CACHE_MAXIMUM_SIZE = 2_000;
     private static final Duration RECOMMENDATION_CACHE_TTL = Duration.ofMinutes(5);
 
-    private final OpenBankClient openBankClient;
     private final CardRepository cardRepository;
     private final CardTransactionRepository cardTransactionRepository;
     private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
     private final AiClient aiClient;
     private final MonthlyTransactionFingerprintService monthlyTransactionFingerprintService;
     private final Cache<String, CardRecommendationResponse> recommendationCache =
@@ -63,28 +66,27 @@ public class CardService {
                     .expireAfterWrite(RECOMMENDATION_CACHE_TTL)
                     .build();
 
-    @Value("${ssafy.api.key}")
-    private String apiKey;
+    @Value("${finance.mock-data.enabled:false}")
+    private boolean mockDataEnabled;
 
-    @Transactional
+    @Transactional(readOnly = true)
     public CardListResponse getCardList(Long userId) {
         List<Card> cards = cardRepository.findAllByUser_Id(userId);
-        if (cards.isEmpty()) {
-            RefreshResult refreshResult = refreshCardsFromExternal(userId);
-            return buildCardListResponse(
-                    userId,
-                    refreshResult.cards(),
-                    refreshResult.success(),
-                    refreshResult.success()
-                            ? "Card list refreshed and retrieved."
-                            : refreshResult.message());
-        }
         return buildCardListResponse(userId, cards, true, "Card list retrieved.");
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public CardListResponse.CardItem getCardItem(Long userId, Long cardId, String startDate, String endDate) {
-        Card card = cardRepository.findById(cardId).orElseThrow();
+        Card card =
+                cardRepository
+                        .findByIdAndUserId(cardId, userId)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Card not found for userId="
+                                                        + userId
+                                                        + ", cardId="
+                                                        + cardId));
 
         LocalDate start = parseDateOrThrow(startDate, "startDate");
         LocalDate end = parseDateOrThrow(endDate, "endDate");
@@ -104,13 +106,6 @@ public class CardService {
                 .cardName(card.getCardName())
                 .monthlyCardExpense(totalAmount)
                 .build();
-    }
-
-    @Transactional
-    public CardListResponse refreshCardList(Long userId) {
-        RefreshResult refreshResult = refreshCardsFromExternal(userId);
-        return buildCardListResponse(
-                userId, refreshResult.cards(), refreshResult.success(), refreshResult.message());
     }
 
     @Transactional(readOnly = true)
@@ -227,68 +222,6 @@ public class CardService {
         }
     }
 
-    private RefreshResult refreshCardsFromExternal(Long userId) {
-        User user = getRequiredUserWithFinanceKey(userId);
-        OpenBankRequest request = createCardListRequest(user.getSsafyFinanceUserKey());
-        OpenBankResponse response = openBankClient.fetchCreditCardList(request);
-
-        boolean success =
-                response != null
-                        && response.getHeader() != null
-                        && SUCCESS_CODE.equals(response.getHeader().getResponseCode());
-
-        if (!success || response.getRec() == null) {
-            List<Card> currentCards = cardRepository.findAllByUser_Id(userId);
-            return new RefreshResult(false, currentCards, "Failed to refresh card list.");
-        }
-
-        List<Card> existingCards = cardRepository.findAllByUser_Id(userId);
-        Map<String, Card> existingCardMap =
-                existingCards.stream().collect(Collectors.toMap(Card::getCardUniqueNo, card -> card));
-
-        List<Card> resultCards = new ArrayList<>();
-        for (OpenBankResponse.Rec rec : response.getRec()) {
-            Card existingCard = existingCardMap.get(rec.getCardUniqueNo());
-            if (existingCard != null) {
-                existingCard.updateFromExternal(
-                        rec.getCardNo(),
-                        rec.getCvc(),
-                        rec.getCardIssuerCode(),
-                        rec.getCardIssuerName(),
-                        rec.getCardName(),
-                        rec.getCardDescription(),
-                        rec.getBaselinePerformance(),
-                        rec.getMaxBenefitLimit(),
-                        rec.getCardExpiryDate(),
-                        rec.getWithdrawalAccountNo(),
-                        rec.getWithdrawalDate());
-                resultCards.add(existingCard);
-            } else {
-                resultCards.add(cardRepository.save(toCardEntity(user, rec)));
-            }
-        }
-
-        return new RefreshResult(true, resultCards, "Card list refreshed.");
-    }
-
-    private OpenBankRequest createCardListRequest(String userKey) {
-        LocalDateTime now = LocalDateTime.now();
-        return OpenBankRequest.builder()
-                .header(
-                        OpenBankReqHeader.builder()
-                                .apiName("inquireSignUpCreditCardList")
-                                .transmissionDate(now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
-                                .transmissionTime(now.format(DateTimeFormatter.ofPattern("HHmmss")))
-                                .institutionCode("00100")
-                                .fintechAppNo("001")
-                                .apiServiceCode("inquireSignUpCreditCardList")
-                                .institutionTransactionUniqueNo(generateUniqueNo(now))
-                                .apiKey(apiKey)
-                                .userKey(userKey)
-                                .build())
-                .build();
-    }
-
     private CardTransactionResponse buildCardTransactionListResponse(
             List<CardTransaction> cardTransactions,
             boolean success,
@@ -379,36 +312,105 @@ public class CardService {
                                         projection.getTotalAmount() == null ? 0L : projection.getTotalAmount()));
     }
 
-    private Card toCardEntity(User user, OpenBankResponse.Rec rec) {
-        return Card.builder()
-                .user(user)
-                .cardNo(rec.getCardNo())
-                .cvc(rec.getCvc())
-                .cardUniqueNo(rec.getCardUniqueNo())
-                .cardIssuerCode(rec.getCardIssuerCode())
-                .cardIssuerName(rec.getCardIssuerName())
-                .cardName(rec.getCardName())
-                .cardDescription(rec.getCardDescription())
-                .baselinePerformance(rec.getBaselinePerformance())
-                .maxBenefitLimit(rec.getMaxBenefitLimit())
-                .cardExpiryDate(rec.getCardExpiryDate())
-                .withdrawalAccountNo(rec.getWithdrawalAccountNo())
-                .withdrawalDate(rec.getWithdrawalDate())
-                .build();
-    }
+    // ------------------------------------------------------------------ 개발·시연용 입력
 
-    private User getRequiredUserWithFinanceKey(Long userId) {
+    /**
+     * 카드를 등록한다. 외부 카드사 연동이 없어서 카드가 생기는 경로가 이것과 데모 DB 뿐이다. 설정으로 켠 환경에서만
+     * 동작한다 (finance.mock-data.enabled=true).
+     */
+    @Transactional
+    public CardListResponse.CardItem registerCard(Long userId, CardRegisterRequest request) {
+        requireMockData();
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.USER_NOT_FOUND));
+        String withdrawalAccountNo =
+                accountRepository.findAllByUserId(userId).stream()
+                        .filter(account -> account.getAccountRole() == AccountRole.LINKED_DEPOSIT)
+                        .min(
+                                Comparator.comparing((Account account) -> !account.isPrimary())
+                                        .thenComparing(Account::getId))
+                        .map(Account::getAccountNo)
+                        .orElse(null);
+        Card card =
+                cardRepository.save(
+                        Card.builder()
+                                .user(user)
+                                .cardNo(randomDigits("9", 15))
+                                .cvc("000") // 실제 카드가 아니라서 쓰지 않는다 (열이 NOT NULL 이라 채운다)
+                                .cardUniqueNo("LOCAL-" + UUID.randomUUID())
+                                .cardIssuerCode("999")
+                                .cardIssuerName(request.cardIssuerName().strip())
+                                .cardName(request.cardName().strip())
+                                .cardDescription("개발·시연용 카드")
+                                .cardExpiryDate(LocalDate.now().plusYears(5).format(DATE_FORMATTER))
+                                .withdrawalAccountNo(withdrawalAccountNo)
+                                .withdrawalDate(
+                                        request.withdrawalDate() == null || request.withdrawalDate().isBlank()
+                                                ? "1"
+                                                : request.withdrawalDate())
+                                .build());
+        return CardListResponse.CardItem.builder()
+                .id(card.getId())
+                .cardIssuerName(card.getCardIssuerName())
+                .cardName(card.getCardName())
+                .monthlyCardExpense(0L)
+                .build();
+    }
 
-        String financeUserKey = user.getSsafyFinanceUserKey();
-        if (financeUserKey == null || financeUserKey.isBlank()) {
-            throw new IllegalArgumentException(
-                    "ssafy_finance_user_key is missing for userId=" + userId);
+    /** 카드 결제내역 한 건을 입력한다 (개발·시연용). */
+    @Transactional
+    public CardTransactionResponse.TransactionItem addMockTransaction(
+            Long userId, Long cardId, MockCardTransactionRequest request) {
+        requireMockData();
+        Card card =
+                cardRepository
+                        .findByIdAndUserId(cardId, userId)
+                        .orElseThrow(() -> new AccountException(AccountErrorCode.ACCOUNT_NOT_FOUND));
+        LocalDate date =
+                request.transactionDate() == null || request.transactionDate().isBlank()
+                        ? LocalDate.now()
+                        : parseDateOrThrow(request.transactionDate().strip(), "transactionDate");
+        CardTransaction saved =
+                cardTransactionRepository.save(
+                        CardTransaction.builder()
+                                .card(card)
+                                .userId(userId)
+                                .transactionDate(date)
+                                .transactionTime(LocalTime.now().format(DateTimeFormatter.ofPattern("HHmmss")))
+                                .merchantName(request.merchantName().strip())
+                                .categoryName(
+                                        request.categoryName() == null || request.categoryName().isBlank()
+                                                ? null
+                                                : request.categoryName().strip())
+                                .transactionAmount(request.amount())
+                                .transactionType("PAYMENT")
+                                .approvalNo(randomDigits("APP", 8))
+                                .description("mock")
+                                .build());
+        return CardTransactionResponse.TransactionItem.builder()
+                .id(saved.getId())
+                .merchantName(saved.getMerchantName())
+                .categoryName(saved.getCategoryName())
+                .transactionDate(saved.getTransactionDate().format(DATE_FORMATTER))
+                .transactionTime(saved.getTransactionTime())
+                .transactionAmount(String.valueOf(saved.getTransactionAmount()))
+                .build();
+    }
+
+    private void requireMockData() {
+        if (!mockDataEnabled) {
+            throw new AccountException(AccountErrorCode.MOCK_DATA_DISABLED);
         }
-        return user;
+    }
+
+    private static String randomDigits(String prefix, int count) {
+        StringBuilder digits = new StringBuilder(prefix);
+        for (int i = 0; i < count; i++) {
+            digits.append(ThreadLocalRandom.current().nextInt(10));
+        }
+        return digits.toString();
     }
 
     private LocalDate parseDateOrThrow(String date, String fieldName) {
@@ -421,12 +423,6 @@ public class CardService {
                 throw new IllegalArgumentException(fieldName + " must be yyyyMMdd or yyyy-MM-dd format.");
             }
         }
-    }
-
-    private String generateUniqueNo(LocalDateTime now) {
-        String timestamp = now.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        int randomNo = new Random().nextInt(900000) + 100000;
-        return timestamp + randomNo;
     }
 
     @Transactional(readOnly = true)
@@ -471,5 +467,4 @@ public class CardService {
                 + transactionFingerprint.toLowerCase(Locale.ROOT);
     }
 
-    private record RefreshResult(boolean success, List<Card> cards, String message) {}
 }

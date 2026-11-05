@@ -43,7 +43,7 @@ KST = timezone(timedelta(hours=9))
 AS_OF = date(2026, 11, 5)
 SEED = 7
 SALARY = "급여 입금"
-FIXED_SUMMARIES = {"월세", "통신비", "관리비·공과금", "보험료", "세이브박스 자동저축"}
+FIXED_SUMMARIES = {"월세", "통신비", "관리비·공과금", "보험료", "(자동저축) 출금"}
 
 
 def _minus_months(day: date, months: int) -> date:

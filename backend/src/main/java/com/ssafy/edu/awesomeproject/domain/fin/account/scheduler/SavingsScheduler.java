@@ -9,6 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/**
+ * 밀린 자동저축을 처리한다. 입금 직후에는 바로 처리되지만, 그때 주계좌 잔액이 저축액보다 적어 미뤄진 건이나 DB 에 직접
+ * 들어온 입금은 이 스케줄러가 한 시간마다 다시 시도한다. 외부 호출은 없다.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -17,24 +21,17 @@ public class SavingsScheduler {
     private final SavingsSettingRepository savingsSettingRepository;
     private final AccountService accountService;
 
-
     @Scheduled(fixedDelay = 3600000)
     public void scheduleAutomaticSavings() {
-        log.info("--- [Background] 자동 저축 스케줄러 시작 ---");
-
         List<SavingsSetting> activeSettings = savingsSettingRepository.findAllByIsActiveTrue();
-        log.info("감지된 활성 자동 저축 설정 수: {}", activeSettings.size());
+        log.info("자동 저축 스케줄러 시작 - 활성 규칙 {}건", activeSettings.size());
 
         for (SavingsSetting setting : activeSettings) {
             try {
-                log.info("사용자(ID: {})에 대한 동기화 및 자동저축 검토 중...", setting.getUserId());
-                accountService.refreshAccountList(setting.getUserId());
+                accountService.processPendingAutoSavings(setting.getUserId());
             } catch (Exception e) {
-                log.error("사용자 {}의 자동 저축 동기화 중 오류 발생: {}",
-                        setting.getUserId(), e.getMessage());
+                log.error("사용자 {}의 밀린 자동저축 처리 중 오류: {}", setting.getUserId(), e.getMessage());
             }
         }
-
-        log.info("--- [Background] 자동 저축 스케줄러 완료 ---");
     }
 }

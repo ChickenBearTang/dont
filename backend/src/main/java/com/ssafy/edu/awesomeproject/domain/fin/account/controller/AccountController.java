@@ -1,7 +1,9 @@
 package com.ssafy.edu.awesomeproject.domain.fin.account.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
+import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.AccountOpenRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.ManualSavingsRequest;
+import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.MockDepositRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SaveBoxCreateRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.request.SavingsSettingRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountApiResponse;
@@ -9,6 +11,7 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountCreat
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountListResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.AccountTransactionResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.MockDepositResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.dto.response.SavingsSettingResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.account.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,21 +38,6 @@ public class AccountController {
 
     private final AccountService accountService;
 
-    @Operation(summary = "[테스트용] 더미 유저 수동 동기화", description = "로그인 불가능한 더미 유저의 잔액을 오픈뱅킹과 강제 동기화하고 랭킹 이벤트를 발생시킵니다.")
-    @GetMapping("/test-sync/{userId}")
-    public ResponseEntity<AccountApiResponse<String>> testSyncDummy(@PathVariable Long userId) {
-        accountService.refreshAccountList(userId);
-        boolean published = accountService.forcePublishSaveboxEvent(userId);
-
-        if (published) {
-            return ResponseEntity.ok(
-                    AccountApiResponse.success("ACC_200_TEST", "더미 유저 강제 동기화 및 랭킹 업데이트를 완료했습니다.", "OK"));
-        } else {
-            return ResponseEntity.ok(
-                    AccountApiResponse.success("ACC_200_TEST_FAIL", "동기화는 성공했으나, 해당 유저의 SAVE_BOX 계좌가 DB에 존재하지 않아 랭킹에 등록되지 않았습니다.", "NO_SAVEBOX"));
-        }
-    }
-
     @Operation(summary = "계좌 목록 조회", description = "사용자의 수시입출금 계좌 목록을 조회합니다. (주 계좌 설정용)")
     @GetMapping
     public ResponseEntity<AccountApiResponse<AccountListResponse>> getMyAccounts(
@@ -72,10 +60,23 @@ public class AccountController {
                 AccountApiResponse.success("ACC_200_2", "계좌 상세 정보를 조회했습니다.", response));
     }
 
-    @Operation(summary = "세이브 박스 개설", description = "신규 '세이브 박스' 계좌를 개설합니다. (DB 저장 없음)")
+    @Operation(summary = "입출금 계좌 개설", description = "서비스 안의 원장에 입출금 계좌를 개설합니다. 첫 계좌는 주계좌가 됩니다.")
+    @PostMapping
+    public ResponseEntity<AccountApiResponse<AccountCreateResponse>> openAccount(
+            @CurrentUserId Long userId,
+            @Valid @RequestBody(required = false) AccountOpenRequest request) {
+
+        AccountCreateResponse response = accountService.openAccount(userId, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(AccountApiResponse.success("ACC_201_1", "계좌가 개설되었습니다.", response));
+    }
+
+    @Operation(summary = "세이브 박스 개설", description = "'세이브 박스' 계좌를 개설합니다. 사용자당 하나입니다.")
     @PostMapping("/save-box")
     public ResponseEntity<AccountApiResponse<AccountCreateResponse>> createSaveBox(
-            @CurrentUserId Long userId, @Valid @RequestBody SaveBoxCreateRequest request) {
+            @CurrentUserId Long userId,
+            @Valid @RequestBody(required = false) SaveBoxCreateRequest request) {
 
         AccountCreateResponse response = accountService.createSaveBox(userId, request);
 
@@ -83,7 +84,7 @@ public class AccountController {
                 .body(AccountApiResponse.success("SAVEBOX_201_1", "세이브박스가 개설되었습니다.", response));
     }
 
-    @Operation(summary = "계좌 목록 새로고침", description = "외부 API 기준으로 계좌 정보를 재동기화합니다. (DB 업데이트)")
+    @Operation(summary = "계좌 목록 새로고침", description = "밀려 있던 자동저축을 처리하고 계좌 목록을 다시 반환합니다.")
     @PostMapping("/refresh")
     public ResponseEntity<AccountApiResponse<AccountListResponse>> refreshMyAccounts(
             @CurrentUserId Long userId) {
@@ -92,17 +93,6 @@ public class AccountController {
 
         return ResponseEntity.ok(
                 AccountApiResponse.success("ACC_200_3", "계좌 정보가 동기화되었습니다.", response));
-    }
-
-    @Operation(summary = "금융 계좌 연동", description = "SSAFY Finance API 키를 등록하고 계좌 정보를 동기화합니다.")
-    @PostMapping("/link")
-    public ResponseEntity<AccountApiResponse<AccountListResponse>> linkFinanceAccount(
-            @CurrentUserId Long userId, @RequestParam String userKey) {
-
-        AccountListResponse response = accountService.linkFinanceAccount(userId, userKey);
-
-        return ResponseEntity.ok(
-                AccountApiResponse.success("ACC_200_9", "금융 계좌가 연동되었습니다.", response));
     }
 
     @Operation(summary = "주 계좌 설정", description = "특정 계좌를 사용자의 '주 계좌'로 설정합니다.")
@@ -116,7 +106,7 @@ public class AccountController {
                 AccountApiResponse.success("ACC_200_4", "주계좌로 설정되었습니다.", response));
     }
 
-    @Operation(summary = "계좌 거래 내역 조회", description = "특정 계좌의 거래 내역을 조회합니다. (자동으로 최신 동기화 시도)")
+    @Operation(summary = "계좌 거래 내역 조회", description = "특정 계좌의 거래 내역을 조회합니다.")
     @GetMapping("/{accountId}/transactions")
     public ResponseEntity<AccountApiResponse<AccountTransactionResponse>> getAccountTransactions(
             @CurrentUserId Long userId,
@@ -133,6 +123,22 @@ public class AccountController {
 
         return ResponseEntity.ok(
                 AccountApiResponse.success("ACC_200_5", "거래 내역을 조회했습니다.", response));
+    }
+
+    @Operation(
+            summary = "모의 입금 (개발·시연용)",
+            description =
+                    "입출금 계좌에 돈을 넣습니다. 외부 은행이 없어 돈이 들어오는 경로가 이것뿐입니다. "
+                            + "적요에 자동저축 키워드가 있으면 자동저축이 바로 실행됩니다. "
+                            + "finance.mock-data.enabled=true 인 환경에서만 동작합니다.")
+    @PostMapping("/{accountId}/deposits")
+    public ResponseEntity<AccountApiResponse<MockDepositResponse>> mockDeposit(
+            @CurrentUserId Long userId,
+            @PathVariable Long accountId,
+            @Valid @RequestBody MockDepositRequest request) {
+        MockDepositResponse response = accountService.mockDeposit(userId, accountId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(AccountApiResponse.success("ACC_201_2", "입금되었습니다.", response));
     }
 
     @Operation(summary = "저축 설정 조회", description = "사용자의 현재 자동 저축 설정을 조회합니다.")

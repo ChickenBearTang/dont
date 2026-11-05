@@ -324,8 +324,8 @@ def make_account_events(profile: Profile, as_of: date, card_tx: Sequence[CardTx]
 
         add(profile.pay_day, 0, profile.income, "급여 입금", memo="DEMO 급여", auto_savings_processed=has_savebox and profile.savings > 0)
         if has_savebox and profile.savings > 0:
-            add(profile.pay_day, 1, -profile.savings, "세이브박스 자동저축", counter_account=profile.savebox_account_no)
-            add(profile.pay_day, 1, profile.savings, "자동저축 입금", account="S", counter_account=profile.primary_account_no)
+            add(profile.pay_day, 1, -profile.savings, "(자동저축) 출금", counter_account=profile.savebox_account_no)
+            add(profile.pay_day, 1, profile.savings, "(자동저축) 입금", account="S", counter_account=profile.primary_account_no)
         add(profile.rent_day, 0, -profile.rent, "월세")
         for name, day, amount in _fixed_breakdown(profile.other_fixed):
             add(day, 0, -amount, name)
@@ -368,7 +368,7 @@ def build_user(profile: Profile, as_of: date, seed: int) -> UserSeed:
             events.append(
                 AccountEvent(
                     on=start_day, at=time(8, 0), account=account, signed=opening,
-                    summary="잔액 이월(데모)", memo="DEMO 시작 잔액",
+                    summary="(이월) 데모 시작 잔액", memo="DEMO 시작 잔액",
                 )
             )
 
@@ -433,14 +433,14 @@ def seed_sql(as_of: date, seed: int, profiles: Iterable[Profile] = PROFILES) -> 
         insert_rows(
             "users",
             [
-                "email", "password", "name", "birth_date", "nickname", "profile_image_url", "ssafy_finance_user_key",
+                "email", "password", "name", "birth_date", "nickname", "profile_image_url",
                 "terms_agreed", "terms_agreed_at", "monthly_saving_goal_amount", "onboarding_status", "user_role",
                 "status", "deleted_at", "cohort_id", "created_at", "updated_at",
             ],
             [
                 [
                     u.profile.email, DEMO_PASSWORD_BCRYPT, f"데모사용자{u.profile.key[1:]}", u.profile.birth_date,
-                    f"demo{u.profile.key[1:]}", None, None, True, created,
+                    f"demo{u.profile.key[1:]}", None, True, created,
                     (u.profile.savings if u.profile.savings > 0 else None), "COMPLETED", "USER", "ACTIVE", None,
                     cohort_id, created, created,
                 ]

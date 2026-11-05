@@ -16,12 +16,15 @@ import com.ssafy.edu.awesomeproject.domain.fin.account.repository.SavingsSetting
 import com.ssafy.edu.awesomeproject.domain.fin.card.entity.CardTransaction;
 import com.ssafy.edu.awesomeproject.domain.fin.card.repository.CardTransactionRepository;
 import com.ssafy.edu.awesomeproject.domain.fin.profile.dto.response.FinanceProfileResponse;
+import com.ssafy.edu.awesomeproject.domain.fin.profile.service.FinanceBudgetBasisService;
 import com.ssafy.edu.awesomeproject.domain.fin.profile.service.FinanceProfileService;
+import com.ssafy.edu.awesomeproject.domain.fin.profile.service.MonthlyBudgetBasisEstimator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +37,7 @@ public class PrXaiContextService {
     private final PrPostRepository prPostRepository;
     private final UserRepository userRepository;
     private final FinanceProfileService financeProfileService;
+    private final FinanceBudgetBasisService financeBudgetBasisService;
     private final CardTransactionRepository cardTransactionRepository;
     private final AccountRepository accountRepository;
     private final SavingsSettingRepository savingsSettingRepository;
@@ -42,12 +46,14 @@ public class PrXaiContextService {
             PrPostRepository prPostRepository,
             UserRepository userRepository,
             FinanceProfileService financeProfileService,
+            FinanceBudgetBasisService financeBudgetBasisService,
             CardTransactionRepository cardTransactionRepository,
             AccountRepository accountRepository,
             SavingsSettingRepository savingsSettingRepository) {
         this.prPostRepository = prPostRepository;
         this.userRepository = userRepository;
         this.financeProfileService = financeProfileService;
+        this.financeBudgetBasisService = financeBudgetBasisService;
         this.cardTransactionRepository = cardTransactionRepository;
         this.accountRepository = accountRepository;
         this.savingsSettingRepository = savingsSettingRepository;
@@ -78,6 +84,8 @@ public class PrXaiContextService {
         double saveboxBalanceValue = resolveSaveboxBalance(purchaseRequesterId, financeProfile);
         List<PrXaiRecentTransactionDto> recentTransactions =
                 buildRecentTransactions(purchaseRequesterId);
+        Optional<MonthlyBudgetBasisEstimator.Basis> budgetBasis =
+                financeBudgetBasisService.estimate(purchaseRequesterId);
 
         return new PrXaiEvaluationRequestDto(
                 UUID.randomUUID().toString(),
@@ -132,8 +140,38 @@ public class PrXaiContextService {
                                 "finance-profile:%d:%s".formatted(purchaseRequesterId, todaySnapshot),
                                 false,
                                 false,
-                                null)),
+                                null),
+                        budgetBasis
+                                .map(
+                                        basis ->
+                                                estimated(
+                                                        basis.monthlyIncome(),
+                                                        "income",
+                                                        purchaseRequesterId,
+                                                        todaySnapshot))
+                                .orElse(null),
+                        budgetBasis
+                                .map(
+                                        basis ->
+                                                estimated(
+                                                        basis.monthlyFixedExpense(),
+                                                        "fixed-expense",
+                                                        purchaseRequesterId,
+                                                        todaySnapshot))
+                                .orElse(null)),
                 recentTransactions);
+    }
+
+    /** 계좌 거래에서 추정한 값. 입력 계약에서 isEstimated 로 읽혀 경고(FINANCE_FIELD_ESTIMATED)가 붙는다. */
+    private static PrXaiProvenanceValueDto estimated(
+            long value, String kind, Long userId, String snapshotDate) {
+        return new PrXaiProvenanceValueDto(
+                value,
+                "spring.account_transactions",
+                "%s:%d:%s".formatted(kind, userId, snapshotDate),
+                false,
+                true,
+                MonthlyBudgetBasisEstimator.METHOD);
     }
 
     private double resolveSaveboxBalance(Long purchaseRequesterId, FinanceProfileResponse financeProfile) {

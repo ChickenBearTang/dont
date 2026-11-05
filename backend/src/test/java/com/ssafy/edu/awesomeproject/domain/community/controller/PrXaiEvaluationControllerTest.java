@@ -19,6 +19,7 @@ import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiSectionDt
 import com.ssafy.edu.awesomeproject.domain.community.dto.response.PrXaiTopFactorDto;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityErrorCode;
 import com.ssafy.edu.awesomeproject.domain.community.error.CommunityException;
+import com.ssafy.edu.awesomeproject.domain.community.service.PrXaiAvailabilityService;
 import com.ssafy.edu.awesomeproject.domain.community.service.PrXaiEvaluationService;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -35,12 +36,13 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class PrXaiEvaluationControllerTest {
 
     @Mock private PrXaiEvaluationService prXaiEvaluationService;
+    @Mock private PrXaiAvailabilityService prXaiAvailabilityService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        PrXaiEvaluationController controller = new PrXaiEvaluationController(prXaiEvaluationService);
+        PrXaiEvaluationController controller = new PrXaiEvaluationController(prXaiAvailabilityService, prXaiEvaluationService);
         mockMvc =
                 MockMvcBuilders.standaloneSetup(controller)
                         .setControllerAdvice(new GlobalExceptionHandler())
@@ -119,5 +121,22 @@ class PrXaiEvaluationControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("PR_404_1"));
+    }
+
+    @Test
+    void getXaiEvaluationReturnsUnprocessableWithReasonWhenItemIsUnsupported() throws Exception {
+        when(prXaiEvaluationService.evaluate(67L, 10L))
+                .thenThrow(
+                        new CommunityException(
+                                CommunityErrorCode.PURCHASE_REQUEST_XAI_UNSUPPORTED,
+                                "현재 XAI 평가는 F87, VXE R1, MX Master 3S 품목만 지원해요."));
+
+        mockMvc.perform(
+                        get("/community/purchase-requests/{postId}/xai-evaluation", 67L)
+                                .requestAttr(CurrentUserInterceptor.CURRENT_USER_ID_ATTR, 10L))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("PR_422_1"))
+                .andExpect(jsonPath("$.data").value("현재 XAI 평가는 F87, VXE R1, MX Master 3S 품목만 지원해요."));
     }
 }

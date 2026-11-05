@@ -68,13 +68,13 @@ public class PrXaiAvailabilityService {
 
         if (itemName == null && purchaseUrl == null) {
             return new PrXaiAvailabilityResponseDto(
-                    false, "No purchase URL or item name.", null, null, null);
+                    false, "구매 링크나 품목명이 없어 XAI 평가를 할 수 없어요.", null, null, null);
         }
 
         if (!isWhitelistedItem(itemName, purchaseUrl)) {
             return new PrXaiAvailabilityResponseDto(
                     false,
-                    "XAI item support is limited to %s."
+                    "현재 XAI 평가는 %s 품목만 지원해요."
                             .formatted(String.join(", ", SUPPORTED_ITEM_NAMES)),
                     ITEM_WHITELIST_ONLY_TYPE,
                     null,
@@ -86,7 +86,7 @@ public class PrXaiAvailabilityService {
             if (urlMatch != null) {
                 return new PrXaiAvailabilityResponseDto(
                         true,
-                        "Matched with crawled item URL.",
+                        "수집된 상품 링크와 일치해요.",
                         URL_MATCH_TYPE,
                         urlMatch.title(),
                         urlMatch.url());
@@ -96,7 +96,7 @@ public class PrXaiAvailabilityService {
             if (titleMatch != null) {
                 return new PrXaiAvailabilityResponseDto(
                         true,
-                        "Matched with crawled item title and price range.",
+                        "수집된 상품명·가격대와 일치해요.",
                         TITLE_PRICE_MATCH_TYPE,
                         titleMatch.title(),
                         titleMatch.url());
@@ -104,7 +104,7 @@ public class PrXaiAvailabilityService {
         } catch (SQLException exception) {
             return new PrXaiAvailabilityResponseDto(
                     true,
-                    "Crawl matching check failed. XAI evaluation will proceed with PR request context.",
+                    "수집 데이터 확인에 실패했어요. PR 요청 내용만으로 평가를 진행해요.",
                     FALLBACK_CHECK_SKIPPED_TYPE,
                     null,
                     purchaseUrl);
@@ -112,7 +112,7 @@ public class PrXaiAvailabilityService {
 
         return new PrXaiAvailabilityResponseDto(
                 true,
-                "No matching crawled item found. XAI evaluation will proceed with PR request context.",
+                "일치하는 수집 상품이 없어요. PR 요청 내용만으로 평가를 진행해요.",
                 FALLBACK_NO_MATCH_TYPE,
                 null,
                 purchaseUrl);

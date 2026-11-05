@@ -33,7 +33,7 @@ public class PrXaiEvaluationService {
                 prXaiAvailabilityService.checkAvailability(postId, userId);
         if (!availability.enabled()) {
             throw new CommunityException(
-                    CommunityErrorCode.PURCHASE_REQUEST_NOT_OPEN,
+                    CommunityErrorCode.PURCHASE_REQUEST_XAI_UNSUPPORTED,
                     availability.reason());
         }
 

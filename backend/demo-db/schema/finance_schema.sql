@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS users (
     birth_date                 DATE         NOT NULL,
     nickname                   VARCHAR(60),
     profile_image_url          VARCHAR(255),
-    ssafy_finance_user_key     VARCHAR(255),
     terms_agreed               BOOLEAN      NOT NULL,
     terms_agreed_at            TIMESTAMP(6),
     monthly_saving_goal_amount NUMERIC(15, 2),

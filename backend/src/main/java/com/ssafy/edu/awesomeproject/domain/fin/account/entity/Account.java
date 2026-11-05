@@ -16,8 +16,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
+@DynamicUpdate // 주계좌 표시처럼 일부 열만 바꿀 때 오래된 잔액으로 덮어쓰지 않게 바뀐 열만 UPDATE 한다
 @Table(name = "accounts")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -140,5 +142,16 @@ public class Account extends BaseEntity {
 
     public void updateAccountRole(AccountRole accountRole) {
         this.accountRole = accountRole;
+    }
+
+    /** 원장이 잠금을 잡은 상태에서만 호출한다. 잔액 부족 검사는 호출하는 쪽(LedgerService)이 한다. */
+    public void applyDeposit(BigDecimal amount, LocalDate on) {
+        this.balance = this.balance.add(amount);
+        this.lastTransactionDate = on;
+    }
+
+    public void applyWithdrawal(BigDecimal amount, LocalDate on) {
+        this.balance = this.balance.subtract(amount);
+        this.lastTransactionDate = on;
     }
 }
