@@ -188,9 +188,9 @@ class PolishAllTest(unittest.TestCase):
 
 class SummaryPolisherTest(unittest.TestCase):
     def _polish(self, decision, reason="비상자금 수준이 낮아 재무 안정성이 부족합니다.", suggestion="비상자금을 222만 원 더 늘리면 나아집니다."):
-        from ..xai.polisher import LLMSummaryPolisher
+        from ..xai.polisher import TemplateSummaryPolisher
 
-        return LLMSummaryPolisher().polish(decision=decision, top_reason_text=reason, suggestion_text=suggestion)
+        return TemplateSummaryPolisher().polish(decision=decision, top_reason_text=reason, suggestion_text=suggestion)
 
     def test_예전의_이름표_나열이_아니다(self) -> None:
         text = self._polish("NOT_RECOMMENDED")

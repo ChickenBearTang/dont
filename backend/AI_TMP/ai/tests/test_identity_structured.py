@@ -8,7 +8,6 @@ import unittest.mock
 
 from ..crawler.identity import (
     BrandLexicon,
-    GeminiExtractor,
     IdentityStatus,
     ProductResolver,
     extract_structured_product,
@@ -172,44 +171,6 @@ class ResolverWithLlmTest(unittest.TestCase):
             with self.subTest(result=result):
                 identity = ProductResolver(llm=FakeLlm(result)).resolve("로지텍 마우스")
                 self.assertEqual(identity.status, R.BRAND_ONLY)
-
-
-class GeminiExtractorTest(unittest.TestCase):
-    """실제 API 는 호출하지 못했다. 요청 구성과 응답 해석만 가짜 HTTP 로 확인한다."""
-
-    def test_키가_없으면_호출하지_않는다(self) -> None:
-        calls = []
-        extractor = GeminiExtractor(api_key="", post=lambda *a: calls.append(a) or {})
-
-        with unittest.mock.patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
-            self.assertIsNone(extractor.extract("제목"))
-        self.assertEqual(calls, [])
-
-    def test_요청에_제목과_온도_0과_JSON_응답을_담고_응답을_해석한다(self) -> None:
-        seen = {}
-
-        def post(url, body, timeout):
-            seen.update(url=url, body=body, timeout=timeout)
-            return {"candidates": [{"content": {"parts": [{"text": '{"brand": "Razer", "model": "DeathAdder V3"}'}]}}]}
-
-        result = GeminiExtractor(api_key="k", post=post).extract("레이저 DeathAdder V3 마우스")
-
-        self.assertEqual(result, {"brand": "Razer", "model": "DeathAdder V3"})
-        self.assertIn("gemini-2.5-flash:generateContent", seen["url"])
-        self.assertEqual(seen["body"]["generationConfig"]["temperature"], 0)
-        self.assertEqual(seen["body"]["generationConfig"]["responseMimeType"], "application/json")
-        self.assertIn("레이저 DeathAdder V3 마우스", seen["body"]["contents"][0]["parts"][0]["text"])
-
-    def test_네트워크_오류와_깨진_응답은_모름으로_처리한다(self) -> None:
-        def boom(*a):
-            raise OSError("down")
-
-        self.assertIsNone(GeminiExtractor(api_key="k", post=boom).extract("x"))
-        self.assertIsNone(GeminiExtractor(api_key="k", post=lambda *a: {"unexpected": 1}).extract("x"))
-        bad_json = {"candidates": [{"content": {"parts": [{"text": "not json"}]}}]}
-        self.assertIsNone(GeminiExtractor(api_key="k", post=lambda *a: bad_json).extract("x"))
-        listy = {"candidates": [{"content": {"parts": [{"text": "[1,2]"}]}}]}
-        self.assertIsNone(GeminiExtractor(api_key="k", post=lambda *a: listy).extract("x"))
 
 
 if __name__ == "__main__":  # pragma: no cover

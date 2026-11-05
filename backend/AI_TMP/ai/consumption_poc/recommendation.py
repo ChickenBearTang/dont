@@ -4,8 +4,6 @@ import os
 
 import pandas as pd
 
-from consumption_poc.config import DEFAULT_GEMINI_MODEL, get_env
-
 
 class AIConsumptionEngine:
     def __init__(self, personas, cards):
@@ -21,17 +19,6 @@ class AIConsumptionEngine:
         else:
             self.keyword_map = {}
 
-        try:
-            gemini_key = get_env("GEMINI_API_KEY")
-            if gemini_key:
-                from google import genai
-
-                self.llm_client = genai.Client(api_key=gemini_key)
-            else:
-                self.llm_client = None
-        except Exception:
-            self.llm_client = None
-
     @staticmethod
     def _normalize_token(value: str) -> str:
         return (
@@ -42,29 +29,6 @@ class AIConsumptionEngine:
             .replace(" ", "_")
             .replace("/", "_")
         )
-
-    def _get_llm_category(self, store_name: str) -> str:
-        if not self.llm_client:
-            return "ETC"
-        try:
-            categories_desc = ", ".join([f"{k}({v[0]})" for k, v in self.keyword_map.items()])
-            prompt = (
-                "Given merchant text, choose one category code from P01..P13 only. "
-                "If uncertain, return ETC.\n\n"
-                f"Categories: {categories_desc}\n"
-                f"Merchant: {store_name}\n"
-                "Answer format: one code only."
-            )
-            response = self.llm_client.models.generate_content(
-                model=DEFAULT_GEMINI_MODEL,
-                contents=prompt,
-            )
-            result = (getattr(response, "text", "") or "").strip()
-            if result in self.keyword_map or result == "ETC":
-                return result
-        except Exception:
-            pass
-        return "ETC"
 
     def match_type(self, row) -> str:
         store_name = str(row.get("storeName", "")).strip()
@@ -151,7 +115,8 @@ class AIConsumptionEngine:
         if matches:
             return lowered_to_type[matches[0]]
 
-        return self._get_llm_category(store_name)
+        # 어떤 키워드/유사도 규칙에도 안 맞으면 기타. (예전에는 여기서 외부 언어 모델에 물었다.)
+        return "ETC"
 
     def preprocess(self, raw_data):
         df = pd.DataFrame(raw_data)

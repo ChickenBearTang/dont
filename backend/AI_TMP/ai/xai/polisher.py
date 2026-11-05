@@ -15,11 +15,11 @@ def _sentence(text: str) -> str:
     return text if text[-1] in ".!?。" else text + "."
 
 
-class LLMSummaryPolisher:
+class TemplateSummaryPolisher:
     """판단, 핵심 근거, 개선 방법을 자연스러운 한 단락으로 잇는다.
 
-    이름과 달리 LLM 을 쓰지 않는 결정적 템플릿이다 (온프레미스에서 그대로 동작,
-    같은 입력은 같은 문장). 이전에는 "구매 권장. 핵심 근거: ... 개선 포인트: ..." 처럼
+    LLM 을 쓰지 않는 결정적 템플릿이다 (온프레미스에서 그대로 동작, 같은 입력은 같은 문장).
+    예전 이름(LLMSummaryPolisher)은 오해를 불러서 바꿨다. 이전에는 "구매 권장. 핵심 근거: ... 개선 포인트: ..." 처럼
     항목을 이름표로 이어 붙여 읽기 어색했다.
     """
 

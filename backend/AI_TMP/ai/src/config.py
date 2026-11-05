@@ -25,12 +25,6 @@ GENERATED_ANOMALY_PATH = GENERATED_DATA_DIR / "consumption_report_anomalies.csv"
 GENERATED_CASHFLOW_PATH = GENERATED_DATA_DIR / "cashflow_report_monthly.csv"
 GENERATED_SUMMARY_PATH = GENERATED_DATA_DIR / "consumption_report_summary.json"
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-DEFAULT_GEMINI_MODEL_FALLBACKS = (
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-2.0-flash",
-)
 ENV_PATH = BASE_DIR / "../../../.env"
 
 

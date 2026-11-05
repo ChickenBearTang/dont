@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from consumption_poc.ai_insights import generate_ai_analysis
 from consumption_poc.anomaly import detect_anomalies
 from consumption_poc.config import (
     ACCOUNT_TRANSACTIONS_PATH,
@@ -32,6 +31,10 @@ from consumption_poc.writers import write_csv, write_json
 import json
 
 
+# 분석 문장은 규칙으로 만든다 (외부 LLM 없음). llm_status 는 응답 호환용으로 남긴다.
+ANALYSIS_META = {"llm_status": "skipped", "analysis_engine": "rule_based"}
+
+
 class ReportService:
     def __init__(self) -> None:
         self.profiles = load_user_profiles(USER_PROFILE_PATH)
@@ -41,26 +44,6 @@ class ReportService:
         }
         self.card_transactions = load_card_transactions(CARD_TRANSACTIONS_PATH)
         self.account_transactions = load_account_transactions(ACCOUNT_TRANSACTIONS_PATH)
-
-    def _get_justifications_path(self, user_id: str, month: str):
-        return GENERATED_DATA_DIR / "users" / user_id / month / "justifications.json"
-
-    def load_justifications(self, user_id: str, month: str) -> list[dict]:
-        path = self._get_justifications_path(user_id, month)
-        if not path.exists():
-            return []
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return []
-
-    def add_justification(self, user_id: str, month: str, justification: dict) -> None:
-        path = self._get_justifications_path(user_id, month)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        items = self.load_justifications(user_id, month)
-        items.append(justification)
-        write_json(path, items)
 
     def _resolve_period(self, transactions: list | None = None) -> tuple[str, str]:
         selected = transactions or self.card_transactions
@@ -106,7 +89,6 @@ class ReportService:
         end: str,
         user_id: str | None = None,
         user_name: str | None = None,
-        include_ai: bool = True,
     ) -> dict:
         profile = self._resolve_profile(user_id=user_id, user_name=user_name)
 
@@ -124,22 +106,7 @@ class ReportService:
         self._validate_card_bill_alignment(monthly, cashflow)
 
         overview = build_overview(profile, cards, monthly)
-        fallback_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
-
-        justifications = self.load_justifications(profile.user_id, start)
-
-        llm_payload = {
-            "overview": overview,
-            "monthly": monthly,
-            "top_categories": categories["top_categories"][:5],
-            "top_subcategories": categories["top_subcategories"][:5],
-            "time_patterns": time_patterns,
-            "cashflow": cashflow,
-            "anomalies": anomalies[:5],
-            "fallback_analysis": fallback_analysis,
-            "justifications": justifications,
-        }
-        ai_analysis, llm_status = generate_ai_analysis(llm_payload, fallback_analysis, include_ai=include_ai)
+        ai_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
 
         return {
             "meta": {
@@ -147,7 +114,7 @@ class ReportService:
                 "user_name": profile.name,
                 "period": {"start": start, "end": end},
                 "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-                "llm_status": llm_status,
+                **ANALYSIS_META,
             },
             "overview": overview,
             "monthly": monthly,
@@ -214,7 +181,7 @@ class ReportService:
         target_user_id = profile.user_id
         cards = filter_card_transactions(self.card_transactions, target_user_id, "1900-01", "2900-12")
         start, end = self._resolve_period(cards)
-        report = self.build_report(start=start, end=end, user_id=target_user_id, include_ai=False)
+        report = self.build_report(start=start, end=end, user_id=target_user_id)
         write_csv(GENERATED_MONTHLY_PATH, report["monthly"])
         write_csv(GENERATED_CATEGORY_PATH, report["categories"]["by_month"])
         write_csv(

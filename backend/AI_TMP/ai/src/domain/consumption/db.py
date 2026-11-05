@@ -98,6 +98,11 @@ def _combine_datetime(day: date, raw_time: Any) -> datetime:
     return datetime.strptime(f"{day.strftime('%Y%m%d')}{_normalize_time(raw_time)}", "%Y%m%d%H%M%S")
 
 
+# 본인 계좌 사이를 오가는 돈(자동저축, 수동저축, 세이브박스 꺼내기, 시작 잔액 이월)은 소득이 아니다.
+# Spring 원장(LedgerSummaries.INTERNAL_PREFIXES)이 남기는 적요 접두어와 같아야 한다.
+_INTERNAL_TRANSFER_PATTERN = r"^\((자동저축|수동저축|세이브박스|이월)\)"
+
+
 def _estimate_monthly_income(connection: psycopg.Connection, user_id: int, month_start: date, month_end: date) -> int:
     with connection.cursor() as cursor:
         cursor.execute(
@@ -106,11 +111,13 @@ def _estimate_monthly_income(connection: psycopg.Connection, user_id: int, month
             from account_transactions at
             join accounts a on a.id = at.account_id
             where a.user_id = %s
+              and a.account_role = 'LINKED_DEPOSIT'
               and at.transaction_type = '1'
+              and coalesce(at.transaction_summary, '') !~ %s
               and at.transaction_date >= %s
               and at.transaction_date < %s
             """,
-            (user_id, month_start, month_end),
+            (user_id, _INTERNAL_TRANSFER_PATTERN, month_start, month_end),
         )
         row = cursor.fetchone() or {}
         current_month_income = _normalize_amount(row.get("income"))
@@ -126,13 +133,15 @@ def _estimate_monthly_income(connection: psycopg.Connection, user_id: int, month
                 from account_transactions at
                 join accounts a on a.id = at.account_id
                 where a.user_id = %s
+                  and a.account_role = 'LINKED_DEPOSIT'
                   and at.transaction_type = '1'
+                  and coalesce(at.transaction_summary, '') !~ %s
                   and at.transaction_date >= (%s - interval '3 month')
                   and at.transaction_date < %s
                 group by month_key
             ) monthly_income
             """,
-            (user_id, month_start, month_end),
+            (user_id, _INTERNAL_TRANSFER_PATTERN, month_start, month_end),
         )
         fallback_row = cursor.fetchone() or {}
         average_income = _normalize_amount(fallback_row.get("avg_income"))
@@ -265,59 +274,6 @@ def fetch_account_transactions_between(
             }
         )
     return transactions
-
-
-def fetch_valid_justifications(
-    connection: psycopg.Connection, user_id: int, report_month: str
-) -> list[dict[str, Any]]:
-    month_start, _ = _month_bounds(report_month)
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            select id, user_message, ai_response, created_at
-            from fin_consumption_justification
-            where user_id = %s
-              and target_month = %s
-              and is_valid = true
-            order by created_at asc
-            """,
-            (user_id, month_start),
-        )
-        rows = cursor.fetchall()
-
-    return [
-        {
-            "id": row["id"],
-            "message": row["user_message"],
-            "aiResponse": row["ai_response"],
-            "createdAt": row["created_at"].isoformat() if row["created_at"] else None,
-        }
-        for row in rows
-    ]
-
-
-def fetch_justification_history(
-    connection: psycopg.Connection, user_id: int, report_month: str
-) -> list[dict[str, str]]:
-    month_start, _ = _month_bounds(report_month)
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            select user_message, ai_response
-            from fin_consumption_justification
-            where user_id = %s
-              and target_month = %s
-            order by created_at asc
-            """,
-            (user_id, month_start),
-        )
-        rows = cursor.fetchall()
-
-    history: list[dict[str, str]] = []
-    for row in rows:
-        history.append({"role": "user", "message": row["user_message"]})
-        history.append({"role": "assistant", "message": row["ai_response"]})
-    return history
 
 
 def build_date_range(connection: psycopg.Connection, user_id: int, start_date: str, end_date: str) -> tuple[DbUserProfile, list[dict[str, Any]], list[dict[str, Any]]]:

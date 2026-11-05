@@ -23,7 +23,7 @@ def test_consumption_report_without_ai() -> None:
     client = TestClient(app)
     response = client.get(
         "/api/v1/consumption-report",
-        params={"user_id": "U1001", "start": "2026-01", "end": "2026-03", "include_ai": "false"},
+        params={"user_id": "U1001", "start": "2026-01", "end": "2026-03"},
     )
     assert response.status_code == 200
     payload = response.json()
@@ -35,7 +35,7 @@ def test_consumption_report_by_name() -> None:
     client = TestClient(app)
     response = client.get(
         "/api/v1/consumption-report",
-        params={"user_name": "Lee Ji", "start": "2026-01", "end": "2026-03", "include_ai": "false"},
+        params={"user_name": "Lee Ji", "start": "2026-01", "end": "2026-03"},
     )
     assert response.status_code == 200
     payload = response.json()

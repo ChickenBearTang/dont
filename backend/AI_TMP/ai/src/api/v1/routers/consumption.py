@@ -28,7 +28,6 @@ def get_consumption_report(
     user_name: str | None = Query(default=None),
     start: str = Query(...),
     end: str = Query(...),
-    include_ai: bool = Query(True),
 ) -> dict:
     try:
         return service.build_report(
@@ -36,7 +35,6 @@ def get_consumption_report(
             user_name=user_name,
             start=start,
             end=end,
-            include_ai=include_ai,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -67,7 +65,6 @@ def analyze_monthly_report(request: MonthlyReportDbRequest) -> dict:
         report = service.build_report_from_db(
             user_id=request.user_id,
             report_month=request.report_month,
-            include_ai=True,
         )
         return {
             "analysis_payload": report.get("ai_analysis", {}),
@@ -91,7 +88,6 @@ def analyze_date_range_report(request: DateRangeAnalysisRequest) -> dict:
             user_id=request.user_id,
             start_date=request.start_date,
             end_date=request.end_date,
-            include_ai=True,
         )
         logger.warning(
             "[AI] date-range-report success: user_id=%s, start_date=%s, end_date=%s",

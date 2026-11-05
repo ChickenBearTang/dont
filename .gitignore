@@ -226,3 +226,6 @@ ai/.env
 
 # demo DB 생성물 (backend/demo-db/demo.py generate)
 backend/demo-db/build/
+
+# AI 서버 리포트 재생성 산출물 (consumption report regenerate)
+backend/AI_TMP/ai/data/generated/

@@ -2,16 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, date, timedelta
 
-from domain.consumption.ai_insights import generate_ai_analysis
 from domain.consumption.anomaly import detect_anomalies
 from domain.consumption.db import (
     build_date_range,
     fetch_account_transactions,
     fetch_card_transactions,
     fetch_card_transactions_between,
-    fetch_justification_history,
     fetch_user_profile,
-    fetch_valid_justifications,
     get_connection,
 )
 from config import (
@@ -41,6 +38,10 @@ from domain.consumption.reporting import (
 from utils.writers import write_csv, write_json
 import json
 
+# 월간/기간 리포트의 분석 문장은 규칙으로 만든다 (reporting.build_rule_based_insights). 외부 LLM 을 부르지 않는다.
+# llm_status 는 Spring 이 저장하는 필드라 남기되, LLM 을 쓰지 않으므로 항상 "skipped" 이다.
+ANALYSIS_META = {"llm_status": "skipped", "analysis_engine": "rule_based"}
+
 
 class ReportService:
     def __init__(self) -> None:
@@ -63,26 +64,6 @@ class ReportService:
             self.account_transactions = load_account_transactions(ACCOUNT_TRANSACTIONS_PATH)
         except Exception:
             self.account_transactions = []
-
-    def _get_justifications_path(self, user_id: str, month: str):
-        return GENERATED_DATA_DIR / "users" / user_id / month / "justifications.json"
-
-    def load_justifications(self, user_id: str, month: str) -> list[dict]:
-        path = self._get_justifications_path(user_id, month)
-        if not path.exists():
-            return []
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return []
-
-    def add_justification(self, user_id: str, month: str, justification: dict) -> None:
-        path = self._get_justifications_path(user_id, month)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        items = self.load_justifications(user_id, month)
-        items.append(justification)
-        write_json(path, items)
 
     def _resolve_period(self, transactions: list | None = None) -> tuple[str, str]:
         selected = transactions or self.card_transactions
@@ -128,7 +109,6 @@ class ReportService:
         end: str,
         user_id: str | None = None,
         user_name: str | None = None,
-        include_ai: bool = True,
     ) -> dict:
         profile = self._resolve_profile(user_id=user_id, user_name=user_name)
 
@@ -146,22 +126,7 @@ class ReportService:
         self._validate_card_bill_alignment(monthly, cashflow)
 
         overview = build_overview(profile, cards, monthly)
-        fallback_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
-
-        justifications = self.load_justifications(profile.user_id, start)
-
-        llm_payload = {
-            "overview": overview,
-            "monthly": monthly,
-            "top_categories": categories["top_categories"][:5],
-            "top_subcategories": categories["top_subcategories"][:5],
-            "time_patterns": time_patterns,
-            "cashflow": cashflow,
-            "anomalies": anomalies[:5],
-            "fallback_analysis": fallback_analysis,
-            "justifications": justifications,
-        }
-        ai_analysis, llm_status = generate_ai_analysis(llm_payload, fallback_analysis, include_ai=include_ai)
+        ai_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
 
         return {
             "meta": {
@@ -169,7 +134,7 @@ class ReportService:
                 "user_name": profile.name,
                 "period": {"start": start, "end": end},
                 "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-                "llm_status": llm_status,
+                **ANALYSIS_META,
             },
             "overview": overview,
             "monthly": monthly,
@@ -210,8 +175,6 @@ class ReportService:
         accounts,
         start_date: str,
         end_date: str,
-        include_ai: bool,
-        justifications: list[dict] | None = None,
     ) -> dict:
         if not cards:
             raise ValueError("No card transactions found for the requested period.")
@@ -222,22 +185,7 @@ class ReportService:
         cashflow = build_cashflow_summary(accounts)
         anomalies = detect_anomalies(cards)
         overview = build_overview(profile, cards, monthly)
-        fallback_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
-
-        llm_payload = {
-            "overview": overview,
-            "monthly": monthly,
-            "top_categories": categories["top_categories"][:5],
-            "top_subcategories": categories["top_subcategories"][:5],
-            "time_patterns": time_patterns,
-            "cashflow": cashflow,
-            "anomalies": anomalies[:5],
-            "fallback_analysis": fallback_analysis,
-            "justifications": justifications or [],
-        }
-        ai_analysis, llm_status = generate_ai_analysis(
-            llm_payload, fallback_analysis, include_ai=include_ai
-        )
+        ai_analysis = build_rule_based_insights(monthly, categories, time_patterns, anomalies)
 
         return {
             "meta": {
@@ -245,7 +193,7 @@ class ReportService:
                 "user_name": profile.name,
                 "period": {"start": start_date, "end": end_date},
                 "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-                "llm_status": llm_status,
+                **ANALYSIS_META,
             },
             "overview": overview,
             "monthly": monthly,
@@ -256,7 +204,7 @@ class ReportService:
             "ai_analysis": ai_analysis,
         }
 
-    def build_report_from_db(self, user_id: int, report_month: str, include_ai: bool = True) -> dict:
+    def build_report_from_db(self, user_id: int, report_month: str) -> dict:
         from domain.consumption.schemas import (
             AccountTransaction as InternalAccount,
             CardTransaction as InternalCard,
@@ -267,7 +215,6 @@ class ReportService:
             db_profile = fetch_user_profile(connection, user_id, report_month)
             card_rows = fetch_card_transactions(connection, user_id, report_month)
             account_rows = fetch_account_transactions(connection, user_id, report_month)
-            valid_justifications = fetch_valid_justifications(connection, user_id, report_month)
 
         profile = InternalProfile(
             user_id=db_profile.user_id,
@@ -289,13 +236,9 @@ class ReportService:
             accounts=accounts,
             start_date=report_month,
             end_date=report_month,
-            include_ai=include_ai,
-            justifications=valid_justifications,
         )
 
-    def build_report_from_db_range(
-        self, user_id: int, start_date: str, end_date: str, include_ai: bool = True
-    ) -> dict:
+    def build_report_from_db_range(self, user_id: int, start_date: str, end_date: str) -> dict:
         from domain.consumption.schemas import (
             AccountTransaction as InternalAccount,
             CardTransaction as InternalCard,
@@ -327,8 +270,6 @@ class ReportService:
             accounts=accounts,
             start_date=start_date,
             end_date=end_date,
-            include_ai=include_ai,
-            justifications=[],
         )
 
     def get_card_recommendation_from_db(self, user_id: int, month: str) -> dict:
@@ -370,65 +311,6 @@ class ReportService:
                 "score": 0,
             }
         return result
-
-    def build_strict_secretary_context_from_db(self, user_id: int) -> dict:
-        from domain.consumption.schemas import CardTransaction as InternalCard
-
-        today = date.today()
-        two_months_ago = today.replace(day=1)
-        if two_months_ago.month <= 2:
-            two_months_ago = two_months_ago.replace(
-                year=two_months_ago.year - 1, month=two_months_ago.month + 10
-            )
-        else:
-            two_months_ago = two_months_ago.replace(month=two_months_ago.month - 2)
-
-        current_month = today.strftime("%Y-%m")
-        with get_connection() as connection:
-            db_profile = fetch_user_profile(connection, user_id, current_month)
-            recent_card_rows = fetch_card_transactions_between(
-                connection, user_id, two_months_ago, today + timedelta(days=1)
-            )
-
-        recent_transactions = [InternalCard(**row) for row in recent_card_rows]
-        report_context = self.build_report_from_db(
-            user_id=user_id, report_month=current_month, include_ai=False
-        )
-
-        return {
-            "profile": {
-                "user_id": db_profile.user_id,
-                "name": db_profile.name,
-                "monthly_income": db_profile.monthly_income,
-            },
-            "recent_transactions": [
-                {
-                    "approved_at": tx.approved_at.isoformat(),
-                    "merchant_name": tx.merchant_name,
-                    "amount": tx.amount,
-                    "category": tx.category,
-                    "subcategory": tx.subcategory,
-                }
-                for tx in recent_transactions
-            ],
-            "ai_report": report_context,
-            "explain_logs": [],
-        }
-
-    def build_justification_context_from_db(self, user_id: int, report_month: str) -> tuple[dict, list[dict[str, str]]]:
-        report = self.build_report_from_db(user_id=user_id, report_month=report_month, include_ai=False)
-        context = {
-            "overview": report.get("overview", {}),
-            "monthly": report.get("monthly", []),
-            "categories": report.get("categories", {}),
-            "anomalies": report.get("anomalies", []),
-            "existing_ai_analysis": report.get("ai_analysis", {}),
-        }
-
-        with get_connection() as connection:
-            history = fetch_justification_history(connection, user_id, report_month)
-
-        return context, history
 
     def build_report_from_data(self, request: ConsumptionAnalysisRequest) -> dict:
         from domain.consumption.schemas import (
@@ -496,15 +378,12 @@ class ReportService:
                 )
             )
 
-        justifications = self.load_justifications(profile.user_id, request.start_date)
         return self._build_report_bundle(
             profile=profile,
             cards=cards,
             accounts=accounts,
             start_date=request.start_date,
             end_date=request.end_date,
-            include_ai=request.include_ai,
-            justifications=justifications,
         )
 
     def regenerate(self, user_id: str | None = None, user_name: str | None = None) -> list[str]:
@@ -512,7 +391,7 @@ class ReportService:
         target_user_id = profile.user_id
         cards = filter_card_transactions(self.card_transactions, target_user_id, "1900-01", "2900-12")
         start, end = self._resolve_period(cards)
-        report = self.build_report(start=start, end=end, user_id=target_user_id, include_ai=False)
+        report = self.build_report(start=start, end=end, user_id=target_user_id)
         write_csv(GENERATED_MONTHLY_PATH, report["monthly"])
         write_csv(GENERATED_CATEGORY_PATH, report["categories"]["by_month"])
         write_csv(

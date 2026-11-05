@@ -53,22 +53,9 @@ class AccountTransaction:
         return self.transacted_at.strftime("%Y-%m")
 
 
-class ChatRequest(BaseModel):
-    user_name: str
-    month: str
-    message: str
-    history: list[dict[str, str]] = []
-
-
 class MonthlyReportDbRequest(BaseModel):
     user_id: int
     report_month: str
-
-
-class JustificationDbRequest(BaseModel):
-    user_id: int
-    target_month: str
-    message: str
 
 
 class DateRangeAnalysisRequest(BaseModel):
@@ -80,26 +67,6 @@ class DateRangeAnalysisRequest(BaseModel):
 class CardRecommendationDbRequest(BaseModel):
     user_id: int
     month: str
-
-
-class StrictSecretaryDbRequest(BaseModel):
-    user_id: int
-    item_text: str
-    item_link: str
-    user_reason: str
-
-
-class PurchaseIntentionRequest(BaseModel):
-    user_profile: UserProfileBase
-    item_text: str
-    item_link: str
-    user_reason: str
-    recent_transactions: list[CardTransactionBase] = []
-    ai_report_context: str | None = None
-
-
-class TTSRequest(BaseModel):
-    text: str
 
 
 class UserProfileBase(BaseModel):
@@ -136,4 +103,3 @@ class ConsumptionAnalysisRequest(BaseModel):
     account_transactions: list[AccountTransactionBase]
     start_date: str
     end_date: str
-    include_ai: bool = True

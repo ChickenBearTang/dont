@@ -106,7 +106,7 @@ class ExplainabilityAnalyzer:
             else self._rule_counterfactual_engine
         )
         self._summary_polisher = (
-            summary_polisher or polisher_module.LLMSummaryPolisher()
+            summary_polisher or polisher_module.TemplateSummaryPolisher()
         )
         self._decision_engine = DecisionEngine()
         self._explanation_engine = ExplanationEngine()

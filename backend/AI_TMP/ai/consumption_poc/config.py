@@ -5,8 +5,8 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-DATA_DIR = PROJECT_ROOT / "ai" / "data"
+# 이 패키지는 ai/ 바로 아래에 있다. 예전에는 저장소 밖 경로(PROJECT_ROOT/ai/data)를 가리켜서 데이터 파일을 못 찾았다.
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 GENERATED_DATA_DIR = DATA_DIR / "generated"
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -22,12 +22,6 @@ GENERATED_ANOMALY_PATH = GENERATED_DATA_DIR / "consumption_report_anomalies.csv"
 GENERATED_CASHFLOW_PATH = GENERATED_DATA_DIR / "cashflow_report_monthly.csv"
 GENERATED_SUMMARY_PATH = GENERATED_DATA_DIR / "consumption_report_summary.json"
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-DEFAULT_GEMINI_MODEL_FALLBACKS = (
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-2.0-flash",
-)
 ENV_PATH = BASE_DIR / ".env"
 
 
