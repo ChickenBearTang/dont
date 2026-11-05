@@ -59,7 +59,7 @@ def validate_price_training_rows(
     rows = list(rows)
     now = now or datetime.now(timezone.utc)
     report = ValidationReport("price_training_rows", rows_checked=len(rows))
-    err, warn = Severity.ERROR, Severity.WARNING
+    err = Severity.ERROR
 
     valid_rows: list[tuple[int, dict[str, Any]]] = []
     for i, row in enumerate(rows):

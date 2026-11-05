@@ -54,14 +54,11 @@ def _payload_with_all_optional() -> dict[str, object]:
 
 
 def _post(payload: dict[str, object], *, today: date | None = None):
-    # 서비스는 평가마다 감사 로그를 저장소의 추적 파일(data/xai_audit_log.jsonl)에
-    # 이어 쓴다. 테스트가 그 파일을 더럽히지 않도록 임시 저장소로 바꿔 끼운다.
+    # 서비스는 평가마다 감사 로그(data/xai_audit_log.jsonl)에 이어 쓴다.
+    # 테스트가 실제 로그를 더럽히지 않도록 임시 저장소로 바꿔 끼운다.
     with tempfile.TemporaryDirectory() as tmp_dir, patch(
         "domain.xai_purchase.service._AUDIT_STORE",
         JsonlXaiAuditLogStore(Path(tmp_dir) / "audit.jsonl"),
-    ), patch(
-        "domain.xai_purchase.service._fetch_page_text",
-        return_value=(None, "MISSING_PURCHASE_URL"),
     ), patch(
         "domain.xai_purchase.service._utc_today",
         return_value=today or date(2030, 1, 1),  # 기본값: 어떤 거래도 창 밖

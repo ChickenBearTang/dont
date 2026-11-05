@@ -18,7 +18,6 @@ DB, Spring, 외부 네트워크 없이 노트북에서 그대로 실행된다.
 from __future__ import annotations
 
 import json
-import os
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -134,13 +133,6 @@ SCENARIOS: dict[str, dict[str, object]] = {
 
 def _bar(title: str) -> None:
     print(f"\n{'─' * 70}\n  {title}\n{'─' * 70}")
-
-
-def _won(value: object) -> str:
-    try:
-        return f"{int(float(str(value))):,}원"
-    except (TypeError, ValueError):
-        return str(value)
 
 
 def run(name: str, payload: dict[str, object]) -> None:

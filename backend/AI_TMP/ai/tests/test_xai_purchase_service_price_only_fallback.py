@@ -77,9 +77,6 @@ class XaiPurchasePriceOnlyFallbackTest(unittest.TestCase):
                 },
                 [],
             ),
-        ), patch(
-            "domain.xai_purchase.service._fetch_page_text",
-            return_value=(None, "MISSING_PURCHASE_URL"),
         ):
             response = evaluate_pr_purchase_xai(request)
 

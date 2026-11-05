@@ -66,11 +66,7 @@ def _request() -> PurchaseXaiEvaluationRequest:
 
 class XaiPurchaseServiceTest(unittest.TestCase):
     def test_evaluate_pr_purchase_xai_returns_normalized_response(self) -> None:
-        with patch(
-            "domain.xai_purchase.service._fetch_page_text",
-            return_value=(None, "MISSING_PURCHASE_URL"),
-        ):
-            response = evaluate_pr_purchase_xai(_request())
+        response = evaluate_pr_purchase_xai(_request())
 
         self.assertEqual(response.request_id, "req-456")
         self.assertEqual(response.purchase_request_id, 91)
@@ -81,107 +77,33 @@ class XaiPurchaseServiceTest(unittest.TestCase):
         self.assertTrue(len(response.supporting_evidence) >= 1)
         self.assertIn("runtime_engines", response.model_dump())
 
-    def test_request_price_takes_priority_over_noisy_crawled_value(self) -> None:
-        with patch(
-            "domain.xai_purchase.service._fetch_page_text",
-            return_value=("배송비 1,796원 / 특가 2,500,000원 아님", None),
-        ):
-            response = evaluate_pr_purchase_xai(_request())
+    def test_request_price_is_the_effective_price(self) -> None:
+        response = evaluate_pr_purchase_xai(_request())
 
         price_metrics = {
             metric.code: metric.value
             for metric in response.price_evaluation.key_metrics
         }
         self.assertEqual(price_metrics.get("current_effective_price"), "189,000원")
-        self.assertNotIn("requested_price_amount", price_metrics)
-        self.assertNotIn("crawled_price_candidate", price_metrics)
-        self.assertNotIn("CRAWL_FETCH_FAILED", response.warnings)
-        self.assertNotIn("PRICE_ESTIMATED_FROM_REQUEST", response.warnings)
-        self.assertNotIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
 
     def test_summary_and_top_factors_are_localized_in_korean(self) -> None:
-        with patch(
-            "domain.xai_purchase.service._fetch_page_text",
-            return_value=(None, "MISSING_PURCHASE_URL"),
-        ):
-            response = evaluate_pr_purchase_xai(_request())
+        response = evaluate_pr_purchase_xai(_request())
 
         self.assertRegex(response.summary, r"[가-힣]")
         self.assertGreaterEqual(len(response.top_factors), 1)
         for factor in response.top_factors:
             self.assertRegex(factor.label, r"[가-힣]")
 
-    def test_missing_crawl_price_defaults_to_zero_without_divergence_warning(
-        self,
-    ) -> None:
-        with patch(
-            "domain.xai_purchase.service._fetch_page_text",
-            return_value=(None, "MISSING_PURCHASE_URL"),
-        ):
-            response = evaluate_pr_purchase_xai(_request())
-
-        price_metrics = {
-            metric.code: metric.value
-            for metric in response.price_evaluation.key_metrics
-        }
-        self.assertNotIn("requested_price_amount", price_metrics)
-        self.assertNotIn("crawled_price_candidate", price_metrics)
-        self.assertNotIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
-        self.assertNotIn("CRAWL_FETCH_FAILED", response.warnings)
-        self.assertNotIn("PRICE_ESTIMATED_FROM_REQUEST", response.warnings)
-
-    def test_tag_based_price_is_preferred_over_noisy_large_numbers(self) -> None:
-        request = _request()
-        request.purchase.price_amount.value = 1000
-        tagged_html = """
-        <html>
-          <body>
-            <div class="purchase-card">
-              <span class="final-price">1,000원</span>
-            </div>
-            <script>
-              const analyticsTotal = 534000000;
-            </script>
-          </body>
-        </html>
-        """
-        with patch(
-            "domain.xai_purchase.service._fetch_page_text",
-            return_value=(tagged_html, None),
-        ):
-            response = evaluate_pr_purchase_xai(request)
-
-        price_metrics = {
-            metric.code: metric.value
-            for metric in response.price_evaluation.key_metrics
-        }
-        self.assertEqual(price_metrics.get("current_effective_price"), "1,000원")
-        self.assertNotIn("requested_price_amount", price_metrics)
-        self.assertNotIn("crawled_price_candidate", price_metrics)
-        self.assertNotIn("CRAWLED_PRICE_DIVERGES_FROM_REQUEST", response.warnings)
-
-    def test_total_price_is_divided_by_quantity_for_per_item_candidate(self) -> None:
+    def test_missing_request_price_shows_a_dash(self) -> None:
         request = _request()
         request.purchase.price_amount.value = None
-        tagged_html = """
-        <html>
-          <body>
-            <div class="price-summary">총 금액 893,000,000원 / 1000개</div>
-          </body>
-        </html>
-        """
-        with patch(
-            "domain.xai_purchase.service._fetch_page_text",
-            return_value=(tagged_html, None),
-        ):
-            response = evaluate_pr_purchase_xai(request)
+
+        response = evaluate_pr_purchase_xai(request)
 
         price_metrics = {
             metric.code: metric.value
             for metric in response.price_evaluation.key_metrics
         }
-        self.assertNotIn("requested_price_amount", price_metrics)
-        self.assertNotIn("crawled_price_candidate", price_metrics)
         self.assertEqual(price_metrics.get("current_effective_price"), "-")
 
     def test_financial_status_uses_savebox_and_fixed_cashflow_fields(self) -> None:
@@ -206,9 +128,6 @@ class XaiPurchaseServiceTest(unittest.TestCase):
         request = PurchaseXaiEvaluationRequest.model_validate(payload)
 
         with patch(
-            "domain.xai_purchase.service._fetch_page_text",
-            return_value=(None, "MISSING_PURCHASE_URL"),
-        ), patch(
             "domain.xai_purchase.service.predict_finance_signal",
             return_value=(
                 {},
@@ -232,9 +151,6 @@ class XaiPurchaseServiceTest(unittest.TestCase):
         request = _request()
 
         with patch(
-            "domain.xai_purchase.service._fetch_page_text",
-            return_value=(None, "MISSING_PURCHASE_URL"),
-        ), patch(
             "domain.xai_purchase.service.predict_finance_signal",
             return_value=(
                 {},

@@ -103,14 +103,3 @@ def validate_inference_payload(payload: dict[str, Any]) -> None:
             raise SchemaValidationError(
                 f"forbidden train/source field in inference payload: {forbidden_name}"
             )
-
-
-def enforce_null_reserved_fields(raw_row: dict[str, Any]) -> None:
-    for field_name in PHASE2_RESERVED_FIELDS:
-        if field_name not in raw_row:
-            continue
-        value = raw_row[field_name]
-        if value == 0:
-            raise SchemaValidationError(
-                f"reserved field must keep unknown as null, got zero: {field_name}"
-            )

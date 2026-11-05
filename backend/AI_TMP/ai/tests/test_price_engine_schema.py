@@ -7,7 +7,6 @@ from ..price_engine.allowlist import SCHEMA_VERSION
 from ..price_engine.schema_models import PriceObservation
 from ..price_engine.schema_validator import (
     SchemaValidationError,
-    enforce_null_reserved_fields,
     validate_schema_version,
 )
 
@@ -16,12 +15,6 @@ class PriceEngineSchemaTest(unittest.TestCase):
     def test_schema_version_mismatch_fails_fast(self) -> None:
         with self.assertRaises(SchemaValidationError):
             validate_schema_version("v0")
-
-    def test_reserved_fields_keep_null_not_zero(self) -> None:
-        with self.assertRaises(SchemaValidationError):
-            enforce_null_reserved_fields({"coupon_discount_amount": 0})
-
-        enforce_null_reserved_fields({"coupon_discount_amount": None})
 
     def test_price_observation_schema_version_defaults_to_expected(self) -> None:
         row = PriceObservation(

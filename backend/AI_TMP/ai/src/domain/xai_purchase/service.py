@@ -3,10 +3,8 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 import os
 from pathlib import Path
-import re
 from typing import Any
 from urllib.parse import urlparse
-import urllib.request
 
 from ai.models import CrawlResult, HotDeal
 from ai.finance_engine.explain import explain_finance_signal
@@ -23,7 +21,6 @@ from ai.xai.input_contract import (
     ResolvedFinanceProfile,
     resolve_finance_profile,
 )
-from ai.xai.shap_engine import ShapContributionEngine
 from ai.xai.spending import (
     RecentTransaction,
     SpendingEstimate,
@@ -43,31 +40,6 @@ from domain.xai_purchase.schemas import (
     TopFactor,
 )
 from ai.storage.postgres_store import PostgresCrawlStore
-
-_PRICE_PATTERN = re.compile(r"(?<!\d)(\d{1,3}(?:,\d{3})+|\d{5,9})(?!\d)")
-_TAG_PRICE_BLOCK_PATTERN = re.compile(
-    r"<(?P<tag>[a-z0-9]+)[^>]*(?:class|id|itemprop|data-testid|data-role|aria-label)\s*=\s*(['\"])"
-    r"[^\"']*(?:price|가격|금액)[^\"']*\2[^>]*>(?P<body>.*?)</(?P=tag)>",
-    re.IGNORECASE | re.DOTALL,
-)
-_META_PRICE_CONTENT_PATTERN = re.compile(
-    r"<meta[^>]*(?:property|name|itemprop)\s*=\s*(['\"])"
-    r"[^\"']*price[^\"']*\1[^>]*content\s*=\s*(['\"])(?P<content>[^\"']+)\2[^>]*"
-    r"|<meta[^>]*content\s*=\s*(['\"])(?P<content_alt>[^\"']+)\3[^>]*"
-    r"(?:property|name|itemprop)\s*=\s*(['\"])[^\"']*price[^\"']*\4[^>]*",
-    re.IGNORECASE,
-)
-_HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
-_GENERIC_NUMBER_TOKEN_PATTERN = re.compile(r"\d[\d,]{0,11}")
-_TOTAL_PRICE_HINT_PATTERN = re.compile(
-    r"(총\s*(?:액|합|금액|결제)?|합계|전체\s*금액|누적|subtotal|total)",
-    re.IGNORECASE,
-)
-_UNIT_PRICE_HINT_PATTERN = re.compile(
-    r"(판매가|구매가|할인가|최종가|즉시가|단가|개당|price|가격|금액)",
-    re.IGNORECASE,
-)
-_QUANTITY_TOKEN_PATTERN = re.compile(r"(\d{1,5})\s*(개|입|ea|pcs)", re.IGNORECASE)
 _AUDIT_STORE = JsonlXaiAuditLogStore()
 _SNAPSHOT_STORE = JsonlXaiSnapshotStore()
 
@@ -97,180 +69,6 @@ def _env_flag(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _fetch_page_text(url: str | None) -> tuple[str | None, str | None]:
-    if url is None or url.strip() == "":
-        return None, "MISSING_PURCHASE_URL"
-    try:
-        request = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
-                )
-            },
-        )
-        with urllib.request.urlopen(request, timeout=5) as response:
-            text = response.read().decode("utf-8", errors="ignore")
-            return text[:20000], None
-    except Exception:
-        return None, "CRAWL_FETCH_FAILED"
-
-
-def _extract_current_price(
-    page_text: str | None, fallback_value: int | None
-) -> tuple[int | None, int | None, bool]:
-    if page_text is None:
-        return fallback_value, 0, True
-
-    tagged_price = _extract_price_from_tagged_html(
-        page_text=page_text,
-        fallback_value=fallback_value,
-    )
-    if tagged_price is not None:
-        if fallback_value is None:
-            return tagged_price, tagged_price, False
-        return fallback_value, tagged_price, False
-
-    matches = [
-        int(token.replace(",", "")) for token in _PRICE_PATTERN.findall(page_text)
-    ]
-    if len(matches) == 0:
-        return fallback_value, 0, True
-    crawled_price = max(matches)
-    if fallback_value is None:
-        return crawled_price, crawled_price, False
-    return fallback_value, crawled_price, False
-
-
-def _extract_price_from_tagged_html(
-    *,
-    page_text: str,
-    fallback_value: int | None,
-) -> int | None:
-    candidates: list[tuple[int, int, int]] = []
-    candidate_order = 0
-
-    for meta_match in _META_PRICE_CONTENT_PATTERN.finditer(page_text):
-        content = meta_match.group("content") or meta_match.group("content_alt")
-        context = _strip_html_tags(meta_match.group(0))
-        parsed = _parse_positive_int(content)
-        if parsed is not None:
-            candidate_order += 1
-            score = _score_tagged_candidate(
-                value=parsed,
-                context=context,
-                near_text=context,
-            )
-            candidates.append((parsed, score, candidate_order))
-            for derived in _derive_unit_prices_from_total(parsed, context=context):
-                candidate_order += 1
-                candidates.append((derived, score + 2, candidate_order))
-
-    for block_match in _TAG_PRICE_BLOCK_PATTERN.finditer(page_text):
-        context = _strip_html_tags(block_match.group(0))
-        for value, near_text in _extract_numeric_tokens_with_context(context):
-            candidate_order += 1
-            score = _score_tagged_candidate(
-                value=value,
-                context=context,
-                near_text=near_text,
-            )
-            candidates.append((value, score, candidate_order))
-            for derived in _derive_unit_prices_from_total(value, context=context):
-                candidate_order += 1
-                candidates.append((derived, score + 2, candidate_order))
-
-    if len(candidates) == 0:
-        return None
-
-    if fallback_value is not None and fallback_value > 0:
-        return min(
-            candidates,
-            key=lambda candidate: (
-                abs(candidate[0] - fallback_value),
-                -candidate[1],
-                candidate[2],
-            ),
-        )[0]
-
-    best_score = max(score for _, score, _ in candidates)
-    best_candidates = [
-        (value, score, order)
-        for value, score, order in candidates
-        if score == best_score
-    ]
-    return min(best_candidates, key=lambda candidate: (candidate[0], candidate[2]))[0]
-
-
-def _strip_html_tags(value: str) -> str:
-    return _HTML_TAG_PATTERN.sub(" ", value)
-
-
-def _extract_numeric_tokens_with_context(value: str) -> list[tuple[int, str]]:
-    parsed_values: list[tuple[int, str]] = []
-    for token_match in _GENERIC_NUMBER_TOKEN_PATTERN.finditer(value):
-        parsed = _parse_positive_int(token_match.group(0))
-        if parsed is None:
-            continue
-        start = max(0, token_match.start() - 12)
-        end = min(len(value), token_match.end() + 12)
-        near_text = value[start:end]
-        parsed_values.append((parsed, near_text))
-    return parsed_values
-
-
-def _extract_quantity_hint(context: str) -> int | None:
-    quantity_match = _QUANTITY_TOKEN_PATTERN.search(context)
-    if quantity_match is None:
-        return None
-    quantity = int(quantity_match.group(1))
-    if quantity <= 1:
-        return None
-    return quantity
-
-
-def _derive_unit_prices_from_total(value: int, *, context: str) -> list[int]:
-    if not _TOTAL_PRICE_HINT_PATTERN.search(context):
-        return []
-    quantity = _extract_quantity_hint(context)
-    if quantity is None or value <= quantity:
-        return []
-    if value < (quantity * 10):
-        return []
-    return [max(int(round(value / quantity)), 1)]
-
-
-def _score_tagged_candidate(*, value: int, context: str, near_text: str) -> int:
-    score = 0
-    near_text_lower = near_text.lower()
-    if "원" in near_text or "krw" in near_text_lower:
-        score += 3
-    if _UNIT_PRICE_HINT_PATTERN.search(context):
-        score += 2
-    if _TOTAL_PRICE_HINT_PATTERN.search(context):
-        score -= 3
-    if _QUANTITY_TOKEN_PATTERN.search(near_text) and "원" not in near_text:
-        score -= 2
-    if value > 100_000_000:
-        score -= 1
-    if value < 100:
-        score -= 2
-    return score
-
-
-def _parse_positive_int(value: str | None) -> int | None:
-    if value is None:
-        return None
-    digits = re.sub(r"[^0-9]", "", value)
-    if digits == "":
-        return None
-    parsed = int(digits)
-    if parsed <= 0:
-        return None
-    return parsed
-
-
 def _provenance_value_to_float(value_obj: Any | None, default: float = 0.0) -> float:
     if value_obj is None:
         return float(default)
@@ -281,18 +79,6 @@ def _provenance_value_to_float(value_obj: Any | None, default: float = 0.0) -> f
         return float(raw_value)
     except (TypeError, ValueError):
         return float(default)
-
-
-def _provenance_value_to_int(value_obj: Any | None, default: int = 0) -> int:
-    if value_obj is None:
-        return int(default)
-    raw_value = getattr(value_obj, "value", None)
-    if raw_value is None:
-        return int(default)
-    try:
-        return int(raw_value)
-    except (TypeError, ValueError):
-        return int(default)
 
 
 def _utc_today() -> date:
@@ -595,11 +381,7 @@ def _collect_warnings(payload: dict[str, Any], seed_warnings: list[str]) -> list
 def _data_completeness(warnings: list[str]) -> float:
     penalties = 0.0
     for warning in warnings:
-        if warning in {
-            "MISSING_PURCHASE_URL",
-            "CRAWL_FETCH_FAILED",
-            "NO_PRICE_HISTORY",
-        }:
+        if warning == "NO_PRICE_HISTORY":
             penalties += 0.2
         elif warning.startswith("FINANCE_FIELD_DEFAULTED:"):
             # 기본값으로 채운 입력은 그만큼 사용자 실제 상태를 모른다는 뜻이다.
@@ -619,9 +401,7 @@ def _explanation_fidelity(
         score -= 0.1
     if runtime_engines.dice == "disabled":
         score -= 0.1
-    if any(
-        warning in {"MISSING_PURCHASE_URL", "NO_PRICE_HISTORY"} for warning in warnings
-    ):
+    if "NO_PRICE_HISTORY" in warnings:
         score -= 0.15
     return max(0.0, min(1.0, score))
 
@@ -870,7 +650,6 @@ def evaluate_pr_purchase_xai(
     )
 
     current_price = stated_price
-    price_estimated = False
 
     window_stats, stats_warnings = _read_window_stats(
         current_price,
@@ -925,7 +704,6 @@ def evaluate_pr_purchase_xai(
         dice_engine = DiceCounterfactualEngine(
             fallback_engine=fallback_counterfactual_engine
         )
-    shap_engine: Any = ShapContributionEngine() if shap_enabled else object()
 
     def scenario_signals(
         scenario_price: int | None, scenario_profile: dict[str, float | int]
@@ -955,7 +733,6 @@ def evaluate_pr_purchase_xai(
         scenario_signals=None if dice_enabled else scenario_signals,
         counterfactual_engine=fallback_counterfactual_engine,
         dice_counterfactual_engine=dice_engine,
-        shap_contribution_engine=shap_engine,
     )
     payload = analyzer.analyze_crawl_result(
         CrawlResult(
@@ -1060,12 +837,11 @@ def evaluate_pr_purchase_xai(
                 str(evidence.get("feature", "")), resolved_profile
             )
             == Origin.DEFAULT,
-            isEstimated=(
-                str(evidence.get("feature", "")) == "current_price" and price_estimated
+            isEstimated=_evidence_origin(
+                str(evidence.get("feature", "")), resolved_profile
             )
-            or _evidence_origin(str(evidence.get("feature", "")), resolved_profile)
             == Origin.ESTIMATED,
-            estimationMethod=("page_text_closest_numeric" if price_estimated else None),
+            estimationMethod=None,
         )
         for evidence in item.get("supporting_evidence", [])
     ]

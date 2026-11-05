@@ -9,7 +9,6 @@ class XAIContracts:
     SCHEMA_VERSION = "financial-purchase-copilot-xai-v1"
     SPEC_VERSION = "1.0"
     MAX_CONSUMER_REASONS = 4
-    DEFAULT_REASON_TARGET = 3
     ALLOWED_DECISIONS = {"BUY_NOW", "WAIT", "REVIEW", "NOT_RECOMMENDED"}
 
     @staticmethod

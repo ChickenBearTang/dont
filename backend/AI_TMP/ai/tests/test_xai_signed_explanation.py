@@ -150,12 +150,13 @@ class AnalyzerSignedModeTest(unittest.TestCase):
             legacy["crawl"]["items"][0]["decision"], signed["crawl"]["items"][0]["decision"]
         )
 
-    def test_설명_모드를_주지_않으면_예전_방식이다(self) -> None:
+    def test_설명_모드를_주지_않으면_가짜_설명을_만들지_않고_점수_순위만_쓴다(self) -> None:
         payload = ExplainabilityAnalyzer(
             finance_profile=FINANCE, dice_counterfactual_engine=CounterfactualEngine()
         ).analyze_crawl_result(_crawl())
 
-        self.assertEqual(payload["runtime_engines"]["shap"]["backend"], "shap_fast")
+        state = payload["runtime_engines"]["shap"]
+        self.assertEqual((state["enabled"], state["backend"]), (False, "feature_score_ranking"))
 
 
 def _request(*, price: int, finance: dict) -> PurchaseXaiEvaluationRequest:

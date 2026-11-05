@@ -21,12 +21,11 @@ ANALYZER_SOURCE = Path(__file__).resolve().parents[1] / "xai" / "analyzer.py"
 
 
 def _analyzer(**kwargs: object) -> ExplainabilityAnalyzer:
-    """SHAP/DiCE 같은 무거운 엔진 없이 규칙 기반 엔진만 쓴다."""
+    """DiCE 같은 무거운 엔진 없이 규칙 기반 엔진만 쓴다."""
     fallback = CounterfactualEngine()
     return ExplainabilityAnalyzer(
         counterfactual_engine=fallback,
         dice_counterfactual_engine=fallback,
-        shap_contribution_engine=object(),
         **kwargs,  # type: ignore[arg-type]
     )
 
@@ -155,6 +154,26 @@ class MonthlySpendingIsNotProductHistoryTest(unittest.TestCase):
         )
         self.assertAlmostEqual(low["product_price_vs_monthly_spending"], 2.0)
         self.assertAlmostEqual(high["product_price_vs_monthly_spending"], 0.5)
+
+
+class NoFabricatedExplanationTest(unittest.TestCase):
+    """설명(SHAP)을 넘기지 않는 경로(CLI/진단)가 가짜 SHAP 값을 지어내지 않는다.
+
+    예전에는 판단 점수에 `sum(x)` 라는 가짜 모델의 SHAP 을 씌워 점수 x 0.25 를 '기여도'로 보여 줬다.
+    """
+
+    def test_요인_점수는_판단_점수_그대로이고_엔진_상태는_설명을_만들지_않았다고_말한다(self) -> None:
+        analyzer = _analyzer()
+        payload = analyzer.analyze_crawl_result(_crawl(), top_k=4)
+
+        state = payload["runtime_engines"]["shap"]
+        self.assertEqual((state["enabled"], state["backend"]), (False, "feature_score_ranking"))
+        self.assertEqual(state["reason"], "finance_explanation_not_provided")
+        expected = analyzer._build_feature_scores({"price_int": 1_200_000, "missing_fields": []}, window_stats=None)
+        reasons = payload["crawl"]["items"][0]["reasons"]
+        self.assertTrue(reasons)
+        for reason in reasons:
+            self.assertAlmostEqual(reason["score"], expected[reason["feature"]], places=9, msg=reason["feature"])
 
 
 class SingleSourceOfTruthTest(unittest.TestCase):

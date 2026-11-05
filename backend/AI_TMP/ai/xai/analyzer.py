@@ -47,7 +47,6 @@ class ExplainabilityAnalyzer:
         reasoning_engine: Any | None = None,
         counterfactual_engine: Any | None = None,
         dice_counterfactual_engine: Any | None = None,
-        shap_contribution_engine: Any | None = None,
         summary_polisher: Any | None = None,
         finance_profile: dict[str, float | int] | ResolvedFinanceProfile | None = None,
         price_model_signal: dict[str, float] | None = None,
@@ -65,8 +64,8 @@ class ExplainabilityAnalyzer:
           양수 = 유리, 음수 = 불리. 문구도 부호에 맞춰 나간다.
         - 빈 dict 는 '설명을 만들지 못했다'는 뜻이다. 가짜 점수로 채우지 않고 재무
           요인을 설명에서 뺀다.
-        - 없으면(None) 예전 방식이다. 판단 규칙용 점수에 가짜 SHAP 을 씌워 설명한다.
-          부호가 의미 없어서 CLI/진단용으로만 남겨 둔다.
+        - 없으면(None) CLI/진단용이다. 판단 규칙용 점수를 변환 없이 크기 순으로 보여 준다.
+          부호가 '구매에 유리/불리'를 뜻하지 않으므로 설명이 아니라 점수 목록일 뿐이다.
 
         scenario_signals 가 주어지면 '무엇을 바꾸면 되나'를 모델 기반 탐색으로 만든다.
         (가격, 재무 프로필) -> (가격 모델 신호, 재무 모델 신호) 를 돌려주는 함수로, 모델을
@@ -77,12 +76,7 @@ class ExplainabilityAnalyzer:
         reasoning_module = import_module("ai.xai.reasoning")
         counterfactuals_module = import_module("ai.xai.counterfactuals")
         polisher_module = import_module("ai.xai.polisher")
-        shap_module: Any | None = None
         dice_module: Any | None = None
-        try:
-            shap_module = import_module("ai.xai.shap_engine")
-        except Exception:
-            shap_module = None
         try:
             dice_module = import_module("ai.xai.dice_engine")
         except Exception:
@@ -100,9 +94,6 @@ class ExplainabilityAnalyzer:
             )
             if dice_module is not None
             else self._rule_counterfactual_engine
-        )
-        self._shap_contribution_engine = shap_contribution_engine or (
-            shap_module.ShapContributionEngine() if shap_module is not None else None
         )
         self._summary_polisher = (
             summary_polisher or polisher_module.LLMSummaryPolisher()
@@ -189,29 +180,11 @@ class ExplainabilityAnalyzer:
                         for name, value in feature_scores.items()
                         if not name.startswith(_BUDGET_INPUT_PREFIX)
                     }
-                    if self._shap_contribution_engine is not None and hasattr(
-                        self._shap_contribution_engine, "compute"
-                    ):
-                        computed, shap_meta = self._shap_contribution_engine.compute(
-                            feature_scores=shap_scores
-                        )
-                        if isinstance(computed, dict):
-                            shap_scores = {
-                                str(name): float(value)
-                                for name, value in computed.items()
-                                if isinstance(name, str)
-                            }
-                        if isinstance(shap_meta, dict):
-                            shap_engine_state = {
-                                "enabled": bool(shap_meta.get("enabled", False)),
-                                "backend": str(shap_meta.get("backend", "fallback")),
-                            }
-                            if "reason" in shap_meta:
-                                shap_engine_state["reason"] = str(shap_meta.get("reason"))
-                            if "feature_count" in shap_meta:
-                                shap_engine_state["feature_count"] = int(
-                                    shap_meta.get("feature_count", len(shap_scores))
-                                )
+                    shap_engine_state = {
+                        "enabled": False,
+                        "backend": "feature_score_ranking",
+                        "reason": "finance_explanation_not_provided",
+                    }
                     reasons = self._reasoning_engine.analyze(
                         shap_scores, top_k=requested_top_k
                     )

@@ -12,7 +12,6 @@ from ai.models import CrawlResult
 from ai.xai.analyzer import ExplainabilityAnalyzer
 from ai.xai.counterfactuals import CounterfactualEngine
 from ai.xai.dice_engine import DiceCounterfactualEngine
-from ai.xai.shap_engine import ShapContributionEngine
 
 
 def _basic_payload(result: CrawlResult) -> dict[str, Any]:
@@ -65,7 +64,6 @@ def main() -> None:
         dice_counterfactual_engine=DiceCounterfactualEngine(
             fallback_engine=fallback_counterfactual_engine
         ),
-        shap_contribution_engine=ShapContributionEngine(),
     )
     top_k = max(1, min(int(args.xai_top_k), 4))
 

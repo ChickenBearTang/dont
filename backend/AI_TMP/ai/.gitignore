@@ -4,3 +4,8 @@ __pycache__/
 *.pyo
 *.pyd
 *.egg-info/
+
+# 실행 중에 쌓이는 데이터. 저장소에 올리지 않는다 (테스트가 쓴 기록이 섞여 들어간 적이 있다).
+data/xai_audit_log.jsonl
+data/xai_feedback.jsonl
+data/xai_input_snapshots.jsonl
