@@ -27,8 +27,10 @@ services:
       POSTGRES_DB: ${AI_POSTGRES_DB:-ai_crawl}
       POSTGRES_USER: ${AI_POSTGRES_USER:-ai_user}
       POSTGRES_PASSWORD: ${AI_POSTGRES_PASSWORD:-ai_password}
+    # 컨테이너끼리는 서비스 이름(ai-postgres:5432)으로 붙는다. 호스트에는 로컬에서만 연다 (원격에서 붙으려면 SSH 터널).
+    # 기본 비밀번호(ai_password)로 바깥에 열려 있으면 가격 학습·가용성 판정에 쓰는 수집 데이터를 누구나 고칠 수 있다.
     ports:
-      - "${AI_POSTGRES_PORT:-55432}:5432"
+      - "127.0.0.1:${AI_POSTGRES_PORT:-55432}:5432"
     volumes:
       - ai-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -186,8 +188,15 @@ services:
     restart: unless-stopped
     depends_on:
       - loki
+    environment:
+      # 새로 만드는 grafana-data 볼륨에만 적용된다. 이미 만들어진 볼륨의 비밀번호는 바뀌지 않으니
+      # `docker compose exec grafana grafana cli admin reset-admin-password '<새 비밀번호>'` 로 바꾼다.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?.env 에 GRAFANA_ADMIN_PASSWORD (Grafana 관리자 비밀번호) 를 넣어 주세요}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    # 로그에는 요청·오류 내용이 들어 있다. 호스트 밖으로는 열지 않는다 (SSH 터널로 접속).
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana-data:/var/lib/grafana
@@ -202,9 +211,12 @@ services:
     restart: unless-stopped
     profiles: ["ci"]
     user: root
+    # docker.sock 을 쓰는 root 컨테이너라 뚫리면 호스트가 넘어간다. 웹 UI 는 기본이 로컬 전용이다.
+    # GitLab/GitHub 웹훅으로 빌드를 시작하려면 .env 에 JENKINS_BIND=0.0.0.0 을 두고 방화벽/보안그룹으로 출처를 제한한다.
+    # 50000 은 원격 에이전트용인데 이 파이프라인은 컨트롤러에서 직접 돌아서(agent any) 로컬 전용이다.
     ports:
-      - "8081:8080"
-      - "50000:50000"
+      - "${JENKINS_BIND:-127.0.0.1}:8081:8080"
+      - "127.0.0.1:50000:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
