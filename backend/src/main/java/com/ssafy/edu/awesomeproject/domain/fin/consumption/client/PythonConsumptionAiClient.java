@@ -1,8 +1,6 @@
 package com.ssafy.edu.awesomeproject.domain.fin.consumption.client;
 
-import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.AiJustificationRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.AiMonthlyReportRequest;
-import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.AiJustificationResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.AiMonthlyReportAnalysisResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.global.client.AiClient;
 import java.util.List;
@@ -32,23 +30,6 @@ public class PythonConsumptionAiClient implements ConsumptionAiClient {
                     "Python monthly report analysis failed. Falling back to degraded response. reason={}",
                     exception.getMessage());
             return new AiReportAnalysis(defaultReportFeedback(), "degraded");
-        }
-    }
-
-    @Override
-    public JustificationEvaluation evaluateJustification(Long userId, String targetMonth, String message) {
-        try {
-            AiJustificationResponse response =
-                    aiClient.evaluateConsumptionJustification(
-                            new AiJustificationRequest(userId, targetMonth, message));
-            if (response == null) {
-                throw new IllegalStateException("AI justification response is empty");
-            }
-            return new JustificationEvaluation(response.valid(), response.response());
-        } catch (Exception exception) {
-            log.warn("Python justification evaluation failed: {}", exception.getMessage());
-            return new JustificationEvaluation(
-                    false, "변명 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
         }
     }
 

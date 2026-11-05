@@ -1,6 +1,5 @@
 import { Outlet } from 'react-router-dom';
 import { CommunitySidebar } from './CommunitySidebar';
-import StrictSecretaryModal from '@/components/StrictSecretaryModal';
 
 export const CommunityLayout = () => {
   return (
@@ -11,7 +10,6 @@ export const CommunityLayout = () => {
       <main className="flex-1 min-w-0">
         <Outlet />
       </main>
-      <StrictSecretaryModal />
     </div>
   );
 };

@@ -32,20 +32,6 @@ export const generateMonthlyAiReport = async (reportMonth: string): Promise<AiRe
   );
 };
 
-export const sendAiJustification = async (
-  targetMonth: string,
-  message: string
-): Promise<unknown> => {
-  return await axiosInstance.post(
-    '/fin/consumption/reports/justifications/evaluate',
-    {
-      targetMonth,
-      message,
-    },
-    { timeout: 120000 }
-  );
-};
-
 export const regenerateAiReport = async (reportMonth: string): Promise<AiReportResponse> => {
   return await axiosInstance.post(
     '/fin/consumption/reports/monthly',

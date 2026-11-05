@@ -1,10 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import type { AxiosError } from 'axios';
 import {
   getSpendingSummary,
   getMonthlyAiReport,
   generateMonthlyAiReport,
-  sendAiJustification,
   regenerateAiReport,
   getCardRecommendation,
   getConsumptionCompare,
@@ -19,7 +18,6 @@ import type {
 } from '../types';
 import { useAuthStore } from '@/features/auth/store/useAuthStore';
 import mascotAnalyze from '@/assets/character/mascot_analyze.png';
-import mascotJust from '@/assets/character/mascot_just.png';
 
 const CATEGORY_COLORS = [
   '#3B82F6',
@@ -509,239 +507,6 @@ const AIAnalysisCard = ({
   );
 };
 
-const ReportChatbot = ({
-  targetMonth,
-  onRegenerate,
-  onApplyRegeneratedReport,
-}: {
-  targetMonth: string;
-  onRegenerate: () => void;
-  onApplyRegeneratedReport: (payload?: AiReportPayload) => void;
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<{ sender: 'user' | 'ai'; text: string }[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isValidated, setIsValidated] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, loading]);
-
-  const handleSend = async () => {
-    if (!inputText.trim() || loading) return;
-    const msg = inputText;
-    setMessages((prev) => [...prev, { sender: 'user', text: msg }]);
-    setInputText('');
-    setLoading(true);
-    setIsValidated(false);
-
-    try {
-      const res = await sendAiJustification(targetMonth, msg);
-      const resData = (
-        res as { data?: { data?: Record<string, unknown> } | Record<string, unknown> }
-      )?.data;
-      const data = (resData && 'data' in resData && resData.data ? resData.data : resData) as
-        | Record<string, unknown>
-        | undefined;
-
-      const aiResponse = String(
-        data?.ai_response ?? data?.aiResponse ?? '설득력이 있는 내용이네요. 내용을 검토하겠습니다.'
-      );
-      const valid = Boolean(data?.is_valid ?? data?.valid ?? false);
-      const reportRegenerated = Boolean(
-        data?.report_regenerated ?? data?.reportRegenerated ?? false
-      );
-      const regeneratedReport = (
-        data?.regenerated_report ?? data?.regeneratedReport
-      ) as { reportPayload?: AiReportPayload } | undefined;
-
-      setMessages((prev) => [...prev, { sender: 'ai', text: aiResponse }]);
-
-      if (reportRegenerated) {
-        onApplyRegeneratedReport(regeneratedReport?.reportPayload);
-        setMessages((prev) => [
-          ...prev,
-          { sender: 'ai', text: '소명 내용을 반영해서 소비리포트도 바로 업데이트했어요.' },
-        ]);
-        setIsValidated(false);
-      } else if (valid) {
-        setIsValidated(true);
-      }
-    } catch (e) {
-      console.error(e);
-      setMessages((prev) => [
-        ...prev,
-        { sender: 'ai', text: '오류가 발생했습니다. 잠시 후 다시 시도해주세요.' },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegenerate = async () => {
-    if (regenerating) return;
-    setRegenerating(true);
-    try {
-      await onRegenerate();
-      setMessages((prev) => [
-        ...prev,
-        { sender: 'ai', text: '방금 전달해주신 의견을 바탕으로 새로운 리포트를 작성했습니다! 😊' },
-      ]);
-      setIsValidated(false);
-    } catch (e) {
-      console.error(e);
-      alert('리포트 재작성에 실패했습니다.');
-    } finally {
-      setRegenerating(false);
-    }
-  };
-
-  if (!isOpen) {
-    return (
-      <div className="fixed bottom-8 right-8 flex flex-col items-end z-50 pointer-events-none">
-        <div
-          className={`mb-2 mr-2 flex flex-col items-end transition-all duration-500 ease-out z-50 ${isHovered
-            ? 'opacity-100 translate-y-0 scale-100'
-            : 'opacity-0 translate-y-4 scale-90 pointer-events-none'
-            }`}
-        >
-          <div className="bg-white px-4 py-2.5 rounded-2xl shadow-xl border border-gray-100 text-[13px] font-black text-eel mb-2 relative pointer-events-auto">
-            리포트에 대해 불만이 있냐루?
-            <div className="absolute -bottom-1 right-6 w-2.5 h-2.5 bg-white border-r border-b border-gray-100 rotate-45" />
-          </div>
-          <img
-            src={mascotJust}
-            alt="질문하는 깐지"
-            className={`w-24 h-24 object-contain pointer-events-auto transition-transform duration-700 ${isHovered ? '-rotate-[30deg]' : 'rotate-0'
-              } origin-bottom-right`}
-          />
-        </div>
-        <button
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onClick={() => {
-            setIsOpen(true);
-            setIsHovered(false);
-          }}
-          className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center text-white text-3xl ring-4 ring-purple-100 animate-bounce pointer-events-auto"
-          aria-label="AI 반박하기"
-        >
-          💬
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed bottom-8 right-8 w-80 bg-white rounded-[24px] shadow-2xl border border-gray-100 flex flex-col overflow-hidden z-50 ring-4 ring-purple-100/50">
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 text-white flex justify-between items-center shadow-md z-10">
-        <div className="font-bold flex items-center gap-2">
-          <span className="text-xl">🤖</span> AI에게 반박하기
-        </div>
-        <button
-          onClick={() => setIsOpen(false)}
-          className="text-white/80 hover:text-white text-2xl leading-none"
-        >
-          &times;
-        </button>
-      </div>
-
-      <div className="h-96 p-4 overflow-y-auto bg-gray-50 flex flex-col gap-4">
-        {messages.length === 0 && (
-          <div className="text-center mt-10">
-            <div className="bg-blue-100 text-blue-800 p-4 rounded-2xl rounded-tr-sm text-sm border-blue-200 inline-block text-left shadow-sm">
-              <p className="font-bold mb-1">이번 달 분석 결과가 억울하신가요?</p>
-              <p>
-                AI에게 그 이유를 설명하고 리포트를 수정해 보세요! (예: "병원비는 어쩔 수 없는
-                고정지출이야")
-              </p>
-            </div>
-          </div>
-        )}
-
-        {messages.map((m, idx) => (
-          <div
-            key={idx}
-            className={`max-w-[85%] rounded-2xl p-3 text-[14px] leading-relaxed shadow-sm ${m.sender === 'user'
-              ? 'bg-blue-600 text-white self-end rounded-tr-sm'
-              : 'bg-white text-gray-800 self-start rounded-tl-sm border border-gray-100'
-              }`}
-          >
-            {m.text}
-          </div>
-        ))}
-
-        {loading && (
-          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl rounded-tl-sm p-3 self-start text-gray-500 flex gap-1 w-14 items-center justify-center h-10">
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
-            <div
-              className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-              style={{ animationDelay: '0.1s' }}
-            />
-            <div
-              className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-              style={{ animationDelay: '0.2s' }}
-            />
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div className="p-3 bg-white border-t border-gray-100 flex flex-col gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-        {isValidated && (
-          <button
-            onClick={handleRegenerate}
-            disabled={regenerating}
-            className="w-full bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all active:scale-95 text-[14px] flex items-center justify-center gap-2"
-          >
-            {regenerating ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>재작성 중...</span>
-              </>
-            ) : (
-              <>
-                <span>✨</span> 의견 반영해서 리포트 재작성하기!
-              </>
-            )}
-          </button>
-        )}
-        <div className="flex gap-2">
-          <input
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="억울한 이유를 입력해주세요..."
-            className="flex-1 bg-gray-100 rounded-xl px-4 py-3 text-[14px] outline-none border border-transparent focus:border-purple-300 focus:bg-white transition-all shadow-inner"
-          />
-          <button
-            onClick={handleSend}
-            disabled={loading || !inputText.trim()}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 font-bold disabled:opacity-50 transition-all active:scale-95 shadow-md flex items-center justify-center disabled:active:scale-100"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="w-5 h-5 -mr-1"
-            >
-              <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export const MonthlyReportPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1175,16 +940,6 @@ export const MonthlyReportPage = () => {
           />
         </div>
       </div>
-
-      {!isCurrentMonth && aiAnalysis && (
-        <ReportChatbot
-          targetMonth={formatToYYYYMM(currentDate)}
-          onRegenerate={handleChatRegenerate}
-          onApplyRegeneratedReport={(payload) =>
-            applyMonthlyReportPayload(payload, { preserveCardRecommendationOnEmpty: true })
-          }
-        />
-      )}
     </div>
   );
 };

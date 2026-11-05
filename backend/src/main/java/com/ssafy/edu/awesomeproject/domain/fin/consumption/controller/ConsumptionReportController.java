@@ -2,10 +2,8 @@ package com.ssafy.edu.awesomeproject.domain.fin.consumption.controller;
 
 import com.ssafy.edu.awesomeproject.common.annotation.CurrentUserId;
 import com.ssafy.edu.awesomeproject.common.response.CommonResponse;
-import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.EvaluateJustificationRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.request.GenerateMonthlyReportRequest;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.AvgCohort;
-import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.JustificationEvaluationResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.dto.response.MonthlyReportResponse;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.entity.MonthlyReportGenerationSource;
 import com.ssafy.edu.awesomeproject.domain.fin.consumption.service.ConsumptionReportService;
@@ -49,16 +47,6 @@ public class ConsumptionReportController {
         return ResponseEntity.ok(CommonResponse.success(response));
     }
 
-
-    @PostMapping("/justifications/evaluate")
-    @Operation(summary = "반박을 합니다.", description = "리포트에 대해 반박을 수행합니다.")
-    public ResponseEntity<CommonResponse<JustificationEvaluationResponse>> evaluateJustification(
-            @CurrentUserId Long userId, @RequestBody @Valid EvaluateJustificationRequest request) {
-        JustificationEvaluationResponse response =
-                consumptionReportService.evaluateAndSaveJustification(
-                        userId, request.targetMonth(), request.message());
-        return ResponseEntity.ok(CommonResponse.success(response));
-    }
 
     @GetMapping("/compare")
     @Operation(summary = "특정 기수 싸피원들의 지표를 반환합니다." , description = "세이브 박스 평균, 카테고리별 지출액 평균 (금월 1일부터 현재 일 까지)")
