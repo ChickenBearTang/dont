@@ -223,3 +223,6 @@ release_out/
 
 ai/data/
 ai/.env
+
+# demo DB 생성물 (backend/demo-db/demo.py generate)
+backend/demo-db/build/
